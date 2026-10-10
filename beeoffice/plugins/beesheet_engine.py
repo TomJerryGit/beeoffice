@@ -103,13 +103,30 @@ class FormulaEngine:
                 return str(v) if v is not None else "0"
 
         new_expr = re.sub(sheet_pattern, replace_sheet, expr)
+
+        # v5.0.5 安全修复（优化规划 §1.1）：
+        #   原实现在这里对替换后的表达式做裸 eval()，而表达式中除跨表引用之外
+        #   的部分完全由公式文本控制。清空 __builtins__ 并不构成沙箱——实测
+        #       =S!A1+[c for c in ().__class__.__base__.__subclasses__() ...]
+        #   即可经由 catch_warnings 取回 __import__ 并执行任意 Python
+        #   （见 BeeOffice-分析报告.md §3.1）。
+        #   现在改为先走 AST 白名单求值，与 IF/AND/OR/NOT/IFS 同一条加固路径。
         try:
-            return eval(new_expr, {"__builtins__": {}}, {})
-        except:
-            m = re.match(r'^(\w+)\((.+)\)$', new_expr, re.IGNORECASE)
-            if m:
-                return cls._func(m.group(1).upper(), m.group(2), model)
-            return cls._eval(new_expr, model)
+            return cls._safe_eval(new_expr, model)
+        except Exception:
+            pass
+
+        # 兜底：整体形如 FUNC(args) 时交给白名单函数分派器。
+        # 跨表求和 =SUM(S!A1:B1) 会被替换成 SUM(7,8)，而 _safe_eval 不允许调用
+        # 白名单外的函数名，因此必须在安全求值失败后走这一支。
+        m = re.match(r'^(\w+)\((.+)\)$', new_expr, re.IGNORECASE)
+        if m:
+            return cls._func(m.group(1).upper(), m.group(2), model)
+
+        # 其余情况回到通用求值；此时不应再残留跨表标记，避免无限递归
+        if '!' in new_expr:
+            raise ValueError(f"无法解析的跨表引用: {expr}")
+        return cls._eval(new_expr, model)
 
     @classmethod
     def _extract_sheet_cell(cls, df, ref):
@@ -177,9 +194,20 @@ class FormulaEngine:
         f = funcs.get(name)
         if f:
             return f(args, model)
+        # 统一签名为 (args_str, model)。
+        # 原实现把裸 math.* 函数与 lambda(a, m) 混在同一个表里，再按“多数派”
+        # 调用 f(cls._av(args, model))，于是 ABS/SQRT/PI/RAND 这 4 个 lambda
+        # 只收到 1 个参数而抛 “missing 1 required positional argument”——
+        # 它们出现在 UI 函数参考表与 Excel 兼容白名单里，实际却完全不可用
+        # （优化规划 §2.5）。
         math_funcs = {
-            'SIN': math.sin, 'COS': math.cos, 'TAN': math.tan, 'EXP': math.exp,
-            'LN': math.log, 'LOG10': math.log10, 'PI': lambda a, m: math.pi,
+            'SIN': lambda a, m: math.sin(cls._av(a, m)),
+            'COS': lambda a, m: math.cos(cls._av(a, m)),
+            'TAN': lambda a, m: math.tan(cls._av(a, m)),
+            'EXP': lambda a, m: math.exp(cls._av(a, m)),
+            'LN': lambda a, m: math.log(cls._av(a, m)),
+            'LOG10': lambda a, m: math.log10(cls._av(a, m)),
+            'PI': lambda a, m: math.pi,
             'RAND': lambda a, m: np.random.random(),
             'RANDBETWEEN': lambda a, m: np.random.randint(
                 int(cls._av(a.split(',')[0], m)),
@@ -189,9 +217,7 @@ class FormulaEngine:
             'SQRT': lambda a, m: float(cls._av(a, m)) ** 0.5,
         }
         if name in math_funcs:
-            if name in ('RANDBETWEEN',):
-                return math_funcs[name](*[args, model])
-            return math_funcs[name](cls._av(args, model))
+            return math_funcs[name](args, model)
         return f"#ERROR: 未知函数 {name}"
 
     @classmethod

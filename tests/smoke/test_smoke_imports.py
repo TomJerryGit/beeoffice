@@ -118,7 +118,6 @@ MODULES = [
     "beeoffice.plugins.ai_assist",
     "beeoffice.plugins.bee_export",
     "beeoffice.plugins.nl_formula",
-    "beeoffice.plugins.formula_engine",
     "beeoffice.plugins.data_binding",
     "beeoffice.plugins.variable_panel",
     "beeoffice.plugins.empty_state",

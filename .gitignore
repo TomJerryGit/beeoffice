@@ -186,3 +186,6 @@ finalize_session.py
 mslxt.txt
 # 本地临时目录
 _ptmp/
+# 本地验证产物
+_isolated_all.txt
+_r.log
