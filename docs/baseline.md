@@ -48,9 +48,10 @@ PyMuPDF(fitz)、python-docx、pandas 与 QtWebEngine；且这段代码由
 |---|---|---|
 | `tests/unit` + `tests/smoke` | 464 passed, **4 failed** | **473 passed, 0 failed** |
 | 失败用例 | `test_settings.py`：`test_save_and_load`、`test_window_size_serialization`、`test_password_encoded`、`test_password_decoded_on_load` | 已全部修复 |
-| `pytest --collect-only`（全量） | 710 | 715（新增 5 条原子写回归） |
+| `pytest --collect-only`（全量） | 710 | **733**（删掉死模块 `formula_engine.py` 的 64 条，新增 86 条安全/数据回归） |
 | `tests/qt` 单独运行 | 97 passed / 17.25 s | 待复测 |
-| 全量 `tests/` 一次性运行 | **原生崩溃**（顺序污染，单独跑子集均通过） | **待修**（阶段 4.2） |
+| 全量 `tests/` 一次性运行 | **原生崩溃**（顺序污染，单独跑子集均通过） | 仍会崩溃，但已有隔离运行方案与定位结论（见 §6.1） |
+| 按文件隔离运行（`tools/run_tests_isolated.py`） | — | **68 文件 / 683 passed / 0 failed / 0 error** |
 
 失败根因（已修复）：`AppSettings.save()` 先以 `"w"` 截断文件再在 `json.dump`
 参数位构造 payload，任何构造期异常都会把 `~/.beeoffice_settings.json` 留成
