@@ -21,15 +21,27 @@ import base64
 import logging
 from pathlib import Path
 
+from beeoffice.utils import atomic_write_json
+
 
 class AppSettings:
     """应用设置管理，支持版本迁移与敏感信息编码"""
 
     VERSION = 1  # 当前设置文件版本，升级时递增
 
-    def __init__(self):
-        # 配置文件路径
-        self.path = Path(str(Path.home() / ".beeoffice_settings.json"))
+    # 保存失败时的提示回调，由 UI 层注册（app.py）。
+    # 之所以做成可选的类级钩子而不是直接弹 QMessageBox，是为了让本模块不依赖
+    # Qt —— 否则在无 GUI 环境与测试里会弹出模态框把测试挂死。
+    on_save_error = None
+
+    def __init__(self, path=None):
+        # 配置文件路径。允许注入：测试应通过 path 参数或本参数隔离，
+        # 而不是复制本类的字段列表（那样字段一旦增减测试就会掩盖真实缺陷）。
+        self.path = (
+            Path(path)
+            if path is not None
+            else Path(str(Path.home() / ".beeoffice_settings.json"))
+        )
 
         # 默认值
         self.window_size = (1024, 680)
@@ -205,8 +217,22 @@ class AppSettings:
         return data
 
     # ---------- 保存 ----------
-    def save(self):
-        """保存设置到文件"""
+    def save(self) -> bool:
+        """
+        保存设置到文件（原子写）。
+
+        v5.0.5 修复（优化规划 §1.2）：
+          原实现先以 "w" 模式打开文件——这会**立即截断**它——然后在
+          json.dump 的参数位置构造字典。于是任何构造期异常（例如字段缺失，
+          实测由 v5.1 新增字段未同步到测试 fixture 触发）都会把用户的设置
+          文件留成 0 字节空文件，而异常被 except 静默吞掉。
+
+          现在分两步：先在内存构造完整 payload（此步失败时磁盘未被触碰），
+          再交给 atomic_write_json 做 “同目录临时文件 + fsync + os.replace”
+          的原子替换。目标文件要么保持旧的完整内容，要么是新的完整内容。
+
+        :return: 是否保存成功
+        """
         # 编码云配置中的敏感信息
         cloud_config_encoded = {}
         if isinstance(self.cloud_config, dict):
@@ -219,48 +245,68 @@ class AppSettings:
                 else:
                     cloud_config_encoded[k] = v
 
+        # 关键：payload 在打开目标文件之前完整构造
         try:
-            with open(self.path, "w", encoding="utf-8") as f:
-                json.dump({
-                    "version": self.VERSION,
-                    "window_size": list(self.window_size),
-                    "recent_files": self.recent_files,
-                    "open_tabs": self.open_tabs,
-                    "theme": self.theme,
-                    "accent_color": self.accent_color,
-                    "language": self.language,
-                    "has_completed_onboarding": self.has_completed_onboarding,
-                    "recent_commands": self.recent_commands,
-                    # 旧 WebDAV 字段（兼容）
-                    "webdav_url": self.webdav_url,
-                    "webdav_user": self.webdav_user,
-                    "webdav_pass": self._encode(self.webdav_pass),
-                    "webdav_enabled": self.webdav_enabled,
-                    "webdav_auto_sync": self.webdav_auto_sync,
-                    # Git
-                    "git_repo_path": self.git_repo_path,
-                    "git_enabled": self.git_enabled,
-                    # 新云存储
-                    "cloud_type": self.cloud_type,
-                    "cloud_config": cloud_config_encoded,
-                    "cloud_enabled": self.cloud_enabled,
-                    "cloud_auto_sync": self.cloud_auto_sync,
-                    # AI 服务（任务 1.1）
-                    "ai_api_key": self._encode(self.ai_api_key),
-                    "ai_api_base": self.ai_api_base,
-                    "ai_model": self.ai_model,
-                    # 用户信息（任务 4.2）
-                    "user_name": self.user_name,
-                    # 图库 API（任务 1.3）
-                    "unsplash_api_key": self._encode(
-                        self.unsplash_api_key
-                    ),
-                    "pexels_api_key": self._encode(
-                        self.pexels_api_key
-                    ),
-                }, f, indent=2, ensure_ascii=False)
+            payload = {
+                "version": self.VERSION,
+                "window_size": list(self.window_size),
+                "recent_files": self.recent_files,
+                "open_tabs": self.open_tabs,
+                "theme": self.theme,
+                "accent_color": self.accent_color,
+                "language": self.language,
+                "has_completed_onboarding": self.has_completed_onboarding,
+                "recent_commands": self.recent_commands,
+                # 旧 WebDAV 字段（兼容）
+                "webdav_url": self.webdav_url,
+                "webdav_user": self.webdav_user,
+                "webdav_pass": self._encode(self.webdav_pass),
+                "webdav_enabled": self.webdav_enabled,
+                "webdav_auto_sync": self.webdav_auto_sync,
+                # Git
+                "git_repo_path": self.git_repo_path,
+                "git_enabled": self.git_enabled,
+                # 新云存储
+                "cloud_type": self.cloud_type,
+                "cloud_config": cloud_config_encoded,
+                "cloud_enabled": self.cloud_enabled,
+                "cloud_auto_sync": self.cloud_auto_sync,
+                # AI 服务（任务 1.1）
+                "ai_api_key": self._encode(self.ai_api_key),
+                "ai_api_base": self.ai_api_base,
+                "ai_model": self.ai_model,
+                # 用户信息（任务 4.2）
+                "user_name": self.user_name,
+                # 图库 API（任务 1.3）
+                "unsplash_api_key": self._encode(
+                    self.unsplash_api_key
+                ),
+                "pexels_api_key": self._encode(
+                    self.pexels_api_key
+                ),
+            }
         except Exception as e:
-            logging.error(f"保存设置文件失败: {e}")
+            logging.error(f"构建设置数据失败（原文件未改动）: {e}")
+            self._notify_save_error(f"设置保存失败，原有设置未被改动：{e}")
+            return False
+
+        ok = atomic_write_json(self.path, payload)
+        if not ok:
+            self._notify_save_error(
+                f"设置保存失败，原有设置未被改动：{self.path}"
+            )
+        return ok
+
+    def _notify_save_error(self, message: str) -> None:
+        """把保存失败告知用户。UI 层未注册回调时只记日志，绝不静默。"""
+        logging.error(message)
+        callback = type(self).on_save_error
+        if callback is None:
+            return
+        try:
+            callback(message)
+        except Exception:
+            logging.exception("设置保存失败回调本身出错")
 
     # ---------- 便捷方法 ----------
     def add_recent_file(self, filepath):

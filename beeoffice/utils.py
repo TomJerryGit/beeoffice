@@ -2,8 +2,10 @@
 """通用工具函数模块"""
 import os
 import sys
+import json
 import platform
 import logging
+import tempfile
 from pathlib import Path
 
 
@@ -89,6 +91,54 @@ def ensure_dir(path) -> bool:
     except Exception as e:
         logging.error(f"创建目录失败 {path}: {e}")
         return False
+
+
+def atomic_write_text(path, text: str, encoding: str = "utf-8") -> bool:
+    """
+    原子写入文本文件。
+
+    先写入同目录下的临时文件并 fsync，再用 os.replace() 覆盖目标。
+    这样任何中途失败（磁盘满、权限、编码错误）都不会破坏原有文件——
+    目标文件要么是旧的完整内容，要么是新的完整内容，不会出现被截断的空文件。
+
+    :return: 是否写入成功
+    """
+    target = Path(path)
+    tmp_path = None
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_path = tempfile.mkstemp(
+            dir=str(target.parent), prefix=target.name + ".", suffix=".tmp"
+        )
+        with os.fdopen(fd, "w", encoding=encoding) as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, target)
+        return True
+    except Exception as e:
+        logging.error(f"原子写入失败（原文件保持不变） {target}: {e}")
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
+        return False
+
+
+def atomic_write_json(path, obj, indent: int = 2) -> bool:
+    """
+    原子写入 JSON 文件。
+
+    注意序列化在打开目标文件**之前**完成，因此序列化异常只会让写入失败，
+    绝不会留下一个被截断的空文件（这正是 AppSettings.save() 原有的缺陷）。
+    """
+    try:
+        text = json.dumps(obj, indent=indent, ensure_ascii=False)
+    except Exception as e:
+        logging.error(f"JSON 序列化失败（目标文件未改动） {path}: {e}")
+        return False
+    return atomic_write_text(path, text)
 
 
 def get_app_data_dir() -> Path:

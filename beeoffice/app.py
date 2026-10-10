@@ -1008,6 +1008,32 @@ class BeeApp(QMainWindow):
     # ==================================================================
     # 状态栏
     # ==================================================================
+    def _on_settings_save_error(self, message: str):
+        """
+        AppSettings 保存失败时的用户可见提示（优化规划 §1.2）。
+
+        设置保存失败属于"用户以为已保存、实际没保存"的静默数据风险，
+        因此除日志外必须让用户看见。同一会话只在首次弹模态框——add_recent_file()
+        这类高频调用若每次都弹窗会变成骚扰。
+        """
+        logging.error(message)
+        try:
+            self.set_global_status(f"⚠ {message}", 8000)
+        except Exception:
+            pass
+
+        if getattr(self, "_settings_error_shown", False):
+            return
+        self._settings_error_shown = True
+        try:
+            QMessageBox.warning(
+                self,
+                tr("dialog.settings_save_failed", "设置保存失败"),
+                message,
+            )
+        except Exception:
+            pass
+
     def set_global_status(self, message, timeout=0):
         """
         设置状态栏消息。

@@ -75,6 +75,11 @@ def main():
     # 延迟导入主窗口，减少启动时的模块加载量
     from beeoffice.app import BeeApp
     window = BeeApp()
+
+    # 设置保存失败必须让用户看见：settings.py 只在注册了回调时才提示，
+    # 未注册时仅记日志（见 BeeOffice-优化规划.md §1.2）
+    AppSettings.on_save_error = window._on_settings_save_error
+
     window.show()
 
     # 处理命令行参数：打开传入的文件

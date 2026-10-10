@@ -50,40 +50,27 @@ def temp_workspace(tmp_path):
 @pytest.fixture
 def temp_settings(tmp_path, monkeypatch):
     """
-    隔离设置文件：把 AppSettings 的默认路径重定向到临时文件。
+    隔离设置文件：把 AppSettings 的路径重定向到临时文件。
+
+    这里**委托**真实的 AppSettings.__init__，不再复制它的字段清单。
+    原实现手工维护了一份字段表，v5.1 给产品类新增 ai_api_key /
+    ai_api_base / ai_model / user_name / unsplash_api_key / pexels_api_key
+    之后没有同步，导致 AppSettings.save() 抛 AttributeError、被宽 except
+    静默吞掉、设置文件被截断成 0 字节；4 个测试因此长期失败，且失败信息
+    指向"设置读不回来"而不是真正的原子写缺陷（见优化规划 §1.2）。
     """
+    from beeoffice.settings import AppSettings
+
     settings_path = tmp_path / ".beeoffice_settings.json"
-    monkeypatch.setattr(
-        "beeoffice.settings.AppSettings.__init__",
-        lambda self: _patched_settings_init(self, settings_path),
-    )
+    original_init = AppSettings.__init__
+
+    def _patched_init(self):
+        original_init(self, path=settings_path)
+        # 测试时跳过首次运行引导
+        self.has_completed_onboarding = True
+
+    monkeypatch.setattr(AppSettings, "__init__", _patched_init)
     yield settings_path
-
-
-def _patched_settings_init(self, path):
-    """替换后的 AppSettings.__init__"""
-    import logging
-    self.path = Path(path)
-    self.window_size = (1024, 680)
-    self.recent_files = []
-    self.open_tabs = []
-    self.theme = "light"
-    self.accent_color = "amber"
-    self.language = "zh_CN"
-    self.has_completed_onboarding = True  # 测试时跳过引导
-    self.recent_commands = []
-    self.webdav_url = ""
-    self.webdav_user = ""
-    self.webdav_pass = ""
-    self.webdav_enabled = False
-    self.webdav_auto_sync = False
-    self.git_repo_path = ""
-    self.git_enabled = False
-    self.cloud_type = "webdav"
-    self.cloud_config = {}
-    self.cloud_enabled = False
-    self.cloud_auto_sync = False
-    self.load()
 
 
 # ==================== 数据 fixture ====================
