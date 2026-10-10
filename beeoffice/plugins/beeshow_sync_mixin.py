@@ -70,10 +70,18 @@ class SyncMixin:
 
         try:
             # 创建并启动服务器
+            # 优化规划 §1.4：同步演示的本意就是让局域网里的观众观看，所以这里
+            # 显式开启局域网访问；但访问已由一次性令牌保护（令牌只出现在演示端
+            # 给出的观众 URL 里），不再是无鉴权的裸服务。
             self._sync_server = SyncServer(
                 http_port=8765,
                 ws_port=8766,
+                allow_lan=True,
             )
+            # 优化规划 §2.7：把幻灯片内容交给服务器。原实现从未调用
+            # set_slides_html()，于是 /api/slide/<idx> 恒返回「（无此页）」——
+            # 观众端只有页码在跳，画面永远是空的。
+            self._sync_server.set_slides_html(self._slides_html)
             if not self._sync_server.start():
                 QMessageBox.warning(
                     self, "启动失败",

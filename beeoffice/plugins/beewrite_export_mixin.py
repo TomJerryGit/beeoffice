@@ -69,6 +69,7 @@ v5.0.5 修复（本次）：
 """
 import os
 import sys
+import shutil
 import logging
 import subprocess
 from pathlib import Path
@@ -258,7 +259,28 @@ class ExportMixin:
     def _save_as_docx(self) -> bool:
         """保存为 .docx"""
         current = getattr(self, "_current_file_path", None)
-        if current and current.lower().endswith(".docx"):
+        source = getattr(self, "_source_docx", None)
+
+        # 优化规划 §1.3（数据完整性）：
+        #   打开 .docx 后 _current_file_path 就是用户的原文件，因此 Ctrl+S 会走
+        #   _rich_to_docx() 在原文件上"重新生成"一份文档。该重建保真度很低
+        #   （超链接、列表编号、页眉页脚、脚注、域、东亚字体、单元格内多段
+        #   全部丢失），且既无备份也无确认——属于不可逆的数据破坏。
+        #   现在：当目标正好是本次打开的原文件时，先让用户明确选择。
+        if (current and source
+                and str(current) == str(source)
+                and not getattr(self, "_docx_overwrite_ok", False)):
+            choice = self._ask_docx_overwrite(current)
+            if choice == "cancel":
+                return False
+            if choice == "save_as":
+                current = None          # 落到下面的"另存为"分支
+            else:                       # overwrite：先备份，失败则中止
+                if not self._backup_before_overwrite(current):
+                    return False
+                self._docx_overwrite_ok = True
+
+        if current and str(current).lower().endswith(".docx"):
             return self._write_docx(current)
 
         default_name = "未命名.docx"
@@ -286,6 +308,63 @@ class ExportMixin:
             path = path + ".docx"
 
         return self._write_docx(path)
+
+    def _ask_docx_overwrite(self, path) -> str:
+        """
+        询问用户如何处理"保存到本次打开的原 .docx"。
+
+        :return: "save_as" | "overwrite" | "cancel"
+        """
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Warning)
+        box.setWindowTitle("保存 Word 文档")
+        box.setText(f"当前文档由 {Path(path).name} 打开。")
+        box.setInformativeText(
+            "直接覆盖会在这份原文件上重新生成文档，可能丢失超链接、列表编号、"
+            "页眉页脚、脚注与中文字体设置。\n\n"
+            "建议另存为新文件——原文件将保持完全不变。"
+        )
+        save_as_btn = box.addButton("另存为（推荐）", QMessageBox.AcceptRole)
+        overwrite_btn = box.addButton(
+            "覆盖原文件（先自动备份）", QMessageBox.DestructiveRole
+        )
+        box.addButton("取消", QMessageBox.RejectRole)
+        box.setDefaultButton(save_as_btn)
+        box.exec()
+
+        clicked = box.clickedButton()
+        if clicked is save_as_btn:
+            return "save_as"
+        if clicked is overwrite_btn:
+            return "overwrite"
+        return "cancel"
+
+    def _backup_before_overwrite(self, path) -> bool:
+        """
+        覆盖原文件前先复制一份 <name>.docx.bak。
+
+        备份失败时返回 False 并中止覆盖——宁可这次不保存，也不做不可逆的事。
+        """
+        try:
+            src = Path(path)
+            if not src.exists():
+                return True
+            backup = src.with_name(src.name + ".bak")
+            shutil.copy2(str(src), str(backup))
+            logging.info(f"覆盖前已备份原文件: {backup}")
+            return True
+        except Exception as e:
+            logging.error(f"备份原文件失败，已取消覆盖: {e}")
+            try:
+                QMessageBox.warning(
+                    self,
+                    "无法备份",
+                    f"无法备份原文件，为避免数据丢失已取消保存：\n{e}\n\n"
+                    "请改用「另存为」。",
+                )
+            except Exception:
+                pass
+            return False
 
     def _write_docx(self, path: str) -> bool:
         """

@@ -56,6 +56,7 @@ import base64
 import hashlib
 import json
 import logging
+import secrets
 import socket
 import struct
 import threading
@@ -63,6 +64,7 @@ import time
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from socketserver import ThreadingMixIn
 from typing import List, Optional, Dict, Any
+from urllib.parse import urlparse, parse_qs
 
 
 # WebSocket 握手用的魔术字符串（RFC 6455）
@@ -174,13 +176,26 @@ class SyncServer:
         self,
         http_port: int = 8765,
         ws_port: int = 8766,
-        host: str = "0.0.0.0",
+        allow_lan: bool = False,
         html_template_path: Optional[str] = None,
+        host: Optional[str] = None,
     ):
+        """
+        :param allow_lan: 是否允许局域网观众连接（优化规划 §1.4）。
+            默认 False，只监听 127.0.0.1。原实现固定绑定 0.0.0.0 且没有任何
+            鉴权，同一局域网内任何人都能静默读取全部幻灯片内容；结合无
+            Origin 校验的 WebSocket，演示者本机浏览器中的任意网页也能连上
+            广播通道。
+        :param host: 显式覆盖监听地址（仅测试用，正常路径请用 allow_lan）。
+        """
         self.http_port = http_port
         self.ws_port = ws_port
-        self.host = host
+        self.allow_lan = bool(allow_lan)
+        self.host = host or ("0.0.0.0" if self.allow_lan else "127.0.0.1")
         self.html_template_path = html_template_path
+        # 一次性访问令牌：HTTP 接口与 WebSocket 握手都要求携带，
+        # 只出现在服务端生成并展示给演示者的观众 URL 里。
+        self.token = secrets.token_urlsafe(16)
 
         # 观众连接列表
         self._viewers: List[ViewerConnection] = []
@@ -272,12 +287,49 @@ class SyncServer:
                 # 静默日志
                 pass
 
+            # ---------- 访问控制（优化规划 §1.4） ----------
+            def _client_token(self):
+                qs = parse_qs(urlparse(self.path).query)
+                if qs.get("t"):
+                    return qs["t"][0]
+                auth = self.headers.get("Authorization", "")
+                if auth.lower().startswith("bearer "):
+                    return auth[7:].strip()
+                return ""
+
+            def _authorized(self):
+                return secrets.compare_digest(
+                    self._client_token(), server_self.token
+                )
+
+            def _deny(self, code, message):
+                body = message.encode("utf-8")
+                self.send_response(code)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.end_headers()
+                self.wfile.write(body)
+
+            def do_HEAD(self):
+                # 继承的 do_HEAD 会绕过令牌校验，显式拒绝
+                self._deny(403, "不支持 HEAD 请求")
+
             def do_GET(self):
-                if self.path in ("/", "/sync", "/index.html"):
+                if not self._authorized():
+                    self._deny(
+                        403,
+                        "缺少或无效的访问令牌。请使用演示端给出的完整地址"
+                        "（含 ?t=...）访问。",
+                    )
+                    return
+
+                path_only = urlparse(self.path).path
+                if path_only in ("/", "/sync", "/index.html"):
                     self._serve_viewer_page(template_path)
-                elif self.path == "/api/info":
+                elif path_only == "/api/info":
                     self._serve_info()
-                elif self.path.startswith("/api/slide/"):
+                elif path_only.startswith("/api/slide/"):
                     # 任务 4.3 增量：幻灯片内容 API
                     self._serve_slide_content()
                 else:
@@ -295,16 +347,17 @@ class SyncServer:
                         from beeoffice.plugins.beeshow_sync_viewer \
                             import get_viewer_html
                         html = get_viewer_html(
-                            server_self.ws_port
+                            server_self.ws_port,
+                            server_self.token,
                         )
 
                     self.send_response(200)
                     self.send_header(
                         "Content-Type", "text/html; charset=utf-8"
                     )
-                    self.send_header(
-                        "Access-Control-Allow-Origin", "*"
-                    )
+                    # 优化规划 §1.4：不再发送通配 CORS 头——它会让同机浏览器
+                    # 中的任意网页跨域读取 /api/info 与 /api/slide/*。
+                    self.send_header("X-Content-Type-Options", "nosniff")
                     self.end_headers()
                     self.wfile.write(html.encode("utf-8"))
                 except Exception as e:
@@ -326,9 +379,7 @@ class SyncServer:
                 self.send_header(
                     "Content-Type", "application/json; charset=utf-8"
                 )
-                self.send_header(
-                    "Access-Control-Allow-Origin", "*"
-                )
+                self.send_header("X-Content-Type-Options", "nosniff")
                 self.end_headers()
                 self.wfile.write(body)
 
@@ -340,7 +391,10 @@ class SyncServer:
                 返回：第 3 页的 HTML 片段（纯 HTML，非 JSON）
                 """
                 try:
-                    idx = int(self.path.rsplit("/", 1)[-1])
+                    # 注意用 urlparse 去掉查询串（令牌就在查询串里），
+                    # 否则 int() 会直接失败
+                    raw_idx = urlparse(self.path).path.rsplit("/", 1)[-1]
+                    idx = int(raw_idx)
                     slides = server_self.get_slides_html()
                     if 0 <= idx < len(slides):
                         html = slides[idx]
@@ -350,9 +404,7 @@ class SyncServer:
                     self.send_header(
                         "Content-Type", "text/html; charset=utf-8"
                     )
-                    self.send_header(
-                        "Access-Control-Allow-Origin", "*"
-                    )
+                    self.send_header("X-Content-Type-Options", "nosniff")
                     self.end_headers()
                     self.wfile.write(html.encode("utf-8"))
                 except Exception as e:
@@ -467,6 +519,42 @@ class SyncServer:
                 pass
             logging.info(f"观众已断开：{addr}")
 
+    # ==================== 握手鉴权（优化规划 §1.4） ====================
+    def _handshake_allowed(
+        self, request_path: str, header_lines: List[str]
+    ) -> bool:
+        """校验 WebSocket 握手携带的令牌与 Origin。"""
+        token = ""
+        qs = parse_qs(urlparse(request_path or "").query)
+        if qs.get("t"):
+            token = qs["t"][0]
+        for line in header_lines:
+            if line.lower().startswith("authorization:"):
+                value = line.split(":", 1)[1].strip()
+                if value.lower().startswith("bearer "):
+                    token = value[7:].strip()
+                break
+
+        if not token or not secrets.compare_digest(token, self.token):
+            return False
+
+        for line in header_lines:
+            if line.lower().startswith("origin:"):
+                origin = line.split(":", 1)[1].strip().lower()
+                return self._origin_allowed(origin)
+        # 无 Origin 头（非浏览器客户端）在令牌正确时放行
+        return True
+
+    def _origin_allowed(self, origin: str) -> bool:
+        """只接受来自本服务自身页面的 Origin。"""
+        hosts = {"127.0.0.1", "localhost", "[::1]"}
+        if self.allow_lan:
+            hosts.add(self.get_local_ip().lower())
+            hosts.add(self.host.lower())
+        return origin in {
+            f"http://{h}:{self.http_port}" for h in hosts
+        }
+
     def _do_handshake(self, client: socket.socket) -> bool:
         """
         执行 WebSocket 握手。
@@ -486,10 +574,30 @@ class SyncServer:
                     return False
 
             headers = data.decode("utf-8", errors="ignore")
+            header_lines = headers.split("\r\n")
+
+            # 优化规划 §1.4：握手必须携带令牌，且 Origin 必须来自本服务页面。
+            # 原实现只做 RFC6455 的 Key→Accept 计算，既不校验身份也不校验
+            # Origin，因此演示者本机浏览器中的任意网页都能连上广播通道
+            # （跨站 WebSocket 劫持），LAN 上任何人也能直接读演示状态。
+            request_path = ""
+            request_parts = header_lines[0].split(" ") if header_lines else []
+            if len(request_parts) >= 2:
+                request_path = request_parts[1]
+            if not self._handshake_allowed(request_path, header_lines):
+                try:
+                    client.sendall(
+                        b"HTTP/1.1 403 Forbidden\r\n"
+                        b"Content-Length: 0\r\n"
+                        b"Connection: close\r\n\r\n"
+                    )
+                except Exception:
+                    pass
+                return False
 
             # 提取 Sec-WebSocket-Key
             key = None
-            for line in headers.split("\r\n"):
+            for line in header_lines:
                 if line.lower().startswith(
                     "sec-websocket-key:"
                 ):
@@ -652,5 +760,10 @@ class SyncServer:
             return "127.0.0.1"
 
     def get_viewer_url(self) -> str:
-        """返回观众访问 URL"""
-        return f"http://{self.get_local_ip()}:{self.http_port}/sync"
+        """
+        返回观众访问 URL（含一次性令牌）。
+
+        未开启局域网访问时用回环地址展示——此时只有本机浏览器能打开。
+        """
+        host = self.get_local_ip() if self.allow_lan else "127.0.0.1"
+        return f"http://{host}:{self.http_port}/sync?t={self.token}"

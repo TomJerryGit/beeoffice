@@ -24,11 +24,13 @@
 """
 
 
-def get_viewer_html(ws_port: int = 8766) -> str:
+def get_viewer_html(ws_port: int = 8766, token: str = "") -> str:
     """
     生成观众端 HTML。
 
     :param ws_port: WebSocket 端口
+    :param token: 一次性访问令牌（优化规划 §1.4）。服务端要求 WebSocket
+        握手携带它；令牌由服务端注入本页面，观众无需手输。
     :return: HTML 字符串
     """
     return f"""<!DOCTYPE html>
@@ -222,6 +224,7 @@ html, body {{
 
     // ==================== 配置 ====================
     const WS_PORT = {ws_port};
+    const WS_TOKEN = {token!r};
     const RECONNECT_BASE = 1000;   // 重连基础间隔（毫秒）
     const RECONNECT_MAX = 30000;   // 最大重连间隔
 
@@ -246,7 +249,8 @@ html, body {{
 
     // ==================== WebSocket 连接 ====================
     function connect() {{
-        const url = `ws://${{location.hostname}}:${{WS_PORT}}`;
+        const url = `ws://${{location.hostname}}:${{WS_PORT}}`
+                  + `/?t=${{encodeURIComponent(WS_TOKEN)}}`;
         connDot.className = 'connecting';
         connText.textContent = '连接中...';
 

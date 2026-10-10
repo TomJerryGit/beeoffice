@@ -548,6 +548,11 @@ class BeeApp(QMainWindow):
             # 1. 先设置文档类型和路径
             widget._doc_kind = "word"
             widget._current_file_path = path
+            # 优化规划 §1.3：记住"这份文档是从哪个 .docx 打开的"。
+            # _current_file_path 仍指向该文件（图片目录/文件监视/标签标题都
+            # 依赖它），但保存时不得静默覆盖这个原文件——_save_as_docx() 会
+            # 据此先询问用户并支持自动备份。
+            widget._source_docx = path
             # 2. 再同步到 rich_editor._current_file_dir
             #    （这一步必须在 set_content / _switch_mode 之前！）
             if hasattr(widget, "set_current_file_path"):
