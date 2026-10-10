@@ -382,6 +382,7 @@ class ExportMixin:
         theme = SLIDE_THEMES[self._current_theme]
         bg = self._custom_bg or theme.get("bg", "#FFF")
         total = len(self._slides_html)
+        failures = []
 
         for i, s in enumerate(self._slides_html):
             # 任务 2.1：拼入版式 CSS
@@ -398,27 +399,50 @@ class ExportMixin:
             self._export_views.append(temp)
             temp.resize(1024, 768)
 
-            def capture(page, idx=i, out=output_dir, view=temp):
-                """loadFinished 回调：截图并保存"""
+            def capture(view, idx=i, out=output_dir):
+                """
+                loadFinished 回调：截图并保存。
+
+                优化规划 §1.5：原实现对 page.grab() 取值，而 page 是
+                QWebEnginePage —— grab() 只存在于 QWidget / QWebEngineView
+                上，因此必定抛 AttributeError，被 except 吞掉后仍在 finally
+                里提示「导出成功」：功能完全不存在却报成功。
+                现在改为对视图 grab()，并让提示基于真实写入结果。
+                """
+                target = Path(out) / f"slide_{idx+1:03d}.png"
+                saved = False
                 try:
-                    page.grab().save(
-                        str(Path(out) / f"slide_{idx+1:03d}.png")
-                    )
+                    pixmap = view.grab()
+                    saved = (not pixmap.isNull()) and pixmap.save(str(target))
+                    if not saved:
+                        logging.error(f"截图保存失败 slide {idx+1}: {target}")
                 except Exception as e:
                     logging.error(f"截图失败 slide {idx+1}: {e}")
                 finally:
+                    if not saved:
+                        failures.append(idx + 1)
                     # 清理引用
                     if view in self._export_views:
                         self._export_views.remove(view)
                     view.deleteLater()
-                    # 最后一张完成时提示
+                    # 最后一张完成时提示（基于真实结果）
                     if idx == total - 1:
-                        QMessageBox.information(
-                            self, "导出成功", f"已保存到: {output_dir}"
-                        )
+                        if failures:
+                            QMessageBox.warning(
+                                self, "导出未完成",
+                                f"有 {len(failures)} 页截图失败"
+                                f"（第 {', '.join(map(str, failures))} 页）。\n\n"
+                                f"输出目录: {output_dir}\n"
+                                "详见日志。",
+                            )
+                        else:
+                            QMessageBox.information(
+                                self, "导出成功",
+                                f"已保存 {total} 张 PNG 到:\n{output_dir}",
+                            )
 
             temp.page().loadFinished.connect(
-                lambda ok, t=temp, idx=i: capture(t.page(), idx)
+                lambda ok, t=temp, idx=i: capture(t, idx)
             )
             temp.setHtml(full_html)
 

@@ -43,8 +43,12 @@ v5.0.5 拆分（本次）：
 import os
 import re
 import json
+import uuid
+import logging
 from pathlib import Path
 from datetime import datetime
+
+from beeoffice.utils import atomic_write_text, get_app_data_dir
 
 import pandas as pd
 import numpy as np
@@ -983,25 +987,70 @@ class BeeSheetView(
             self.model.dataChanged.emit(idx, idx)
 
     # ==================== 自动保存 ====================
+    def _backup_dir(self):
+        """
+        本次表格会话的备份目录（优化规划 §1.8）。
+
+        原实现写在 ~/.beeoffice_backups/：完整表格内容（可能是工资表、客户名单）
+        以明文 JSON 长期驻留用户主目录，跨文档共享，关闭文档与程序都不清理。
+        现在改为应用数据目录下的**会话**子目录，并在关闭文档时删除。
+        """
+        if getattr(self, "_backup_session_dir", None) is None:
+            base = get_app_data_dir() / "sheet_backups"
+            try:
+                base.mkdir(parents=True, exist_ok=True)
+            except Exception as e:
+                logging.error(f"创建备份目录失败: {e}")
+            self._backup_session_dir = base / uuid.uuid4().hex[:8]
+        return self._backup_session_dir
+
     def _auto_save(self):
-        """自动保存（每 5 分钟，写入 ~/.beeoffice_backups/）"""
+        """自动保存（每 5 分钟，写入应用数据目录下的会话备份目录）"""
         if not self._dirty:
             return
         try:
-            backup_dir = Path.home() / ".beeoffice_backups"
-            backup_dir.mkdir(exist_ok=True)
+            backup_dir = self._backup_dir()
+            backup_dir.mkdir(parents=True, exist_ok=True)
             bp = backup_dir / (
                 f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             )
             df = self._trim_empty_tail(self.model.df.copy())
-            with open(bp, 'w', encoding='utf-8') as f:
-                f.write(df.to_json(orient='split', force_ascii=False))
+            payload = df.to_json(orient='split', force_ascii=False)
+
+            # 原子写。失败必须让用户看见——原实现是 `except Exception: pass`，
+            # 备份失败完全静默，用户会一直以为有备份，实际什么都没有。
+            if not atomic_write_text(bp, payload):
+                self._set_status("⚠ 自动备份失败（详见日志）", 5000)
+                return
+
             self._dirty = False
             # 只保留最近 10 个备份
             for old in sorted(backup_dir.glob("backup_*.json"))[:-10]:
-                old.unlink()
-        except Exception:
-            pass
+                try:
+                    old.unlink()
+                except Exception:
+                    pass
+        except Exception as e:
+            logging.error(f"自动备份失败: {e}")
+            try:
+                self._set_status("⚠ 自动备份失败（详见日志）", 5000)
+            except Exception:
+                pass
+
+    def _cleanup_backups(self):
+        """删除本次会话的备份目录（关闭文档时调用）。"""
+        d = getattr(self, "_backup_session_dir", None)
+        if d is None:
+            return
+        try:
+            import shutil
+            if d.exists():
+                shutil.rmtree(d, ignore_errors=True)
+            logging.info(f"已清理表格自动备份目录: {d}")
+        except Exception as e:
+            logging.error(f"清理备份目录失败: {e}")
+        finally:
+            self._backup_session_dir = None
 
     # ==================== 工具方法 ====================
     def _find_main_window(self):
@@ -1074,5 +1123,9 @@ class BeeSheetView(
         # 停止自动保存定时器
         if hasattr(self, '_auto_save_timer'):
             self._auto_save_timer.stop()
+
+        # 优化规划 §1.8：删除本次会话的自动备份
+        # （原实现把表格明文长期留在 ~/.beeoffice_backups/，关文档也不清理）
+        self._cleanup_backups()
 
         event.accept()

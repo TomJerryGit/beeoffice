@@ -244,7 +244,10 @@ class TableEditorDialog(QDialog):
         insert_at = cur_col + (0 if offset < 0 else 1)
         self._table.insertColumn(insert_at)
         for r in range(self._table.rowCount()):
-            self._table.setItem(insert_at, r, QTableWidgetItem(""))
+            # 优化规划 §1.6：setItem 签名是 setItem(row, column, item)。
+            # 原实现写成 setItem(insert_at, r, ...)，把列号当行号，于是用空
+            # item 覆盖第 insert_at 行的各列——静默丢数据；行数不足时越界报错。
+            self._table.setItem(r, insert_at, QTableWidgetItem(""))
         self._table.setCurrentCell(0, insert_at)
         self._update_preview()
 
@@ -526,15 +529,22 @@ class TableMixin:
             text = self._slides_md[self._current_slide]
             lines = text.split("\n")
 
-            # 找表格范围
+            # 找表格范围：只取**连续**的表格块。
+            # 优化规划 §1.6：原实现取「第一个 | 行」到「最后一个 | 行」，
+            # 当页面里有两个表格、或表格之后还有正文时，两者之间的内容会被
+            # 整体删除（静默数据丢失）。
             table_start = None
             table_end = None
             for i, line in enumerate(lines):
                 s = line.strip()
-                if s.startswith("|") and s.endswith("|"):
+                is_row = s.startswith("|") and s.endswith("|")
+                if is_row:
                     if table_start is None:
                         table_start = i
                     table_end = i
+                elif table_start is not None:
+                    # 表格块到此结束，后面的内容不属于这张表
+                    break
 
             if table_start is None:
                 # 无表格，直接追加

@@ -28,9 +28,11 @@
   - _apply_layout 会替换编辑器全文，调用前可考虑加确认
 """
 
+import logging
+
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QScrollArea, QWidget, QGridLayout,
+    QScrollArea, QWidget, QGridLayout, QMessageBox,
 )
 from PySide6.QtCore import Qt
 
@@ -151,6 +153,33 @@ class LayoutMixin:
             return
 
         skeleton = meta["skeleton"]
+
+        # 优化规划 §1.7：应用版式会用骨架替换**整份**演示文稿。原实现没有任何
+        # 确认、没有撤销，也不限于当前页——用户误点一次即不可恢复。
+        # 现在：内容非空时先确认，并在替换前存一份历史快照。
+        try:
+            has_content = bool(self._editor.toPlainText().strip())
+        except Exception:
+            has_content = False
+
+        if has_content:
+            reply = QMessageBox.question(
+                self,
+                "应用版式",
+                f"「{meta['name']}」会用版式骨架替换整份演示文稿的现有内容。\n\n"
+                "如需保留当前内容，请先取消并另存一份。\n\n确定继续吗？",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if reply != QMessageBox.Yes:
+                return
+
+        if hasattr(self, "_save_snapshot"):
+            try:
+                self._save_snapshot(force=True)
+            except Exception as e:
+                logging.error(f"应用版式前保存快照失败: {e}")
+
         self._editor.blockSignals(True)
         self._editor.setPlainText(skeleton)
         self._editor.blockSignals(False)
