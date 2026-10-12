@@ -669,8 +669,8 @@ Windows-only 是原计划；**建议加 Linux 与 macOS**——因为多处平�
 
 | 动作 | 说明 |
 |---|---|
-| **删掉"存在性断言"测试** | `test_smoke_beeshow.py:90-221,322-342` 这类 `assert hasattr(...)` 全部替换为行为断言 |
-| **删掉恒真断言** | `test_md_conversion.py::test_empty_heading_not_output` 无法失败 |
+| **删掉"存在性断言"测试** | ~`test_smoke_beeshow.py:90-221,322-342` 这类 `assert hasattr(...)` 全部替换为行为断言~ | ⚠️ **该条与实测不符（2026-10-11 复核）**：`tests/test_smoke_beeshow.py`（注意实际路径是 `tests/` 下，不是 `tests/smoke/`）**已无任何 `assert hasattr`**（该文件 338 行 / 16 个测试全部是行为断言）。用 AST 全仓统计"**仅由 hasattr 断言构成**的测试"只剩 **4 个**：`test_p0_15_large_file_cancel.py` 2 个（P0 冒烟守卫）+ `test_v505_docx_missing_dep_fails_loud.py` 1 个、`test_v505_html_export_wiring.py` 1 个（后两个是**本会话有意加的行为测试的配套守卫**，各自同文件里都有真正断言行为的测试）。因此本条**实质已完成**，不为了凑计划而改动这些有效守卫 |
+| **删掉恒真断言** | `test_md_conversion.py::test_empty_heading_not_output` 无法失败 | ✅ **已完成**。实测确认它确实恒真：原夹具下 `to_markdown()` 返回 `''` → `lines == []` → `for line in lines` **一次都不执行**，断言根本没被求值；另两种构造下空标题会被丢弃、也不会出现 `"#"`。已改为"输出非空 + 前置条件确有空标题块 + 正文保留 + 无空标题行"，并另写一次性验证证明判定条件能捕获注入的 `"#"` 行（即断言具备失败能力） |
 | **断言产物而非调用** | 导出类测试必须检查文件存在、大小、关键属性（边距/字体/图片数） |
 | **改掉掩盖生产行为的测试** | `tests/unit/test_mobile_api.py:66` 的 `127.0.0.1` + 补绑定地址断言 | ✅ **已完成**：夹具原先**自己写死** `server.ip = "127.0.0.1"`，于是生产代码绑定 `0.0.0.0` 也测不出来。现改为取生产代码**自己算出来**的 `_bind_host()` 并据此绑定，且断言它必须是回环；另加一条测试防止再次写死 |
 | **给每个 P0 修复配回归测试** | 见各阶段"验证"列 |

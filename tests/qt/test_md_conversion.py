@@ -21,24 +21,62 @@ class TestEmptyHeading:
     """空标题不应输出 #"""
 
     def test_empty_heading_not_output(self, qtbot):
-        """富文本里若有空标题段，to_markdown 不应输出 "# " """
+        """
+        含空标题块的文档：不应输出孤立 `#`，且正文必须保留。
+
+        优化规划 §4.2：原实现是**恒真断言**。实测确认（三种构造）：
+          - 原夹具里文档**全部为空** → `to_markdown()` 返回 `''` →
+            `lines = []` → `for line in lines` **一次都不执行**，断言根本没被求值；
+          - 其它构造下 `to_markdown()` 会**丢弃空标题**，因此也不可能出现 `"#"`。
+
+        所以原测试测不到任何东西。这里改为构造一个"输出非空"的文档，
+        先确认前置条件（真的有空标题块），再断言正文保留且没有空标题行 ——
+        这样循环体一定会执行，断言才可能失败。
+        """
         editor = RichTextEditor()
         qtbot.addWidget(editor)
-        editor.set_markdown("")  # 清空
-        # 手动插入一个空标题块
-        from PySide6.QtGui import QTextBlockFormat, QTextCursor
+        editor.set_markdown("")
+
+        from PySide6.QtGui import QTextBlockFormat, QTextCursor  # noqa: F401
+
         cursor = editor.textCursor()
+        cursor.insertText("正文")          # 关键：保证输出非空
         bf = QTextBlockFormat()
         bf.setHeadingLevel(1)
-        cursor.insertBlock(bf)
-        cursor.insertText("")  # 空标题
-        cursor.insertBlock()
+        cursor.insertBlock(bf)             # 空标题块（刻意不插入任何文本）
+
+        # ---- 前置条件：文档里确实存在一个"空标题块" ----
+        has_empty_heading = False
+        block = editor.document().begin()
+        while block.isValid():
+            if block.blockFormat().headingLevel() > 0 \
+                    and not block.text().strip():
+                has_empty_heading = True
+                break
+            block = block.next()
+        assert has_empty_heading, (
+            "夹具没有真正造出空标题块 —— 这条测试会退化成恒真"
+        )
 
         md = editor.to_markdown()
-        # 不应出现孤立的 "#"
         lines = [l for l in md.split("\n") if l.strip()]
+
+        # ---- 保证断言真的会被求值（原实现就是死在这里）----
+        assert lines, (
+            f"to_markdown() 输出为空，循环不会执行、断言又会恒真：{md!r}"
+        )
+        # ---- 正文不得因为空标题块而丢失 ----
+        assert "正文" in md, f"正文丢了：{md!r}"
+        # ---- 不得出现空标题行 ----
         for line in lines:
-            assert not line.strip() == "#", f"不应输出空标题行: {line!r}"
+            assert line.strip() != "#", f"不应输出空标题行: {line!r}"
+        assert not any(
+            l.strip().startswith("#") and not l.strip().lstrip("#").strip()
+            for l in lines
+        ), f"出现了只有 # 的标题行: {lines}"
+
+        # ---- 反向确认：判定条件本身确实能识别出 '#' 行 ----
+        assert any(l.strip() == "#" for l in ["#"]), "判定条件写错了"
 
     def test_set_markdown_empty_heading_as_blank(self, qtbot):
         """Markdown 里的 "# " 空标题应被当作空行"""
