@@ -150,10 +150,26 @@ class BeeApp(QMainWindow):
             self._prev_tab
         )
 
-        QTimer.singleShot(50, self._lazy_load_modules)
-        QTimer.singleShot(RESTORE_SESSION_DELAY_MS, self._restore_session)
-        QTimer.singleShot(FIRST_RUN_CHECK_DELAY_MS, self._check_first_run)
-        QTimer.singleShot(3000, self._check_auto_sync)
+        # 启动期的延迟初始化：使用**绑定到本窗口**的单次 QTimer，
+        # 而不是 QTimer.singleShot(ms, callable)。
+        #
+        # 这与 v5.0.5 为状态栏修的是同一类问题（见 _status_timer 的注释）：
+        # singleShot 不绑定接收者生命周期，窗口关闭后回调仍会执行。实测后果：
+        # 上一个窗口遗留的定时器会在下一个窗口（或下一个测试）的事件循环里
+        # 弹出"是否恢复上次会话"模态框，把界面/自动化卡死。
+        # 绑定到 self 后，窗口销毁即随之销毁；closeEvent 里还会显式 stop()。
+        self._startup_timers = []
+        for _msec, _slot in (
+            (50, self._lazy_load_modules),
+            (RESTORE_SESSION_DELAY_MS, self._restore_session),
+            (FIRST_RUN_CHECK_DELAY_MS, self._check_first_run),
+            (3000, self._check_auto_sync),
+        ):
+            _timer = QTimer(self)
+            _timer.setSingleShot(True)
+            _timer.timeout.connect(_slot)
+            _timer.start(_msec)
+            self._startup_timers.append(_timer)
 
     # ==================================================================
     # 标签命名
@@ -866,11 +882,6 @@ class BeeApp(QMainWindow):
             status_text=tr("msg.exporting_pdf", "正在导出 PDF..."),
         )
 
-    def _export_html(self):
-        widget = self.tab_manager.currentWidget()
-        if widget is not None and hasattr(widget, "export_html"):
-            widget.export_html()
-
     def _find_current(self):
         widget = self.tab_manager.currentWidget()
         if widget is None:
@@ -1351,19 +1362,6 @@ class BeeApp(QMainWindow):
             widget._nl_to_formula()
 
     # ==================================================================
-    # 宏
-    # ==================================================================
-    def _play_macro(self):
-        widget = self.tab_manager.currentWidget()
-        if widget is not None and hasattr(widget, "_play_macro"):
-            widget._play_macro()
-
-    def _toggle_macro(self):
-        widget = self.tab_manager.currentWidget()
-        if widget is not None and hasattr(widget, "_toggle_macro_recording"):
-            widget._toggle_macro_recording()
-
-    # ==================================================================
     # 插件市场
     # ==================================================================
     def _show_plugin_market(self):
@@ -1407,6 +1405,13 @@ class BeeApp(QMainWindow):
             self._status_timer.stop()
         except Exception:
             pass
+
+        # 停止启动期延迟定时器（避免关闭后仍弹出"恢复上次会话"等模态框）
+        for _t in getattr(self, "_startup_timers", ()):
+            try:
+                _t.stop()
+            except Exception:
+                pass
 
         if self.mobile_server is not None:
             try:

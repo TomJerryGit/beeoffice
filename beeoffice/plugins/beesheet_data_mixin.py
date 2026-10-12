@@ -469,13 +469,6 @@ class DataMixin:
         fmt_menu.addAction("清除本列条件格式").triggered.connect(
             lambda: self._clear_cond_format(column)
         )
-        freeze_menu = menu.addMenu("📌 冻结")
-        freeze_menu.addAction("冻结此列").triggered.connect(
-            lambda: self._freeze_column(column)
-        )
-        freeze_menu.addAction("冻结到此处").triggered.connect(
-            self._freeze_cell
-        )
         menu.addAction("💬 批注").triggered.connect(self._add_comment)
         menu.exec(self.table_view.horizontalHeader().mapToGlobal(
             QPoint(pos.x(),

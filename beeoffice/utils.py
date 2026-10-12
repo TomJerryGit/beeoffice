@@ -3,9 +3,9 @@
 import os
 import sys
 import json
+import uuid
 import platform
 import logging
-import tempfile
 from pathlib import Path
 
 
@@ -101,16 +101,25 @@ def atomic_write_text(path, text: str, encoding: str = "utf-8") -> bool:
     这样任何中途失败（磁盘满、权限、编码错误）都不会破坏原有文件——
     目标文件要么是旧的完整内容，要么是新的完整内容，不会出现被截断的空文件。
 
+    实现说明（重要）：临时文件用 ``open(tmp, "x")`` 独占创建，
+    **不要**用 ``tempfile.mkstemp()``。mkstemp 内部走 ``os.open()``，
+    当目标目录不可写（受限账户、被安全软件/沙箱拦截等）时，实测该调用路径
+    会**无限期阻塞**；而 ``open()`` 会在毫秒级抛出 PermissionError。
+    保存设置这类调用发生在 UI 线程上，"卡死"比"失败"严重得多，
+    因此这里选择能快速失败的那条路径。
+
     :return: 是否写入成功
     """
     target = Path(path)
     tmp_path = None
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp_path = tempfile.mkstemp(
-            dir=str(target.parent), prefix=target.name + ".", suffix=".tmp"
+        # 同目录 + 独占创建 + 唯一名字：既保证 os.replace 的原子性
+        # （同一文件系统），又不会覆盖或撞上已存在的文件。
+        tmp_path = target.parent / (
+            f".{target.name}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp"
         )
-        with os.fdopen(fd, "w", encoding=encoding) as f:
+        with open(tmp_path, "x", encoding=encoding) as f:
             f.write(text)
             f.flush()
             os.fsync(f.fileno())
@@ -118,7 +127,7 @@ def atomic_write_text(path, text: str, encoding: str = "utf-8") -> bool:
         return True
     except Exception as e:
         logging.error(f"原子写入失败（原文件保持不变） {target}: {e}")
-        if tmp_path:
+        if tmp_path is not None:
             try:
                 os.unlink(tmp_path)
             except Exception:

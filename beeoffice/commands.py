@@ -46,7 +46,6 @@ def _register_builtin_commands(palette, parent):
     # ---------- 导出相关 ----------
     palette.register_command("导出 DOCX", "导出为 Word 文档", parent._export_docx)
     palette.register_command("导出 PDF", "导出为 PDF 文件", parent._export_pdf)
-    palette.register_command("导出 HTML", "导出为网页文件", parent._export_html)
     palette.register_command("生成报告", "一键将模板+数据源导出为 PDF", parent._generate_report)
     palette.register_command("导出 PPTX", "导出幻灯片为 PPTX", parent._export_beeshow_pptx)
     palette.register_command("批量 DOCX 转 MD", "批量转换 DOCX 为 Markdown", parent._batch_docx_to_md)
@@ -62,8 +61,6 @@ def _register_builtin_commands(palette, parent):
     palette.register_command("智能数据分析", "分析当前选中数据", parent._analyze_current_sheet)
     palette.register_command("自然语言生成公式", "用中文指令生成公式", parent._nl_formula)
     palette.register_command("关联表格到文档", "将当前蜜算数据绑定到蜜写", parent._link_sheet_to_write)
-    palette.register_command("播放宏", "执行已录制的宏", parent._play_macro)
-    palette.register_command("录制宏", "开始/停止录制宏", parent._toggle_macro)
 
     # ---------- 蜜演相关 ----------
     palette.register_command("播放幻灯片", "全屏播放 (F5)", parent._play_beeshow)

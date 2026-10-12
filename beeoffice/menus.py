@@ -209,9 +209,6 @@ def setup_menus(main_window):
     export_pdf_action = export_menu.addAction(tr("cmd.export_pdf", "导出 PDF"))
     export_pdf_action.triggered.connect(main_window._export_pdf)
 
-    export_html_action = export_menu.addAction(tr("cmd.export_html", "导出 HTML"))
-    export_html_action.triggered.connect(main_window._export_html)
-
     export_menu.addSeparator()
 
     export_pptx_action = export_menu.addAction(tr("cmd.export_pptx", "导出 PPTX"))
@@ -300,17 +297,6 @@ def setup_menus(main_window):
         tr("cmd.link_sheet", "关联表格到文档")
     )
     link_sheet_action.triggered.connect(main_window._link_sheet_to_write)
-
-    tools_menu.addSeparator()
-
-    # ---- 宏 ----
-    macro_menu = tools_menu.addMenu(tr("menu.tools.macro", "宏"))
-
-    play_macro_action = macro_menu.addAction(tr("cmd.play_macro", "播放宏"))
-    play_macro_action.triggered.connect(main_window._play_macro)
-
-    toggle_macro_action = macro_menu.addAction(tr("cmd.toggle_macro", "录制宏"))
-    toggle_macro_action.triggered.connect(main_window._toggle_macro)
 
     tools_menu.addSeparator()
 

@@ -1,21 +1,15 @@
 # beeoffice/plugins/beesheet_context_menu_mixin.py
 """
-蜜算右键菜单与冻结 Mixin
+蜜算右键菜单 Mixin
 
 职责：
   - _show_fill_menu    : 表格右键菜单（粘贴 / 插入行列 / 删除行列 /
                          合并 / 格式 / 复制 / 批注 / 公式审计）
-  - _show_freeze_menu  : 冻结菜单（冻结首行 / 首列 / 前3行 / 前3列 / 到当前单元格）
-  - _freeze_row        : 冻结前 N 行
-  - _freeze_column     : 冻结前 N 列
-  - _freeze_cell       : 冻结到当前单元格（同时冻结行列）
-  - _unfreeze_all      : 解除所有冻结
 
 从 beesheet.py 抽取，降低主文件复杂度。
 
 依赖：
   - PySide6（QMenu / QMessageBox）
-  - QHeaderView（冻结行/列时设置 Fixed 模式）
 
 注意：
   - 本 Mixin 调用主文件/其他 Mixin 的方法：
@@ -106,77 +100,3 @@ class ContextMenuMixin:
             self._translate_current_formula)
 
         menu.exec(pos)
-
-    # ==================== 冻结菜单 ====================
-    def _show_freeze_menu(self):
-        """冻结菜单（由工具栏按钮触发）"""
-        menu = QMenu(self)
-        menu.addAction("📌 冻结首行").triggered.connect(
-            lambda: self._freeze_row(0))
-        menu.addAction("📌 冻结首列").triggered.connect(
-            lambda: self._freeze_column(0))
-        menu.addAction("📌 冻结到当前单元格").triggered.connect(
-            self._freeze_cell)
-        menu.addAction("📌 冻结前3行").triggered.connect(
-            lambda: self._freeze_row(2))
-        menu.addAction("📌 冻结前3列").triggered.connect(
-            lambda: self._freeze_column(2))
-        menu.exec(self.sender().mapToGlobal(
-            self.sender().rect().bottomLeft()))
-
-    # ==================== 冻结实现 ====================
-    def _freeze_column(self, column):
-        """冻结前 N 列（0 基 column 参数，内部 +1 转数量）"""
-        self._frozen_cols = column + 1
-        for i in range(self._frozen_cols):
-            self.table_view.horizontalHeader().setSectionResizeMode(
-                i, QHeaderView.Fixed)
-        self.table_view.horizontalHeader().setStyleSheet(
-            "QHeaderView::section:last { border-right: 3px solid #FFB300; }"
-        )
-        self._update_status()
-        self._set_status(f"📌 已冻结前 {self._frozen_cols} 列", 3000)
-
-    def _freeze_row(self, row):
-        """冻结前 N 行（0 基 row 参数，内部 +1 转数量）"""
-        self._frozen_rows = row + 1
-        for i in range(self._frozen_rows):
-            self.table_view.verticalHeader().setSectionResizeMode(
-                i, QHeaderView.Fixed)
-        self._update_status()
-        self._set_status(f"📌 已冻结前 {self._frozen_rows} 行", 3000)
-
-    def _freeze_cell(self):
-        """冻结到当前单元格：同时冻结所在行以上 + 列左侧"""
-        idx = self.table_view.currentIndex()
-        if idx.isValid():
-            self._frozen_rows = idx.row() + 1
-            self._frozen_cols = idx.column() + 1
-            for i in range(self._frozen_cols):
-                self.table_view.horizontalHeader().setSectionResizeMode(
-                    i, QHeaderView.Fixed)
-            for i in range(self._frozen_rows):
-                self.table_view.verticalHeader().setSectionResizeMode(
-                    i, QHeaderView.Fixed)
-            self.table_view.horizontalHeader().setStyleSheet(
-                "QHeaderView::section:last { border-right: 3px solid #FFB300; }"
-            )
-            self._update_status()
-            self._set_status(
-                f"📌 已冻结 {self._frozen_rows} 行 × "
-                f"{self._frozen_cols} 列", 3000
-            )
-
-    def _unfreeze_all(self):
-        """解除所有冻结的行列"""
-        self._frozen_rows = 0
-        self._frozen_cols = 0
-        hh = self.table_view.horizontalHeader()
-        vh = self.table_view.verticalHeader()
-        for i in range(self.model.columnCount()):
-            hh.setSectionResizeMode(i, QHeaderView.Interactive)
-        for i in range(self.model.rowCount()):
-            vh.setSectionResizeMode(i, QHeaderView.Interactive)
-        hh.setStyleSheet("")
-        self._update_status()
-        self._set_status("✅ 已解冻所有行列", 3000)

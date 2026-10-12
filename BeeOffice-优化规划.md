@@ -23,6 +23,35 @@
 | 1.6 蜜演表格数据破坏 | ✅ | `7353170` |
 | 1.7 应用版式可撤销 | ✅ | `7353170` |
 | 1.8 静默失败最小集 | 🟡 | `7353170`（PDF 批注 + 蜜算备份已完成）；余 `beeshow_ai_service` 的 AI 降级来源标记 |
+| 决策①「先删后补」删除假功能入口 | ✅ | 宏录制/播放、冻结窗格、激光笔/画笔、页眉页脚 stub、蜜写 HTML 导出入口；新增 `tests/unit/test_command_targets_exist.py`（19 条）把"菜单/插件引用了已删方法"变成自动检查 |
+| 附带修复：原子写不再挂死 UI | ✅ | `utils.atomic_write_text` 由 `tempfile.mkstemp` 改为 `open(tmp, "x")`。前者在目标目录不可写时会**无限期阻塞**（实测 15s 未返回），后者 0 ms 抛 `PermissionError` |
+| 附带修复：启动期定时器绑定窗口 | ✅ | `BeeApp` 的 4 个 `QTimer.singleShot` 改为绑定 self 的单次 QTimer + `closeEvent` 显式 stop（与 v5.0.5 状态栏定时器同一类问题） |
+| 附带修复：`tests/qt/test_app.py` 遮蔽 fixture | ✅ | 该文件自建 `app` fixture 遮蔽了 conftest 的同名 fixture，导致不隔离设置、不屏蔽启动模态框、每用例跑一遍插件发现；删除后 **190s 挂起 → 25 passed / 7.8s** |
+
+### 决策①的执行说明（"先删后补"）
+
+已删除的**入口与桩实现**：
+
+| 功能 | 原状态 | 处理 |
+|---|---|---|
+| 蜜算 宏录制 / 播放 | `BeeSheetView` 从来没有 `_toggle_macro_recording`/`_play_macro`，点击只弹"当前表格不支持宏录制" | 删除菜单、命令面板项、`BeeApp` 转发方法、插件壳方法 |
+| 蜜算 冻结窗格 | 只把表头 `setSectionResizeMode(Fixed)`，**无任何滚动冻结效果** | 删除工具栏按钮、两处右键菜单、4 个方法、`_frozen_rows/_frozen_cols` 状态与状态栏显示 |
+| 蜜演 激光笔 / 画笔 | 全仓无鼠标事件处理；`L` 只切一个静止红点，`P` 只翻转一个没人读的布尔量 | 删除 `L`/`P` 按键分支、死状态、激光笔/画布 DOM 容器、快捷键帮助中的两行 |
+| 蜜写 页眉 / 页脚 | 把 `<!-- header: X -->` 当**正文**插入，提示却写"导出 Word 时生效"；全仓无消费者，且 `set_markdown` 会跳过该行 | 删除工具栏两个按钮与两个方法 |
+| 蜜写 导出 HTML | `BeeWriteEditor` 没有 `export_html`，`app._export_html` 的 `hasattr` 判断必然失败 → 菜单点了静默无动作 | 删除菜单项、命令面板项、`BeeApp._export_html`、插件壳方法 |
+
+**保留待「补」**：`bee_export.export_to_html` 是**已实现且有测试覆盖**的（`tests/unit/test_bee_export.py`）。
+它缺的只是 `ExportMixin` 上的一个薄封装 + 菜单接线，约 10 行。
+本次按决策只删不可达入口，未做接线；测试里有一条断言专门守着这个实现不被误删
+（`test_html_export_implementation_still_available_for_later_wiring`）。
+
+**过程中发现并修复的一个自伤问题**：删掉 `BeeWritePlugin.export_html` 后，
+它的 `register_commands` 仍引用该方法 —— 由于 `build_command_palette` 对每个插件
+单独 try/except，表现是**蜜写插件后面所有命令都注册不上**，只在日志留一行 ERROR。
+现已修复，并由新增的 `test_command_targets_exist.py` 把这类引用变成自动检查
+（该文件用源码扫描校验 `menus.py` 的 `main_window._xxx` 与各插件
+ `register_commands`/`register_menus` 里的 `self._xxx` 都真实存在，无需 GUI）。
+
 
 **验收验证**（`python tools/run_tests_isolated.py`）：
 

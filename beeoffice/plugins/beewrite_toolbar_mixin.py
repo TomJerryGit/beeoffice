@@ -260,15 +260,7 @@ class ToolbarMixin:
         toolbar.addWidget(btn_date)
         toolbar.addSeparator()
 
-        # ---------- 页眉 / 页脚 / 目录 ----------
-        btn_header = QPushButton("📋 页眉")
-        btn_header.clicked.connect(self._insert_header)
-        toolbar.addWidget(btn_header)
-
-        btn_footer = QPushButton("📋 页脚")
-        btn_footer.clicked.connect(self._insert_footer)
-        toolbar.addWidget(btn_footer)
-
+        # ---------- 目录 ----------
         btn_toc = QPushButton("📑 目录")
         btn_toc.clicked.connect(self._insert_toc)
         toolbar.addWidget(btn_toc)

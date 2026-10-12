@@ -98,41 +98,79 @@ PyMuPDF(fitz)、python-docx、pandas 与 QtWebEngine；且这段代码由
 
 ### 6.1 解释器退出期原生崩溃（`Windows fatal exception code 0x80000003`）
 
-- **现象**：全量 pytest 一次性运行时，进程在退出阶段崩溃；单独运行同一文件往往能打印结果但退出码非 0；与其它文件一起跑时崩溃点会漂移，整轮拿不到 summary。
-- **已定位的崩溃栈**（faulthandler 实测）：
+- **现象**：含 `QWebEngineView` 的测试文件在**进程退出**阶段崩溃，退出码非 0
+  （`-2147483645`）。测试本身全部通过，与断言无关。
+- **精确定位的崩溃栈**（faulthandler 实测，`tests/qt/test_app.py::test_new_beeshow`）：
 
   ```
-  beeshow_slide_mixin.py:418  _show_slide
+  beeshow_slide_mixin.py:418  _show_slide            ← self._preview.setHtml(full_html)
   beeshow_slide_mixin.py:156  _update_preview
-  beeshow.py:233             _apply_initial_content
+  beeshow.py:231             _apply_initial_content
   beeshow.py:98              __init__
-  tests/test_smoke_beeshow.py:80  test_beeshow_view_instantiable
+  app.py:754                 _new_beeshow
+  tests/qt/test_app.py:109   test_new_beeshow
   ```
 
-  即 `QWebEngineView.setHtml()` 在 offscreen 平台下触发的 Chromium 断点。
-- **相关性（阶段 1 验收实测）**：按文件隔离运行 68 个测试文件，报告退出期异常的
-  **9 个文件全部是构造 `QWebEngineView` 的蜜演相关测试**：
+  即 `QWebEngineView.setHtml()` 在 `QT_QPA_PLATFORM=offscreen` 下触发的
+  Chromium 断点（`0x80000003` = `STATUS_BREAKPOINT`）。崩溃发生在退出阶段，
+  由 QtWebEngine 的渲染/GPU 子线程在进程收尾时抛出。
+- **相关性**：报告退出期异常的 9 个文件**全部**是构造 `QWebEngineView` 的蜜演相关
+  测试（`test_app.py`、`test_beeshow_play.py`、`p0_02`、`p0_04`、`p0_08`、
+  `p1_12`、`p1_13`、`p1_18`、`test_smoke_beeshow.py`）；其余 60 个文件无异常。
+  **没有任何断言失败。**
+- **已验证无效的缓解手段**：
+  `QTWEBENGINE_CHROMIUM_FLAGS='--disable-gpu --disable-software-rasterizer --no-sandbox'`
+  仍然崩溃（实测退出码 -2147483645）。
+- **性质**：环境相关（offscreen + QtWebEngine），不是产品逻辑缺陷；在生产 GUI 会话
+  （真实窗口系统 + GPU）下未复现。
+- **当前对策**：`tools/run_tests_isolated.py` 按文件隔离运行，把崩溃降级为
+  "某个文件退出码异常"，避免它掩盖真实断言失败。CI 中亦应据此按文件运行，
+  或以 `pytest -p no:cacheprovider --forked`（需 `pytest-forked`）替代。
+- **待办**（优化规划 §4.2）：真正的消除方向——在会话级 fixture 里显式
+  `QWebEngineProfile.defaultProfile().deleteLater()` + `processEvents()`，
+  或在测试收尾前把所有 `QWebEngineView` 移到主线程销毁。
 
-  ```
-  tests/qt/test_app.py
-  tests/qt/test_beeshow_play.py                     3 passed 后退出异常
-  tests/regression/p0/test_p0_02_play_window.py      4 passed 后退出异常
-  tests/regression/p0/test_p0_04_beeshow_webengine.py
-  tests/regression/p0/test_p0_08_beeshow_plugin.py   4 passed 后退出异常
-  tests/regression/p1/test_p1_12_presenter_no_notes.py
-  tests/regression/p1/test_p1_13_reorder.py          1 passed 后退出异常
-  tests/regression/p1/test_p1_18_command_context.py
-  tests/test_smoke_beeshow.py
-  ```
+### 6.1.1 已修复：两个曾被误判为「环境问题」的真实缺陷
 
-  其余 59 个文件无异常。**没有任何断言失败**（683 passed / 0 failed），
-  说明这是 QtWebEngine 在 offscreen 下的退出问题，而非产品逻辑缺陷。
-- **性质**：发生在**进程退出**阶段，不是断言失败。
-- **当前对策**：`tools/run_tests_isolated.py` 按文件隔离运行，把崩溃降级为"某个文件退出码异常"而不是掩盖真实断言失败。
-- **待办**（优化规划 §4.2）：定位并消除（可试的方向：会话级 WebEngine profile
-  显式释放、测试结束前 `deleteLater()` + `processEvents()`、或改用
-  `QWebEngineProfile.defaultProfile().deleteLater()`），或在 CI 中正式采用
-  按文件隔离运行。
+排查 6.1 的过程中发现，`tests/qt/test_app.py` 长达约 190 秒且拿不到 summary，
+**并不**只是 WebEngine 的退出问题，而是两个真实缺陷叠加：
+
+1. **原子写用 `mkstemp` 导致 UI 线程挂死**（本次引入后立即修复）
+   `utils.atomic_write_text` 原用 `tempfile.mkstemp(dir=目标目录)`。当目标目录
+   不可写（受限账户 / 被安全软件或沙箱拦截）时，`os.open()` 这条路径**会无限期
+   阻塞**；而普通 `open()` 会在约 0 ms 抛出 `PermissionError`。实测数据：
+
+   | 调用 | 结果 |
+   |---|---|
+   | `open(home/'x.tmp', 'w')` | `PermissionError`，1 ms |
+   | `open(home/'x.tmp', 'x')` | `PermissionError`，0 ms |
+   | `tempfile.mkstemp(dir=home)` | **挂起**（15 s 未返回） |
+
+   由于保存设置发生在 UI 线程，后果是界面卡死而非报错。
+   现改为 `open(tmp, 'x')` 独占创建同目录临时文件，`fsync` 后再 `os.replace`，
+   既保持原子性又能快速失败：`atomic_write_json(不可写目录)` 现在 **2 ms 返回 False**
+   并记录明确日志。
+
+2. **`tests/qt/test_app.py` 自定义 `app` fixture 遮蔽了 conftest 的同名 fixture**
+   该文件过去自己定义了
+   ```python
+   @pytest.fixture(scope="function")
+   def app(qtbot):
+       window = BeeApp()
+       qtbot.addWidget(window)
+       return window
+   ```
+   导致：① 不做设置隔离（直接读写真实 `~/.beeoffice_settings.json`）；
+   ② 不屏蔽启动期模态框 —— `_restore_session` 的 100 ms 定时器真的弹出
+   「是否恢复上次会话」对话框，把整个文件挂死；③ 不跳过插件发现 ——
+   25 个用例各自跑一遍 `discover_plugins()`，耗时约 190 秒。
+   删除该本地 fixture 后：**25 passed / 7.8 秒**（原为挂起 / ~190 秒）。
+
+   同时把 `BeeApp` 的 4 个启动期 `QTimer.singleShot(...)` 改为**绑定到窗口**的
+   单次 QTimer，并在 `closeEvent` 中显式 `stop()` —— 这与 v5.0.5 为状态栏
+   `_status_timer` 所做的修复是同一类问题（`singleShot` 不绑定接收者生命周期，
+   窗口关闭后回调仍会执行）。
+
 
 
 ### 6.2 尚未处理

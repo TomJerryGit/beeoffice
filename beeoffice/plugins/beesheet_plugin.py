@@ -65,16 +65,6 @@ class BeeSheetPlugin(Plugin):
             "去除重复行、空值处理",
             self.clean_data
         )
-        palette.register_command(
-            "蜜算：录制宏",
-            "开始/停止录制宏",
-            self.toggle_macro_recording
-        )
-        palette.register_command(
-            "蜜算：播放宏",
-            "执行已录制的宏",
-            self.play_macro
-        )
 
     # ---------- 新建表格 ----------
     def new_sheet(self) -> QWidget:
@@ -297,37 +287,6 @@ class BeeSheetPlugin(Plugin):
         except Exception as e:
             logging.error(f"数据清洗失败: {e}")
             QMessageBox.warning(self.parent, "清洗失败", str(e))
-
-    # ---------- 宏 ----------
-    def toggle_macro_recording(self):
-        """切换宏录制状态"""
-        view = self._current_view()
-        if not view:
-            self._warn("请先打开一个蜜算表格")
-            return
-        if hasattr(view, "_toggle_macro_recording"):
-            try:
-                view._toggle_macro_recording()
-            except Exception as e:
-                logging.error(f"宏录制失败: {e}")
-                QMessageBox.warning(self.parent, "宏录制失败", str(e))
-        else:
-            self._warn("当前表格不支持宏录制")
-
-    def play_macro(self):
-        """播放已录制的宏"""
-        view = self._current_view()
-        if not view:
-            self._warn("请先打开一个蜜算表格")
-            return
-        if hasattr(view, "_play_macro"):
-            try:
-                view._play_macro()
-            except Exception as e:
-                logging.error(f"播放宏失败: {e}")
-                QMessageBox.warning(self.parent, "播放宏失败", str(e))
-        else:
-            self._warn("当前表格不支持宏播放")
 
     # ---------- 辅助 ----------
     def _warn(self, message: str):

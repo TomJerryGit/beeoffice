@@ -82,9 +82,6 @@ class PlayMixin:
         self._play_timer.timeout.connect(self._update_timer)
         self._play_timer.start(1000)
 
-        self._laser_active = False
-        self._drawing_active = False
-
         self._show_play_slide()
         self._play_window.showFullScreen()
         self._play_window.setMouseTracking(True)
@@ -204,14 +201,8 @@ class PlayMixin:
                 f"""<span>🐝 {self._current_theme}</span>"""
                 f"""<span>{self._current_slide+1}/{len(self._slides_html)}</span>"""
                 f"""<span>⏱ {elapsed//60:02d}:{elapsed%60:02d}</span>"""
-                f"""<span>←→ 翻页 | L 激光笔 | P 画笔 | B 黑屏 | R 排练 | ESC 退出</span>"""
+                f"""<span>←→ 翻页 | B 黑屏 | R 排练 | ESC 退出</span>"""
                 f"""</div>"""
-            )
-
-            # 激光笔 + 画笔画布容器
-            laser_js = (
-                """<div class='laser' id='laser'></div>"""
-                """<canvas class='drawing' id='drawing'></canvas>"""
             )
 
             # 任务 5.1：动态数字 JS
@@ -243,7 +234,7 @@ class PlayMixin:
                 f"""body{{background:{bg};}}{anim_css}</style></head>"""
                 f"""<body><div class="slide">"""
                 f"""{self._slides_html[self._current_slide]}</div>"""
-                f"""{control_bar}{laser_js}{dynamic_js}"""
+                f"""{control_bar}{dynamic_js}"""
                 f"""{morph_ids_js}{morph_js}</body></html>"""
             )
 
@@ -417,17 +408,6 @@ class PlayMixin:
             self._play_window.setHtml(
                 '<html><body style="background:#000;"></body></html>'
             )
-        elif key == Qt.Key_L:
-            # 激光笔开关
-            self._laser_active = not self._laser_active
-            display = 'block' if self._laser_active else 'none'
-            self._play_window.page().runJavaScript(
-                f"document.getElementById('laser').style.display="
-                f"'{display}';"
-            )
-        elif key == Qt.Key_P:
-            # 画笔开关
-            self._drawing_active = not self._drawing_active
         elif key == Qt.Key_R:
             # 排练计时开关
             self.toggle_rehearsal()

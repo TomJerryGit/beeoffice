@@ -24,7 +24,7 @@
 
 注意：
   - 所有方法依赖 self.model / self._undo_stack / self._formula_cells /
-    self._merged_cells / self._frozen_rows / self._frozen_cols 等属性，
+    self._merged_cells 等属性，
     这些由主类 BeeSheetView.__init__ 在调用本 Mixin 的方法前初始化
   - 主类调用顺序：
       1. 状态初始化（model / _undo_stack / _dirty / ...）
@@ -296,12 +296,10 @@ class UIMixin:
         self._t3.addStretch()
         tc.addLayout(self._t3)
 
-        # ===== 第 4 行：冻结 / 解冻 / 样式 / 兼容性 + 折叠按钮 =====
+        # ===== 第 4 行：样式 / 兼容性 + 折叠按钮 =====
         self._t4 = QHBoxLayout()
         self._t4.setContentsMargins(4, 2, 4, 2)
         for text, slot in [
-            ("📌 冻结", self._show_freeze_menu),
-            ("📌 解冻", self._unfreeze_all),
             ("🎨 样式", self._show_style_menu),
             ("✓ 兼容性", self._check_excel_compatibility),
         ]:

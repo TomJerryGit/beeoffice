@@ -131,10 +131,6 @@ class BeeSheetView(
         self._highlight_cells = set()
         self._table_style = None
 
-        # ---------- 冻结行列计数 ----------
-        self._frozen_rows = 0
-        self._frozen_cols = 0
-
         # ---------- 大文件加载器 ----------
         self._large_file_loader = None
 
@@ -655,19 +651,15 @@ class BeeSheetView(
                     values.append(float(v))
                 except (ValueError, TypeError):
                     pass
-        freeze_info = ""
-        if self._frozen_rows > 0 or self._frozen_cols > 0:
-            freeze_info = (f" | 📌冻结:{self._frozen_rows}行"
-                           f"{self._frozen_cols}列")
         if values:
             self.status_label.setText(
                 f"计数:{len(values)} | 求和:{sum(values):,.2f} | "
                 f"平均:{sum(values)/len(values):,.2f} | "
-                f"空值:{empty}{freeze_info}"
+                f"空值:{empty}"
             )
         else:
             self.status_label.setText(
-                f"选中:{len(indexes)} | 空值:{empty}{freeze_info}"
+                f"选中:{len(indexes)} | 空值:{empty}"
             )
 
     def _set_status(self, msg, timeout=0):

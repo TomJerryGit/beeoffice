@@ -2,6 +2,16 @@
 """
 BeeApp 主窗口的单元测试
 覆盖：窗口初始化、菜单、标签管理、新建文档、命令面板、主题、语言
+
+本次调整（优化规划阶段 1 附带发现）：
+  本文件原先自定义了一个 `app` fixture，**遮蔽**了 tests/conftest.py 里的
+  同名 fixture。后果有三：
+    1. 不隔离设置文件 —— BeeApp 直接读写真实的 ~/.beeoffice_settings.json
+    2. 不屏蔽启动期模态框 —— _restore_session 的 100ms 定时器会真的弹出
+       「是否恢复上次会话」对话框，把整个文件挂死（实测超时）
+    3. 不跳过插件发现 —— 每个用例都跑一遍 discover_plugins()，
+       25 个用例耗时约 190 秒
+  删除本地 fixture，改用 conftest.py 的版本即可全部解决。
 """
 import pytest
 from PySide6.QtWidgets import QApplication
@@ -11,14 +21,6 @@ from beeoffice.app import BeeApp
 from beeoffice.plugins.beewrite import BeeWriteEditor
 from beeoffice.plugins.beesheet import BeeSheetView
 from beeoffice.plugins.beeshow import BeeShowView
-
-
-@pytest.fixture(scope="function")
-def app(qtbot):
-    """创建主窗口实例，添加到 qtbot 管理"""
-    window = BeeApp()
-    qtbot.addWidget(window)
-    return window
 
 
 # ---------- 窗口初始化 ----------

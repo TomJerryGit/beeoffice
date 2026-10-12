@@ -3,8 +3,6 @@
 蜜写文档级操作 Mixin
 
 职责：
-  - 页眉 / 页脚
-    * _insert_header / _insert_footer
   - 目录
     * _insert_toc
   - 水印
@@ -59,35 +57,6 @@ from beeoffice.plugins.beewrite_page_extras import (
 # ==================== DocMixin ====================
 class DocMixin:
     """蜜写文档级操作 Mixin"""
-
-    # ==================================================================
-    # 页眉 / 页脚
-    # ==================================================================
-    def _insert_header(self):
-        """插入页眉（以 HTML 注释形式写入，导出 Word 时生效）"""
-        if self._edit_mode != "rich_text":
-            return
-        from PySide6.QtWidgets import QInputDialog
-
-        text, ok = QInputDialog.getText(self, "页眉", "请输入页眉文字:")
-        if ok and text.strip():
-            self.rich_editor.textCursor().insertText(
-                f"\n<!-- header: {text.strip()} -->\n"
-            )
-            self._set_status("页眉已添加，导出 Word 时生效", 3000)
-
-    def _insert_footer(self):
-        """插入页脚（以 HTML 注释形式写入，导出 Word 时生效）"""
-        if self._edit_mode != "rich_text":
-            return
-        from PySide6.QtWidgets import QInputDialog
-
-        text, ok = QInputDialog.getText(self, "页脚", "请输入页脚文字:")
-        if ok and text.strip():
-            self.rich_editor.textCursor().insertText(
-                f"\n<!-- footer: {text.strip()} -->\n"
-            )
-            self._set_status("页脚已添加，导出 Word 时生效", 3000)
 
     # ==================================================================
     # 目录

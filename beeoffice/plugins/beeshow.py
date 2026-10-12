@@ -115,8 +115,6 @@ class BeeShowView(
         self._preloaded_slides = set()
 
         # 播放交互状态
-        self._laser_active = False
-        self._drawing_active = False
         self._custom_bg = None
 
         # P0-4：保持导出时创建的 QWebEngineView 引用，避免被 GC
