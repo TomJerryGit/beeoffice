@@ -119,6 +119,13 @@ is created` 告警。
 | 2026-10-10 | 1.5 补测 | PNG 序列导出补产物级回归：假 QWebEngineView 驱动真实 `_export_images`，断言产出 3 个非空 PNG、失败时告警而非假报成功、AST 校验取图接收者是 view 而非 page | 新增 5 条回归 |
 | 2026-10-10 | 决策① | 删除假功能入口（宏录制/播放、冻结窗格、激光笔/画笔、页眉页脚 stub、蜜写 HTML 导出入口） | 新增 `test_command_targets_exist.py` 19 条 |
 | 2026-10-10 | 附带 | `atomic_write_text` 由 `mkstemp` 改 `open(tmp,"x")`（前者在不可写目录会挂起）；`BeeApp` 启动期定时器绑定窗口 + `closeEvent` 停止；删除 `tests/qt/test_app.py` 遮蔽 conftest 的本地 `app` fixture | `test_app.py`：约 190 s 挂起 → 25 passed / 7.8 s |
+| 2026-10-11 | 2.1 | 插件发现只 import 候选模块（`*_plugin` 约定 + 源码 `(Plugin)` 兜底），不再全量 import 84 个模块；`QApplication` 前设置 `Qt.AA_ShareOpenGLContexts` | `discover_plugins()` **2487 → 39 ms**；启动到插件可用 **3177 → 555 ms**；引入的重依赖 **5 → 0** |
+| 2026-10-11 | 2.2 | 页边距单位统一为 mm（默认值 25.4/31.7；PDF 删除 `*0.264583`）；`bee_export.apply_page_settings()` 成为唯一实现 | 默认 DOCX 边距 2.54mm → **25.4mm**、PDF 0.67mm → **25.4mm**；新增 8 条回归 |
+| 2026-10-11 | 2.2 附带 | Markdown→DOCX 路径原先**完全不应用页面设置**（纸张是 python-docx 模板默认值），`export_to_docx` 增加可选 `page_settings` | 「导出 Word」不再因编辑模式而异 |
+| 2026-10-11 | 2.6 | 蜜写「导出 HTML」接线并可用（`ExportMixin.export_html` + 菜单/命令面板/插件/主窗口四个入口） | 新增 8 条回归；`test_command_targets_exist.py` 改为断言"已接线" |
+| 2026-10-11 | 2.5 | `adjust_formula_refs` 不再把含数字的函数名当引用（`=LOG10(A1)` 由 `=LOH10(B1)` 修正为 `=LOG10(B1)`）；`extract_refs_from_formula` 同源缺陷一并修；自然语言 IF 真假同值修正 | `如果A1大于10就显示'高'` 由 `=IF(A1>10,"高","高")` → `=IF(A1>10,"高","否")`；新增 18 + 13 条回归 |
+| 2026-10-11 | 2.5 | 引擎支持 `$` 绝对引用与反向范围 | `=SUM($A$1:$A$3)` 由 0 → 6；`=SUM(A3:A1)` 由 0 → 6；新增 17 条回归 |
+| 2026-10-11 | 附带 | 蜜演 PNG 导出的「导出中」提示由 `QTimer.singleShot` 改为绑定 self 的单次 QTimer，并在导出完成时 `stop()`（原先导出结束后仍会弹，实测以失效父对象调用 `QMessageBox` 被 Qt 记为 event loop 异常） | `tests/regression/v5` + `test_export_pdf.py`：72 passed / 0 error |
 
 ## 6. 已知问题（已定位，未修）
 
