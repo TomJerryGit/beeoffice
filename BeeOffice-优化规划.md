@@ -485,9 +485,55 @@ AttributeError 被宽 `except Exception: pass` 吞掉，于是重复点「立即
 直接使用 `webdav3.client.Client` 的代码，但那是**连接测试**（`client.check()`），
 不是第二套存储实现，不计入消重目标。
 
-**⬜ 其余 5 项待做**（按风险从低到高建议顺序）：标题编号 → 图片路径兜底 →
-Markdown 表格转换 → 幻灯片 HTML 拼接 → 单元格颜色应用 → Markdown→DOCX。
+**⬜ 其余 4 项待做**（按风险从低到高建议顺序）：图片路径/fragment → Markdown 表格
+转换 → 幻灯片 HTML 拼接 → 单元格颜色应用 → Markdown→DOCX。
 每项都要求"先确认现状份数、再用测试兜底、用户可见行为不变"。
+
+#### 图片路径兜底 + 图片 fragment 扫描：已完成盘点（下一步直接开工）
+
+**A. 路径兜底（2 份，形态相同）**
+
+| 位置 | 候选基准目录（按优先级） | 返回 |
+|---|---|---|
+| `beewrite_export_mixin._resolve_image_path_for_export()` (843-917) | 绝对路径 → `self._current_file_path` 父目录 → `self.get_current_file_dir()` → `self.rich_editor._current_file_dir` → `Path.home()` | `(path_or_None, tried_paths)` |
+| `beewrite_rich_editor._insert_image_by_path()` (353-388+) | 绝对路径 → **从 parent 链找** `BeeWriteEditor._current_file_path` 父目录 → `self._current_file_dir` → `Path.home()` | 就地继续插入；失败插占位文字 |
+
+两份的**共同内核**完全一样：候选去重（保序）→ 逐个 `Path(base)/name` →
+返回第一个存在的 → 记录 `tried_paths` 供日志/占位提示。
+差异只在"候选来源"与"失败后做什么"。
+
+建议 API（`plugins/image_utils.py`，纯函数、不依赖 Qt）：
+
+```python
+def resolve_image_path(name, base_dirs, *, home_fallback=True):
+    """返回 (resolved_path_or_None, tried_paths)。
+    绝对路径只试它自己（与 export 版一致，不落到 home）；
+    相对路径按 base_dirs 顺序去重后逐个尝试。
+    """
+```
+两个调用点各自拼自己的 `base_dirs` 后委托给它。
+另外 `bee_export._resolve_image_path(src, base_dir)`（阶段 2 新增，供
+Markdown→DOCX 用）也应一并接进来（它额外处理 `file:///` 与 `%20`，可合并为
+`normalize_image_ref()`）。
+
+**B. 图片 fragment 扫描（4 处）**
+
+| 位置 | 用途 |
+|---|---|
+| `beewrite_mode_mixin.py:148` | 模式切换时统计/转换文档内图片 |
+| `beewrite_export_mixin.py:1103 / 1119 / 1139-1140` | 导出 DOCX 前统计与插入图片 |
+| `beewrite_export_mixin.py:1277-1278` | 图片数量统计 |
+| `beewrite_rich_editor.py:280 / 310-311` | 编辑器内图片遍历 |
+
+四处都在重复"遍历 `QTextBlock` → `fragment.charFormat().isImageFormat()` →
+`toImageFormat()`"这一套。建议加一个生成器：
+
+```python
+def iter_image_formats(document):
+    """产出文档中所有内联图片的 QTextImageFormat（含 block 位置）。"""
+```
+**注意**：本项涉及导出 DOCX 的图片处理（数据可见），必须先补"图片能出现在导出
+结果里"的产物级测试**再**改，否则容易把"图片丢失"变成静默回归。
 
 #### 标题编号：✅ 已完成（2026-10-11，含一个真实缺陷的修复）
 
