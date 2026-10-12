@@ -124,7 +124,9 @@ is created` 告警。
 | 2026-10-11 | 2.2 附带 | Markdown→DOCX 路径原先**完全不应用页面设置**（纸张是 python-docx 模板默认值），`export_to_docx` 增加可选 `page_settings` | 「导出 Word」不再因编辑模式而异 |
 | 2026-10-11 | 2.6 | 蜜写「导出 HTML」接线并可用（`ExportMixin.export_html` + 菜单/命令面板/插件/主窗口四个入口） | 新增 8 条回归；`test_command_targets_exist.py` 改为断言"已接线" |
 | 2026-10-11 | 2.5 | `adjust_formula_refs` 不再把含数字的函数名当引用（`=LOG10(A1)` 由 `=LOH10(B1)` 修正为 `=LOG10(B1)`）；`extract_refs_from_formula` 同源缺陷一并修；自然语言 IF 真假同值修正 | `如果A1大于10就显示'高'` 由 `=IF(A1>10,"高","高")` → `=IF(A1>10,"高","否")`；新增 18 + 13 条回归 |
-| 2026-10-11 | 2.5 | 引擎支持 `$` 绝对引用与反向范围 | `=SUM($A$1:$A$3)` 由 0 → 6；`=SUM(A3:A1)` 由 0 → 6；新增 17 条回归 |
+| 2026-10-11 | 2.5 | 引擎支持 `$` 绝对引用与反向范围；聚合函数支持逗号分隔参数（原先连 `=SUM(1)` 都返回 0） | `=SUM($A$1:$A$3)` 与 `=SUM(A3:A1)` 由 0 → 6；`=SUM(1,2,3)` 由 0 → 6；新增 17 + 22 条回归 |
+| 2026-10-11 | 2.4 | `ChunkLoader` 不再在工作线程写模型（拆为 `build_chunk` 后台读取 + `apply_chunk` 主线程合并）；`progress` 信号由"声明了但从不 emit"改为真实发出（原先进度条永远隐藏、`_on_loading_progress` 是死代码） | 新增 9 条回归 |
+| 2026-10-11 | 2.3 | 实测**否证**了"回调跑在工作线程"的假设（`AsyncTaskManager` 与 `LargeFileLoader` 的回调均在主线程），因此不改代码，改为把该不变量写成回归测试 | 新增 5 条回归 |
 | 2026-10-11 | 附带 | 蜜演 PNG 导出的「导出中」提示由 `QTimer.singleShot` 改为绑定 self 的单次 QTimer，并在导出完成时 `stop()`（原先导出结束后仍会弹，实测以失效父对象调用 `QMessageBox` 被 Qt 记为 event loop 异常） | `tests/regression/v5` + `test_export_pdf.py`：72 passed / 0 error |
 
 ## 6. 已知问题（已定位，未修）

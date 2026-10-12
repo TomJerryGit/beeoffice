@@ -300,6 +300,58 @@ class FormulaEngine:
         )
 
     @staticmethod
+    def _numbers(a, model):
+        """
+        把聚合函数的参数解析成数字列表（优化规划 §2.5）。
+
+        原先 `_sum` / `_avg` / `_max` / `_min` / `_cnt` 都只走 `_vals()`，
+        而 `_vals()` 只调用 `_range()` —— 只认 `A1:A3` 这种**冒号范围**。
+        于是 Excel 里同样合法的"逗号分隔参数"一律**静默返回 0**：
+            =SUM(1,2,3)      -> 0（应为 6）
+            =SUM(A1,A2,A3)   -> 0（应为 6）
+            =AVERAGE(1,2,3)  -> 0（应为 2）
+        用户看到的是"算出来了，但是 0"，比抛异常更难发现。
+
+        逐段识别三类写法：
+          - 范围      A1:A3 / $A$1:$A$3（可多段，逗号分隔）
+          - 单元格    A1 / $A$1
+          - 数值常量  1 / 1.5 / -2
+        文本等无法转成数字的取值按 Excel 的 SUM/COUNT 语义忽略（不抛异常）。
+        """
+        parts = FormulaEngine._args(a) if isinstance(a, str) else [a]
+        out = []
+        for part in parts:
+            if not isinstance(part, str):
+                try:
+                    out.append(float(part))
+                except (TypeError, ValueError):
+                    pass
+                continue
+            token = part.strip()
+            if not token:
+                continue
+            if ':' in token:
+                out.extend(FormulaEngine._vals(token, model))
+                continue
+            ref = FormulaEngine._ref(token)
+            if ref:
+                try:
+                    val = model.get_value(ref[0], ref[1])
+                except Exception:
+                    val = None
+                if val is not None and str(val).strip() != '':
+                    try:
+                        out.append(float(val))
+                    except (TypeError, ValueError):
+                        pass
+                continue
+            try:
+                out.append(float(token))
+            except (TypeError, ValueError):
+                pass
+        return out
+
+    @staticmethod
     def _vals(r, model):
         rd = FormulaEngine._range(r)
         if not rd:
@@ -424,27 +476,27 @@ class FormulaEngine:
 
     @classmethod
     def _sum(cls, a, m):
-        v = cls._vals(a, m)
+        v = cls._numbers(a, m)
         return sum(v) if v else 0
 
     @classmethod
     def _avg(cls, a, m):
-        v = cls._vals(a, m)
+        v = cls._numbers(a, m)
         return sum(v) / len(v) if v else 0
 
     @classmethod
     def _max(cls, a, m):
-        v = cls._vals(a, m)
+        v = cls._numbers(a, m)
         return max(v) if v else 0
 
     @classmethod
     def _min(cls, a, m):
-        v = cls._vals(a, m)
+        v = cls._numbers(a, m)
         return min(v) if v else 0
 
     @classmethod
     def _cnt(cls, a, m):
-        return len(cls._vals(a, m))
+        return len(cls._numbers(a, m))
 
     @classmethod
     def _cnta(cls, a, m):
