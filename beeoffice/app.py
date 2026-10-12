@@ -1219,33 +1219,28 @@ class BeeApp(QMainWindow):
             remote_dir = "/beeoffice"
             local_dir.mkdir(parents=True, exist_ok=True)
 
-            success = True
-            for file in local_dir.rglob("*"):
-                if not file.is_file():
-                    continue
-                try:
-                    rel_path = file.relative_to(local_dir)
-                    remote_path = f"{remote_dir}/{rel_path.as_posix()}"
-                    if not storage.upload(str(file), remote_path):
-                        success = False
-                except Exception as e:
-                    logging.error(f"上传失败 {file}: {e}")
-                    success = False
-
-            return success, (
-                tr("msg.sync_success", "同步完成")
-                if success
-                else tr("msg.sync_partial_failed", "部分文件同步失败")
+            # 优化规划 §4.5：改为带**过滤**并**如实计数**。
+            # 原实现是 `for file in rglob("*"): storage.upload(...)`：既没有
+            # 白名单（该目录内任何内容都会明文上传到用户的云盘），也不管结果
+            # 一律报"同步完成"（哪怕一个文件都没传）。
+            from beeoffice.cloud_sync.policy import (
+                upload_tree,
+                describe_result,
             )
+
+            counts = upload_tree(storage, local_dir, remote_dir)
+            logging.info(f"云同步结果: {counts}")
+            return counts, describe_result(counts)
 
         def on_result(result):
             self._sync_in_progress = False
-            success, msg = result
-            if success:
-                QMessageBox.information(self, tr("msg.success", "完成"), msg)
-            else:
+            counts, msg = result
+            failed = counts.get("failed", 0) if isinstance(counts, dict) else 0
+            if failed:
                 QMessageBox.warning(self, tr("msg.warning", "警告"), msg)
-            self.set_global_status(msg, 3000)
+            else:
+                QMessageBox.information(self, tr("msg.success", "完成"), msg)
+            self.set_global_status(msg, 5000)
 
         def on_error(err):
             self._sync_in_progress = False

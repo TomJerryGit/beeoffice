@@ -109,6 +109,7 @@ MODULES_TO_CHECK = [
     "beeoffice.plugins.empty_state",
     # 云存储
     "beeoffice.cloud_sync.base",
+    "beeoffice.cloud_sync.policy",
     "beeoffice.cloud_sync.webdav",
     "beeoffice.cloud_sync.onedrive",
     "beeoffice.cloud_sync.googledrive",

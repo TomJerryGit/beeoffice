@@ -142,7 +142,8 @@
   `unknown` 后照常覆盖。（**v5.0.8 更新**：该函数随死模块
   `plugins/webdav_sync.py` 一并删除——它只被同样无引用的 `beeoffice/webdav.py`
   使用，不在任何活跃的云同步路径上。活跃路径 `app._sync_now` →
-  `cloud.get_cloud_storage()` 目前**没有冲突检测**，这一点见优化规划 §4.5。）
+  `cloud.get_cloud_storage()` 目前**没有冲突检测**，这一点见分析报告 §4.5/§4.6
+  与优化规划新增的 §4.5。）
 - v5.0.6 记录的「测试数：483 → 581」「覆盖率：34.54% → 37.30%」与实际不符
   （实际收集 710+；且当时 `tests/unit/test_settings.py` 有 4 个用例长期失败，
   根因正是上面那条 `save()` 缺陷）。本文件原先还把修改这些数字的 Python

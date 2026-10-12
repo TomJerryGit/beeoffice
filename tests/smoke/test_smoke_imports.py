@@ -54,6 +54,7 @@ MODULES = [
     "beeoffice.cloud_settings",
     "beeoffice.cloud_sync",
     "beeoffice.cloud_sync.base",
+    "beeoffice.cloud_sync.policy",
     "beeoffice.cloud_sync.webdav",
     "beeoffice.cloud_sync.onedrive",
     "beeoffice.cloud_sync.googledrive",
