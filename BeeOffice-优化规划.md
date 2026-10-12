@@ -62,8 +62,21 @@ files : 71      passed : 744      failed : 0      error : 0
 
 9 个文件报告"退出期崩溃"，**全部是构造 QWebEngineView 的蜜演相关测试**
 （`test_app.py`、`test_beeshow_play.py`、`p0_02`、`p0_04`、`p0_08`、`p1_12`、
-`p1_13`、`p1_18`、`test_smoke_beeshow.py`）——崩溃发生在进程退出阶段，
-与改动无关，属计划 §4.2 的已知项，详见 [docs/baseline.md](docs/baseline.md) §6.1。
+`p1_13`、`p1_18`、`test_smoke_beeshow.py`），与改动无关。
+
+**⚠️ 2026-10-11 更正根因**（原先记为"offscreen 下退出期崩溃"）：最小复现证明真正
+原因是 **Chromium 的 mojo 平台通道无法创建命名管道**——
+
+```
+FATAL:platform_channel.cc(85)] Check failed: . : 拒绝访问。 (0x5)
+```
+
+只创建视图而**不**调用 `setHtml()` 时退出码为 0；一旦 `setHtml()` 必崩，且
+`AA_ShareOpenGLContexts`、Chromium 的 `--no-sandbox/--disable-gpu`、`deleteLater`
++ 事件循环、父窗口、`QT_QPA_FONTDIR` **全部无效**。这是**本会话沙箱**禁止命名
+管道所致，不是产品缺陷也不是 `offscreen` 缺陷，崩溃点在 `setHtml` **调用之中**
+而非退出阶段。**在普通机器 / CI runner 上预计不会复现**（待 GitHub CI 证实）。
+详见 [docs/baseline.md](docs/baseline.md) §6.1。
 
 ---
 
@@ -655,7 +668,7 @@ Windows-only 是原计划；**建议加 Linux 与 macOS**——因为多处平�
 | 项 | 草案 | 实际 | 原因 |
 |---|---|---|---|
 | 平台 | Windows-only（正文建议加两平台） | **windows + ubuntu + macos 矩阵** | 采纳建议；`platform.system()` 三分支与 `open`/`xdg-open` 在本机从未验证 |
-| 测试命令 | `pytest tests -q --cov=...` | **`tools/run_tests_isolated.py --quiet`** | 9 个构造 `QWebEngineView` 的文件在 offscreen 下**退出期原生崩溃**，`pytest tests` 会假红；隔离运行器退出码只反映真实 failed/error（见 baseline §6.1） |
+| 测试命令 | `pytest tests -q --cov=...` | **`tools/run_tests_isolated.py --quiet`** | 隔离运行的动机有两条，**都不是**"WebEngine 退出期崩溃"：① `qapp` 级挂死（实测 `test_app.py` 曾达 190 s 且拿不到 summary，见 baseline §6.1.1）；② 测试间顺序污染。此外本会话沙箱禁止命名管道会让构造 `QWebEngineView` 的 9 个文件在 `setHtml()` 处原生崩溃（`platform_channel.cc` FATAL，见基线 §6.1 更正），隔离运行器把这类"文件退出码异常"与真实 failed/error 区分开 |
 | 覆盖率 | `--cov-report=xml` | **未接入**（不声称有） | 隔离运行拆成 89 个进程，单进程覆盖率无法直接聚合，需 `coverage combine`；宁可没有也不要假的 |
 | ruff | 未指定是否阻断 | `continue-on-error: true` + 写入 step summary | 当前 1571 个问题，一次要求全绿会让 CI 长期红灯 |
 
@@ -674,7 +687,7 @@ Windows-only 是原计划；**建议加 Linux 与 macOS**——因为多处平�
 | **断言产物而非调用** | 导出类测试必须检查文件存在、大小、关键属性（边距/字体/图片数） |
 | **改掉掩盖生产行为的测试** | `tests/unit/test_mobile_api.py:66` 的 `127.0.0.1` + 补绑定地址断言 | ✅ **已完成**：夹具原先**自己写死** `server.ip = "127.0.0.1"`，于是生产代码绑定 `0.0.0.0` 也测不出来。现改为取生产代码**自己算出来**的 `_bind_host()` 并据此绑定，且断言它必须是回环；另加一条测试防止再次写死 |
 | **给每个 P0 修复配回归测试** | 见各阶段"验证"列 |
-| **解决顺序污染** | 用 `pytest-forked` 或显式 fixture teardown 定位全量崩溃 |
+| **解决顺序污染** | 用 `pytest-forked` 或显式 fixture teardown 定位全量崩溃 | ⚠️ **已部分澄清（2026-10-11）**：原先怀疑的"全量崩溃"里，9 个构造 `QWebEngineView` 的文件的崩溃已查明是**本会话沙箱禁止命名管道**（`platform_channel.cc` FATAL，见基线 §6.1），与顺序污染无关；**顺序污染本身仍未定位**（本地无法区分，因为沙箱崩溃会掩盖结论） |
 | **敏感面测试** | 凭据不得明文落盘、插件哈希校验失败必须拒绝、`0.0.0.0` 不得出现 | ✅ **已加**（`tests/regression/v5/test_v505_sensitive_surfaces.py`，14 条）：两个服务器默认只绑定回环、`allow_lan` 是唯一开关、源码里不得出现无条件的 `"0.0.0.0"` 字面量（并反向确认该扫描确实扫到了两处开关，避免恒真）、设置文件不含明文口令/访问令牌。⚠️ base64 是**编码不是加密**，测试只断言"文件里看不到明文"，不得被当成安全性证明。**插件哈希校验无测试** —— `plugin_market.py` 目前**根本没有校验逻辑**（只有 `build_release.py` 为发布产物算 sha256），见 §3.5，不能凭空断言 |
 
 **预估**：3 人日（持续投入）。

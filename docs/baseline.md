@@ -73,7 +73,7 @@ is created` 告警。
 | `pytest --collect-only`（全量） | 710 | **733**（删掉死模块 `formula_engine.py` 的 64 条，新增 86 条安全/数据回归） |
 | `tests/qt` 单独运行 | 97 passed / 17.25 s | 待复测 |
 | 全量 `tests/` 一次性运行 | **原生崩溃**（顺序污染，单独跑子集均通过） | 仍会崩溃，但已有隔离运行方案与定位结论（见 §6.1） |
-| 按文件隔离运行（`tools/run_tests_isolated.py`） | — | **99 文件 / 1071 passed / 0 failed / 0 error**（§4.2 恒真断言修复实测）。注意 passed 计数会波动（曾见 1006~1083）：9 个构造 `QWebEngineView` 的文件在退出期崩溃，**是否来得及打印 summary 会决定那几十个用例算不算进去**；`failed`/`error` 则始终为 0 |
+| 按文件隔离运行（`tools/run_tests_isolated.py`） | — | **99 文件 / 1054 passed / 0 failed / 0 error**（§4.2 WebEngine 根因查明后实测）。注意 passed 计数会波动（曾见 1006~1083）：9 个构造 `QWebEngineView` 的文件在**本会话沙箱**里因命名管道被拒而在 `setHtml()` 处原生崩溃（见 §6.1 更正），**是否来得及打印 summary 会决定那几十个用例算不算进去**；`failed`/`error` 则始终为 0 |
 
 失败根因（已修复）：`AppSettings.save()` 先以 `"w"` 截断文件再在 `json.dump`
 参数位构造 payload，任何构造期异常都会把 `~/.beeoffice_settings.json` 留成
@@ -149,6 +149,8 @@ is created` 告警。
 | 2026-10-11 | 4.2 | **敏感面测试 + 改掉"掩盖生产行为"的测试**。新增 `test_v505_sensitive_surfaces.py`（14 条）：移动端与蜜演同步服务器**默认只绑定回环**（`allow_lan` 是唯一开关）、源码中不得出现无条件的 `"0.0.0.0"` 字面量（并反向确认扫描非恒真）、设置文件不含明文口令/访问令牌（**base64 是编码不是加密**，只断言无明文）。另修正 `test_mobile_api.py`：夹具原先**自己写死** `server.ip = "127.0.0.1"`，使生产绑定 `0.0.0.0` 也测不出来；现改为取生产算出的 `_bind_host()` 并据此绑定。**未加**插件哈希校验测试 —— `plugin_market.py` 目前没有任何校验逻辑（不能凭空断言） | 新增 14 条回归；`test_mobile_api.py` 12 条从 ERROR 恢复为通过 |
 | 2026-10-11 | 4.2 | **修掉恒真断言**（规划点名的 `test_md_conversion.py::test_empty_heading_not_output`）。实测确认它确实无法失败：原夹具下 `to_markdown()` 返回 `''` → `lines == []` → 循环**一次都不执行**；另两种构造下空标题被丢弃、也不会出现 `"#"`。已改为"输出非空 + 前置条件确有空标题块 + 正文保留 + 无空标题行"，另用一次性验证证明判定条件能捕获注入的 `"#"` 行 | 该测试由恒真变为可失败 |
 | 2026-10-11 | 4.2 | **更正规划一条过期说法**：原写"`test_smoke_beeshow.py:90-221,322-342` 有大量 `assert hasattr`"。AST 复核：实际路径是 `tests/test_smoke_beeshow.py`，其中**已无任何 `assert hasattr`**；全仓"仅由 hasattr 断言构成的测试"只剩 **4 个**，其中 2 个是本会话有意加的行为测试配套守卫。故本条实质已完成，不为凑计划去改这些有效守卫 | — |
+| 2026-10-11 | 4.2 | **查明"9 个文件退出期崩溃"的真正根因，并更正旧记录**。原先记为"`offscreen` 下 QtWebEngine 退出期崩溃、由渲染/GPU 子线程在收尾时抛出"。最小复现（6 个变体）证明：只创建视图**不** `setHtml()` → 退出码 **0**、无 FATAL；一旦 `setHtml()` → 必崩，且 `AA_ShareOpenGLContexts`、Chromium `--no-sandbox/--disable-gpu`、`deleteLater`+事件循环、父窗口、`QT_QPA_FONTDIR` **全部无效**。崩溃点真正的错误是 `FATAL:platform_channel.cc(85)] Check failed: . : 拒绝访问。 (0x5)` —— **Chromium 的 mojo 平台通道无法创建命名管道**，即**本会话沙箱**禁止命名管道所致；崩溃发生在 `setHtml` **调用之中**，不是退出阶段。结论：**不是产品缺陷、不是 offscreen 缺陷，普通机器/CI runner 上预计不复现**（待 CI 证实）。据此移除了 `tests/conftest.py` 里基于错误假设加入的 `AA_ShareOpenGLContexts` | 该崩溃不再是"待消除的产品缺陷"；passed 计数波动的疑因也在本地沙箱 |
+| 2026-10-11 | 4.2 | **更正隔离运行器的动机表述**：CI 用按文件隔离是绕开 ① `qapp` 级挂死（实测 `test_app.py` 曾 190 s 无 summary）② 顺序污染，**不是**绕开上述沙箱崩溃。顺序污染本身**仍未定位**（本地无法区分，沙箱崩溃会掩盖结论） | — |
 | 2026-10-11 | 4.3 | **版本号单一来源 + LICENSE + README 诚实化**。新增 `tools/sync_version.py`（默认只检查、`--write` 才改）并以 `__version__.py` 为唯一来源核对 README 徽章与 CHANGELOG，已接入 CI。实测引入前：README 徽章写 **5.0.2** 而源码是 **5.0.7**、CHANGELOG 已到 `[5.0.8]` 而源码仍 5.0.7 → 统一为 **5.0.8**。补 `LICENSE`（MIT）—— 此前 README 徽章链接的文件**根本不存在**。`__version__.py` 移除内嵌的版本历史（指向 CHANGELOG）。README 就地标注 4 类实测确认的假功能（页眉页脚/冻结窗格/宏录制播放/激光笔画笔）与不实的"冲突检测"声明，并新增"功能实现状态说明" | 新增 8 条回归；CI 增加版本检查步骤（8 → 9 步） |
 | 2026-10-11 | 4.3 | **工具自身的编码缺陷（已修）**：`sync_version.py` 打印 `✓` 时在 GBK stdout 下抛 `UnicodeEncodeError` → 退出码变 1，会让 CI 步骤无端失败（实测发现于子进程调用）。改为 reconfigure UTF-8 + 仅用 ASCII 标记 | — |
 | 2026-10-11 | 4.3 | **剩余**：分析报告 §5.1 的完整功能清单尚未整体搬入 README；约 45/118 个模块仍在 docstring 里内嵌补丁历史 | — |
@@ -174,24 +176,51 @@ is created` 告警。
   tests/qt/test_app.py:109   test_new_beeshow
   ```
 
-  即 `QWebEngineView.setHtml()` 在 `QT_QPA_PLATFORM=offscreen` 下触发的
-  Chromium 断点（`0x80000003` = `STATUS_BREAKPOINT`）。崩溃发生在退出阶段，
-  由 QtWebEngine 的渲染/GPU 子线程在进程收尾时抛出。
+  即 `QWebEngineView.setHtml()` 触发的 Chromium 断点
+  （`0x80000003` = `STATUS_BREAKPOINT`）。
+
+- **⚠️ 2026-10-11 更正：真正原因是沙箱禁止命名管道，与 offscreen 无关**
+  本节原先写"offscreen 下退出期崩溃、由渲染/GPU 子线程在进程收尾时抛出"，
+  **不正确**。用最小复现（`QWebEngineView()` + `setHtml()`，共 6 个变体）查清：
+
+  | 变体 | 退出码 | 备注 |
+  |---|---|---|
+  | 只创建视图、**不** setHtml | **0** | 无任何 FATAL |
+  | setHtml | -2147483645 | 必崩 |
+  | setHtml + `AA_ShareOpenGLContexts` | -2147483645 | 无效 |
+  | setHtml + Chromium `--no-sandbox --disable-gpu` | -2147483645 | 无效 |
+  | setHtml + `deleteLater()` + `processEvents()` | -2147483645 | 无效 |
+  | setHtml + 跑事件循环 / 加父窗口 / 指定 `QT_QPA_FONTDIR` | -2147483645 | 均无效 |
+
+  崩溃点打出的真正错误是：
+
+  ```
+  [nnnn:nnnn:...:FATAL:platform_channel.cc(85)] Check failed: . : 拒绝访问。 (0x5)
+  ```
+
+  即 **Chromium 的 mojo 平台通道无法创建命名管道（`ERROR_ACCESS_DENIED`）**。
+  这正是本会话沙箱的限制（沙箱禁止命名管道），**不是** BeeOffice 的缺陷，
+  也不是 `offscreen` 平台本身的缺陷；**崩溃发生在 `setHtml` 调用之中**，
+  而不是"退出阶段"。
+
 - **相关性**：报告退出期异常的 9 个文件**全部**是构造 `QWebEngineView` 的蜜演相关
   测试（`test_app.py`、`test_beeshow_play.py`、`p0_02`、`p0_04`、`p0_08`、
   `p1_12`、`p1_13`、`p1_18`、`test_smoke_beeshow.py`）；其余 60 个文件无异常。
   **没有任何断言失败。**
-- **已验证无效的缓解手段**：
-  `QTWEBENGINE_CHROMIUM_FLAGS='--disable-gpu --disable-software-rasterizer --no-sandbox'`
-  仍然崩溃（实测退出码 -2147483645）。
-- **性质**：环境相关（offscreen + QtWebEngine），不是产品逻辑缺陷；在生产 GUI 会话
-  （真实窗口系统 + GPU）下未复现。
+- **已验证无效的缓解手段**：`QTWEBENGINE_CHROMIUM_FLAGS='--disable-gpu
+  --disable-software-rasterizer --no-sandbox'`、`AA_ShareOpenGLContexts`、
+  `deleteLater` + 事件循环、父窗口、`QT_QPA_FONTDIR` —— 全部仍然崩溃。
+- **性质**：**本会话沙箱特有**（禁止命名管道），不是产品缺陷，也不是平台缺陷。
+  在普通机器 / CI runner 上命名管道可用，**这些文件预计不会崩溃**——因此
+  本会话观察到的"passed 计数波动（1006~1083）"很可能只是本地沙箱假象；
+  这一点只能在 GitHub CI 上证实。
 - **当前对策**：`tools/run_tests_isolated.py` 按文件隔离运行，把崩溃降级为
-  "某个文件退出码异常"，避免它掩盖真实断言失败。CI 中亦应据此按文件运行，
-  或以 `pytest -p no:cacheprovider --forked`（需 `pytest-forked`）替代。
-- **待办**（优化规划 §4.2）：真正的消除方向——在会话级 fixture 里显式
-  `QWebEngineProfile.defaultProfile().deleteLater()` + `processEvents()`，
-  或在测试收尾前把所有 `QWebEngineView` 移到主线程销毁。
+  "某个文件退出码异常"，避免它掩盖真实断言失败。**注意：CI 的动机与此不同**——
+  CI 用按文件隔离是为了绕开已实测的 `qapp` 级挂死（见 §6.1.1）与顺序污染，
+  **不是**为了绕开这个沙箱崩溃。
+- **待办**：不再把它当作"待消除的产品缺陷"；已从 tests/conftest.py 移除基于
+  错误假设加入的 `AA_ShareOpenGLContexts`。若在无沙箱环境仍复现，再按
+  "Chromium 命名管道被拦截"方向排查（例如安全软件/组策略限制）。
 
 ### 6.1.1 已修复：两个曾被误判为「环境问题」的真实缺陷
 

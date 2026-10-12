@@ -31,6 +31,32 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 
+# ==================== QtWebEngine 的"退出期崩溃"到底是什么（优化规划 §4.2）====================
+# 本仓库有 9 个测试文件会构造 QWebEngineView，此前一直记为"offscreen 下退出期原生崩溃
+# （0x80000003 STATUS_BREAKPOINT）"。2026-10-11 用最小复现查清了**真正原因**：
+#
+#     view = QWebEngineView()
+#     view.setHtml("<h1>hi</h1>")      # ← 进程在此处 FATAL
+#
+# 输出：
+#     [nnnn:nnnn:...:FATAL:platform_channel.cc(85)] Check failed: . : 拒绝访问。 (0x5)
+#
+# 即 **Chromium 的 mojo 平台通道无法创建命名管道（ERROR_ACCESS_DENIED）**，
+# 这正是本会话沙箱的限制（沙箱禁止命名管道），与 BeeOffice 无关，也不是
+# offscreen 平台本身的缺陷。证据：
+#   - 只创建视图、**不**调用 setHtml → 退出码 0，且没有任何 FATAL
+#   - 一旦 setHtml → 必定崩溃；`AA_ShareOpenGLContexts`、Chromium 的
+#     --no-sandbox/--disable-gpu、deleteLater、跑事件循环、设置父窗口、
+#     指定 QT_QPA_FONTDIR 全都无效
+# 因此这里**不再**试图"修"它（早先按 Qt 警告加 AA_ShareOpenGLContexts 属于
+# 基于错误假设的改动，已移除）。在普通机器 / CI runner 上命名管道可用，
+# 这些文件不会因该原因崩溃。
+#
+# 保留下面这行的理由与崩溃无关：让本地默认与 CI 一致地无头运行；
+# 已存在的同名环境变量优先（setdefault），需要真实显示时可自行覆盖。
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+
 # ==================== 应用级 fixture ====================
 
 @pytest.fixture(scope="session")
