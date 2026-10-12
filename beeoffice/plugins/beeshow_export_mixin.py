@@ -363,10 +363,17 @@ class ExportMixin:
 
         为每张幻灯片创建一个独立的 QWebEngineView：
           - 加入 self._export_views 列表保持引用
-          - loadFinished 后调 page.grab().save(...)
+          - loadFinished 后对**视图**取图（见下方 v5.0.5 说明）
           - 完成后从列表移除并 deleteLater
 
-        修复：
+        v5.0.5 修复（优化规划 §1.5）：
+          原实现对 QWebEnginePage 取图，而该能力只存在于
+          QWidget / QWebEngineView 上，因此**必然**失败；异常被吞掉后
+          仍在 finally 里提示「导出成功」——功能完全不存在却报成功。
+          现在对视图取图，并让提示基于真实写入结果（检查 pixmap 是否为空
+          与 save() 的返回值，有失败页时给出页码清单）。
+
+        历史修复：
           - 原文件用了 logging.error 但未 import logging；
             现在顶部补上 import logging。
         """
