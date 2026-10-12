@@ -27,6 +27,14 @@
 - **资源**：蜜演播放窗口不再每次泄漏一个 QtWebEngine 视图；PPTX 导出不再
   每页重启一次 Chromium；视频封面缓存改为跨进程稳定并自动清理。
 
+### 修复（阶段 3.1 附带发现）
+- **云同步**：`app._sync_now()` 的"同步正在进行中"守卫**从未生效**。
+  它用 `self._sync_worker.isRunning()` 判断，而 `AsyncTaskManager.run()`
+  返回的是 `QRunnable`（`Worker`），**没有 `isRunning()`**；AttributeError
+  被宽 `except Exception: pass` 静默吞掉。于是重复点击「立即同步」
+  （或自动同步与手动同步叠加）会**并发启动多次上传**。
+  现改用显式标记 `_sync_in_progress`（进入前置位、结果/错误回调清除）。
+
 ### 移除（阶段 3.1：确认零引用后删除）
 - `beeoffice/webdav.py`（WebDAV 设置窗口，无任何生产引用）。
 - `beeoffice/plugins/webdav_sync.py`（`WebDAVConfig` 明文密码落盘到

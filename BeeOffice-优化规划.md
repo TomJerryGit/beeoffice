@@ -445,6 +445,13 @@ CHANGELOG 增设 `[5.0.8]` 条目并更正 `_check_conflict` 相关记录。
 删除的 `plugins/webdav_sync.py` 中的 `_check_conflict` 属死代码；活跃同步路径
 目前**没有冲突检测**，仍留在规划 §4.5。
 
+**§3.1 附带发现并修复**：`app._sync_now()` 的"同步正在进行中"守卫从未生效 ——
+它用 `self._sync_worker.isRunning()` 判断，而 `AsyncTaskManager.run()` 返回的是
+`QRunnable`（`Worker`，实测 `hasattr(..., "isRunning") is False`），
+AttributeError 被宽 `except Exception: pass` 吞掉，于是重复点「立即同步」
+会并发启动多次上传。现改用显式标记 `_sync_in_progress`
+（`tests/regression/v5/test_v505_sync_guard.py`，7 条）。
+
 ### 3.2 拆 `app.py`（1414 行 / 87 方法）
 
 按已有边界继续外移，**每次只搬一个域 + 保留委托方法**，避免大爆炸：

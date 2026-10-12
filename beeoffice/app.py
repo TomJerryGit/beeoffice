@@ -114,6 +114,12 @@ class BeeApp(QMainWindow):
         self._apply_theme()
 
         self._sync_worker = None
+        # 优化规划 §3.1 附带发现：`AsyncTaskManager.run()` 返回的是 QRunnable
+        # （Worker），**没有 `isRunning()`**；原先 `_sync_now` 靠它判断"是否正在
+        # 同步"，AttributeError 被宽 except 吞掉 → 该守卫永不生效，重复点击
+        # 「立即同步」（或自动同步与手动同步叠加）会并发启动多次上传。
+        # 改用显式布尔标记。
+        self._sync_in_progress = False
         self.mobile_server = None
         self._shortcuts_dlg = None
         self._onboarding_overlay = None
@@ -1197,18 +1203,15 @@ class BeeApp(QMainWindow):
             )
             return
 
-        if self._sync_worker is not None:
-            try:
-                if self._sync_worker.isRunning():
-                    QMessageBox.information(
-                        self,
-                        tr("msg.hint", "提示"),
-                        tr("msg.sync_in_progress", "同步正在进行中"),
-                    )
-                    return
-            except Exception:
-                pass
+        if self._sync_in_progress:
+            QMessageBox.information(
+                self,
+                tr("msg.hint", "提示"),
+                tr("msg.sync_in_progress", "同步正在进行中"),
+            )
+            return
 
+        self._sync_in_progress = True
         self.set_global_status(tr("msg.syncing", "正在同步..."), 0)
 
         def sync_files():
@@ -1236,6 +1239,7 @@ class BeeApp(QMainWindow):
             )
 
         def on_result(result):
+            self._sync_in_progress = False
             success, msg = result
             if success:
                 QMessageBox.information(self, tr("msg.success", "完成"), msg)
@@ -1244,6 +1248,7 @@ class BeeApp(QMainWindow):
             self.set_global_status(msg, 3000)
 
         def on_error(err):
+            self._sync_in_progress = False
             logging.error(f"同步失败: {err}")
             QMessageBox.warning(
                 self, tr("msg.error", "错误"), tr("msg.sync_failed", "同步失败")
