@@ -241,14 +241,16 @@ class NotesMixin:
             return
 
         if not notes:
+            # 优化规划 §1.8：如实说明来源（未配置 Key / 调用失败 / 返回空），
+            # 不再让用户从一句笼统的"AI 未返回演讲稿"里去猜。
             QMessageBox.information(
-                self, "提示",
-                "AI 未返回演讲稿。\n\n"
-                "可能原因：\n"
-                "• 未配置 AI API Key（设置 → AI 服务）\n"
-                "• API 调用失败\n\n"
-                "可在 ~/.beeoffice_settings.json 中配置 "
-                "ai_api_key 后重试。"
+                self, "未生成演讲稿",
+                f"来源：{service.describe_last_source()}\n\n"
+                "• 若为「未配置」：请在 ~/.beeoffice_settings.json 中填写 "
+                "ai_api_key（或用环境变量），然后重启应用\n"
+                "• 若为「AI 调用失败」：请检查 Key 是否正确、网络是否可达、"
+                "ai_api_base 是否为 https 端点\n\n"
+                "日志（~/.beeoffice_logs/app.log）中有具体错误原因。"
             )
             self._set_status("⚠️ 未生成演讲稿", 3000)
             return
@@ -256,7 +258,7 @@ class NotesMixin:
         # 写入备注
         self.add_speaker_notes(notes)
         self._set_status(
-            f"✅ 已生成演讲稿（{len(notes)} 字）", 3000
+            f"✅ 已生成演讲稿（AI，{len(notes)} 字）", 3000
         )
 
     def _ai_generate_all_notes(self):
@@ -330,8 +332,17 @@ class NotesMixin:
 
         # 统一同步回编辑器
         self._sync_notes_to_editor()
+
+        # 优化规划 §1.8：全部失败时必须显式告知，而不是只留一条"成功 0 页"
+        if success == 0 and fail > 0:
+            QMessageBox.warning(
+                self, "批量生成失败",
+                f"全部 {fail} 页都未能生成演讲稿。\n\n"
+                f"来源：{service.describe_last_source()}\n"
+                "详见日志 ~/.beeoffice_logs/app.log。",
+            )
         self._set_status(
-            f"✅ 批量完成：成功 {success} 页，失败 {fail} 页", 5000
+            f"批量完成：AI 生成 {success} 页，失败 {fail} 页", 5000
         )
 
     # ==================== 状态栏 ====================

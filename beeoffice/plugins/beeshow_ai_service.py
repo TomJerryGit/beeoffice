@@ -105,6 +105,15 @@ class SlideOutline:
 class BeeshowAIService:
     """蜜演 AI 服务"""
 
+    # 上一次调用的结果来源（优化规划 §1.8）：
+    #   "ai"    —— 真的由 LLM 生成
+    #   "local" —— 降级到本地模板 / 未配置 Key
+    #   "error" —— 调用失败
+    #   "none"  —— 尚未调用
+    # 之所以显式记录：原实现在失败后静默返回本地模板，调用方与用户都无法区分
+    # "AI 生成的内容"和"占位大纲"，用户会把占位内容直接拿去演示。
+    last_source: str = "none"
+
     # 支持的版式 ID 集合（供 LLM 约束输出）
     VALID_LAYOUTS = {
         "title_only", "title_content", "two_column",
@@ -137,6 +146,20 @@ class BeeshowAIService:
         self.model = config.get("model", "deepseek-chat")
         self.timeout = int(config.get("timeout", self.DEFAULT_TIMEOUT))
         self.retry = int(config.get("retry", self.DEFAULT_RETRY))
+        self.last_source = "none"
+
+    def source_is_ai(self) -> bool:
+        """上一次返回的内容是否真的来自 LLM。"""
+        return self.last_source == "ai"
+
+    def describe_last_source(self) -> str:
+        """把 last_source 转成可直接展示给用户的中文说明。"""
+        return {
+            "ai": "AI 生成",
+            "local": "本地模板（未调用 AI 或调用失败后降级）",
+            "error": "AI 调用失败",
+            "none": "未调用",
+        }.get(self.last_source, self.last_source)
 
     # ==================== 公开接口 ====================
     def generate_outline(
@@ -165,7 +188,10 @@ class BeeshowAIService:
             return []
 
         if not self.api_key:
-            logging.info("未配置 AI API Key，使用本地模板")
+            self.last_source = "local"
+            logging.warning(
+                "未配置 AI API Key，改用本地模板大纲（非 AI 生成）"
+            )
             return self._local_fallback_outline(
                 topic, audience, duration, page_count
             )
@@ -179,6 +205,7 @@ class BeeshowAIService:
                 raw = self._call_llm(prompt)
                 outlines = self._parse_outline_json(raw)
                 if outlines:
+                    self.last_source = "ai"
                     logging.info(
                         f"AI 大纲生成成功：{len(outlines)} 页"
                         f"（第 {attempt + 1} 次尝试）"
@@ -189,7 +216,10 @@ class BeeshowAIService:
                     f"AI 大纲生成失败（第 {attempt + 1} 次）：{e}"
                 )
 
-        logging.warning("AI 大纲生成多次失败，降级到本地模板")
+        self.last_source = "local"
+        logging.warning(
+            "AI 大纲生成多次失败，改用本地模板大纲（非 AI 生成）"
+        )
         return self._local_fallback_outline(
             topic, audience, duration, page_count
         )
@@ -211,7 +241,10 @@ class BeeshowAIService:
           - LLM 返回完整的新大纲 JSON
         """
         if not self.api_key:
-            logging.info("未配置 AI API Key，忽略 refactor 指令")
+            self.last_source = "local"
+            logging.warning(
+                "未配置 AI API Key，忽略 refactor 指令（大纲保持原样）"
+            )
             return current
 
         prompt = self._build_refine_prompt(current, instruction)
@@ -219,9 +252,11 @@ class BeeshowAIService:
             raw = self._call_llm(prompt)
             outlines = self._parse_outline_json(raw)
             if outlines:
+                self.last_source = "ai"
                 return outlines
         except Exception as e:
             logging.warning(f"AI 大纲修改失败：{e}")
+        self.last_source = "error"
         return current
 
     def generate_notes(
@@ -239,6 +274,7 @@ class BeeshowAIService:
         :return: 演讲稿文本
         """
         if not self.api_key:
+            self.last_source = "local"
             return ""
 
         prompt = (
@@ -248,8 +284,11 @@ class BeeshowAIService:
             f"【内容】\n{slide_content}\n"
         )
         try:
-            return self._call_llm(prompt).strip()
+            text = self._call_llm(prompt).strip()
+            self.last_source = "ai" if text else "error"
+            return text
         except Exception as e:
+            self.last_source = "error"
             logging.warning(f"生成演讲稿失败：{e}")
             return ""
 

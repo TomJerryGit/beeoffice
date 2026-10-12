@@ -229,6 +229,11 @@ class AIMixin:
             self._set_status("❌ 生成失败", 3000)
             return
 
+        # 优化规划 §1.8：把"内容来源"如实告诉用户。
+        # 原实现在 AI 调用失败或未配置 Key 时静默返回本地模板，UI 不做区分，
+        # 用户会把占位要点当作 AI 输出直接拿去演示。
+        used_local_template = not service.source_is_ai()
+
         # 6. 渲染为 Markdown 幻灯片
         md_parts = []
         for outline in outlines:
@@ -241,9 +246,23 @@ class AIMixin:
 
         self._current_slide = 0
         self._update_preview()
-        self._set_status(
-            f"✅ 已生成 {len(outlines)} 页大纲", 3000
-        )
+
+        if used_local_template:
+            QMessageBox.information(
+                self,
+                "已使用本地模板",
+                f"AI 未生成内容（{service.describe_last_source()}），"
+                "已改为插入本地模板大纲。\n\n"
+                "请自行修改后再用于演示；如需真正的 AI 大纲，"
+                "请在设置中配置 AI API Key 后重试。",
+            )
+            self._set_status(
+                f"⚠️ 已插入本地模板（{len(outlines)} 页，非 AI 生成）", 5000
+            )
+        else:
+            self._set_status(
+                f"✅ 已生成 {len(outlines)} 页大纲（AI）", 3000
+            )
 
     # ==================== AI 配图建议（任务 1.3） ====================
     def _show_image_suggester(self):

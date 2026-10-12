@@ -7,7 +7,7 @@
 
 ## 执行进度（2026-10-10）
 
-**阶段 0 已完成，阶段 1 已完成（§1.8 尚余 1 个小项）。**
+**阶段 0 已完成，阶段 1 已完成。**
 
 | 项 | 状态 | 提交 / 证据 |
 |---|---|---|
@@ -22,7 +22,7 @@
 | 1.5 PNG 序列导出 | ✅ | `7353170` |
 | 1.6 蜜演表格数据破坏 | ✅ | `7353170` |
 | 1.7 应用版式可撤销 | ✅ | `7353170` |
-| 1.8 静默失败最小集 | 🟡 | `7353170`（PDF 批注 + 蜜算备份已完成）；余 `beeshow_ai_service` 的 AI 降级来源标记 |
+| 1.8 静默失败最小集 | ✅ | `7353170`（PDF 批注 + 蜜算备份）；本轮补完 `beeshow_ai_service`：新增 `last_source`（ai/local/error/none）与 `describe_last_source()`，调用方如实提示"已插入本地模板（非 AI 生成）"；批量全失败时显式告警。新增 `tests/unit/test_ai_source_marker.py`（14 条） |
 | 决策①「先删后补」删除假功能入口 | ✅ | 宏录制/播放、冻结窗格、激光笔/画笔、页眉页脚 stub、蜜写 HTML 导出入口；新增 `tests/unit/test_command_targets_exist.py`（19 条）把"菜单/插件引用了已删方法"变成自动检查 |
 | 附带修复：原子写不再挂死 UI | ✅ | `utils.atomic_write_text` 由 `tempfile.mkstemp` 改为 `open(tmp, "x")`。前者在目标目录不可写时会**无限期阻塞**（实测 15s 未返回），后者 0 ms 抛 `PermissionError` |
 | 附带修复：启动期定时器绑定窗口 | ✅ | `BeeApp` 的 4 个 `QTimer.singleShot` 改为绑定 self 的单次 QTimer + `closeEvent` 显式 stop（与 v5.0.5 状态栏定时器同一类问题） |
