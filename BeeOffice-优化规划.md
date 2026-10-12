@@ -489,6 +489,28 @@ AttributeError 被宽 `except Exception: pass` 吞掉，于是重复点「立即
 Markdown 表格转换 → 幻灯片 HTML 拼接 → 单元格颜色应用 → Markdown→DOCX。
 每项都要求"先确认现状份数、再用测试兜底、用户可见行为不变"。
 
+#### 标题编号：已完成定位（下一步直接开工）
+
+两处**逐字重复**的计数算法（同样的 `counters = [0]*6`、`counters[level-1] += 1`、
+重置下级、`".".join(str(counters[i]) for i in range(level) if counters[i] > 0)`）：
+
+| 位置 | 上下文 |
+|---|---|
+| `plugins/beewrite_crossref.py:31-50` | `CrossRefManager.scan_headings()`，基于 `QTextBlockFormat.headingLevel()` |
+| `plugins/beewrite_outline.py:195-215` | `OutlinePanel._scan_headings()` 的 Qt 分支，算法完全相同 |
+
+**开工方式**（建议）：新建 `plugins/heading_numbering.py`，提供一个不依赖 Qt 的
+小类，例如 `HeadingNumberer.next_number(level) -> str`，两个调用点改为调用它，
+并用纯函数测试 + "两处对同一层级序列产出完全一致"的测试兜底。
+
+**顺带发现的一个真实不一致（需一并决定怎么修）**：
+`beewrite_outline.py:217-229` 的**兜底分支**（按 Markdown `#` 解析）把
+`number` 硬编码为空串 `""`，即该分支下大纲面板**不显示编号**，而 Qt 分支会显示。
+另外该兜底分支的条件是 `else: # _editor 没有 document() 属性`，但
+`QPlainTextEdit` **也有** `document()`，所以这个分支实际上几乎不可达 ——
+需要确认 Markdown 模式下 `headingLevel()` 是否真的能取到值（若取不到，
+Markdown 模式下大纲面板可能是空的），这属于同一处代码的两个疑点。
+
 **预估**：4 人日。
 
 ### 3.4 统一基础设施
