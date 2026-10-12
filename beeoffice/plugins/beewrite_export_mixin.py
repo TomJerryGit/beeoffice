@@ -95,6 +95,7 @@ from beeoffice.plugins.beewrite_page_extras import (
 from beeoffice.plugins.image_utils import (
     resolve_image_path,
     iter_image_formats,
+    iter_block_images,
 )
 
 
@@ -1064,38 +1065,25 @@ class ExportMixin:
 
     def _count_document_images(self) -> int:
         """
-        v5.0.2 增强：统计富文本文档中的图片数量。
+        统计富文本文档中的图片数量。
+
+        优化规划 §3.3：改用 `image_utils.iter_image_formats()`（原先这里自己
+        遍历 block/fragment）。
 
         :return: 图片 fragment 总数
         """
-        count = 0
         try:
-            doc = self.rich_editor.document()
-            block = doc.begin()
-            while block.isValid():
-                it = block.begin()
-                while not it.atEnd():
-                    fragment = it.fragment()
-                    if fragment.isValid():
-                        if fragment.charFormat().isImageFormat():
-                            count += 1
-                    it += 1
-                block = block.next()
+            return sum(
+                1 for _ in iter_image_formats(self.rich_editor.document())
+            )
         except Exception:
-            pass
-        return count
+            return 0
 
     def _block_has_image(self, block):
-        """判断 block 内是否包含图片 fragment"""
+        """判断 block 内是否包含图片 fragment（优化规划 §3.3：走共享实现）"""
         try:
-            it = block.begin()
-            while not it.atEnd():
-                fragment = it.fragment()
-                if fragment.isValid():
-                    fmt = fragment.charFormat()
-                    if fmt.isImageFormat():
-                        return True
-                it += 1
+            for _ in iter_block_images(block):
+                return True
         except Exception:
             pass
         return False
@@ -1239,24 +1227,17 @@ class ExportMixin:
 
                 # ---------- v5.0.2 增强：单元格内图片 ----------
                 try:
-                    cell_has_img = self._block_has_image(cell_block)
-                    if cell_has_img:
+                    if self._block_has_image(cell_block):
                         target_para = (
                             docx_cell.paragraphs[0]
                             if docx_cell.paragraphs
                             else docx_cell.add_paragraph()
                         )
-                        it = cell_block.begin()
-                        while not it.atEnd():
-                            fragment = it.fragment()
-                            if fragment.isValid():
-                                fmt = fragment.charFormat()
-                                if fmt.isImageFormat():
-                                    img_fmt = fmt.toImageFormat()
-                                    self._insert_picture_to_para(
-                                        target_para, img_fmt
-                                    )
-                            it += 1
+                        # 优化规划 §3.3：图片遍历统一走 iter_block_images()
+                        for img_fmt in iter_block_images(cell_block):
+                            self._insert_picture_to_para(
+                                target_para, img_fmt
+                            )
                 except Exception as e:
                     logging.warning(f"处理单元格图片失败: {e}")
 
