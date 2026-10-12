@@ -273,7 +273,10 @@ class FormulaEngine:
 
     @staticmethod
     def _ref(r):
-        m = re.match(r'^([A-Z]+)(\d+)$', r)
+        # 支持 Excel 的绝对引用标记：$A$1 / $A1 / A$1（优化规划 §2.5）。
+        # 原正则 ^([A-Z]+)(\d+)$ 不接受 '$'，于是 =SUM($A$1:$A$3) 会被
+        # 静默当成"无法识别"而返回 0 —— 用户看到的是错误的数字而不是报错。
+        m = re.match(r'^\$?([A-Z]+)\$?(\d+)$', r.upper())
         if not m:
             return None
         c = sum((ord(x) - 64) * (26 ** i) for i, x in enumerate(reversed(m.group(1))))
@@ -285,7 +288,16 @@ class FormulaEngine:
             return None
         a, b = s.split(':', 1)
         ra, rb = FormulaEngine._ref(a.strip()), FormulaEngine._ref(b.strip())
-        return (ra, rb) if ra and rb else None
+        if not (ra and rb):
+            return None
+        # 归一化为左上/右下（优化规划 §2.5）：Excel 允许 A3:A1 这种"反向"范围，
+        # 而调用方普遍按 range(r1, r2 + 1) 遍历，不归一化就会得到空区间，
+        # 于是 =SUM(A3:A1) 静默返回 0。
+        (r1, c1), (r2, c2) = ra, rb
+        return (
+            (min(r1, r2), min(c1, c2)),
+            (max(r1, r2), max(c1, c2)),
+        )
 
     @staticmethod
     def _vals(r, model):
