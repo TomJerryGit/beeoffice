@@ -415,23 +415,6 @@ class ViewMixin:
             self.rich_editor.insertPlainText(text)
 
     # ==================================================================
-    # 撤销 / 重做
-    # ==================================================================
-    def _undo(self):
-        """撤销"""
-        if self._edit_mode == "markdown":
-            self.markdown_editor.undo()
-        else:
-            self.rich_editor.undo()
-
-    def _redo(self):
-        """重做"""
-        if self._edit_mode == "markdown":
-            self.markdown_editor.redo()
-        else:
-            self.rich_editor.redo()
-
-    # ==================================================================
     # 状态栏
     # ==================================================================
     def _update_status_bar(self):

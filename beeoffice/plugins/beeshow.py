@@ -170,14 +170,10 @@ class BeeShowView(
         if not hasattr(self, "_main_splitter"):
             self._main_splitter = None
 
-        # 任务 1.1：AI 服务（延迟创建，用到时才实例化）
-        self._ai_service = None
-
-        # 任务 3.1：PPTX 引擎（延迟创建）
-        self._pptx_engine = None
-
-        # 任务 3.2：字体嵌入器（延迟创建）
-        self._font_embedder = None
+        # 优化规划 §3.1：原先在此把 _ai_service / _pptx_engine / _font_embedder
+        # 初始化为 None，但全仓（生产代码）没有任何读取点 —— 三者都是"延迟创建"
+        # 的旧设计残留，真正用到的服务都是在调用处即时 import + 实例化
+        # （beeshow_ai_service / PPTXEngine / FontEmbedder）。已删除。
 
     # ==================== UI 构建 ====================
     def _build_ui(self):

@@ -1397,7 +1397,6 @@ class FormulaEngine:
     def get_errors(cls):
         return dict(cls._error_trace)
 
-\
     @classmethod
     def clear_errors(cls):
         cls._error_trace.clear()

@@ -46,7 +46,6 @@ MODULES_TO_CHECK = [
     "beeoffice.cloud_settings",
     "beeoffice.plugin_base",
     "beeoffice.plugin_manager",
-    "beeoffice.webdav",
     # 蜜写
     "beeoffice.plugins.beewrite",
     "beeoffice.plugins.beewrite_utils",
@@ -102,8 +101,6 @@ MODULES_TO_CHECK = [
     "beeoffice.plugins.memory_monitor",
     "beeoffice.plugins.onboarding",
     "beeoffice.plugins.friendly_errors",
-    "beeoffice.plugins.git_manager",
-    "beeoffice.plugins.webdav_sync",
     "beeoffice.plugins.find_replace",
     "beeoffice.plugins.data_binding",
     "beeoffice.plugins.variable_panel",

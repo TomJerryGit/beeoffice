@@ -64,8 +64,6 @@ v5.1 增量汇总：
 
 import json
 import logging
-import subprocess
-import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Dict, Any

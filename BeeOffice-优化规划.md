@@ -411,17 +411,39 @@ def test_settings_save_is_atomic(tmp_path, monkeypatch): ...  # 断言异常时�
 
 > 目标：减少"同一件事有 N 种写法"，让后续改动成本下降。**这一阶段不改变用户可见行为**，所以每步都必须有测试兜底。
 
-### 3.1 删除死代码（先做，立即减小面积）
+### 3.1 删除死代码（✅ 已完成，2026-10-11）
 
-| 目标 | 理由 |
-|---|---|
-| `plugins/formula_engine.py`（569 行） | 生产零引用；且带一个裸 `eval` |
-| `beeoffice/webdav.py` + `plugins/webdav_sync.py` 的 `WebDAVConfig` | 无 UI 入口；**明文密码落盘** |
-| `plugins/git_manager.py` | 无调用方；`save_file` 可任意路径写 |
-| 零散死成员 | `SheetDataModel.MIN_ROWS`、`_real_rows`、`ChunkLoader.progress`、`LargeFileLoader.chunk_ready`、`ViewMixin._undo/_redo`、`CommentManager.load_from_file` 以外的未用方法、`beeshow._css_cache/_preloaded_slides/_ai_service/_pptx_engine/_font_embedder`、`pdf_annotator._note_editor`、`beesheet_plugin._*_fallback`、`beeshow_pptx_engine.py:67-68` 死导入 |
-| 手误残留 | `beesheet_engine.py:1310` 孤立续行反斜杠 |
+逐个用全仓 grep 确认无引用后再删。**结果与原表有多处不符**，按实测处理：
 
-**预估**：1 人日（含确认无引用）。
+| 目标 | 判定 | 处理 |
+|---|---|---|
+| `plugins/formula_engine.py`（569 行） | 已在阶段 1 删除 | ✅ 已不存在 |
+| `beeoffice/webdav.py` | 确认零生产引用（仅冒烟测试清单与 `tools/check_imports.py` 列出，非真实调用） | ✅ 删除（5388 B） |
+| `plugins/webdav_sync.py`（`WebDAVConfig` + `WebDAVSyncWorker`） | `WebDAVConfig` 只被 `beeoffice/webdav.py` 用；`WebDAVSyncWorker` 只被 `webdav.py` 与 `test_p0_10` 用 → 整模块死 | ✅ 删除（6761 B）+ 删除只覆盖它的 `test_p0_10_webdav_conflict.py` |
+| `plugins/git_manager.py` | 无调用方 | ✅ 删除（1169 B） |
+| `SheetDataModel.MIN_ROWS` | 仅一处定义，无读取 | ✅ 删除 |
+| `_real_rows` | **不是死成员**：真实读写（`if r >= self._real_rows: self._real_rows = r + 1`） | ⛔ 保留 |
+| `ChunkLoader.progress` | **已变成活信号**（阶段 2 改为真实 emit，`_on_loading_progress` 是消费者） | ⛔ 保留 |
+| `LargeFileLoader.chunk_ready` | 生产无消费者，但被 `test_p0_15` 用作观测通道 | ⛔ 保留 |
+| `ViewMixin._undo/_redo` | 全仓无调用：菜单走 `menus._apply_undo` → `editor.undo()`（原生方法） | ✅ 删除 |
+| `beeshow._css_cache/_preloaded_slides` | **不是死成员**：`_show_slide` 里真实读写（预加载去重 + 切主题清空） | ⛔ 保留 |
+| `beeshow._ai_service/_pptx_engine/_font_embedder` | 只写不读；实际服务都在调用处即时 import + 实例化 | ✅ 删除 |
+| `pdf_annotator._note_editor` | 创建后 `hide()`，全仓无其他引用 | ✅ 删除 |
+| `beesheet_plugin._*_fallback` / `beeshow_plugin._export_pptx_fallback` | **确实会被调用**（`BeeSheetView` 本身没有 `generate_chart`，回退分支就是实际路径） | ⛔ 保留 |
+| `CommentManager.load_from_file` / `clear` | 阶段 2 后分别是生产路径（打开文档读回）与测试使用的接口 | ⛔ 保留 |
+| `beeshow_pptx_engine` 死导入（`subprocess`/`tempfile`） | 两文件内零使用 | ✅ 删除 |
+| `beesheet_engine.py` 孤立续行反斜杠 | 实测在第 **1400** 行（原表写 1310） | ✅ 删除 |
+
+**同步更新**：`tests/smoke/test_smoke_imports.py` 与 `tools/check_imports.py`
+各移除 3 个模块项（导入检查 78 → **75/75 成功**）；
+`tests/test_smoke_beeshow.py` 必填属性清单移除 `_ai_service`/`_pptx_engine`；
+CHANGELOG 增设 `[5.0.8]` 条目并更正 `_check_conflict` 相关记录。
+
+**注意**：活跃的云同步**未被触碰**（`cloud.py` / `cloud_sync/webdav.py` /
+`cloud_settings.py` / `settings.cloud_config` / `app._sync_now` /
+`app._show_webdav_settings` 全部保留），符合"保留云同步并加固"的决策。
+删除的 `plugins/webdav_sync.py` 中的 `_check_conflict` 属死代码；活跃同步路径
+目前**没有冲突检测**，仍留在规划 §4.5。
 
 ### 3.2 拆 `app.py`（1414 行 / 87 方法）
 

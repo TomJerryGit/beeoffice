@@ -157,7 +157,6 @@ class PDFAnnotator(QWidget):
         self._page_view=PDFPageView(); self._page_view.annotation_added.connect(self._on_annotation_added); splitter.addWidget(self._page_view)
         right=QWidget(); rl=QVBoxLayout(right); rl.addWidget(QLabel("批注列表"))
         self._anno_list=QListWidget(); rl.addWidget(self._anno_list)
-        self._note_editor=QTextEdit(); self._note_editor.hide(); rl.addWidget(self._note_editor)
         splitter.addWidget(right); splitter.setSizes([750,300]); layout.addWidget(splitter)
 
     # ==================== 打开 ====================

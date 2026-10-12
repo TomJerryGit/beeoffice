@@ -6,6 +6,52 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ---
+## [5.0.8] - 2026-10-11
+
+优化规划**阶段 2**（正确性与体验）与**阶段 3.1**（删除死代码）。
+阶段 2 的逐项证据见 `BeeOffice-优化规划.md` 的「阶段 2 进度 / 验收」与
+`docs/baseline.md`。
+
+### 变更（阶段 2 摘要）
+- **性能**：插件发现由「import 全部 84 个模块」改为只 import 插件候选，
+  `discover_plugins()` **2487 ms → 39 ms**，启动到插件可用 **3177 ms → 555 ms**，
+  且不再在启动时拉起 pandas / matplotlib / PyMuPDF / QtWebEngine。
+- **安全**：云同步与蜜演同步默认只监听回环并加令牌鉴权；移除通配 CORS。
+- **数据完整性**：批注/书签保存后能读回（原先重开文档全丢）；拖动排序不再
+  删除该页的评论/样式/图片标记；插入的图片不再只留在 `%TEMP%`；
+  MD→DOCX 不再丢弃图片与超链接。
+- **正确性**：页边距单位统一为 mm；导出动态数字不再显示 0；修复
+  `=LOG10(A1)` 被改写为 `=LOH10(B1)`、`$` 绝对引用与反向范围返回 0、
+  聚合函数逗号参数返回 0、自然语言 IF 真假同值、**循环引用静默产出不断
+  变大的数值**（`=A1+1` 写在 A1：0 → 3 → 6）。
+- **资源**：蜜演播放窗口不再每次泄漏一个 QtWebEngine 视图；PPTX 导出不再
+  每页重启一次 Chromium；视频封面缓存改为跨进程稳定并自动清理。
+
+### 移除（阶段 3.1：确认零引用后删除）
+- `beeoffice/webdav.py`（WebDAV 设置窗口，无任何生产引用）。
+- `beeoffice/plugins/webdav_sync.py`（`WebDAVConfig` 明文密码落盘到
+  `~/.beeoffice_webdav.json`；`WebDAVSyncWorker` 仅被上面那个模块引用）。
+  **活跃的云同步不受影响**：`app._show_webdav_settings` 走
+  `cloud_settings`，`app._sync_now` 走 `cloud_sync/webdav.py`。
+- `beeoffice/plugins/git_manager.py`（无调用方，`save_file` 可任意路径写）。
+- 死成员：`SheetDataModel.MIN_ROWS`、`ViewMixin._undo/_redo`（菜单实际调用
+  `editor.undo()`）、`beeshow._ai_service/_pptx_engine/_font_embedder`
+  （只写不读）、`pdf_annotator._note_editor`（创建后隐藏且无引用）、
+  `beeshow_pptx_engine` 未使用的 `subprocess`/`tempfile` 导入。
+- 手误残留：`beesheet_engine.py` 中一处孤立的续行反斜杠。
+- 连同只覆盖死代码的测试 `tests/regression/p0/test_p0_10_webdav_conflict.py`。
+
+### 更正（规划清单中与实际不符的条目）
+- `SheetDataModel._real_rows` 与 `beeshow._css_cache/_preloaded_slides` **不是**
+  死成员（有真实读写），未删除。
+- `ChunkLoader.progress` 在阶段 2 已成为**活信号**（不再"声明了但从不 emit"），
+  未删除；`LargeFileLoader.chunk_ready` 被 `test_p0_15` 用作观测通道，保留。
+- `beesheet_plugin._generate_chart_fallback` 等 `*_fallback` **确实会被调用**
+  （`BeeSheetView` 本身没有 `generate_chart` 方法，回退分支就是实际路径），
+  未删除。
+- `CommentManager.load_from_file` / `clear` 现已分别是生产路径与测试使用的
+  接口，未删除。
+
 ## [5.0.7] - 2026-10-10
 
 安全与数据完整性修复（对应《BeeOffice-优化规划.md》阶段 0 与阶段 1；
@@ -63,7 +109,10 @@
   存储」——Base64 是编码不是加密，不提供机密性；且当时未对文件权限做加固。
 - v5.0.0 记录「修复 `_check_conflict` 定义了但从未调用，双向同步会覆盖新文件」
   ——`_check_conflict` 确实被调用了，但它 fail-open：日期解析失败返回
-  `unknown` 后照常覆盖，该问题尚未解决（见优化规划 §4.5）。
+  `unknown` 后照常覆盖。（**v5.0.8 更新**：该函数随死模块
+  `plugins/webdav_sync.py` 一并删除——它只被同样无引用的 `beeoffice/webdav.py`
+  使用，不在任何活跃的云同步路径上。活跃路径 `app._sync_now` →
+  `cloud.get_cloud_storage()` 目前**没有冲突检测**，这一点见优化规划 §4.5。）
 - v5.0.6 记录的「测试数：483 → 581」「覆盖率：34.54% → 37.30%」与实际不符
   （实际收集 710+；且当时 `tests/unit/test_settings.py` 有 4 个用例长期失败，
   根因正是上面那条 `save()` 缺陷）。本文件原先还把修改这些数字的 Python

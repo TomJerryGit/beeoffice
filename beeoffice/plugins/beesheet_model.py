@@ -20,7 +20,6 @@ class SheetDataModel(QAbstractTableModel):
     CHUNK_SIZE = 5000
     PRELOAD_MARGIN = 2000
     DEFAULT_ROWS = 1000
-    MIN_ROWS = 100
 
     def __init__(self, parent=None):
         super().__init__(parent)

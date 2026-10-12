@@ -73,7 +73,7 @@ is created` 告警。
 | `pytest --collect-only`（全量） | 710 | **733**（删掉死模块 `formula_engine.py` 的 64 条，新增 86 条安全/数据回归） |
 | `tests/qt` 单独运行 | 97 passed / 17.25 s | 待复测 |
 | 全量 `tests/` 一次性运行 | **原生崩溃**（顺序污染，单独跑子集均通过） | 仍会崩溃，但已有隔离运行方案与定位结论（见 §6.1） |
-| 按文件隔离运行（`tools/run_tests_isolated.py`） | — | **89 文件 / 938 passed / 0 failed / 0 error**（阶段 2 收尾实测）；`failed`/`error` 在多轮运行中始终为 0，passed 计数会随退出期崩溃是否抢在 summary 之前小幅波动 |
+| 按文件隔离运行（`tools/run_tests_isolated.py`） | — | **88 文件 / 933 passed / 0 failed / 0 error**（阶段 3.1 实测；文件数比阶段 2 少 1，因为删掉了只覆盖死代码的 `test_p0_10`）；`failed`/`error` 在多轮运行中始终为 0 |
 
 失败根因（已修复）：`AppSettings.save()` 先以 `"w"` 截断文件再在 `json.dump`
 参数位构造 payload，任何构造期异常都会把 `~/.beeoffice_settings.json` 留成
@@ -92,17 +92,17 @@ is created` 告警。
 
 ## 4. 代码规模（基线）
 
-| 指标 | 值 |
-|---|---|
-| `beeoffice/` 模块数 | 118 |
-| `beeoffice/` 总行数 | 36 948 |
-| 最大模块 | `beesheet_engine.py` 1444 行 |
-| 最大类 | `FormulaEngine`（119 方法） |
-| 裸 `except:` | 15 处 |
-| `except Exception` | 446 处 |
-| docstring 为版本日志的模块 | 45 / 118 |
-| 死代码模块 | `formula_engine.py`(569)、`beeoffice/webdav.py`、`plugins/git_manager.py` |
-| 纳入版本控制的文件数 | 213（首个 commit） |
+| 指标 | 基线（v5.0.4） | 阶段 3.1 之后 |
+|---|---|---|
+| `beeoffice/` 模块数 | 118 | **114** |
+| `beeoffice/` 总行数 | 36 948 | **37 573**（阶段 1/2 新增多于删除） |
+| 最大模块 | `beesheet_engine.py` 1444 行 | `beesheet_engine.py` 1710 行 |
+| 最大类 | `FormulaEngine`（119 方法） | 同左 |
+| 裸 `except:` | 15 处 | 15 处（未处理） |
+| `except Exception` | 446 处 | 未重测 |
+| docstring 为版本日志的模块 | 45 / 118 | 未重测 |
+| 死代码模块 | `formula_engine.py`(569)、`beeoffice/webdav.py`、`plugins/git_manager.py` | **已全部删除**（阶段 1 删 `formula_engine.py`；阶段 3.1 删后两个 + `plugins/webdav_sync.py`） |
+| 纳入版本控制的文件数 | 213（首个 commit） | **239** |
 
 ## 5. 变更记录
 
@@ -135,6 +135,7 @@ is created` 告警。
 | 2026-10-11 | 2.7 | 导出时动态数字不再显示 0：`_render_dynamic_numbers_for_export()` 被以 **HTML** 调用却只按 Markdown 模式替换，静默匹配不到；现按 `data-final` 回填 span 内文 | 新增 8 条回归 |
 | 2026-10-11 | 2.7 | PPTX 四项：整份导出复用**一个**浏览器会话（原每页 launch 一次，假 playwright 实测 3 页由 3 次 → **1 次**）；注入 `<base href="file:///…">` 让相对路径图片能加载（原先图片整张消失）；文本框设 `a:latin`+`a:ea` 字体（原先无字体名，中文易被换字形、字体嵌入无对应）；测量前等图片加载完成 | 新增 12 条回归 |
 | 2026-10-11 | 2.7 | 视频封面缓存文件名由 `abs(hash(path))`（字符串 hash **每进程随机化** → 缓存永不命中、`%TEMP%` 每导出一次多一个文件）改为 sha1(路径+mtime+大小)，并加 7 天清理与命中复用 | 新增 8 条回归（跨 PYTHONHASHSEED 子进程实测稳定） |
+| 2026-10-11 | 3.1 | 删除死代码：`beeoffice/webdav.py`、`plugins/webdav_sync.py`、`plugins/git_manager.py` 及只覆盖死代码的 `test_p0_10`；清理 `MIN_ROWS`、`ViewMixin._undo/_redo`、`beeshow._ai_service/_pptx_engine/_font_embedder`、`pdf_annotator._note_editor`、`beeshow_pptx_engine` 未用导入、`beesheet_engine` 孤立续行反斜杠。**实测 4 项"死成员"其实活着**（`_real_rows`、`_css_cache/_preloaded_slides`、`ChunkLoader.progress`、`*_fallback`），未删 | 模块数 118 → **114**；导入检查 78 → **75/75 成功**；`beeoffice/` 移除约 13 KB 源码 |
 | 2026-10-11 | 2.6 | 插入的图片/公式图片不再只留 `%TEMP%`（系统清理后文档图片永久失效、换机打不开）：复制到文档旁 `<文档名>_media/`，未保存文档落到应用数据目录，失败优雅降级 | 新增 10 条回归 |
 | 2026-10-11 | 附带 | 蜜演 PNG 导出的"导出中"提示定时器建在循环**之后**，导致停表语句是空操作、导出结束 3 秒后仍弹模态框（实测令 pytest 超时卡死）；改为循环前建立 | `tests/regression/v5` + 导出相关：195 passed，无挂起 |
 | 2026-10-11 | 附带 | 蜜演 PNG 导出的「导出中」提示由 `QTimer.singleShot` 改为绑定 self 的单次 QTimer，并在导出完成时 `stop()`（原先导出结束后仍会弹，实测以失效父对象调用 `QMessageBox` 被 Qt 记为 event loop 异常） | `tests/regression/v5` + `test_export_pdf.py`：72 passed / 0 error |

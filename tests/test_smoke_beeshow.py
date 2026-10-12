@@ -100,10 +100,6 @@ class TestInstantiateSmoke:
             "_sync_server", "_sync_enabled", "_sync_url",
             # 任务 2.2 主 splitter
             "_main_splitter",
-            # 任务 1.1 AI 服务
-            "_ai_service",
-            # 任务 3.1 PPTX 引擎
-            "_pptx_engine",
         ]
         missing = [a for a in required_attrs if not hasattr(view, a)]
         if missing:

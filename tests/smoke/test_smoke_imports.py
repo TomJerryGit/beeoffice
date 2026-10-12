@@ -57,7 +57,6 @@ MODULES = [
     "beeoffice.cloud_sync.webdav",
     "beeoffice.cloud_sync.onedrive",
     "beeoffice.cloud_sync.googledrive",
-    "beeoffice.webdav",
 
     # ---------- 资源 ----------
     "beeoffice.resources",
@@ -123,11 +122,9 @@ MODULES = [
     "beeoffice.plugins.empty_state",
     "beeoffice.plugins.find_replace",
     "beeoffice.plugins.friendly_errors",
-    "beeoffice.plugins.git_manager",
     "beeoffice.plugins.memory_monitor",
     "beeoffice.plugins.onboarding",
     "beeoffice.plugins.plugin_market",
-    "beeoffice.plugins.webdav_sync",
 ]
 
 
