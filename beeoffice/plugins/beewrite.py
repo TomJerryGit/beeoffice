@@ -140,13 +140,18 @@ class BeeWriteEditor(
         self._md_cache_before_switch = None
 
         # 页面设置
+        # 单位约定：页边距一律以 **mm** 存储（优化规划 §2.2）。
+        # 默认 25.4mm / 31.7mm = 1 英寸 / 1.25 英寸，即中文 Word 的常用默认值。
+        # 原值为 2.54 / 3.17 —— 那是同样的数字以 cm 表示，但所有消费方
+        # （DOCX 的 Mm()、PDF 的 @page、设置对话框的 /10 显示）都按 mm 解释，
+        # 于是默认导出的页边距只有 1/10。页面设置对话框里也已写明单位是 mm。
         self._page_settings = {
             "paper": "A4",
             "orientation": "portrait",
-            "margin_top": 2.54,
-            "margin_bottom": 2.54,
-            "margin_left": 3.17,
-            "margin_right": 3.17,
+            "margin_top": 25.4,
+            "margin_bottom": 25.4,
+            "margin_left": 31.7,
+            "margin_right": 31.7,
         }
 
         # 协作管理器

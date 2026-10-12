@@ -27,18 +27,40 @@ print(f'total                     : {1000*(t4-t0):.0f} ms')
 "
 ```
 
-| 指标 | 基线 | 目标（阶段 2.1） |
-|---|---|---|
-| `import beeoffice.app` | 658 ms | 不劣化 |
-| `PluginManager.discover_plugins()` | **2487 ms**（首次冷启动曾测得 9110 ms） | **< 500 ms** |
-| `PluginManager.load_plugins()` | 0 ms | 不劣化 |
-| 启动到插件可用合计 | **3177 ms**（冷启动约 8–11 s） | **< 1500 ms** |
-| 已注册插件数 | 4（BeeWrite / BeeSheet / BeeShow / PDF 批注） | 4 |
+| 指标 | 基线 | 阶段 2.1 之后（实测） | 目标 |
+|---|---|---|---|
+| `import beeoffice.app` | 658 ms | 436 ms | 不劣化 |
+| `PluginManager.discover_plugins()` | **2487 ms**（冷启动曾测得 9110 ms） | **39 ms**（含 load_plugins） | **< 500 ms ✅** |
+| `PluginManager.load_plugins()` | 0 ms | 0 ms | 不劣化 |
+| 启动到插件可用合计 | **3177 ms**（冷启动约 8–11 s） | **555 ms** | **< 1500 ms ✅** |
+| 已注册插件数 | 4（BeeWrite / BeeSheet / BeeShow / PDF 批注） | 4 | 4 ✅ |
+| 插件发现是否引入重依赖 | 是（matplotlib / fitz / pandas / docx / QtWebEngine） | **否**（子进程实测 `sys.modules` 中一个都没有） | 否 ✅ |
+| `test_app.py`（25 个用例所在文件） | 挂起约 190 s | 25 passed / 7.8 s | — |
 
-**根因**（优化规划 §2.1）：`plugin_manager.py:36-45` 用 `pkgutil.iter_modules`
-把 `beeoffice/plugins/` 下全部 86 个模块逐个 `import`，连带拉起 matplotlib、
-PyMuPDF(fitz)、python-docx、pandas 与 QtWebEngine；且这段代码由
-`app.py:153` 的 `QTimer.singleShot(50, ...)` 在窗口显示后于**主线程**执行。
+**根因与修复**（优化规划 §2.1）：`plugin_manager.py` 原用
+`pkgutil.iter_modules` 把 `beeoffice/plugins/` 下**全部 84 个模块**逐个
+`import`，连带拉起 matplotlib、PyMuPDF(fitz)、python-docx、pandas 与
+QtWebEngine；而这段代码由 `app.py` 在窗口 `show()` 之后于**主线程**执行
+（`QTimer` 延迟 50 ms），于是界面冻结约 7–9 秒。
+
+修复方式由实测数据决定（关键实验）：
+
+| 测量项 | 结果 |
+|---|---|
+| `pkgutil.iter_modules` 扫描 84 个模块名（不 import） | **10.6 ms** |
+| 逐个 import 4 个插件壳（`*_plugin.py`） | **1–3 ms/个，且不拉任何重依赖** |
+| 其余 80 个实现模块 | 重依赖全在这里（pandas/matplotlib/fitz/WebEngine） |
+
+即"插件壳本身很轻，重依赖都在它们的 `create_widget()` 里延迟导入"。
+因此只需**不 import 那 80 个实现模块**：用两个廉价信号判定候选
+——① 文件名以 `_plugin` 结尾；② 其余模块读源码找 `(Plugin)` 子类声明
+（只读文本、不执行）。第②条保留了插件市场安装的、非约定命名插件的可发现性。
+
+同时按 Qt 要求，在 `QApplication` 创建**之前**设置
+`Qt.AA_ShareOpenGLContexts`（只设属性、不 import WebEngine，以保持懒加载），
+消除 `Attribute Qt::AA_ShareOpenGLContexts must be set before QCoreApplication
+is created` 告警。
+
 
 ## 2. 测试
 

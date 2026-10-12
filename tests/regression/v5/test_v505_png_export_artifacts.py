@@ -28,6 +28,7 @@ import textwrap
 
 import pytest
 from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import QWidget
 
 from beeoffice.plugins import beeshow_export_mixin as export_mod
 from beeoffice.plugins.beeshow_constants import SLIDE_THEMES
@@ -88,10 +89,17 @@ class _FakeView:
         self.deleted = True
 
 
-class _Host(ExportMixin):
-    """承载 _export_images 所需的最小状态。"""
+class _Host(ExportMixin, QWidget):
+    """
+    承载 _export_images 所需的最小状态。
+
+    必须是真正的 QWidget：导出逻辑会用 `QTimer(self)` 建"导出中"提示定时器，
+    并以 self 作为 QMessageBox 的父窗口。用普通对象会在补丁失效后触发
+    TypeError（Qt 会把它记为 event loop 异常）。
+    """
 
     def __init__(self, slides):
+        QWidget.__init__(self)
         self._slides_html = list(slides)
         self._current_theme = list(SLIDE_THEMES)[0]
         self._custom_bg = None

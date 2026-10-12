@@ -222,12 +222,71 @@ def export_to_html(content, output_path):
         return False
 
 
+# ==================== 页面设置（单位：mm） ====================
+#: 纸张尺寸（毫米）
+PAPER_SIZES_MM = {
+    "A4": (210, 297),
+    "A3": (297, 420),
+    "A5": (148, 210),
+    "Letter": (216, 279),
+    "Legal": (216, 356),
+}
+
+
+def apply_page_settings(doc, page_settings):
+    """
+    把页面设置应用到 docx 文档的第一个 section。
+
+    **单位约定：页边距与纸张尺寸一律为毫米（mm）**（优化规划 §2.2）。
+    页面设置对话框以厘米显示（存储值 /10）；DOCX 与 PDF 两条导出路径都直接
+    按 mm 使用，不要再做 px→mm 换算。
+
+    本函数是**唯一实现**，Markdown 路径（`export_to_docx`）与富文本路径
+    （`ExportMixin._rich_to_docx`）共用。历史上 Markdown 路径完全没有应用
+    页面设置，导致"导出 Word"的纸张与页边距取决于编辑器当时处于哪种模式。
+
+    :param doc: python-docx 的 Document
+    :param page_settings: dict，可含 paper / orientation / margin_*
+    :return: 是否成功应用
+    """
+    if not page_settings:
+        return False
+    try:
+        from docx.shared import Mm
+        from docx.enum.section import WD_ORIENT
+
+        w, h = PAPER_SIZES_MM.get(
+            page_settings.get("paper", "A4"), PAPER_SIZES_MM["A4"]
+        )
+        landscape = page_settings.get("orientation") == "landscape"
+        if landscape:
+            w, h = h, w
+
+        section = doc.sections[0]
+        section.page_width = Mm(w)
+        section.page_height = Mm(h)
+        section.top_margin = Mm(page_settings.get("margin_top", 25.4))
+        section.bottom_margin = Mm(page_settings.get("margin_bottom", 25.4))
+        section.left_margin = Mm(page_settings.get("margin_left", 31.7))
+        section.right_margin = Mm(page_settings.get("margin_right", 31.7))
+        section.orientation = (
+            WD_ORIENT.LANDSCAPE if landscape else WD_ORIENT.PORTRAIT
+        )
+        return True
+    except Exception as e:
+        logging.warning(f"应用页面设置失败（使用文档默认值）: {e}")
+        return False
+
+
 # ==================== 导出 DOCX ====================
-def export_to_docx(content, output_path):
+def export_to_docx(content, output_path, page_settings=None):
     """
     Markdown 导出为 DOCX 文件
+
     :param content: Markdown 文本
     :param output_path: 输出路径
+    :param page_settings: 页面设置（单位 mm，见 apply_page_settings）。
+        为 None 时沿用 python-docx 默认模板（保持向后兼容）。
     :return: 是否成功
     """
     if not HAS_DOCX:
@@ -245,6 +304,10 @@ def export_to_docx(content, output_path):
             # 无中间层时，逐行处理
             doc = Document()
             _write_plain_to_docx(content, doc)
+
+        # 页面设置（优化规划 §2.2）：此前 Markdown 路径完全没有应用，
+        # 于是导出的纸张是 python-docx 模板默认值，与富文本路径不一致。
+        apply_page_settings(doc, page_settings)
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         doc.save(output_path)

@@ -55,6 +55,14 @@ def main():
     except Exception:
         pass
 
+    # QtWebEngine 要求共享 OpenGL 上下文在 QCoreApplication 创建**之前**设置，
+    # 否则会告警：
+    #   Attribute Qt::AA_ShareOpenGLContexts must be set before
+    #   QCoreApplication is created
+    # 并可能伴随渲染异常。这里只设属性、**不** import WebEngine ——
+    # 以保持"用到蜜演才加载 QtWebEngine"的懒加载行为（优化规划 §2.1）。
+    QApplication.setAttribute(Qt.AA_ShareOpenGLContexts, True)
+
     app = QApplication(sys.argv)
     app.setApplicationName("BeeOffice")
     app.setOrganizationName("TomJerryGit")

@@ -56,7 +56,8 @@
 **验收验证**（`python tools/run_tests_isolated.py`）：
 
 ```
-files : 68      passed : 683      failed : 0      error : 0
+files : 71      passed : 744      failed : 0      error : 0
+阶段 1 验收 10 个回归文件合并运行：133 passed
 ```
 
 9 个文件报告"退出期崩溃"，**全部是构造 QWebEngineView 的蜜演相关测试**
@@ -64,7 +65,22 @@ files : 68      passed : 683      failed : 0      error : 0
 `p1_13`、`p1_18`、`test_smoke_beeshow.py`）——崩溃发生在进程退出阶段，
 与改动无关，属计划 §4.2 的已知项，详见 [docs/baseline.md](docs/baseline.md) §6.1。
 
-**下一步**：阶段 2（启动性能 9s → <1s、线程安全、公式正确性批次）。
+---
+
+## 阶段 2 进度（2026-10-11 起）
+
+| 项 | 状态 | 证据 |
+|---|---|---|
+| 2.1 启动冻结 → <1s | ✅ | `plugin_manager.py` 只 import 插件候选而非全量 84 个模块。实测：`discover_plugins()` **2487 ms → 39 ms**、启动到插件可用 **3177 ms → 555 ms**、且子进程实测**不再引入任何重依赖**（matplotlib/fitz/pandas/docx/QtWebEngine 均未进 `sys.modules`）。同时按 Qt 要求在 `QApplication` 前设置 `Qt.AA_ShareOpenGLContexts`。新增 `tests/unit/test_plugin_discovery_is_lazy.py`（4 条，含干净子进程断言）。详见 [docs/baseline.md](docs/baseline.md) §1 |
+| 2.2 统一页边距单位为 mm | ⬜ | 待做（DOCX 现 2.54 mm、PDF 0.67 mm，应为 25.4 mm） |
+| 2.3 异步回调切回主线程 | ⬜ | 待做 |
+| 2.4 蜜算线程安全与数据一致性 | ⬜ | 待做 |
+| 2.5 公式正确性批次 | ⬜ | 待做 |
+| 2.6 蜜写链路补齐（HTML 导出接线优先） | ⬜ | 待做 |
+
+**下一步**：2.2（单位统一，改动小、影响导出正确性）→ 2.6 的 HTML 导出接线（约 10 行）
+→ 2.5 的快速项（`adjust_formula_refs` 改坏 `LOG10`、`$` 绝对引用）→ 2.3 / 2.4。
+
 
 
 ---

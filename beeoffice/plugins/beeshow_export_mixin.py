@@ -434,6 +434,13 @@ class ExportMixin:
                     view.deleteLater()
                     # 最后一张完成时提示（基于真实结果）
                     if idx == total - 1:
+                        # 导出已结束，撤掉"导出中"提示定时器
+                        hint = getattr(self, "_export_hint_timer", None)
+                        if hint is not None:
+                            try:
+                                hint.stop()
+                            except Exception:
+                                pass
                         if failures:
                             QMessageBox.warning(
                                 self, "导出未完成",
@@ -453,13 +460,20 @@ class ExportMixin:
             )
             temp.setHtml(full_html)
 
-        # 3 秒后提示"导出中"，避免同步阻塞主线程
-        QTimer.singleShot(
-            3000,
+        # 3 秒后提示"导出中"，避免同步阻塞主线程。
+        # 用绑定到 self 的单次 QTimer，而不是 QTimer.singleShot：
+        # 后者不绑定接收者生命周期，导出早已结束后仍可能在别处的事件循环里
+        # 弹出这个提示（实测会以已失效的父对象调用 QMessageBox，被 Qt 记为
+        # event loop 异常）；而且"已完成还提示进行中"本身就是误导。
+        # 导出完成时会在 capture() 里主动停掉它。
+        self._export_hint_timer = QTimer(self)
+        self._export_hint_timer.setSingleShot(True)
+        self._export_hint_timer.timeout.connect(
             lambda: QMessageBox.information(
                 self, "导出中", "正在生成图片，请稍候..."
             )
         )
+        self._export_hint_timer.start(3000)
 
     # ==================== 导出 GIF ====================
     def _export_gif(self):

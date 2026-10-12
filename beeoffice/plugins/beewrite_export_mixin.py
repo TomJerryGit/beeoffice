@@ -380,7 +380,11 @@ class ExportMixin:
             else:
                 from beeoffice.plugins.bee_export import export_to_docx
                 content = self.get_rendered_content()
-                if not export_to_docx(content, path):
+                # 传入页面设置（优化规划 §2.2）：原先 Markdown 路径不传，
+                # 导出的纸张/页边距是 python-docx 模板默认值，与富文本路径不一致。
+                if not export_to_docx(
+                    content, path, self.get_page_settings()
+                ):
                     QMessageBox.warning(self, "失败", "无法生成 Word 文档")
                     return False
 
@@ -491,15 +495,15 @@ class ExportMixin:
         if page_settings.get("orientation") == "landscape":
             w, h = h, w
 
-        margin_top = page_settings.get("margin_top", 25.4)
-        margin_bottom = page_settings.get("margin_bottom", 25.4)
-        margin_left = page_settings.get("margin_left", 31.7)
-        margin_right = page_settings.get("margin_right", 31.7)
-
-        mt = margin_top * 0.264583
-        mb = margin_bottom * 0.264583
-        ml = margin_left * 0.264583
-        mr = margin_right * 0.264583
+        # 页边距单位统一为 **mm**（优化规划 §2.2）。
+        # 原实现对这四个值再乘 0.264583（px→mm 的换算），把 mm 当成了 px：
+        # 默认 25.4mm 会被写成 6.7mm；而修复前的默认值 2.54 更是只剩下
+        # 0.67mm。同一份 _page_settings 在 DOCX 路径里是直接用 Mm() 的
+        # （即按 mm 解释），两条导出路径因此互相矛盾。
+        mt = page_settings.get("margin_top", 25.4)
+        mb = page_settings.get("margin_bottom", 25.4)
+        ml = page_settings.get("margin_left", 31.7)
+        mr = page_settings.get("margin_right", 31.7)
 
         page_css = f"""
         @page {{
@@ -895,44 +899,14 @@ class ExportMixin:
         """
         from docx import Document
         from docx.shared import Mm
-        from docx.enum.section import WD_ORIENT
 
         doc = Document()
 
-        # ========== 应用页面设置 ==========
-        try:
-            page_settings = self.get_page_settings()
-            paper_sizes = {
-                "A4": (210, 297),
-                "A3": (297, 420),
-                "A5": (148, 210),
-                "Letter": (216, 279),
-                "Legal": (216, 356),
-            }
-            w, h = paper_sizes.get(
-                page_settings.get("paper", "A4"), (210, 297)
-            )
-            orientation = page_settings.get("orientation", "portrait")
-            if orientation == "landscape":
-                w, h = h, w
-
-            section = doc.sections[0]
-            section.page_width = Mm(w)
-            section.page_height = Mm(h)
-            section.top_margin = Mm(page_settings.get("margin_top", 25.4))
-            section.bottom_margin = Mm(
-                page_settings.get("margin_bottom", 25.4)
-            )
-            section.left_margin = Mm(page_settings.get("margin_left", 31.7))
-            section.right_margin = Mm(
-                page_settings.get("margin_right", 31.7)
-            )
-            if orientation == "landscape":
-                section.orientation = WD_ORIENT.LANDSCAPE
-            else:
-                section.orientation = WD_ORIENT.PORTRAIT
-        except Exception as e:
-            logging.warning(f"应用页面设置失败（使用默认值）: {e}")
+        # ========== 应用页面设置（优化规划 §2.2） ==========
+        # 与 Markdown 导出路径共用同一实现（bee_export.apply_page_settings），
+        # 单位统一为 mm，避免两条路径的纸张/页边距行为不一致。
+        from beeoffice.plugins.bee_export import apply_page_settings
+        apply_page_settings(doc, self.get_page_settings())
 
         # ========== 统计文档图片 ==========
         try:
