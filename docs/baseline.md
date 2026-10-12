@@ -73,7 +73,7 @@ is created` 告警。
 | `pytest --collect-only`（全量） | 710 | **733**（删掉死模块 `formula_engine.py` 的 64 条，新增 86 条安全/数据回归） |
 | `tests/qt` 单独运行 | 97 passed / 17.25 s | 待复测 |
 | 全量 `tests/` 一次性运行 | **原生崩溃**（顺序污染，单独跑子集均通过） | 仍会崩溃，但已有隔离运行方案与定位结论（见 §6.1） |
-| 按文件隔离运行（`tools/run_tests_isolated.py`） | — | **99 文件 / 1054 passed / 0 failed / 0 error**（§4.2 WebEngine 根因查明后实测）。注意 passed 计数会波动（曾见 1006~1083）：9 个构造 `QWebEngineView` 的文件在**本会话沙箱**里因命名管道被拒而在 `setHtml()` 处原生崩溃（见 §6.1 更正），**是否来得及打印 summary 会决定那几十个用例算不算进去**；`failed`/`error` 则始终为 0 |
+| 按文件隔离运行（`tools/run_tests_isolated.py`） | — | **100 文件 / 1069 passed / 0 failed / 0 error**（§3.3 幻灯片 HTML 安全网实测）。注意 passed 计数会波动（曾见 1006~1083）：9 个构造 `QWebEngineView` 的文件在**本会话沙箱**里因命名管道被拒而在 `setHtml()` 处原生崩溃（见 §6.1 更正），**是否来得及打印 summary 会决定那几十个用例算不算进去**；`failed`/`error` 则始终为 0 |
 
 失败根因（已修复）：`AppSettings.save()` 先以 `"w"` 截断文件再在 `json.dump`
 参数位构造 payload，任何构造期异常都会把 `~/.beeoffice_settings.json` 留成
@@ -151,6 +151,7 @@ is created` 告警。
 | 2026-10-11 | 4.2 | **更正规划一条过期说法**：原写"`test_smoke_beeshow.py:90-221,322-342` 有大量 `assert hasattr`"。AST 复核：实际路径是 `tests/test_smoke_beeshow.py`，其中**已无任何 `assert hasattr`**；全仓"仅由 hasattr 断言构成的测试"只剩 **4 个**，其中 2 个是本会话有意加的行为测试配套守卫。故本条实质已完成，不为凑计划去改这些有效守卫 | — |
 | 2026-10-11 | 4.2 | **查明"9 个文件退出期崩溃"的真正根因，并更正旧记录**。原先记为"`offscreen` 下 QtWebEngine 退出期崩溃、由渲染/GPU 子线程在收尾时抛出"。最小复现（6 个变体）证明：只创建视图**不** `setHtml()` → 退出码 **0**、无 FATAL；一旦 `setHtml()` → 必崩，且 `AA_ShareOpenGLContexts`、Chromium `--no-sandbox/--disable-gpu`、`deleteLater`+事件循环、父窗口、`QT_QPA_FONTDIR` **全部无效**。崩溃点真正的错误是 `FATAL:platform_channel.cc(85)] Check failed: . : 拒绝访问。 (0x5)` —— **Chromium 的 mojo 平台通道无法创建命名管道**，即**本会话沙箱**禁止命名管道所致；崩溃发生在 `setHtml` **调用之中**，不是退出阶段。结论：**不是产品缺陷、不是 offscreen 缺陷，普通机器/CI runner 上预计不复现**（待 CI 证实）。据此移除了 `tests/conftest.py` 里基于错误假设加入的 `AA_ShareOpenGLContexts` | 该崩溃不再是"待消除的产品缺陷"；passed 计数波动的疑因也在本地沙箱 |
 | 2026-10-11 | 4.2 | **更正隔离运行器的动机表述**：CI 用按文件隔离是绕开 ① `qapp` 级挂死（实测 `test_app.py` 曾 190 s 无 summary）② 顺序污染，**不是**绕开上述沙箱崩溃。顺序污染本身**仍未定位**（本地无法区分，沙箱崩溃会掩盖结论） | — |
+| 2026-10-11 | 3.3 | **幻灯片 HTML 拼接：安全网先行**（消重的最后一项）。6 处（不是规划写的 5 处）各写了一遍骨架。此前一直推迟的理由是"预览/播放必须真实 `QWebEngineView` 才能观察"，本轮用**轻量 mixin 宿主 + 假视图**解决：新增 `test_v505_slide_html_scaffold.py`（9 条）捕获 `_export_pdf`（`@page` A4横向 + 分页）、`_export_html`（`body{margin:0}`、不带 `@page`）、`_show_slide`（页码 `i/n`）、`_wrap_html`（`<base href>` + 1280×960）的产物并逐一断言；PNG 由既有 `test_v505_png_export_artifacts.py` 覆盖。另含 **2 条反向确认**（喂"被改坏的骨架"必须报错、内容缺失必须报错），确保这套断言不是恒真。**未改动任何产品代码**，合并留待下一步 | 新增 9 条回归 |
 | 2026-10-11 | 4.3 | **版本号单一来源 + LICENSE + README 诚实化**。新增 `tools/sync_version.py`（默认只检查、`--write` 才改）并以 `__version__.py` 为唯一来源核对 README 徽章与 CHANGELOG，已接入 CI。实测引入前：README 徽章写 **5.0.2** 而源码是 **5.0.7**、CHANGELOG 已到 `[5.0.8]` 而源码仍 5.0.7 → 统一为 **5.0.8**。补 `LICENSE`（MIT）—— 此前 README 徽章链接的文件**根本不存在**。`__version__.py` 移除内嵌的版本历史（指向 CHANGELOG）。README 就地标注 4 类实测确认的假功能（页眉页脚/冻结窗格/宏录制播放/激光笔画笔）与不实的"冲突检测"声明，并新增"功能实现状态说明" | 新增 8 条回归；CI 增加版本检查步骤（8 → 9 步） |
 | 2026-10-11 | 4.3 | **工具自身的编码缺陷（已修）**：`sync_version.py` 打印 `✓` 时在 GBK stdout 下抛 `UnicodeEncodeError` → 退出码变 1，会让 CI 步骤无端失败（实测发现于子进程调用）。改为 reconfigure UTF-8 + 仅用 ASCII 标记 | — |
 | 2026-10-11 | 4.3 | **剩余**：分析报告 §5.1 的完整功能清单尚未整体搬入 README；约 45/118 个模块仍在 docstring 里内嵌补丁历史 | — |
