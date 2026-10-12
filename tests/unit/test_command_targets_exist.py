@@ -106,7 +106,7 @@ def test_plugin_register_menus_references_exist():
 
 # ==================== 被删入口确实不再存在 ====================
 
-REMOVED_APP_ENTRIES = ["_play_macro", "_toggle_macro", "_export_html"]
+REMOVED_APP_ENTRIES = ["_play_macro", "_toggle_macro"]
 
 REMOVED_BEESHEET_ENTRIES = [
     "_show_freeze_menu", "_freeze_row", "_freeze_column",
@@ -165,15 +165,25 @@ def test_laser_and_brush_stubs_are_gone():
     assert "getElementById('laser')" not in src
 
 
-# ==================== 「补」的落点仍然存在 ====================
+# ==================== 「补」的落点：已接线，不再是死入口 ====================
 
-def test_html_export_implementation_still_available_for_later_wiring():
+def test_html_export_is_now_wired_up():
     """
-    我们只删掉了 蜜写 侧不可达的 **入口**，底层实现保留，便于后续「补」。
-
-    `bee_export.export_to_html` 已实现且有测试覆盖（tests/unit/test_bee_export.py），
-    缺的只是 `ExportMixin` 上的一个薄封装 + 菜单接线（约 10 行）。
+    阶段 1 按「先删后补」删掉了不可达的「导出 HTML」入口；
+    阶段 2（§2.6）补齐了实现并把入口接回（编辑器 / 主窗口 / 插件）。
     """
+    from beeoffice.app import BeeApp
+    from beeoffice.plugins.beewrite import BeeWriteEditor
+    from beeoffice.plugins.beewrite_plugin import BeeWritePlugin
     from beeoffice.plugins.bee_export import export_to_html
 
+    # 底层实现（一直存在）
     assert callable(export_to_html)
+    # 编辑器上的实现
+    assert hasattr(BeeWriteEditor, "export_html"), (
+        "BeeWriteEditor 应实现 export_html"
+    )
+    # 主窗口转发
+    assert hasattr(BeeApp, "_export_html"), "BeeApp 应提供 _export_html 转发"
+    # 插件壳转发
+    assert hasattr(BeeWritePlugin, "export_html")

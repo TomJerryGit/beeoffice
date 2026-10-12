@@ -209,6 +209,10 @@ def setup_menus(main_window):
     export_pdf_action = export_menu.addAction(tr("cmd.export_pdf", "导出 PDF"))
     export_pdf_action.triggered.connect(main_window._export_pdf)
 
+    # 优化规划 §2.6「补」：蜜写侧已实现 export_html()，入口重新接上
+    export_html_action = export_menu.addAction(tr("cmd.export_html", "导出 HTML"))
+    export_html_action.triggered.connect(main_window._export_html)
+
     export_menu.addSeparator()
 
     export_pptx_action = export_menu.addAction(tr("cmd.export_pptx", "导出 PPTX"))

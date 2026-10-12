@@ -882,6 +882,24 @@ class BeeApp(QMainWindow):
             status_text=tr("msg.exporting_pdf", "正在导出 PDF..."),
         )
 
+    def _export_html(self):
+        """
+        导出当前文档为独立 HTML。
+
+        优化规划 §2.6「补」：此入口原先取 `hasattr(widget, "export_html")`，
+        而 `BeeWriteEditor` 当时并没有该方法，因此菜单点了静默无动作
+        （阶段 1 按"先删后补"删掉了这个死入口）。现在蜜写侧实现了
+        `export_html()`，入口随之重新接上。
+        """
+        widget = self.tab_manager.currentWidget()
+        if widget is not None and hasattr(widget, "export_html"):
+            widget.export_html()
+        else:
+            self.set_global_status(
+                tr("msg.export_html_unsupported",
+                   "当前文档类型不支持导出 HTML"), 4000
+            )
+
     def _find_current(self):
         widget = self.tab_manager.currentWidget()
         if widget is None:

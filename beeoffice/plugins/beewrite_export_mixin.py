@@ -480,6 +480,48 @@ class ExportMixin:
             logging.error(f"导出 PDF 失败: {e}")
             QMessageBox.warning(self, "导出失败", str(e))
 
+    def export_html(self):
+        """
+        导出当前文档为独立 HTML 文件。
+
+        优化规划 §2.6「补」：`bee_export.export_to_html` 早已实现且有测试覆盖，
+        但蜜写侧一直没有调用方——菜单项走的是 `app._export_html` 的
+        `hasattr(widget, "export_html")` 判断，永远不成立，于是点了没有任何反应。
+        这里补上真正的实现，并把入口重新接上（菜单 / 命令面板 / 插件）。
+
+        已知限制：不内联图片，图片仍以相对路径引用（与 Markdown 路径一致），
+        分发时请连同 media/ 目录一起拷贝。
+        """
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "导出 HTML",
+            "文档.html",
+            "HTML (*.html);;所有文件 (*)",
+        )
+        if not path:
+            return
+
+        if not path.lower().endswith((".html", ".htm")):
+            path += ".html"
+
+        try:
+            from beeoffice.plugins.bee_export import export_to_html
+
+            content = self.get_rendered_content()
+            if export_to_html(content, path):
+                self._set_status(
+                    f"✅ 已导出 HTML：{Path(path).name}", 4000
+                )
+                QMessageBox.information(self, "成功", f"已保存:\n{path}")
+            else:
+                QMessageBox.warning(
+                    self, "导出失败",
+                    "无法生成 HTML。请确认已安装 markdown 依赖。",
+                )
+        except Exception as e:
+            logging.error(f"导出 HTML 失败: {e}")
+            QMessageBox.warning(self, "导出失败", str(e))
+
     def _apply_page_settings_to_content(self, content, page_settings):
         """把页面设置 + 水印 + 页码注入到 HTML 内容"""
         paper_sizes = {

@@ -72,14 +72,15 @@ files : 71      passed : 744      failed : 0      error : 0
 | 项 | 状态 | 证据 |
 |---|---|---|
 | 2.1 启动冻结 → <1s | ✅ | `plugin_manager.py` 只 import 插件候选而非全量 84 个模块。实测：`discover_plugins()` **2487 ms → 39 ms**、启动到插件可用 **3177 ms → 555 ms**、且子进程实测**不再引入任何重依赖**（matplotlib/fitz/pandas/docx/QtWebEngine 均未进 `sys.modules`）。同时按 Qt 要求在 `QApplication` 前设置 `Qt.AA_ShareOpenGLContexts`。新增 `tests/unit/test_plugin_discovery_is_lazy.py`（4 条，含干净子进程断言）。详见 [docs/baseline.md](docs/baseline.md) §1 |
-| 2.2 统一页边距单位为 mm | ⬜ | 待做（DOCX 现 2.54 mm、PDF 0.67 mm，应为 25.4 mm） |
+| 2.2 统一页边距单位为 mm | ✅ | 默认值改 25.4/31.7（原为同数字的 cm 表示）；PDF 路径删除 `*0.264583`（px→mm）；`bee_export.apply_page_settings()` 成为唯一实现，两条导出路径共用。**顺带修掉一个真实缺陷**：Markdown→DOCX 路径（`export_to_docx`）原先完全不应用页面设置，纸张是 python-docx 模板默认值——"导出 Word"的结果取决于编辑器处于哪种模式。新增 `tests/regression/v5/test_v505_page_margin_units.py`（8 条，含两种编辑模式） |
 | 2.3 异步回调切回主线程 | ⬜ | 待做 |
 | 2.4 蜜算线程安全与数据一致性 | ⬜ | 待做 |
-| 2.5 公式正确性批次 | ⬜ | 待做 |
-| 2.6 蜜写链路补齐（HTML 导出接线优先） | ⬜ | 待做 |
+| 2.5 公式正确性批次 | 🟡 | 已完成两项静默产出错公式的缺陷：① `adjust_formula_refs` 把含数字的函数名当单元格引用（`=LOG10(A1)` → `=LOH10(B1)`；根因是 `\d+` 只吃第一位数字，使"排除函数名"的否定前瞻失效），`extract_refs_from_formula` 同源缺陷一并修复；② 自然语言 IF 指令真假同值（`如果A1大于10就显示'高'` → `=IF(A1>10,"高","高")`）。新增 18 + 13 条回归。**剩余**：引擎 `_ref` 路径的 `$` 绝对引用、聚合常量参数（`=SUM(1,2,3)` → 0）、循环引用检测 |
+| 2.6 蜜写链路补齐 | 🟡 | ✅ HTML 导出已接线（`ExportMixin.export_html` + 菜单/命令面板/插件/主窗口四个入口；8 条回归）。**剩余**：批注/书签打开时不读回、MD→DOCX 丢图片与超链接、行内图片与含空格路径、图片落在 `%TEMP%` |
+| 2.7 蜜演导出与同步补齐 | 🟡 | 同步观众端画面（§2.7 的 `set_slides_html`）与动态数字导出已在阶段 1 顺带完成；**剩余**：重排序保留注释、PPTX 图片 `base_url`、字体嵌入 rId、`_PlayWindow` 泄漏 |
 
-**下一步**：2.2（单位统一，改动小、影响导出正确性）→ 2.6 的 HTML 导出接线（约 10 行）
-→ 2.5 的快速项（`adjust_formula_refs` 改坏 `LOG10`、`$` 绝对引用）→ 2.3 / 2.4。
+**下一步**：2.3（异步回调线程归属，风险较高）→ 2.4（蜜算线程安全）→ 2.5 剩余项
+→ 2.6 剩余项。每项都要配回归测试并更新 [docs/baseline.md](docs/baseline.md)。
 
 
 

@@ -60,6 +60,11 @@ class BeeWritePlugin(Plugin):
             self.export_pdf
         )
         palette.register_command(
+            "蜜写：导出 HTML",
+            "将当前蜜写文档导出为 HTML",
+            self.export_html
+        )
+        palette.register_command(
             "蜜写：插入目录",
             "根据标题自动生成目录",
             self.generate_toc
@@ -141,6 +146,17 @@ class BeeWritePlugin(Plugin):
             editor.export_pdf()
         else:
             self._warn("当前编辑器不支持导出 PDF")
+
+    def export_html(self):
+        """导出当前蜜写文档为 HTML（优化规划 §2.6「补」）"""
+        editor = self._current_editor()
+        if not editor:
+            self._warn("请先打开一个蜜写文档")
+            return
+        if hasattr(editor, "export_html"):
+            editor.export_html()
+        else:
+            self._warn("当前编辑器不支持导出 HTML")
 
     # ---------- 目录（P0-9 修复） ----------
     def generate_toc(self):

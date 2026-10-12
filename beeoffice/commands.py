@@ -46,6 +46,7 @@ def _register_builtin_commands(palette, parent):
     # ---------- 导出相关 ----------
     palette.register_command("导出 DOCX", "导出为 Word 文档", parent._export_docx)
     palette.register_command("导出 PDF", "导出为 PDF 文件", parent._export_pdf)
+    palette.register_command("导出 HTML", "导出为网页文件", parent._export_html)
     palette.register_command("生成报告", "一键将模板+数据源导出为 PDF", parent._generate_report)
     palette.register_command("导出 PPTX", "导出幻灯片为 PPTX", parent._export_beeshow_pptx)
     palette.register_command("批量 DOCX 转 MD", "批量转换 DOCX 为 Markdown", parent._batch_docx_to_md)
