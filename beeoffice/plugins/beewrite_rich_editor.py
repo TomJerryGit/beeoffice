@@ -96,7 +96,10 @@ from PySide6.QtGui import (
     QImage,
 )
 
-from beeoffice.plugins.beewrite_utils import FORMAT_PAINTER
+from beeoffice.plugins.beewrite_utils import (
+    FORMAT_PAINTER,
+    parse_md_table,
+)
 from beeoffice.plugins.image_utils import (
     iter_block_images,
     resolve_image_path,
@@ -695,13 +698,30 @@ class RichTextEditor(QTextEdit):
         self.moveCursor(QTextCursor.Start)
 
     def _insert_md_table(self, lines):
-        """将 Markdown 表格行渲染为 QTextTable（白底 + 表头淡橙底纹）"""
+        """
+        将 Markdown 表格行渲染为 QTextTable（白底 + 表头淡橙底纹）。
+
+        优化规划 §3.3：改用规范解析 `parse_md_table()`，不再自己拼分裂规则。
+        原先 header/body 都写成
+            [c.strip() for c in line.split('|') if c.strip()]
+        —— **空单元格被丢弃**，于是 `| 甲 |  | 3 |` 里的 `3` 会左移到第 2 列
+        （实测确认的静默数据错位，与阶段 1 修的蜜算"插入列覆盖已有单元格"
+        属同一类）。`parse_md_table()` 保留空单元格，并且自己会剔除分隔行。
+        """
         if len(lines) < 2:
             return
-        hc = [c.strip() for c in lines[0].split('|') if c.strip()]
-        ds = 2 if re.match(r'^[\|\s\-:]+$', lines[1]) else 1
-        dl = lines[ds:]
-        rows, cols = len(dl) + 1, len(hc)
+
+        rows_data = parse_md_table(lines)
+        if not rows_data:
+            return
+
+        header = rows_data[0]
+        body = rows_data[1:]
+        cols = len(header)
+        if cols == 0:
+            return
+        rows = len(body) + 1
+
         c = self._cursor_at_end()
 
         if self._current_block_is_empty(c):
@@ -717,7 +737,8 @@ class RichTextEditor(QTextEdit):
         tf.setHeaderRowCount(1)
         tf.setBackground(QColor(_TABLE_BG))
         table = c.insertTable(rows, cols, tf)
-        for ci, h in enumerate(hc):
+
+        for ci, h in enumerate(header):
             cc = table.cellAt(0, ci).firstCursorPosition()
             cc.insertText(h)
             cc.select(QTextCursor.BlockUnderCursor)
@@ -726,11 +747,10 @@ class RichTextEditor(QTextEdit):
             fmt.setBackground(QColor(_TABLE_HEADER_BG))
             fmt.setForeground(QColor(_DEFAULT_TEXT_COLOR))
             cc.mergeCharFormat(fmt)
-        for ri, line in enumerate(dl):
-            cells = [c.strip() for c in line.split('|') if c.strip()]
-            for ci, cv in enumerate(cells):
-                if ci < cols:
-                    table.cellAt(ri + 1, ci).firstCursorPosition().insertText(cv)
+
+        for ri, cells in enumerate(body):
+            for ci, cv in enumerate(cells[:cols]):
+                table.cellAt(ri + 1, ci).firstCursorPosition().insertText(cv)
 
     def _insert_block(self):
         """插入一个空段落（显式重置字符格式）"""

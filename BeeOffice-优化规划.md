@@ -472,7 +472,7 @@ AttributeError 被宽 `except Exception: pass` 吞掉，于是重复点「立即
 | 能力 | 现状 | 目标 |
 |---|---|---|
 | Markdown→DOCX | 3 份 | 1 份（Markdown 路径与富文本路径共用 `_write_inline`/`_write_table` 抽象） |
-| Markdown 表格转换 | 3–4 份 | 1 个 `md_table.py` 纯函数模块 |
+| Markdown 表格转换 | ✅ 已收敛（原"3–4 份"不准确） | 规范纯函数**已存在**于 `beewrite_utils`（`parse_md_table` / `render_md_table` / `detect_md_table_at_cursor`），`beewrite_table_mixin` 早已委托给它；真正的问题是 `beewrite_rich_editor._insert_md_table()` **自己又写了一套分裂规则**，且**丢弃空单元格** → `\| 甲 \|  \| 3 \|` 里的 `3` 会左移到第 2 列（实测确认的静默数据错位）。现已改走 `parse_md_table()`。其余几处（`_table_to_md`、`bee_export._docx_table_to_md`）是**不同方向**的转换（Qt 表→MD、DOCX 表→MD），不是重复实现，不应强行合并 |
 | 图片 fragment 扫描 / 路径兜底 | 4 份 / 2 份 | `image_utils.py` |
 | 标题编号 | 2 份 | `heading_numbering.py` |
 | 幻灯片 HTML 模板拼接 | 5 处 | `render_slide_html(slide, theme, layout)` 单点 |
