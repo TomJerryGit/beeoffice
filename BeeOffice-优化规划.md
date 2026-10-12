@@ -476,7 +476,7 @@ AttributeError 被宽 `except Exception: pass` 吞掉，于是重复点「立即
 | 图片 fragment 扫描 / 路径兜底 | 4 份 / 2 份 | `image_utils.py` |
 | 标题编号 | 2 份 | `heading_numbering.py` |
 | 幻灯片 HTML 模板拼接 | 5 处 | `render_slide_html(slide, theme, layout)` 单点 |
-| 单元格颜色应用 | 3 套 | 1 套 |
+| 单元格颜色应用 | ✅ 已消重（"3 套"的说法需修正） | 实际发现的是 `beewrite_rich_editor` 里**表格样式样板逐字重复 4 遍**（`_insert_md_table` / `_insert_table_from_rows` / `_insert_table` / `insert_dataframe_table` 各自写一遍 `QTextTableFormat` 的 border/cellPadding/cellSpacing/Solid/headerRowCount/白底，以及"select+mergeCharFormat"的表头样式）。现已抽成 `_make_table_format()` 与 `_style_header_cell()`。**顺带记录一个既有差异**（非本次引入）：`_insert_table()` 插的是空表格，对空 block 做 mergeCharFormat 后 `block.charFormat()` 读到的仍是默认字重（用户输入文字后才看得出加粗）——已用测试钉住现状、避免将来误判为回归 |
 | WebDAV | 2 套 | 1 套（`cloud_sync/webdav.py`） |
 
 **✅ 已完成**：WebDAV 2 套 → 1 套（随阶段 3.1 完成：删除了无引用的

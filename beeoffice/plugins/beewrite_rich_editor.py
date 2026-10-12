@@ -697,6 +697,43 @@ class RichTextEditor(QTextEdit):
             i += 1
         self.moveCursor(QTextCursor.Start)
 
+    # ==================== 表格样式（优化规划 §3.3 消重） ====================
+    @staticmethod
+    def _make_table_format(has_header: bool = True):
+        """
+        统一的表格格式（边框 / 内边距 / 白底 / 表头行数）。
+
+        优化规划 §3.3：这段 `QTextTableFormat` 设置原先在 4 处**逐字重复**
+        （`_insert_md_table`、`_insert_rows_table`、`_insert_table`、
+        `insert_dataframe_table`），任何样式调整都要改 4 遍、极易漂移。
+        """
+        tf = QTextTableFormat()
+        tf.setBorder(1)
+        tf.setCellPadding(6)
+        tf.setCellSpacing(0)
+        tf.setBorderStyle(QTextTableFormat.BorderStyle_Solid)
+        if has_header:
+            tf.setHeaderRowCount(1)
+        tf.setBackground(QColor(_TABLE_BG))
+        return tf
+
+    @staticmethod
+    def _style_header_cell(cell):
+        """
+        表头单元格样式（粗体 + 淡橙底纹）。
+
+        同上：原先在 4 处重复"select(BlockUnderCursor) → mergeCharFormat →
+        clearSelection"这一套。调用方负责先插入表头文字。
+        """
+        cur = cell.firstCursorPosition()
+        cur.select(QTextCursor.BlockUnderCursor)
+        fmt = QTextCharFormat()
+        fmt.setFontWeight(QFont.Bold)
+        fmt.setBackground(QColor(_TABLE_HEADER_BG))
+        fmt.setForeground(QColor(_DEFAULT_TEXT_COLOR))
+        cur.mergeCharFormat(fmt)
+        cur.clearSelection()
+
     def _insert_md_table(self, lines):
         """
         将 Markdown 表格行渲染为 QTextTable（白底 + 表头淡橙底纹）。
@@ -729,24 +766,12 @@ class RichTextEditor(QTextEdit):
         else:
             c.insertBlock()
 
-        tf = QTextTableFormat()
-        tf.setBorder(1)
-        tf.setCellPadding(6)
-        tf.setCellSpacing(0)
-        tf.setBorderStyle(QTextTableFormat.BorderStyle_Solid)
-        tf.setHeaderRowCount(1)
-        tf.setBackground(QColor(_TABLE_BG))
+        tf = self._make_table_format(has_header=True)
         table = c.insertTable(rows, cols, tf)
 
         for ci, h in enumerate(header):
-            cc = table.cellAt(0, ci).firstCursorPosition()
-            cc.insertText(h)
-            cc.select(QTextCursor.BlockUnderCursor)
-            fmt = QTextCharFormat()
-            fmt.setFontWeight(QFont.Bold)
-            fmt.setBackground(QColor(_TABLE_HEADER_BG))
-            fmt.setForeground(QColor(_DEFAULT_TEXT_COLOR))
-            cc.mergeCharFormat(fmt)
+            table.cellAt(0, ci).firstCursorPosition().insertText(h)
+            self._style_header_cell(table.cellAt(0, ci))
 
         for ri, cells in enumerate(body):
             for ci, cv in enumerate(cells[:cols]):
@@ -946,29 +971,16 @@ class RichTextEditor(QTextEdit):
         n_rows = len(rows)
         n_cols = max(len(r) for r in rows)
 
-        tf = QTextTableFormat()
-        tf.setBorder(1)
-        tf.setCellPadding(6)
-        tf.setCellSpacing(0)
-        tf.setBorderStyle(QTextTableFormat.BorderStyle_Solid)
-        tf.setHeaderRowCount(1)
-        tf.setBackground(QColor(_TABLE_BG))
+        tf = self._make_table_format(has_header=True)
 
         table = c.insertTable(n_rows, n_cols, tf)
         for ri, row in enumerate(rows):
             for ci in range(n_cols):
                 text = row[ci] if ci < len(row) else ""
                 cell = table.cellAt(ri, ci)
-                cur = cell.firstCursorPosition()
-                cur.insertText(text)
-                if ri == 0:
-                    fmt = QTextCharFormat()
-                    fmt.setFontWeight(QFont.Bold)
-                    fmt.setBackground(QColor(_TABLE_HEADER_BG))
-                    fmt.setForeground(QColor(_DEFAULT_TEXT_COLOR))
-                    cur.select(QTextCursor.BlockUnderCursor)
-                    cur.mergeCharFormat(fmt)
-                    cur.clearSelection()
+                cell.firstCursorPosition().insertText(text)
+        for ci in range(n_cols):
+            self._style_header_cell(table.cellAt(0, ci))
 
     # ==================== 插入基础对象 ====================
     def insert_horizontal_line(self):
@@ -1037,26 +1049,11 @@ class RichTextEditor(QTextEdit):
         c = self._cursor_at_end()
         if not self._current_block_is_empty(c):
             c.insertBlock()
-        tf = QTextTableFormat()
-        tf.setBorder(1)
-        tf.setCellPadding(6)
-        tf.setCellSpacing(0)
-        tf.setBorderStyle(QTextTableFormat.BorderStyle_Solid)
-        tf.setBackground(QColor(_TABLE_BG))
-        if has_header:
-            tf.setHeaderRowCount(1)
+        tf = self._make_table_format(has_header=has_header)
         table = c.insertTable(rows, cols, tf)
         if has_header and rows >= 1:
             for ci in range(cols):
-                cell = table.cellAt(0, ci)
-                cur = cell.firstCursorPosition()
-                cur.select(QTextCursor.BlockUnderCursor)
-                fmt = QTextCharFormat()
-                fmt.setFontWeight(QFont.Bold)
-                fmt.setBackground(QColor(_TABLE_HEADER_BG))
-                fmt.setForeground(QColor(_DEFAULT_TEXT_COLOR))
-                cur.mergeCharFormat(fmt)
-                cur.clearSelection()
+                self._style_header_cell(table.cellAt(0, ci))
 
     def insert_dataframe_table(self, df, title=""):
         if df is None or df.empty:
@@ -1074,24 +1071,11 @@ class RichTextEditor(QTextEdit):
             if not self._current_block_is_empty(c):
                 c.insertBlock()
         rows, cols = len(df) + 1, len(df.columns)
-        tf = QTextTableFormat()
-        tf.setBorder(1)
-        tf.setCellPadding(6)
-        tf.setCellSpacing(0)
-        tf.setBorderStyle(QTextTableFormat.BorderStyle_Solid)
-        tf.setHeaderRowCount(1)
-        tf.setBackground(QColor(_TABLE_BG))
+        tf = self._make_table_format(has_header=True)
         table = c.insertTable(rows, cols, tf)
         for ci, cn in enumerate(df.columns):
-            cc = table.cellAt(0, ci).firstCursorPosition()
-            cc.insertText(str(cn))
-            cc.select(QTextCursor.BlockUnderCursor)
-            fmt = QTextCharFormat()
-            fmt.setFontWeight(QFont.Bold)
-            fmt.setBackground(QColor(_TABLE_HEADER_BG))
-            fmt.setForeground(QColor(_DEFAULT_TEXT_COLOR))
-            cc.mergeCharFormat(fmt)
-            cc.clearSelection()
+            table.cellAt(0, ci).firstCursorPosition().insertText(str(cn))
+            self._style_header_cell(table.cellAt(0, ci))
         for ri in range(len(df)):
             for ci in range(cols):
                 val = df.iloc[ri, ci]

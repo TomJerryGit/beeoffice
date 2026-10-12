@@ -73,7 +73,7 @@ is created` 告警。
 | `pytest --collect-only`（全量） | 710 | **733**（删掉死模块 `formula_engine.py` 的 64 条，新增 86 条安全/数据回归） |
 | `tests/qt` 单独运行 | 97 passed / 17.25 s | 待复测 |
 | 全量 `tests/` 一次性运行 | **原生崩溃**（顺序污染，单独跑子集均通过） | 仍会崩溃，但已有隔离运行方案与定位结论（见 §6.1） |
-| 按文件隔离运行（`tools/run_tests_isolated.py`） | — | **93 文件 / 1010 passed / 0 failed / 0 error**（§3.3 Markdown 表格消重实测）；`failed`/`error` 在多轮运行中始终为 0 |
+| 按文件隔离运行（`tools/run_tests_isolated.py`） | — | **94 文件 / 1030 passed / 0 failed / 0 error**（§3.3 表格样式消重实测）；`failed`/`error` 在多轮运行中始终为 0 |
 
 失败根因（已修复）：`AppSettings.save()` 先以 `"w"` 截断文件再在 `json.dump`
 参数位构造 payload，任何构造期异常都会把 `~/.beeoffice_settings.json` 留成
@@ -141,7 +141,8 @@ is created` 告警。
 | 2026-10-11 | 3.3 | **消重：标题编号**。两处逐字重复的多级计数算法（`beewrite_crossref` 与 `beewrite_outline`）统一到新模块 `heading_numbering.py`。顺带修掉一个真实缺陷：**Markdown 模式（默认模式）下大纲面板永远是空的**（`QPlainTextEdit` 的 `headingLevel()` 实测全为 0，而按 `#` 解析的兜底分支因 `hasattr(...,"document")` 为真而永不触发）；同处还修了兜底分支 `number` 恒为空串与 `pos` 用行号而非字符偏移两个问题 | 新增 `tests/unit/test_heading_numbering.py`（23 条）；导入检查 75 → **76/76 成功** |
 | 2026-10-11 | 3.3 | **消重：图片路径兜底**（2 份 → 1 份）。新增 `plugins/image_utils.py`（`normalize_image_ref` / `resolve_image_path` / `iter_block_images` / `iter_image_formats`）；`beewrite_export_mixin`、`beewrite_rich_editor`、`bee_export` 三处解析逻辑收敛到它；`_block_has_image()` 改走 `iter_block_images()`（4 处 fragment 扫描的第 1 处）。**过程中修掉一个真实缺陷**：`urlparse("D:\\a\\b.png")` 把盘符当 URL scheme 丢掉 → 绝对路径被判成相对路径 → 导出 DOCX 时图片消失（`bee_export` 里同一写法被"同盘巧合"掩盖）。安全网先行：`test_v505_image_path_resolution.py`（10 条，含端到端导出断言）**先于**改动写好，正是它抓到了该回归 | 新增 10 + 25 条回归；导入检查 76 → **77/77 成功** |
 | 2026-10-11 | 3.3 | **消重：Markdown 表格解析**。规范纯函数早已在 `beewrite_utils`，但 `beewrite_rich_editor._insert_md_table()` 自己又写了一套分裂规则且**丢弃空单元格** → `\| 甲 \|  \| 3 \|` 的 `3` 左移到第 2 列（静默数据错位）。现改走 `parse_md_table()`。**顺带更正规划判断**：另几处（`_table_to_md`、`bee_export._docx_table_to_md`）是不同方向的转换，不是重复实现 | 新增 8 条回归 |
-| 2026-10-11 | 3.3 | WebDAV 2 套 → 1 套（随 3.1 完成）；其余 3 项消重待做（幻灯片 HTML 拼接、单元格颜色应用、Markdown→DOCX） | — |
+| 2026-10-11 | 3.3 | **消重：表格样式样板**。`beewrite_rich_editor` 里 `QTextTableFormat` 设置与表头样式（select+mergeCharFormat）**逐字重复 4 遍**（对应 4 个插入入口），现抽成 `_make_table_format()` / `_style_header_cell()`；新增测试同时防"样板长回来"（断言源文件里 `setHeaderRowCount`/`setCellPadding` 各只出现 1 次）。**记录一个既有差异**（非本次引入）：`_insert_table()` 插空表格时表头字重读不到（空 block 无法 format），已用测试钉住现状 | 新增 10 条回归 |
+| 2026-10-11 | 3.3 | WebDAV 2 套 → 1 套（随 3.1 完成）；其余 2 项消重待做（幻灯片 HTML 拼接 6 处、Markdown→DOCX） | — |
 | 2026-10-11 | 2.6 | 插入的图片/公式图片不再只留 `%TEMP%`（系统清理后文档图片永久失效、换机打不开）：复制到文档旁 `<文档名>_media/`，未保存文档落到应用数据目录，失败优雅降级 | 新增 10 条回归 |
 | 2026-10-11 | 附带 | 蜜演 PNG 导出的"导出中"提示定时器建在循环**之后**，导致停表语句是空操作、导出结束 3 秒后仍弹模态框（实测令 pytest 超时卡死）；改为循环前建立 | `tests/regression/v5` + 导出相关：195 passed，无挂起 |
 | 2026-10-11 | 附带 | 蜜演 PNG 导出的「导出中」提示由 `QTimer.singleShot` 改为绑定 self 的单次 QTimer，并在导出完成时 `stop()`（原先导出结束后仍会弹，实测以失效父对象调用 `QMessageBox` 被 Qt 记为 event loop 异常） | `tests/regression/v5` + `test_export_pdf.py`：72 passed / 0 error |
