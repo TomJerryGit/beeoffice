@@ -139,6 +139,27 @@ def test_image_resolved_against_base_dir(tmp_path):
     assert _count_drawings(out) >= 1, "base_dir 未生效，相对路径没解析到"
 
 
+def test_image_path_with_spaces(tmp_path):
+    """
+    文件名含空格：Markdown 的两种合法写法都要能解析。
+
+      - 尖括号包裹：`![](<my image.png>)`
+      - URL 转义：  `![](my%20image.png)`
+
+    实现里用 `unquote()` 处理转义，且不按空格切分，因此两种都应可用。
+    """
+    if not HAS_PIL:
+        pytest.skip("Pillow 未安装")
+    img = tmp_path / "my image.png"
+    Image.new("RGB", (100, 60), color="red").save(str(img))
+
+    out1 = _export("![尖括号](<my image.png>)", tmp_path, name="sp1.docx")
+    assert _count_drawings(out1) >= 1, "尖括号包裹的含空格路径没解析到"
+
+    out2 = _export("![转义](my%20image.png)", tmp_path, name="sp2.docx")
+    assert _count_drawings(out2) >= 1, "URL 转义的含空格路径没解析到"
+
+
 # ==================== 超链接 ====================
 
 def test_hyperlink_is_real_and_clickable(tmp_path):

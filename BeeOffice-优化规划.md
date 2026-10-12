@@ -76,7 +76,7 @@ files : 71      passed : 744      failed : 0      error : 0
 | 2.3 异步回调切回主线程 | ✅ 实测后**无需改代码** | 规划假设"回调可能在 QThreadPool 线程操作 QWidget"，实测**否证**：`AsyncTaskManager`（QRunnable + WorkerSignals）的 `on_started`/`on_result`/`on_finished`/`on_error` 全部在主线程；`LargeFileLoader`（QThread + 裸闭包回调，闭包里直接 `setModel` / `QMessageBox`）的 `finished_loading`/`chunk_ready`/`progress_updated` 也全部在主线程。原因是这些信号对象都在主线程创建，工作线程 emit 时 AutoConnection 判定为跨线程 → 队列投递。工作函数本身确实在工作线程（已断言），异步有效。**改为把这条不变量写成回归测试锁住**（它依赖"信号对象在主线程创建"）：`test_v505_async_callback_thread_affinity.py`（5 条） |
 | 2.4 蜜算线程安全与数据一致性 | ✅ | **两处实测确认的缺陷**：① `ChunkLoader`（QThread）在工作线程直接 `model.load_chunk()` 写 `_loaded_df`/`_loaded_chunks` → 与主线程单元格编辑竞争（用户输入可能被 `pd.concat` 结果整体覆盖），且 `_loaded_chunks` 被重绑后会"遗忘"已加载块。现拆为 `build_chunk()`（纯读取，后台可用）与 `apply_chunk()`（写模型，仅主线程），加载器改发 `chunk_ready(ci, df)` 由视图在主线程合并；`all_loaded` 判定也移到主线程（依据 `model.is_streaming`），避免每次滚动都触发 `_auto_resize_columns()`。② `ChunkLoader.progress` **声明了但从未 emit** —— 其唯一消费者 `_on_loading_progress` 负责显示进度条，而进度条创建时 `setVisible(False)`，于是流式加载期间用户完全看不到进度、该槽是死代码；现按"本批已处理/总块数"真实 emit。新增 `test_v505_chunk_loader_thread_safety.py`（9 条，含"不连消费者时模型必须一点没被改"） |
 | 2.5 公式正确性批次 | ✅ | 已完成五项静默产出错公式的缺陷：① `adjust_formula_refs` 把含数字的函数名当引用（`=LOG10(A1)` → `=LOH10(B1)`；根因是 `\d+` 只吃第一位数字，使"排除函数名"的否定前瞻失效），`extract_refs_from_formula` 同源缺陷一并修复；② 自然语言 IF 真假同值；③ 引擎 `_ref` 不支持 `$` 绝对引用（`=SUM($A$1:$A$3)` → 0）与 `_range` 不归一化反向范围（`=SUM(A3:A1)` → 0）；④ 聚合函数只认冒号范围，逗号分隔参数静默返回 0（`=SUM(1,2,3)` → 0、连 `=SUM(1)` 都是 0）；⑤ **循环引用静默产出不断变化的错数**（实测 `=A1+1` 写在 A1：0 → 一次重算 **3** → 再触发 **6**；互引用 1/2 → **7/8** 并持续增长）。现用迭代式 DFS 三色标记找出环上单元格，重算时跳过并给出状态栏提示（Excel 也是拒绝计算并提示）。新增 18 + 13 + 17 + 22 + 12 条回归 |
-| 2.6 蜜写链路补齐 | ✅ | ✅ HTML 导出已接线（`ExportMixin.export_html` + 四个入口；8 条回归）。✅ **批注/书签保存后读回**：`_write_md()` 一直写旁挂 JSON，但两个 `load_from_file()` 在**全仓无调用点** → 重开文档批注书签全丢；现新增 `load_md_sidecars()` 并在打开 `.md` 时调用（9 条回归）。✅ **MD→DOCX 图片与超链接**：转换器**完全没有 `<img>` 分支**（且 `_write_inline` 有"文本为空则跳过"的前置判断，`<img>` 恒为空）→ 图片静默丢弃；`<a>` 只染色、`href` 丢失 → 链接不可点也看不出指向。现用 `run.add_picture()` 真正嵌图（相对路径按 Markdown 目录解析）、找不到文件时留**可见占位文字**、并拼 `w:hyperlink`+外部关系生成可点击链接（11 条回归）。✅ **插入的图片/公式不再只留 %TEMP%**：原先图片写到 `%TEMP%/beeoffice_images/` 并把**绝对临时路径**写进文档，系统清理临时目录后图片永久失效、换机器也全部打不开；现复制到文档旁的 `<文档名>_media/`（未保存文档落到应用数据目录），落盘失败优雅降级（10 条回归）。**剩余**：无（§2.6 除"Markdown 里含空格的图片路径"这一小众写法外已全部完成） |
+| 2.6 蜜写链路补齐 | ✅ | ✅ HTML 导出已接线（`ExportMixin.export_html` + 四个入口；8 条回归）。✅ **批注/书签保存后读回**：`_write_md()` 一直写旁挂 JSON，但两个 `load_from_file()` 在**全仓无调用点** → 重开文档批注书签全丢；现新增 `load_md_sidecars()` 并在打开 `.md` 时调用（9 条回归）。✅ **MD→DOCX 图片与超链接**：转换器**完全没有 `<img>` 分支**（且 `_write_inline` 有"文本为空则跳过"的前置判断，`<img>` 恒为空）→ 图片静默丢弃；`<a>` 只染色、`href` 丢失 → 链接不可点也看不出指向。现用 `run.add_picture()` 真正嵌图（相对路径按 Markdown 目录解析）、找不到文件时留**可见占位文字**、并拼 `w:hyperlink`+外部关系生成可点击链接（12 条回归）。✅ **插入的图片/公式不再只留 %TEMP%**：原先图片写到 `%TEMP%/beeoffice_images/` 并把**绝对临时路径**写进文档，系统清理临时目录后图片永久失效、换机器也全部打不开；现复制到文档旁的 `<文档名>_media/`（未保存文档落到应用数据目录），落盘失败优雅降级（10 条回归）。**含空格的图片路径**经实测两种合法写法（`<my image.png>` 与 `my%20image.png`）都能正常解析，无需额外修改（已补测试固化） |
 | 2.7 蜜演导出与同步补齐 | ✅ | ✅ 同步观众端画面（`set_slides_html`，阶段 1）。✅ **重排序丢标记**（详见提交）：`_slides_md` 原先存剥离标记后的文本，重排会用 `setPlainText` 重建整个文档 → 拖动排序永久删除该页的评论/样式/图片标记；顺带修掉"样式标记被当成演讲备注"。12 条回归。✅ **`_PlayWindow` 泄漏**：以 owner 为 Qt 父对象且无 `WA_DeleteOnClose` → 连按 F5 / 反复播放每次都留下一个隐藏的 WebEngine 视图（= 一个渲染进程）；现去父 + 关闭即销毁 + 新建前先关旧的。4 条回归。✅ **导出动态数字全是 0**：`_render_dynamic_numbers_for_export()` 被以 HTML 调用却只按 Markdown 模式替换，静默不匹配；现按 `data-final` 回填。8 条回归。✅ **PPTX 四项**：① 每页重启一次 Chromium → 改为整份导出复用一个浏览器会话（`start_session`/`close_session`，finally 释放），用假 playwright 实测 3 页只 launch **1 次**；② `set_content` 无 base URL → 相对路径图片一律加载失败、图片整张消失，现注入 `<base href="file:///…/">`（优先文档目录）；③ 文本框从不设 `run.font.name` → PowerPoint 用主题默认字体、中文易被换字形且字体嵌入无对应字体名，现设 `a:latin` + `a:ea`（东亚字体）；④ 补等待图片 `load/error` 完成再测量。12 条回归。✅ **视频封面缓存**：文件名用 `abs(hash(path))`，而字符串 hash **每进程随机化** → 缓存永远命中不了、`%TEMP%/beeoffice_video_posters` 每导出一次多一个文件，且从不清理；改用 sha1(路径+mtime+大小) 并加 7 天清理 + 命中复用。8 条回归（跨 PYTHONHASHSEED 子进程实测稳定） |
 
 **下一步**：2.3（异步回调线程归属，风险较高）→ 2.4（蜜算线程安全）→ 2.5 剩余项
@@ -380,14 +380,30 @@ def test_settings_save_is_atomic(tmp_path, monkeypatch): ...  # 断言异常时�
 
 **预估**：2.5 人日。
 
-### 阶段 2 验收
+### 阶段 2 验收（全部通过，2026-10-11）
 
-- [ ] 启动到可交互 < 1.5 s，插件发现 < 500 ms（对比基线）
-- [ ] 后台回调全部在主线程（测试断言）
-- [ ] 页边距 DOCX = 25.4 mm、PDF CSS = 25.4 mm
-- [ ] 表格填充含 `LOG10` 公式不产出错公式
-- [ ] 蜜演同步观众端能看到幻灯片内容
-- [ ] 蜜写批注/书签重开后仍在
+- [x] 启动到可交互 < 1.5 s，插件发现 < 500 ms（对比基线）
+      → 实测 **555 ms** / **39 ms**（基线 3177 ms / 2487 ms，冷启动 8–11 s），
+      且子进程实测插件发现**不再引入任何重依赖**。
+      `tests/unit/test_plugin_discovery_is_lazy.py`（4 条）
+- [x] 后台回调全部在主线程（测试断言）
+      → `tests/regression/v5/test_v505_async_callback_thread_affinity.py`（5 条，含
+      `AsyncTaskManager` 与 `LargeFileLoader`）+ `test_v505_chunk_loader_thread_safety.py`（9 条）。
+      注：实测**否证**了"回调跑在工作线程"的假设，故本项未改代码，改为把该不变量锁进测试。
+- [x] 页边距 DOCX = 25.4 mm、PDF CSS = 25.4 mm
+      → `tests/regression/v5/test_v505_page_margin_units.py`（8 条，含两种编辑模式）
+- [x] 表格填充含 `LOG10` 公式不产出错公式
+      → `tests/unit/test_beesheet_utils_refs.py`（18 条）；另修好 `$` 绝对引用、
+      反向范围、聚合逗号参数、循环引用（合计 +51 条）
+- [x] 蜜演同步观众端能看到幻灯片内容
+      → 阶段 1 已修（`set_slides_html` + 令牌鉴权）；
+      `tests/unit/test_beeshow_sync_server_auth.py`（18 条）
+- [x] 蜜写批注/书签重开后仍在
+      → `tests/regression/v5/test_v505_comment_bookmark_persistence.py`（9 条，含完整往返）
+
+**合并验收**：上列 21 个回归文件一次运行 → **222 passed**；
+全量按文件隔离 → **89 文件 / 938 passed / 0 failed / 0 error**
+（9 个文件的"退出期崩溃"为已知环境项，见 [docs/baseline.md](docs/baseline.md) §6.1，与断言无关）。
 
 ---
 
