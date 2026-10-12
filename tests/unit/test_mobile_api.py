@@ -72,12 +72,22 @@ def mobile_server(qapp):
     server = MobileServer(parent)
     port = _free_port()
     server.port = port
-    server.ip = "127.0.0.1"
+    # 优化规划 §4.2：**不要**由测试写死地址。原先这里写 `server.ip = "127.0.0.1"`，
+    # 结果即使生产代码绑定 0.0.0.0（暴露到整个局域网）测试也照样通过。
+    # 改为取生产代码**自己算出来**的绑定地址，并让测试服务器绑到它。
+    #
+    # 注意：不在这里断言 `server.ip` —— 在那个匿名父对象环境下构造函数会提前
+    # 返回（`ip` 保持 None），那是夹具环境的产物，并非生产行为主张；
+    # 与安全相关的只有**绑定地址**。
+    bind_host = server._bind_host()
+    assert bind_host == "127.0.0.1", (
+        "移动端默认不得全网卡监听（应只监听回环）"
+    )
     server.temp_dir.mkdir(parents=True, exist_ok=True)
     server._generate_index()
 
     handler = server._create_handler()
-    httpd = _ThreadingHTTPServer(("127.0.0.1", port), handler)
+    httpd = _ThreadingHTTPServer((bind_host, port), handler)
     server.server = httpd
     server.thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     server.thread.start()

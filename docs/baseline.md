@@ -73,7 +73,7 @@ is created` 告警。
 | `pytest --collect-only`（全量） | 710 | **733**（删掉死模块 `formula_engine.py` 的 64 条，新增 86 条安全/数据回归） |
 | `tests/qt` 单独运行 | 97 passed / 17.25 s | 待复测 |
 | 全量 `tests/` 一次性运行 | **原生崩溃**（顺序污染，单独跑子集均通过） | 仍会崩溃，但已有隔离运行方案与定位结论（见 §6.1） |
-| 按文件隔离运行（`tools/run_tests_isolated.py`） | — | **98 文件 / 1060 passed / 0 failed / 0 error**（§4.3 版本/许可证/README 实测）。注意 passed 计数会波动（曾见 1006~1060）：9 个构造 `QWebEngineView` 的文件在退出期崩溃，**是否来得及打印 summary 会决定那几十个用例算不算进去**；`failed`/`error` 则始终为 0 |
+| 按文件隔离运行（`tools/run_tests_isolated.py`） | — | **99 文件 / 1083 passed / 0 failed / 0 error**（§4.2 敏感面测试实测）。注意 passed 计数会波动（曾见 1006~1083）：9 个构造 `QWebEngineView` 的文件在退出期崩溃，**是否来得及打印 summary 会决定那几十个用例算不算进去**；`failed`/`error` 则始终为 0 |
 
 失败根因（已修复）：`AppSettings.save()` 先以 `"w"` 截断文件再在 `json.dump`
 参数位构造 payload，任何构造期异常都会把 `~/.beeoffice_settings.json` 留成
@@ -146,6 +146,8 @@ is created` 告警。
 | 2026-10-11 | 3.3 | **消重：Markdown→DOCX 的第三份实现**（`_write_plain_to_docx` + `_write_inline_md`，约 55 行）已删除。盘点确认它是"缺 markdown/bs4 时的逐行降级"，而那两个包是**必需**依赖 → 分支不可达且零测试覆盖。改为缺依赖时**明确失败并记录原因**（原先会悄悄产出低保真文档）。并存的两套（`_write_html_to_docx` 与 `_rich_to_docx`）输入类型不同，**不建议合并**，已在规划写明理由 | 新增 5 条回归 |
 | 2026-10-11 | 4.5 | **云同步：上传过滤 + 如实计数**（分析报告 §4.6 实测的缺口；规划原先没有对应条目，本会话补入 §4.5）。原先 `sync_files()` 是无过滤的 `rglob` 循环：该目录内任何内容都会**明文**上传到用户的云盘（含凭据类文件），且无论上传 0 个还是失败多少，UI 一律报"同步完成"。现抽出不依赖 Qt 的 `cloud_sync/policy.py`（`should_upload` / `is_sensitive_settings` / `upload_tree` / `describe_result`）：拒收密钥证书类扩展名与常见凭据文件名、拒收含 `ai_api_key`/`password`/`token` 等字段的 JSON、跳过临时/空/超大文件，并把提示改为"已上传 N，跳过 K（含原因），失败 F" | 新增 29 条回归（用临时目录 + 假 storage，无需 GUI）；导入检查 77 → **78/78 成功** |
 | 2026-10-11 | 4.5 | **更正一处错误引用**：此前规划/CHANGELOG 里写的"见规划 §4.5"是错的 —— 规划阶段 4 原只有 4.1–4.4，§4.5/§4.6 在**分析报告**里。已把引用改为"分析报告 §4.5/§4.6"，并在规划里**真正补入 §4.5**（含双向同步/冲突策略的验收清单与预估），使该缺口进入排期 | — |
+| 2026-10-11 | 4.2 | **敏感面测试 + 改掉"掩盖生产行为"的测试**。新增 `test_v505_sensitive_surfaces.py`（14 条）：移动端与蜜演同步服务器**默认只绑定回环**（`allow_lan` 是唯一开关）、源码中不得出现无条件的 `"0.0.0.0"` 字面量（并反向确认扫描非恒真）、设置文件不含明文口令/访问令牌（**base64 是编码不是加密**，只断言无明文）。另修正 `test_mobile_api.py`：夹具原先**自己写死** `server.ip = "127.0.0.1"`，使生产绑定 `0.0.0.0` 也测不出来；现改为取生产算出的 `_bind_host()` 并据此绑定。**未加**插件哈希校验测试 —— `plugin_market.py` 目前没有任何校验逻辑（不能凭空断言） | 新增 14 条回归；`test_mobile_api.py` 12 条从 ERROR 恢复为通过 |
+| 2026-10-11 | 4.2 | 剩余：删掉 `test_smoke_beeshow.py` 的 `hasattr` 存在性断言（90–221、322–342）、`test_md_conversion.py::test_empty_heading_not_output` 的恒真断言、顺序污染定位（pytest-forked） | — |
 | 2026-10-11 | 4.3 | **版本号单一来源 + LICENSE + README 诚实化**。新增 `tools/sync_version.py`（默认只检查、`--write` 才改）并以 `__version__.py` 为唯一来源核对 README 徽章与 CHANGELOG，已接入 CI。实测引入前：README 徽章写 **5.0.2** 而源码是 **5.0.7**、CHANGELOG 已到 `[5.0.8]` 而源码仍 5.0.7 → 统一为 **5.0.8**。补 `LICENSE`（MIT）—— 此前 README 徽章链接的文件**根本不存在**。`__version__.py` 移除内嵌的版本历史（指向 CHANGELOG）。README 就地标注 4 类实测确认的假功能（页眉页脚/冻结窗格/宏录制播放/激光笔画笔）与不实的"冲突检测"声明，并新增"功能实现状态说明" | 新增 8 条回归；CI 增加版本检查步骤（8 → 9 步） |
 | 2026-10-11 | 4.3 | **工具自身的编码缺陷（已修）**：`sync_version.py` 打印 `✓` 时在 GBK stdout 下抛 `UnicodeEncodeError` → 退出码变 1，会让 CI 步骤无端失败（实测发现于子进程调用）。改为 reconfigure UTF-8 + 仅用 ASCII 标记 | — |
 | 2026-10-11 | 4.3 | **剩余**：分析报告 §5.1 的完整功能清单尚未整体搬入 README；约 45/118 个模块仍在 docstring 里内嵌补丁历史 | — |
