@@ -73,7 +73,7 @@ is created` 告警。
 | `pytest --collect-only`（全量） | 710 | **733**（删掉死模块 `formula_engine.py` 的 64 条，新增 86 条安全/数据回归） |
 | `tests/qt` 单独运行 | 97 passed / 17.25 s | 待复测 |
 | 全量 `tests/` 一次性运行 | **原生崩溃**（顺序污染，单独跑子集均通过） | 仍会崩溃，但已有隔离运行方案与定位结论（见 §6.1） |
-| 按文件隔离运行（`tools/run_tests_isolated.py`） | — | **88 文件 / 933 passed / 0 failed / 0 error**（阶段 3.1 实测；文件数比阶段 2 少 1，因为删掉了只覆盖死代码的 `test_p0_10`）；`failed`/`error` 在多轮运行中始终为 0 |
+| 按文件隔离运行（`tools/run_tests_isolated.py`） | — | **89 文件 / 956 passed / 0 failed / 0 error**（阶段 3.1 收尾实测）；`failed`/`error` 在多轮运行中始终为 0 |
 
 失败根因（已修复）：`AppSettings.save()` 先以 `"w"` 截断文件再在 `json.dump`
 参数位构造 payload，任何构造期异常都会把 `~/.beeoffice_settings.json` 留成
