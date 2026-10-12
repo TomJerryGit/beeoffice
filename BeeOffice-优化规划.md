@@ -489,9 +489,41 @@ AttributeError 被宽 `except Exception: pass` 吞掉，于是重复点「立即
 转换 → 幻灯片 HTML 拼接 → 单元格颜色应用 → Markdown→DOCX。
 每项都要求"先确认现状份数、再用测试兜底、用户可见行为不变"。
 
-#### 图片路径兜底 + 图片 fragment 扫描：已完成盘点（下一步直接开工）
+#### 图片路径兜底 + 图片 fragment 扫描：✅ 路径兜底已完成（2026-10-11）；fragment 扫描 1/4
 
-**A. 路径兜底（2 份，形态相同）**
+**已完成**：新增 `plugins/image_utils.py`（不依赖 QtWidgets，纯逻辑可测）：
+
+| 函数 | 作用 |
+|---|---|
+| `normalize_image_ref(ref)` | `file:///`、`%20`、`http(s)` 与空白规范化 |
+| `resolve_image_path(name, base_dirs, *, home_fallback)` | 多基准目录兜底，返回 `(path_or_None, tried_paths)` |
+| `iter_block_images(block)` | 单个 block 的内联图片 |
+| `iter_image_formats(document)` | 整个文档的内联图片（附 block 位置） |
+
+已切换到这个唯一实现的调用点：
+- `beewrite_export_mixin._resolve_image_path_for_export()`（候选来源留在本类，算法委托）
+- `beewrite_rich_editor._insert_image_by_path()`（parent 链候选留着，算法委托）
+- `beewrite_rich_editor._block_has_image()`（改走 `iter_block_images()`，4 处 fragment 扫描的第 1 处）
+- `bee_export._resolve_image_path()`（阶段 2 新增的那份也一并收敛）
+
+**消重过程中真实踩到并修掉的缺陷**：`urlparse("D:\a\b.png")` 会把 `d` 当成
+URL scheme、`path` 变成 `\a\b.png` —— **盘符被丢掉**，绝对路径被判成相对路径，
+最终**导出 DOCX 时图片消失**。本机工作区恰好在 D 盘，所以 `bee_export` 里
+同一写法的缺陷一直被"同盘巧合"掩盖（`/beeofficeV/...` 在 D 盘上照样能找到文件）。
+现在 `normalize_image_ref()` 只在 `http(s)://` 与 `file:` 时才走 urlparse。
+
+**安全网先行**：新增 `tests/regression/v5/test_v505_image_path_resolution.py`
+（10 条）**先于**改动写好，逐条钉住解析行为（绝对/相对/缺失/去重/home 兜底）
+并含一条端到端断言"相对路径插入的图片必须出现在导出的 DOCX 里"——它正是
+发现上述回归的那条测试。
+另新增 `tests/unit/test_image_utils.py`（25 条）。
+
+**经验教训（已写进测试注释）**：`_write_docx` 区分编辑模式，markdown 模式下走
+`bee_export.export_to_docx`（基于 Markdown 文本），富文本模式才走 `_rich_to_docx`
+（处理 QTextImageFormat）。测试里若不先 `_switch_mode("rich_text")`，
+插入到 `rich_editor` 的图片根本不在导出输入里 —— 这是**测试自身**的坑。
+
+**A. 路径兜底（2 份，形态相同）——已合并**
 
 | 位置 | 候选基准目录（按优先级） | 返回 |
 |---|---|---|
@@ -516,24 +548,20 @@ def resolve_image_path(name, base_dirs, *, home_fallback=True):
 Markdown→DOCX 用）也应一并接进来（它额外处理 `file:///` 与 `%20`，可合并为
 `normalize_image_ref()`）。
 
-**B. 图片 fragment 扫描（4 处）**
+**B. 图片 fragment 扫描（4 处）—— 已切换 1 处**
 
-| 位置 | 用途 |
-|---|---|
-| `beewrite_mode_mixin.py:148` | 模式切换时统计/转换文档内图片 |
-| `beewrite_export_mixin.py:1103 / 1119 / 1139-1140` | 导出 DOCX 前统计与插入图片 |
-| `beewrite_export_mixin.py:1277-1278` | 图片数量统计 |
-| `beewrite_rich_editor.py:280 / 310-311` | 编辑器内图片遍历 |
+| 位置 | 用途 | 状态 |
+|---|---|---|
+| `beewrite_rich_editor.py:280` | `_block_has_image()` 判断 block 是否含图 | ✅ 已改走 `iter_block_images()` |
+| `beewrite_export_mixin.py:1103 / 1119 / 1139-1140` | 导出 DOCX 前统计与插入图片 | ⬜ 待做 |
+| `beewrite_export_mixin.py:1277-1278` | 图片数量统计 | ⬜ 待做 |
+| `beewrite_rich_editor.py:287+` `_block_with_images_to_md()` | 图文混排转 Markdown | ⬜ **不建议合并**：它按 fragment 顺序**交错**输出文本与 `![](path)`，不是单纯的"扫描图片"，硬套生成器反而会更绕 |
 
-四处都在重复"遍历 `QTextBlock` → `fragment.charFormat().isImageFormat()` →
-`toImageFormat()`"这一套。建议加一个生成器：
-
-```python
-def iter_image_formats(document):
-    """产出文档中所有内联图片的 QTextImageFormat（含 block 位置）。"""
-```
-**注意**：本项涉及导出 DOCX 的图片处理（数据可见），必须先补"图片能出现在导出
-结果里"的产物级测试**再**改，否则容易把"图片丢失"变成静默回归。
+待做的 3 处都应用 `iter_block_images()` / `iter_image_formats()`；其中导出侧的
+两处属于"数据可见"路径，**改前必须先有产物级测试**（现有
+`test_v504_image_paragraph_docx.py` 与
+`test_v505_image_path_resolution.py::test_relative_image_survives_docx_export`
+已覆盖"图片能出现在导出结果里"，可作为安全网）。
 
 #### 标题编号：✅ 已完成（2026-10-11，含一个真实缺陷的修复）
 

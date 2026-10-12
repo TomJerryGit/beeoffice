@@ -123,6 +123,7 @@ MODULES = [
     "beeoffice.plugins.find_replace",
     "beeoffice.plugins.friendly_errors",
     "beeoffice.plugins.heading_numbering",
+    "beeoffice.plugins.image_utils",
     "beeoffice.plugins.memory_monitor",
     "beeoffice.plugins.onboarding",
     "beeoffice.plugins.plugin_market",

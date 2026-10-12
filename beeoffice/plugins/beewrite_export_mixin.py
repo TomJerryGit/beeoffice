@@ -92,6 +92,10 @@ from beeoffice.plugins.beewrite_page_extras import (
     build_watermark_html,
     build_page_number_css,
 )
+from beeoffice.plugins.image_utils import (
+    resolve_image_path,
+    iter_image_formats,
+)
 
 
 # ==================== 常量 ====================
@@ -842,29 +846,22 @@ class ExportMixin:
     # ==================================================================
     def _resolve_image_path_for_export(self, name: str):
         """
-        v5.0.2 增强：解析图片路径（多基准目录兜底）。
+        解析图片路径（多基准目录兜底）。
+
+        优化规划 §3.3：**候选来源**留在本类（它知道自己的文档状态），
+        **解析算法**统一走 `image_utils.resolve_image_path()` —— 原先这里与
+        `beewrite_rich_editor._insert_image_by_path()` 各有一份形态相同的实现。
 
         按优先级：
-          1. 绝对路径：直接使用
+          1. 绝对路径：直接使用（不存在即失败，不落到下面）
           2. self._current_file_path 的父目录（最可靠）
           3. self.get_current_file_dir()（若存在）
           4. self.rich_editor._current_file_dir
-          5. 用户主目录
+          5. 用户主目录（由 resolve_image_path 兜底）
 
         :param name: 图片路径（来自 QTextImageFormat.name()）
         :return: (resolved_path_or_None, tried_paths_list)
         """
-        tried_paths = []
-
-        # 1. 绝对路径
-        p = Path(name)
-        if p.is_absolute():
-            tried_paths.append(str(p))
-            if p.exists():
-                return p, tried_paths
-            return None, tried_paths
-
-        # 收集候选基准目录
         candidates = []
 
         # 候选 1：self._current_file_path 的父目录
@@ -893,28 +890,8 @@ class ExportMixin:
         except Exception:
             pass
 
-        # 候选 4：用户主目录
-        candidates.append(str(Path.home()))
-
-        # 去重（保持顺序）
-        seen = set()
-        unique_candidates = []
-        for c in candidates:
-            if c and c not in seen:
-                seen.add(c)
-                unique_candidates.append(c)
-
-        # 依次尝试
-        for base in unique_candidates:
-            try:
-                candidate = Path(base) / name
-            except Exception:
-                continue
-            tried_paths.append(str(candidate))
-            if candidate.exists():
-                return candidate, tried_paths
-
-        return None, tried_paths
+        # 候选 4（home）由 resolve_image_path 内部兜底
+        return resolve_image_path(name, candidates)
 
     def _insert_picture_to_para(self, para, img_format):
         """

@@ -36,6 +36,11 @@ import logging
 import difflib
 from pathlib import Path
 
+from beeoffice.plugins.image_utils import (
+    normalize_image_ref,
+    resolve_image_path,
+)
+
 # ==================== 可选依赖导入 ====================
 try:
     import markdown
@@ -337,39 +342,31 @@ def _resolve_image_path(src, base_dir=None):
     优化规划 §2.6：MD→DOCX 原先**完全丢弃图片**（`<img>` 既没有分支处理，
     其 `get_text()` 又是空串，于是被静默跳过），导出的 Word 里图片全没了。
 
-    支持：绝对路径、相对路径（相对 Markdown 所在目录或当前目录）、
-    `file:///C:/...` 形式的本地 URL。
+    优化规划 §3.3：规范化与"逐个候选目录"的逻辑统一走 `image_utils`
+    （原先这里自行 `urlparse`，会把 Windows 盘符 `D:` 当成 URL scheme 而**丢掉
+    盘符** —— 本机工作区恰好在 D 盘，于是这个缺陷被"同盘巧合"掩盖了）。
+
+    支持：绝对路径、相对路径（相对 Markdown 所在目录，其次当前目录）、
+    `file:///C:/...` 与 `%20` 转义。
     远程 http(s) 图片不联网下载，返回 None（由调用方给出可见占位）。
     """
     if not src:
         return None
-    from urllib.parse import unquote, urlparse
 
-    parsed = urlparse(src)
-    if parsed.scheme in ("http", "https"):
+    lowered = str(src).strip().lower()
+    if lowered.startswith(("http://", "https://")):
         return None
 
-    raw = unquote(parsed.path or src)
-    # file:///C:/dir/x.png → /C:/dir/x.png，去掉盘符前的斜杠
-    if raw.startswith("/") and len(raw) > 2 and raw[2] == ":":
-        raw = raw[1:]
+    normalized = normalize_image_ref(src)
+    if not normalized:
+        return None
 
-    candidate = Path(raw)
-    candidates = []
-    if candidate.is_absolute():
-        candidates.append(candidate)
-    else:
-        if base_dir:
-            candidates.append(Path(base_dir) / candidate)
-        candidates.append(candidate)
-
-    for path in candidates:
-        try:
-            if path.is_file():
-                return path
-        except OSError:
-            continue
-    return None
+    # 相对路径：先相对 Markdown 所在目录，再相对当前工作目录
+    base_dirs = [base_dir, "."] if base_dir else ["."]
+    resolved, _ = resolve_image_path(
+        normalized, base_dirs, home_fallback=False
+    )
+    return resolved
 
 
 def _add_hyperlink(paragraph, url, text):

@@ -97,6 +97,10 @@ from PySide6.QtGui import (
 )
 
 from beeoffice.plugins.beewrite_utils import FORMAT_PAINTER
+from beeoffice.plugins.image_utils import (
+    iter_block_images,
+    resolve_image_path,
+)
 
 
 # 默认正文字体色（避免继承标题的橙色）
@@ -272,14 +276,9 @@ class RichTextEditor(QTextEdit):
         :return: True 若至少包含一张图片 fragment
         """
         try:
-            it = block.begin()
-            while not it.atEnd():
-                fragment = it.fragment()
-                if fragment.isValid():
-                    fmt = fragment.charFormat()
-                    if fmt.isImageFormat():
-                        return True
-                it += 1
+            # 优化规划 §3.3：block 级图片遍历统一走 image_utils.iter_block_images()
+            for _ in iter_block_images(block):
+                return True
         except Exception:
             pass
         return False
@@ -350,54 +349,37 @@ class RichTextEditor(QTextEdit):
 
         :param img_path: 图片路径（绝对或相对）
         """
-        path = Path(img_path)
-        tried_paths = []
+        # 优化规划 §3.3：候选来源留在本类（它知道 parent 链），解析算法统一走
+        # image_utils.resolve_image_path()（原先与 beewrite_export_mixin 里那份
+        # 形态相同的实现重复）。
+        candidates = []
 
-        if not path.is_absolute():
-            # 收集候选基准目录
-            candidates = []
-
-            # 候选 1：从 parent 链找 BeeWriteEditor._current_file_path
-            # （优先级最高，因为它是"当前正确"的目录）
-            try:
-                p = self.parent()
-                while p:
-                    cur_path = getattr(p, "_current_file_path", None)
-                    if cur_path:
-                        candidates.append(str(Path(cur_path).parent))
-                        break
-                    p = p.parent()
-            except Exception as e:
-                logging.debug(f"从 parent 链查找 _current_file_path 失败: {e}")
-
-            # 候选 2：self._current_file_dir（默认）
-            if self._current_file_dir:
-                candidates.append(self._current_file_dir)
-
-            # 候选 3：用户主目录（最后兜底）
-            candidates.append(str(Path.home()))
-
-            # 去重（保持顺序）
-            seen = set()
-            unique_candidates = []
-            for c in candidates:
-                if c and c not in seen:
-                    seen.add(c)
-                    unique_candidates.append(c)
-
-            # 依次尝试
-            for base in unique_candidates:
-                try:
-                    candidate = Path(base) / img_path
-                except Exception:
-                    continue
-                tried_paths.append(str(candidate))
-                if candidate.exists():
-                    path = candidate
-                    logging.debug(
-                        f"图片相对路径解析成功: {img_path} → {candidate}"
-                    )
+        # 候选 1：从 parent 链找 BeeWriteEditor._current_file_path
+        # （优先级最高，因为它是"当前正确"的目录）
+        try:
+            p = self.parent()
+            while p:
+                cur_path = getattr(p, "_current_file_path", None)
+                if cur_path:
+                    candidates.append(str(Path(cur_path).parent))
                     break
+                p = p.parent()
+        except Exception as e:
+            logging.debug(f"从 parent 链查找 _current_file_path 失败: {e}")
+
+        # 候选 2：self._current_file_dir（默认）
+        if self._current_file_dir:
+            candidates.append(self._current_file_dir)
+
+        # 候选 3（用户主目录）由 resolve_image_path 内部兜底
+
+        resolved, tried_paths = resolve_image_path(img_path, candidates)
+        path = resolved if resolved is not None else Path(img_path)
+
+        if resolved is not None:
+            logging.debug(
+                f"图片相对路径解析成功: {img_path} → {resolved}"
+            )
 
         if not path.exists():
             logging.warning(

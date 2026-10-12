@@ -102,6 +102,7 @@ MODULES_TO_CHECK = [
     "beeoffice.plugins.onboarding",
     "beeoffice.plugins.friendly_errors",
     "beeoffice.plugins.heading_numbering",
+    "beeoffice.plugins.image_utils",
     "beeoffice.plugins.find_replace",
     "beeoffice.plugins.data_binding",
     "beeoffice.plugins.variable_panel",
