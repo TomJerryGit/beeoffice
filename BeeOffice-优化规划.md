@@ -479,6 +479,16 @@ AttributeError 被宽 `except Exception: pass` 吞掉，于是重复点「立即
 | 单元格颜色应用 | 3 套 | 1 套 |
 | WebDAV | 2 套 | 1 套（`cloud_sync/webdav.py`） |
 
+**✅ 已完成**：WebDAV 2 套 → 1 套（随阶段 3.1 完成：删除了无引用的
+`beeoffice/webdav.py` 与 `plugins/webdav_sync.py`，只剩
+`cloud_sync/webdav.py` 这一套）。`cloud_settings._test_connection()` 里仍有一段
+直接使用 `webdav3.client.Client` 的代码，但那是**连接测试**（`client.check()`），
+不是第二套存储实现，不计入消重目标。
+
+**⬜ 其余 5 项待做**（按风险从低到高建议顺序）：标题编号 → 图片路径兜底 →
+Markdown 表格转换 → 幻灯片 HTML 拼接 → 单元格颜色应用 → Markdown→DOCX。
+每项都要求"先确认现状份数、再用测试兜底、用户可见行为不变"。
+
 **预估**：4 人日。
 
 ### 3.4 统一基础设施
@@ -536,6 +546,23 @@ jobs:
 ```
 
 Windows-only 是原计划；**建议加 Linux 与 macOS**——因为多处平台分支（`platform.system()` 三分支、`subprocess.run(['open'|'xdg-open'])`）从未被验证。
+
+**✅ 已完成（2026-10-11）**：`.github/workflows/test.yml` 已建立（此前 `.github`
+目录**根本不存在**，CHANGELOG 的"新增 test.yml"是空头承诺，已在 CHANGELOG
+「更正」小节记录）。实际实现与上面的草案有三处**有意不同**：
+
+| 项 | 草案 | 实际 | 原因 |
+|---|---|---|---|
+| 平台 | Windows-only（正文建议加两平台） | **windows + ubuntu + macos 矩阵** | 采纳建议；`platform.system()` 三分支与 `open`/`xdg-open` 在本机从未验证 |
+| 测试命令 | `pytest tests -q --cov=...` | **`tools/run_tests_isolated.py --quiet`** | 9 个构造 `QWebEngineView` 的文件在 offscreen 下**退出期原生崩溃**，`pytest tests` 会假红；隔离运行器退出码只反映真实 failed/error（见 baseline §6.1） |
+| 覆盖率 | `--cov-report=xml` | **未接入**（不声称有） | 隔离运行拆成 89 个进程，单进程覆盖率无法直接聚合，需 `coverage combine`；宁可没有也不要假的 |
+| ruff | 未指定是否阻断 | `continue-on-error: true` + 写入 step summary | 当前 1571 个问题，一次要求全绿会让 CI 长期红灯 |
+
+**仍未做**：覆盖率聚合、依赖锁定（`requirements.txt` 全 `>=`）、代码签名、
+打包产物实测（§4.4）。**CI 是否能真的在 GitHub 上跑通尚未验证**——本机无法
+执行 GitHub Actions；已做的验证是：YAML 可被解析、以及 workflow 里的每条命令
+（`check_imports.py` 退出码 1、隔离运行器退出码语义、`ruff --statistics`）
+都在本机实际跑过。
 
 ### 4.2 测试改造（这是"可信度"的根）
 

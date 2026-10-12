@@ -59,6 +59,28 @@
   未删除。
 - `CommentManager.load_from_file` / `clear` 现已分别是生产路径与测试使用的
   接口，未删除。
+- **v5.0.3 记录的「持续集成：新增 `.github/workflows/test.yml`（Windows-only）」
+  从未成立** —— 仓库里连 `.github` 目录都不存在，那条以及下面的
+  「每次 push / PR 自动运行导入检查、测试、覆盖率」都是空头承诺。
+  **v5.0.8 真正加入了 CI**（见下方「持续集成」），但与原描述不同：是三平台矩阵，
+  且**没有**接入覆盖率（原因见该节说明）。
+
+### 持续集成（阶段 4.1，本次真正建立）
+- 新增 `.github/workflows/test.yml`：三平台矩阵（windows / ubuntu / macos）
+  × Python 3.11，跑 `tools/check_imports.py` 与
+  `tools/run_tests_isolated.py --quiet`，ruff 结果作为**非阻断**的可见指标
+  写入 step summary。
+- **为什么不直接 `pytest tests`**：9 个构造 `QWebEngineView` 的测试文件在
+  offscreen 下会在**进程退出阶段**原生崩溃（Windows `0x80000003`），
+  断言全过但退出码非 0，直接跑会让 CI 长期假红。隔离运行器的退出码只反映
+  真实的 failed/error，见 `docs/baseline.md` §6.1。
+- **为什么不接覆盖率**：隔离运行把测试拆成 89 个进程，单进程覆盖率无法直接
+  聚合（需要 `coverage combine`）。因此当前**没有**覆盖率门槛，
+  而不是"有覆盖率"。
+- 静态检查现状基线（供后续收紧用）：`ruff check beeoffice` 默认规则
+  **1571** 个问题；`--select E722`（裸 `except`）**14** 处。
+  注意此前"更正"里写的 15 处是 v5.0.4 时的数字，其中 1 处随
+  `plugins/formula_engine.py` 在阶段 1 被删除。
 
 ## [5.0.7] - 2026-10-10
 

@@ -1,0 +1,109 @@
+# BeeOffice CI —— 优化规划 §4.1
+#
+# 背景：CHANGELOG 此前声称"新增 .github/workflows/test.yml"，但该文件**从未存在**
+# （仓库里连 .github 目录都没有）。本文件是真正的第一个 CI 配置。
+#
+# 设计要点（都来自本仓库的实测结论，不要照抄普通 Python 项目的模板）：
+#
+# 1) 用 tools/run_tests_isolated.py 而不是 `pytest tests`
+#    9 个构造 QWebEngineView 的测试文件在 offscreen 平台下会在**进程退出阶段**
+#    触发原生崩溃（Windows 报 0x80000003 / STATUS_BREAKPOINT，栈顶为
+#    beeshow_slide_mixin._show_slide → QWebEngineView.setHtml）。断言全部通过，
+#    但整轮拿不到 summary、退出码非 0，CI 会假红。
+#    隔离运行器逐文件跑 pytest，把这种崩溃降级为"某文件退出码异常"并单独报告，
+#    其退出码只反映真实的 failed/error —— 因此可以直接作为 CI 的判定依据。
+#    详见 docs/baseline.md §6.1。
+#
+# 2) ruff 只作"可见指标"，不阻断
+#    当前 `ruff check beeoffice` 有 1571 个问题（默认规则），一次要求全绿会让
+#    CI 长期红灯而失去意义。规划 §3.4 的目标是**逐步**收紧（先 E722/BLE001）。
+#    这里设为 continue-on-error，并把结果写进 step summary，让问题可见但不拦合并。
+#
+# 3) 三平台矩阵
+#    代码里有 platform.system() 三分支与 subprocess.run(['open'|'xdg-open'])，
+#    这些分支在本机（Windows）从未被验证过，必须在 Linux/macOS 上跑一次。
+#
+# 4) 未做的事（不要以为已经有了）
+#    - 覆盖率：隔离运行会把测试拆成 89 个进程，单进程覆盖率无法直接聚合，
+#      需要 coverage combine。当前**没有**接入覆盖率门槛。
+#    - 依赖锁定：requirements.txt 全是 `>=`，CI 拉到的版本可能与本机不同。
+#    - 代码签名 / 打包实测：见规划 §4.4。
+
+name: test
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / py${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        python-version: ["3.11"]
+
+    env:
+      # 无显示环境：Qt 用 offscreen 平台
+      QT_QPA_PLATFORM: offscreen
+      # 无显示/容器环境里 Chromium 需要禁用沙箱与 GPU
+      QTWEBENGINE_CHROMIUM_FLAGS: "--no-sandbox --disable-gpu --disable-software-rasterizer"
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: 安装 Linux 系统依赖（Qt / QtWebEngine 运行库）
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgl1 libegl1 libxkbcommon0 libxcomposite1 libxdamage1 \
+            libxrandr2 libxfixes3 libxcb-cursor0 libxcb-icccm4 \
+            libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 \
+            libxcb-shape0 libxcb-xinerama0 libnss3 libgbm1 libasound2 \
+            fonts-noto-cjk
+
+      - name: 安装 Python 依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: 模块导入检查（任一模块导入失败即阻断）
+        run: python tools/check_imports.py
+
+      - name: 静态检查（ruff，仅作可见指标，不阻断）
+        continue-on-error: true
+        run: |
+          ruff check beeoffice --statistics || true
+          echo "### ruff（非阻断）" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          ruff check beeoffice --statistics >> $GITHUB_STEP_SUMMARY 2>&1 || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: 测试（按文件隔离运行）
+        run: python tools/run_tests_isolated.py --quiet
+
+      - name: 上传隔离运行日志（失败时）
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isolated-test-logs-${{ matrix.os }}
+          path: _ptmp/isolated/*.log
+          if-no-files-found: ignore
+          retention-days: 7
