@@ -87,6 +87,11 @@ jobs:
       - name: 模块导入检查（任一模块导入失败即阻断）
         run: python tools/check_imports.py
 
+      - name: 版本号一致性（唯一来源 = beeoffice/__version__.py）
+        # README 徽章与 CHANGELOG 最新条目必须与它一致。
+        # 引入前实测：README 写 5.0.2、源码是 5.0.7，差 5 个补丁版本无人发现。
+        run: python tools/sync_version.py
+
       - name: 静态检查（ruff，仅作可见指标，不阻断）
         continue-on-error: true
         run: |
