@@ -91,24 +91,61 @@ class SheetDataModel(QAbstractTableModel):
         self._is_streaming = fc < self._total_rows
         self.layoutChanged.emit()
 
-    def load_chunk(self, ci):
-        """加载指定索引的分块"""
-        if ci in self._loaded_chunks or self._full_df is None:
-            return False
+    def build_chunk(self, ci):
+        """
+        读取并返回第 ci 块数据，**不修改模型**（可在工作线程调用）。
+
+        优化规划 §2.4：`ChunkLoader` 是 QThread，原先在工作线程里直接调用
+        `load_chunk()`，也就是在工作线程写 `_loaded_df` / `_loaded_chunks`。
+        工作线程改模型有两个后果：
+          ① 与主线程的单元格编辑竞争 —— 用户刚输入的值可能被
+             `pd.concat` 的结果整体覆盖（丢失更新）；
+          ② `_loaded_chunks` 被 `set_full_dataframe` 重新绑定时，
+             工作线程持有的是旧集合，已加载的块会被"遗忘"而重复加载。
+        因此把"取数据"（后台可做）与"合并进模型"（必须主线程）拆开。
+
+        :return: 该块数据的副本；块不存在或无数据时返回 None
+        """
+        if self._full_df is None or self._total_rows == 0 or ci < 0:
+            return None
         s = ci * self.CHUNK_SIZE
-        e = min(ci * self.CHUNK_SIZE + self.CHUNK_SIZE, self._total_rows)
+        e = min(s + self.CHUNK_SIZE, self._total_rows)
         if s >= self._total_rows:
+            return None
+        return self._full_df.iloc[s:e].copy()
+
+    def apply_chunk(self, ci, chunk_df):
+        """
+        把后台准备好的分块合并进模型。
+
+        **只能在主线程调用**：本方法会写 `_loaded_df` / `_loaded_chunks` /
+        `_is_streaming`，这些状态同时被视图和编辑逻辑读取。
+
+        :return: 是否真的合并了（重复块或空数据返回 False）
+        """
+        if chunk_df is None or ci in self._loaded_chunks:
             return False
-        cd = self._full_df.iloc[s:e].copy()
-        self._loaded_df = pd.concat([self._loaded_df, cd], ignore_index=False)
-        self._loaded_df = self._loaded_df[
-            ~self._loaded_df.index.duplicated(keep='last')
-        ]
+        if self._loaded_df is None:
+            self._loaded_df = chunk_df
+        else:
+            merged = pd.concat([self._loaded_df, chunk_df], ignore_index=False)
+            self._loaded_df = merged[~merged.index.duplicated(keep='last')]
         self._loaded_chunks.add(ci)
         self._is_streaming = (
             len(self._loaded_chunks) * self.CHUNK_SIZE < self._total_rows
         )
         return True
+
+    def load_chunk(self, ci):
+        """
+        同步加载指定索引的分块（build + apply 的组合）。
+
+        保留该接口给不在后台线程里调用分块加载的场景使用；
+        后台线程请改用 build_chunk()（并让主线程 apply_chunk()）。
+        """
+        if ci in self._loaded_chunks:
+            return False
+        return self.apply_chunk(ci, self.build_chunk(ci))
 
     def needs_chunks_for_range(self, sr, er):
         """返回指定行范围内需要加载的分块索引集合"""

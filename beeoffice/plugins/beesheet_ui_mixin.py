@@ -564,12 +564,11 @@ class UIMixin:
     def _init_loaders_and_timers(self):
         """初始化分块加载器和自动保存定时器"""
         # 分块加载器（滚动时按需加载）
+        # 优化规划 §2.4：数据在工作线程准备（chunk_ready），
+        # 模型合并在主线程完成（_on_chunk_ready → model.apply_chunk）。
         self._chunk_loader = ChunkLoader(self.model, self)
-        self._chunk_loader.chunk_loaded.connect(
-            lambda _: self.model.layoutChanged.emit()
-        )
+        self._chunk_loader.chunk_ready.connect(self._on_chunk_ready)
         self._chunk_loader.progress.connect(self._on_loading_progress)
-        self._chunk_loader.all_loaded.connect(self._on_all_loaded)
 
         # 自动保存定时器（每 5 分钟）
         self._auto_save_timer = QTimer(self)

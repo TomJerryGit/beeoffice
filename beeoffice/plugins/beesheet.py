@@ -617,6 +617,21 @@ class BeeSheetView(
         if hasattr(self, '_update_fill_handle_position'):
             self._update_fill_handle_position()
 
+    def _on_chunk_ready(self, ci, chunk_df):
+        """
+        主线程：把工作线程准备好的分块合并进模型。
+
+        优化规划 §2.4：`ChunkLoader` 在工作线程里只准备数据，模型的写入
+        必须回到主线程做——否则会与用户正在进行的单元格编辑竞争，
+        用户的修改可能被整体覆盖。
+        """
+        applied = self.model.apply_chunk(ci, chunk_df)
+        if applied:
+            self.model.layoutChanged.emit()
+        # '整张表加载完毕' 的判定放在主线程（原先由工作线程读 loading_progress）
+        if not self.model.is_streaming:
+            self._on_all_loaded()
+
     def _on_loading_progress(self, p):
         """分块加载进度"""
         if p < 1.0:

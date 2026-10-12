@@ -11,40 +11,85 @@ v5.0.1 修复（P0-15）：
       中断时先 wb.close() 再返回
   - 异常处理：中断时不再发出 error_occurred，避免误导用户
 """
+import threading
+
 import pandas as pd
 from pathlib import Path
 from PySide6.QtCore import QThread, Signal
 
+import logging
+
 
 class ChunkLoader(QThread):
-    """分块加载线程（用于滚动时按需加载）"""
+    """
+    分块加载线程（用于滚动时按需加载）
 
-    chunk_loaded = Signal(int)
-    all_loaded = Signal()
-    progress = Signal(float)
+    优化规划 §2.4 重构：
+      - **工作线程不再修改模型**。它只调用 `model.build_chunk(ci)` 准备数据
+        （纯读取），然后发 `chunk_ready(ci, df)`；由主线程槽函数调用
+        `model.apply_chunk(ci, df)` 完成合并。原先在工作线程里直接
+        `model.load_chunk()`，会与主线程的单元格编辑竞争并覆盖用户的修改。
+      - `progress` 现在**真的会被发出**。原先它只被声明、从未 emit，而
+        `beesheet_ui_mixin` 唯一的消费者 `_on_loading_progress` 负责显示
+        进度条 —— 于是进度条永远保持隐藏（创建时 `setVisible(False)`），
+        该槽函数成了死代码，流式加载期间用户完全看不到进度。
+      - 进度按"本批需加载的块中已处理的占比"计算，且只用线程本地计数器，
+        不读模型状态。
+      - `all_loaded` 语义仍是"整张表加载完毕"，但现在由主线程在应用分块后
+        依据 `model.is_streaming` 判定（放在 `_on_chunk_ready` 里），
+        避免在工作线程读模型。
+    """
+
+    chunk_ready = Signal(int, object)   # (分块索引, 准备好的 DataFrame)
+    progress = Signal(float)            # 0.0 - 1.0
 
     def __init__(self, model, parent=None):
         super().__init__(parent)
         self.model = model
         self._pending_chunks = set()
+        self._lock = threading.Lock()
         self._running = True
+        self._processed = 0
+        self._total = 0
 
     def add_chunks(self, chunks):
-        """添加待加载的分块索引集合"""
-        self._pending_chunks.update(chunks)
+        """添加待加载的分块索引集合（主线程调用）"""
+        already = getattr(self.model, "_loaded_chunks", set())
+        pending = {c for c in chunks if c not in already}
+        if not pending:
+            return
+        with self._lock:
+            self._pending_chunks.update(pending)
+            self._total = self._processed + len(self._pending_chunks)
         if not self.isRunning():
             self.start()
 
     def run(self):
-        """循环处理待加载分块"""
-        while self._running and self._pending_chunks:
-            chunk = self._pending_chunks.pop()
-            if self.model.load_chunk(chunk):
-                self.chunk_loaded.emit(chunk)
-            if self.model.loading_progress >= 1.0:
-                self.all_loaded.emit()
-                break
+        """循环处理待加载分块（工作线程：只准备数据，不改模型）"""
+        while self._running:
+            with self._lock:
+                if not self._pending_chunks:
+                    break
+                chunk = self._pending_chunks.pop()
+            try:
+                chunk_df = self.model.build_chunk(chunk)
+            except Exception as e:
+                logging.error(f"准备分块 {chunk} 失败: {e}")
+                chunk_df = None
+            if chunk_df is not None:
+                # 跨线程投递：主线程收到后调用 model.apply_chunk()
+                self.chunk_ready.emit(chunk, chunk_df)
+            self._processed += 1
+            self._emit_progress()
             self.msleep(10)
+        self._emit_progress(done=True)
+
+    def _emit_progress(self, done: bool = False):
+        """只用线程本地计数器计算进度，不读模型"""
+        if done or self._total <= 0:
+            self.progress.emit(1.0)
+            return
+        self.progress.emit(min(self._processed / self._total, 1.0))
 
     def stop(self):
         """请求停止线程"""
