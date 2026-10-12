@@ -391,6 +391,25 @@ class ExportMixin:
         total = len(self._slides_html)
         failures = []
 
+        # 3 秒后提示"导出中"，避免同步阻塞主线程。
+        #
+        # 优化规划 §1.5/§2.x：必须在**进入循环之前**建好这个定时器，
+        # 这样最后一张截图完成时才能把它停掉。原先它建在循环之后，
+        # 而假/快速渲染下 capture() 在循环里就已经跑完，于是：
+        #   ① 停表语句拿不到定时器（还没建），成为空操作；
+        #   ② 导出早已结束，它仍在 3 秒后弹「正在生成图片，请稍候…」——
+        #      提示与服务端状态相反，实测还会以模态框把测试卡死。
+        # 用绑定 self 的单次 QTimer，而不是 QTimer.singleShot：后者不绑定
+        # 接收者生命周期，窗口/对象销毁后仍可能触发。
+        self._export_hint_timer = QTimer(self)
+        self._export_hint_timer.setSingleShot(True)
+        self._export_hint_timer.timeout.connect(
+            lambda: QMessageBox.information(
+                self, "导出中", "正在生成图片，请稍候..."
+            )
+        )
+        self._export_hint_timer.start(3000)
+
         for i, s in enumerate(self._slides_html):
             # 任务 2.1：拼入版式 CSS
             full_html = (
@@ -459,21 +478,6 @@ class ExportMixin:
                 lambda ok, t=temp, idx=i: capture(t, idx)
             )
             temp.setHtml(full_html)
-
-        # 3 秒后提示"导出中"，避免同步阻塞主线程。
-        # 用绑定到 self 的单次 QTimer，而不是 QTimer.singleShot：
-        # 后者不绑定接收者生命周期，导出早已结束后仍可能在别处的事件循环里
-        # 弹出这个提示（实测会以已失效的父对象调用 QMessageBox，被 Qt 记为
-        # event loop 异常）；而且"已完成还提示进行中"本身就是误导。
-        # 导出完成时会在 capture() 里主动停掉它。
-        self._export_hint_timer = QTimer(self)
-        self._export_hint_timer.setSingleShot(True)
-        self._export_hint_timer.timeout.connect(
-            lambda: QMessageBox.information(
-                self, "导出中", "正在生成图片，请稍候..."
-            )
-        )
-        self._export_hint_timer.start(3000)
 
     # ==================== 导出 GIF ====================
     def _export_gif(self):

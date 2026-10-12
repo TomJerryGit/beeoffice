@@ -127,6 +127,8 @@ is created` 告警。
 | 2026-10-11 | 2.5 | 引擎支持 `$` 绝对引用与反向范围；聚合函数支持逗号分隔参数（原先连 `=SUM(1)` 都返回 0） | `=SUM($A$1:$A$3)` 与 `=SUM(A3:A1)` 由 0 → 6；`=SUM(1,2,3)` 由 0 → 6；新增 17 + 22 条回归 |
 | 2026-10-11 | 2.4 | `ChunkLoader` 不再在工作线程写模型（拆为 `build_chunk` 后台读取 + `apply_chunk` 主线程合并）；`progress` 信号由"声明了但从不 emit"改为真实发出（原先进度条永远隐藏、`_on_loading_progress` 是死代码） | 新增 9 条回归 |
 | 2026-10-11 | 2.3 | 实测**否证**了"回调跑在工作线程"的假设（`AsyncTaskManager` 与 `LargeFileLoader` 的回调均在主线程），因此不改代码，改为把该不变量写成回归测试 | 新增 5 条回归 |
+| 2026-10-11 | 2.6 | 批注/书签保存后读回：新增 `load_md_sidecars()` 并在打开 `.md` 时调用（此前两个 `load_from_file()` 全仓零调用点，重开文档批注书签全丢） | 新增 9 条回归（含完整往返） |
+| 2026-10-11 | 附带 | 蜜演 PNG 导出的"导出中"提示定时器建在循环**之后**，导致停表语句是空操作、导出结束 3 秒后仍弹模态框（实测令 pytest 超时卡死）；改为循环前建立 | `tests/regression/v5` + 导出相关：195 passed，无挂起 |
 | 2026-10-11 | 附带 | 蜜演 PNG 导出的「导出中」提示由 `QTimer.singleShot` 改为绑定 self 的单次 QTimer，并在导出完成时 `stop()`（原先导出结束后仍会弹，实测以失效父对象调用 `QMessageBox` 被 Qt 记为 event loop 异常） | `tests/regression/v5` + `test_export_pdf.py`：72 passed / 0 error |
 
 ## 6. 已知问题（已定位，未修）

@@ -254,6 +254,62 @@ class ExportMixin:
             return False
 
     # ==================================================================
+    # 读取批注 / 书签旁挂数据（优化规划 §2.6）
+    # ==================================================================
+    def load_md_sidecars(self, path: str) -> dict:
+        """
+        加载与 `.md` 同名的批注 / 书签旁挂数据。
+
+        原缺陷（数据丢失）：`_write_md()` 会把批注写入
+        `<base>.comments.json`、书签写入 `<base>.bookmarks.json`，
+        但**打开文档时从不读回** —— `CommentManager.load_from_file()` 与
+        `BookmarkManager.load_from_file()` 在整个代码库里没有任何调用点
+        （已全仓 grep 确认）。结果是重开文档后批注书签全部消失，
+        而数据其实还在磁盘上；用户会认为"保存没生效"或"软件把数据弄丢了"。
+
+        :param path: 已打开的 Markdown 文件路径
+        :return: {"comments": bool, "bookmarks": bool} 各自是否成功加载
+        """
+        loaded = {"comments": False, "bookmarks": False}
+        if not path:
+            return loaded
+
+        base = str(Path(path).with_suffix(''))
+
+        comment_mgr = getattr(self, "_comment_manager", None)
+        if comment_mgr is not None:
+            try:
+                loaded["comments"] = bool(
+                    comment_mgr.load_from_file(base + ".comments.json")
+                )
+            except Exception as e:
+                logging.warning(f"载入批注失败: {e}")
+
+        bookmark_mgr = getattr(self, "_bookmark_manager", None)
+        if bookmark_mgr is not None:
+            try:
+                loaded["bookmarks"] = bool(
+                    bookmark_mgr.load_from_file(base + ".bookmarks.json")
+                )
+            except Exception as e:
+                logging.warning(f"载入书签失败: {e}")
+
+        # 刷新批注面板（面板即使未显示也应拿到最新列表）
+        refresh = getattr(self, "_refresh_comment_panel", None)
+        if loaded["comments"] and callable(refresh):
+            try:
+                refresh()
+            except Exception as e:
+                logging.warning(f"刷新批注面板失败: {e}")
+
+        if loaded["comments"] or loaded["bookmarks"]:
+            logging.info(
+                f"已载入旁挂数据: 批注={'是' if loaded['comments'] else '无'}, "
+                f"书签={'是' if loaded['bookmarks'] else '无'}"
+            )
+        return loaded
+
+    # ==================================================================
     # 保存为 DOCX
     # ==================================================================
     def _save_as_docx(self) -> bool:

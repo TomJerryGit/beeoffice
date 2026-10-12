@@ -222,3 +222,50 @@ def test_export_cleans_up_view_references(png_env):
     host = _Host(["<p>a</p>"])
     host._export_images()
     assert host._export_views == []
+
+
+def test_loading_hint_is_cancelled_when_export_finishes(png_env):
+    """
+    "导出中" 提示必须在导出完成时被停掉。
+
+    原先该定时器建在**循环之后**，而快速渲染下 capture() 在循环里就已跑完，
+    停表语句因此是空操作 → 导出结束 3 秒后仍会弹「正在生成图片，请稍候…」，
+    提示与事实相反；在 headless/自动化环境里这个模态框会把进程卡死
+    （实测 pytest 超时）。
+    """
+    out_dir, info_calls, warn_calls = png_env
+    host = _Host(["<p>第一页</p>", "<p>第二页</p>"])
+    host._export_images()
+
+    timer = getattr(host, "_export_hint_timer", None)
+    assert timer is not None, "应建立提示定时器"
+    assert not timer.isActive(), (
+        "导出已完成，'导出中'提示定时器仍在计时——导出后会弹出误导提示"
+    )
+
+
+def test_loading_hint_fires_while_export_still_running(png_env):
+    """
+    反面：若导出很慢（快照尚未完成），提示定时器应处于活动状态，
+    即"还在导出"时提示是合理且必要的。
+    """
+    out_dir, _, _ = png_env
+    host = _Host(["<p>a</p>", "<p>b</p>"])
+
+    # 让假视图不回调 loadFinished，模拟"渲染还没完成"
+    class _PendingView(_FakeView):
+        def setHtml(self, html):
+            pass   # 不触发 capture
+
+    import beeoffice.plugins.beeshow_export_mixin as em
+    orig = em.QWebEngineView
+    em.QWebEngineView = _PendingView
+    try:
+        host._export_images()
+    finally:
+        em.QWebEngineView = orig
+
+    assert host._export_hint_timer.isActive(), (
+        "导出尚未完成时，'导出中'提示应保持活动"
+    )
+    host._export_hint_timer.stop()   # 清理，避免测试后弹出模态框

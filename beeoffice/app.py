@@ -658,6 +658,12 @@ class BeeApp(QMainWindow):
         # 3. 加载内容
         widget.set_content(content)
 
+        # 3.5 载入批注 / 书签旁挂数据（优化规划 §2.6）
+        #     保存时会写 <base>.comments.json / <base>.bookmarks.json，
+        #     此前打开时从不读回，导致重开文档批注书签全丢。
+        if hasattr(widget, "load_md_sidecars"):
+            widget.load_md_sidecars(path)
+
         # 4. 收尾
         if hasattr(widget, "_update_save_btn_text"):
             widget._update_save_btn_text()
