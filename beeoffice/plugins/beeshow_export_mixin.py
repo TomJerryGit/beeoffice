@@ -46,6 +46,8 @@ v5.1.1 修复：
 import logging
 from pathlib import Path
 
+from beeoffice.plugins.beeshow_html import render_slide_html
+
 from PySide6.QtWidgets import (
     QFileDialog, QMessageBox, QInputDialog,
 )
@@ -266,12 +268,14 @@ class ExportMixin:
         slides_html = "".join(parts)
 
         # 任务 2.1：拼入版式 CSS
-        full_html = (
-            f"""<!DOCTYPE html><html><head><meta charset="utf-8">"""
-            f"""<style>{theme['css']}{self._get_layout_css()}"""
-            f"""body{{background:{bg};}}"""
-            f"""@page{{size:A4 landscape;margin:0}}body{{margin:0}}"""
-            f"""</style></head><body>{slides_html}</body></html>"""
+        # 优化规划 §3.3：骨架统一走 beeshow_html.render_slide_html()
+        full_html = render_slide_html(
+            slides_html,
+            theme_css=theme['css'],
+            layout_css=self._get_layout_css(),
+            bg=bg,
+            extra_css="@page{size:A4 landscape;margin:0}body{margin:0}",
+            wrap_slide=False,      # 每页已在上面单独包好 .slide 并带分页
         )
 
         # P0-4：保持 QWebEngineView 引用，避免被 GC
@@ -349,11 +353,15 @@ class ExportMixin:
             pass
 
         # 任务 2.1：拼入版式 CSS
-        full_html = (
-            f"""<!DOCTYPE html><html><head><meta charset="utf-8">"""
-            f"""<style>{theme['css']}{self._get_layout_css()}"""
-            f"""body{{background:{bg};}}body{{margin:0}}</style>"""
-            f"""</head><body>{slides_html_joined}{dynamic_js}</body></html>"""
+        # 优化规划 §3.3：骨架统一走 beeshow_html.render_slide_html()
+        full_html = render_slide_html(
+            slides_html_joined,
+            theme_css=theme['css'],
+            layout_css=self._get_layout_css(),
+            bg=bg,
+            extra_css="body{margin:0}",
+            body_extra=dynamic_js,
+            wrap_slide=False,      # 每页已在上面单独包好 .slide
         )
 
         with open(path, 'w', encoding='utf-8') as f:
@@ -417,12 +425,12 @@ class ExportMixin:
 
         for i, s in enumerate(self._slides_html):
             # 任务 2.1：拼入版式 CSS
-            full_html = (
-                f"""<!DOCTYPE html><html><head><meta charset="utf-8">"""
-                f"""<style>{theme['css']}{self._get_layout_css()}"""
-                f"""body{{background:{bg};}}"""
-                f"""</style></head>"""
-                f"""<body><div class="slide">{s}</div></body></html>"""
+            # 优化规划 §3.3：骨架统一走 beeshow_html.render_slide_html()
+            full_html = render_slide_html(
+                s,
+                theme_css=theme['css'],
+                layout_css=self._get_layout_css(),
+                bg=bg,
             )
 
             # P0-4：保持引用，避免每次循环覆盖导致 GC

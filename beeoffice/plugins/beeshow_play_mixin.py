@@ -44,6 +44,8 @@ v5.1 增量汇总：
 
 import time
 
+from beeoffice.plugins.beeshow_html import render_slide_html
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QSlider, QTextEdit, QMessageBox,
 )
@@ -242,14 +244,14 @@ class PlayMixin:
                 pass
 
             # 任务 2.1：拼入版式 CSS
-            full_html = (
-                f"""<!DOCTYPE html><html><head><meta charset="utf-8">"""
-                f"""<style>{theme['css']}{self._get_layout_css()}"""
-                f"""body{{background:{bg};}}{anim_css}</style></head>"""
-                f"""<body><div class="slide">"""
-                f"""{self._slides_html[self._current_slide]}</div>"""
-                f"""{control_bar}{dynamic_js}"""
-                f"""{morph_ids_js}{morph_js}</body></html>"""
+            # 优化规划 §3.3：骨架统一走 beeshow_html.render_slide_html()
+            full_html = render_slide_html(
+                self._slides_html[self._current_slide],
+                theme_css=theme['css'],
+                layout_css=self._get_layout_css(),
+                bg=bg,
+                extra_css=anim_css,
+                body_extra=f"{control_bar}{dynamic_js}{morph_ids_js}{morph_js}",
             )
 
             self._play_window.setHtml(full_html)

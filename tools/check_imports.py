@@ -88,6 +88,7 @@ MODULES_TO_CHECK = [
     "beeoffice.plugins.beesheet_plugin",
     # 蜜演
     "beeoffice.plugins.beeshow",
+    "beeoffice.plugins.beeshow_html",
     "beeoffice.plugins.beeshow_plugin",
     # 其它插件
     "beeoffice.plugins.ai_assist",

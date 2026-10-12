@@ -112,6 +112,7 @@ MODULES = [
 
     # ---------- 插件：蜜演 ----------
     "beeoffice.plugins.beeshow",
+    "beeoffice.plugins.beeshow_html",
     "beeoffice.plugins.beeshow_plugin",
 
     # ---------- 插件：其它 ----------

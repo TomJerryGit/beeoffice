@@ -64,6 +64,7 @@ v5.1 增量汇总：
 
 import json
 import logging
+from beeoffice.plugins.beeshow_html import render_slide_html
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Dict, Any
@@ -895,16 +896,19 @@ class PPTXEngine:
         bg_color: str,
         base_href: str = "",
     ) -> str:
-        """拼装完整 HTML（可选注入 <base href> 以解析相对路径图片）"""
+        """
+        拼装完整 HTML（可选注入 <base href> 以解析相对路径图片）
+
+        优化规划 §3.3：骨架统一走 `beeshow_html.render_slide_html()`。
+        PPTX 与前几处不同之处是画布固定 1280×960，且没有版式 CSS。
+        """
         base_tag = f'<base href="{base_href}">' if base_href else ""
-        return (
-            f'<!DOCTYPE html><html><head><meta charset="utf-8">'
-            f'{base_tag}'
-            f'<style>{theme_css} '
-            f'body{{margin:0;background:{bg_color};}}'
-            f'.slide{{width:1280px;height:960px;}}'
-            f'</style></head>'
-            f'<body><div class="slide">{fragment}</div></body></html>'
+        return render_slide_html(
+            fragment,
+            theme_css=theme_css,
+            bg=bg_color,
+            extra_css="body{margin:0}.slide{width:1280px;height:960px;}",
+            head_extra=base_tag,
         )
 
 

@@ -53,6 +53,8 @@ v5.1.1 修复：
 import re
 import logging
 
+from beeoffice.plugins.beeshow_html import render_slide_html
+
 from PySide6.QtWidgets import (
     QListWidgetItem, QInputDialog, QColorDialog, QMessageBox,
 )
@@ -422,10 +424,18 @@ class SlideMixin:
                 pass
 
             # 任务 2.1：拼入版式 CSS
-            full_html = f"""<!DOCTYPE html><html><head><meta charset="utf-8">
-            <style>{theme['css']}{self._get_layout_css()} body {{ background: {bg}; }}</style></head>
-            <body><div class="slide">{self._slides_html[index]}</div>
-            <div class="slide-number">{index+1}/{len(self._slides_html)}</div>{dynamic_js}{editor_js}{image_js}</body></html>"""
+            # 优化规划 §3.3：骨架统一走 beeshow_html.render_slide_html()
+            full_html = render_slide_html(
+                self._slides_html[index],
+                theme_css=theme['css'],
+                layout_css=self._get_layout_css(),
+                bg=bg,
+                body_extra=(
+                    f'<div class="slide-number">'
+                    f"{index + 1}/{len(self._slides_html)}</div>"
+                    f"{dynamic_js}{editor_js}{image_js}"
+                ),
+            )
 
             self._preview.setHtml(full_html)
             self._update_thumbnails()
