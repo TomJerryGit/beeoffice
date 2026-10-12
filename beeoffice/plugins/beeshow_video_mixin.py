@@ -401,6 +401,73 @@ class VideoMixin:
             logging.error(f"ffmpeg 提取异常：{e}")
             return None
 
+    @staticmethod
+    def _poster_cache_dir():
+        """视频封面缓存目录（%TEMP%/beeoffice_video_posters）。"""
+        import tempfile
+
+        return Path(tempfile.gettempdir()) / "beeoffice_video_posters"
+
+    @staticmethod
+    def _poster_cache_path(video_path: str):
+        """
+        为视频计算**跨进程稳定**的封面缓存路径（优化规划 §2.7）。
+
+        原实现用 `abs(hash(video_path))` —— Python 对字符串的 `hash()` 默认
+        是**每个进程随机化**的（PYTHONHASHSEED），于是同一个视频每次运行都会
+        得到一个**新的文件名**：
+          - 缓存永远命中不了，每次导出都重新跑一遍 ffmpeg；
+          - `%TEMP%/beeoffice_video_posters` 每导出一次就多留一个文件。
+        改用 sha1(路径 + mtime + 大小)：跨进程稳定，视频被替换后又能自动
+        得到新名字（不会错误复用旧封面）。
+        """
+        import hashlib
+
+        key = str(video_path)
+        try:
+            st = Path(video_path).stat()
+            key += f"|{int(st.st_mtime)}|{st.st_size}"
+        except OSError:
+            pass
+        digest = hashlib.sha1(
+            key.encode("utf-8", "ignore")
+        ).hexdigest()[:16]
+        return (
+            VideoMixin._poster_cache_dir() / f"poster_{digest}.png"
+        )
+
+    @staticmethod
+    def _cleanup_video_posters(max_age_days: int = 7) -> int:
+        """
+        清理过期的视频封面缓存（优化规划 §2.7）。
+
+        原实现从不清理，缓存目录只增不减（再叠加上面"文件名每次不同"的问题，
+        每次导出都会留下新文件）。
+
+        :param max_age_days: 超过该天数的缓存文件会被删除
+        :return: 删除的文件数
+        """
+        import time
+
+        tmp_dir = VideoMixin._poster_cache_dir()
+        if not tmp_dir.is_dir():
+            return 0
+        cutoff = time.time() - max_age_days * 86400
+        removed = 0
+        try:
+            for entry in tmp_dir.iterdir():
+                try:
+                    if entry.is_file() and entry.stat().st_mtime < cutoff:
+                        entry.unlink()
+                        removed += 1
+                except OSError:
+                    continue
+        except OSError:
+            return removed
+        if removed:
+            logging.info(f"已清理 {removed} 个过期视频封面缓存")
+        return removed
+
     def _replace_videos_with_posters(self, slides_html: list) -> list:
         """
         导出 PDF/PPTX 时，把 <video> 替换为 <img>（首帧截图）。
@@ -408,7 +475,11 @@ class VideoMixin:
         :param slides_html: 幻灯片 HTML 片段列表
         :return: 处理后的 HTML 片段列表
         """
-        import tempfile
+        # 优化规划 §2.7：顺带清理过期缓存，避免 %TEMP% 无限增长
+        try:
+            self._cleanup_video_posters()
+        except Exception as e:
+            logging.debug(f"清理视频封面缓存失败：{e}")
 
         new_slides = []
         poster_cache = {}
@@ -436,15 +507,19 @@ class VideoMixin:
                     poster = poster_cache[video_path]
                 else:
                     try:
-                        tmp_dir = Path(tempfile.gettempdir()) / \
-                            "beeoffice_video_posters"
-                        tmp_dir.mkdir(parents=True, exist_ok=True)
-                        poster_path = tmp_dir / (
-                            f"poster_{abs(hash(video_path))}.png"
+                        poster_path = self._poster_cache_path(video_path)
+                        poster_path.parent.mkdir(
+                            parents=True, exist_ok=True
                         )
-                        poster = self._extract_video_poster(
-                            video_path, str(poster_path)
-                        )
+                        # 稳定文件名带来的好处：上次导出已生成过就直接复用，
+                        # 不必再跑一次 ffmpeg
+                        if (poster_path.is_file()
+                                and poster_path.stat().st_size > 0):
+                            poster = str(poster_path)
+                        else:
+                            poster = self._extract_video_poster(
+                                video_path, str(poster_path)
+                            )
                     except Exception as e:
                         logging.warning(f"提取封面失败：{e}")
                         poster = None
