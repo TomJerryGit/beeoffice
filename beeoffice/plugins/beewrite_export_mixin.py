@@ -438,8 +438,11 @@ class ExportMixin:
                 content = self.get_rendered_content()
                 # 传入页面设置（优化规划 §2.2）：原先 Markdown 路径不传，
                 # 导出的纸张/页边距是 python-docx 模板默认值，与富文本路径不一致。
+                # 同时传 base_dir，让相对路径的图片能被嵌入（§2.6）。
+                src = getattr(self, "_current_file_path", None)
+                base_dir = str(Path(src).parent) if src else None
                 if not export_to_docx(
-                    content, path, self.get_page_settings()
+                    content, path, self.get_page_settings(), base_dir=base_dir
                 ):
                     QMessageBox.warning(self, "失败", "无法生成 Word 文档")
                     return False

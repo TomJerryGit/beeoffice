@@ -27,10 +27,14 @@
 
 说明：
   - 本 Mixin 处理「插入外部对象」的全部入口。
-  - 图片 / 公式以临时文件形式保存后通过 QTextImageFormat 插入。
+  - 图片 / 公式由各自对话框渲染成图片文件后，经 `_persist_media_to_document()`
+    落到"文档旁边"的稳定目录，再用 QTextImageFormat 插入
+    （优化规划 §2.6：此前直接使用 %TEMP% 路径，见该方法说明）。
   - 不导入其他 beewrite_* Mixin，避免循环依赖。
 """
 import logging
+import shutil
+import uuid
 from pathlib import Path
 
 from PySide6.QtWidgets import (
@@ -243,6 +247,61 @@ class LinkMixin:
         dlg.exec()
 
     # ==================================================================
+    # 媒体落盘（优化规划 §2.6）
+    # ==================================================================
+    def _persist_media_to_document(self, temp_path: str) -> str:
+        """
+        把临时目录里的图片 / 公式图片搬进"文档旁边"的稳定目录。
+
+        原缺陷（数据丢失）：插入图片与插入公式都只把渲染结果写到系统临时目录
+        （`%TEMP%/beeoffice_images/`、`%TEMP%/beeoffice_formulas/`），然后把那个
+        **绝对临时路径**写进文档。后果：
+          - `%TEMP%` 会被系统清理（存储感知 / 磁盘清理 / 重启），文档里的图片
+            之后就永久失效；
+          - 临时路径只在本机有效，文档拷到别的电脑上图片全部打不开。
+        而 `import_from_docx` 导入图片时已经是"导出到 <文档名>_media/ 并用相对
+        路径引用"，两条路径行为不一致。
+
+        现在统一为：
+          - 文档已保存 → `<文档目录>/<文档名>_media/`
+          - 文档尚未保存 → 应用数据目录 `media/<随机 8 位>/`
+            （比 %TEMP% 稳定得多，但仍建议尽快保存文档以获得可随文档分发的路径）
+
+        采用**复制**而非移动，避免影响对话框自身的结果文件。
+
+        :return: 可安全写入文档的新路径；无法落盘时返回原路径
+        """
+        src = Path(temp_path) if temp_path else None
+        if src is None or not src.exists():
+            return temp_path
+        try:
+            doc_path = getattr(self, "_current_file_path", None)
+            if doc_path:
+                target_dir = (
+                    Path(doc_path).parent / f"{Path(doc_path).stem}_media"
+                )
+            else:
+                from beeoffice.utils import get_app_data_dir
+                target_dir = (
+                    Path(get_app_data_dir()) / "media" / uuid.uuid4().hex[:8]
+                )
+
+            target_dir.mkdir(parents=True, exist_ok=True)
+            dst = target_dir / src.name
+            # 同名但内容不同时另起名字，避免覆盖用户已有的同名图片
+            suffix = 1
+            while dst.exists() and dst.stat().st_size != src.stat().st_size:
+                dst = target_dir / f"{src.stem}_{suffix}{src.suffix}"
+                suffix += 1
+            if not dst.exists():
+                shutil.copy2(src, dst)
+            logging.info(f"媒体已落盘到文档目录: {dst}")
+            return str(dst)
+        except Exception as e:
+            logging.warning(f"媒体文件落盘失败，仍使用临时路径: {e}")
+            return temp_path
+
+    # ==================================================================
     # 插入图片
     # ==================================================================
     def _insert_image(self):
@@ -258,7 +317,7 @@ class LinkMixin:
         if dlg.exec() != QDialog.Accepted:
             return
 
-        result_path = dlg.get_result_path()
+        result_path = self._persist_media_to_document(dlg.get_result_path())
         if not result_path or not Path(result_path).exists():
             return
 
@@ -305,7 +364,7 @@ class LinkMixin:
         if dlg.exec() != QDialog.Accepted:
             return
 
-        result_path = dlg.get_result_path()
+        result_path = self._persist_media_to_document(dlg.get_result_path())
         if not result_path or not Path(result_path).exists():
             return
 

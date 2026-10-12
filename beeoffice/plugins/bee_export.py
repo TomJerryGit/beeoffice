@@ -45,7 +45,7 @@ except ImportError:
 
 try:
     from docx import Document
-    from docx.shared import Pt, RGBColor, Inches
+    from docx.shared import Pt, RGBColor, Inches, Cm
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     HAS_DOCX = True
 except ImportError:
@@ -279,7 +279,7 @@ def apply_page_settings(doc, page_settings):
 
 
 # ==================== 导出 DOCX ====================
-def export_to_docx(content, output_path, page_settings=None):
+def export_to_docx(content, output_path, page_settings=None, base_dir=None):
     """
     Markdown 导出为 DOCX 文件
 
@@ -287,6 +287,8 @@ def export_to_docx(content, output_path, page_settings=None):
     :param output_path: 输出路径
     :param page_settings: 页面设置（单位 mm，见 apply_page_settings）。
         为 None 时沿用 python-docx 默认模板（保持向后兼容）。
+    :param base_dir: Markdown 所在目录，用于解析**相对图片路径**
+        （优化规划 §2.6）。为 None 时相对路径按当前工作目录解析。
     :return: 是否成功
     """
     if not HAS_DOCX:
@@ -299,7 +301,7 @@ def export_to_docx(content, output_path, page_settings=None):
             html = _md_to_html(content)
             soup = BeautifulSoup(html, "html.parser")
             doc = Document()
-            _write_html_to_docx(soup, doc)
+            _write_html_to_docx(soup, doc, base_dir=base_dir)
         else:
             # 无中间层时，逐行处理
             doc = Document()
@@ -319,13 +321,103 @@ def export_to_docx(content, output_path, page_settings=None):
         return False
 
 
-def _write_html_to_docx(soup, doc):
-    """将 BeautifulSoup 树写入 docx 文档"""
+def _write_html_to_docx(soup, doc, base_dir=None):
+    """将 BeautifulSoup 树写入 docx 文档
+
+    :param base_dir: Markdown 所在目录，用于解析相对图片路径（优化规划 §2.6）
+    """
     for element in soup.children:
-        _write_element(element, doc)
+        _write_element(element, doc, base_dir=base_dir)
 
 
-def _write_element(element, doc, parent_para=None):
+def _resolve_image_path(src, base_dir=None):
+    """
+    把 Markdown / HTML 里的图片地址解析成本地可读路径。
+
+    优化规划 §2.6：MD→DOCX 原先**完全丢弃图片**（`<img>` 既没有分支处理，
+    其 `get_text()` 又是空串，于是被静默跳过），导出的 Word 里图片全没了。
+
+    支持：绝对路径、相对路径（相对 Markdown 所在目录或当前目录）、
+    `file:///C:/...` 形式的本地 URL。
+    远程 http(s) 图片不联网下载，返回 None（由调用方给出可见占位）。
+    """
+    if not src:
+        return None
+    from urllib.parse import unquote, urlparse
+
+    parsed = urlparse(src)
+    if parsed.scheme in ("http", "https"):
+        return None
+
+    raw = unquote(parsed.path or src)
+    # file:///C:/dir/x.png → /C:/dir/x.png，去掉盘符前的斜杠
+    if raw.startswith("/") and len(raw) > 2 and raw[2] == ":":
+        raw = raw[1:]
+
+    candidate = Path(raw)
+    candidates = []
+    if candidate.is_absolute():
+        candidates.append(candidate)
+    else:
+        if base_dir:
+            candidates.append(Path(base_dir) / candidate)
+        candidates.append(candidate)
+
+    for path in candidates:
+        try:
+            if path.is_file():
+                return path
+        except OSError:
+            continue
+    return None
+
+
+def _add_hyperlink(paragraph, url, text):
+    """
+    在段落中插入**真正可点击**的超链接。
+
+    python-docx 没有公开的超链接 API，需要自己拼 `w:hyperlink` 与外部关系。
+    优化规划 §2.6：原实现只把链接文字染成蓝色加下划线，`href` 直接丢失，
+    导出的 Word 里链接既不可点、也看不出指向哪里。
+    """
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    from docx.opc.constants import RELATIONSHIP_TYPE as RT
+
+    r_id = paragraph.part.relate_to(url, RT.HYPERLINK, is_external=True)
+
+    hyperlink = OxmlElement("w:hyperlink")
+    hyperlink.set(qn("r:id"), r_id)
+
+    new_run = OxmlElement("w:r")
+    rPr = OxmlElement("w:rPr")
+
+    color = OxmlElement("w:color")
+    color.set(qn("w:val"), "1565C0")
+    rPr.append(color)
+
+    underline = OxmlElement("w:u")
+    underline.set(qn("w:val"), "single")
+    rPr.append(underline)
+
+    new_run.append(rPr)
+    text_el = OxmlElement("w:t")
+    text_el.text = text
+    # 注意：不能用 qn("xml:space") —— python-docx 的 nsmap 里没有 xml 前缀，
+    # qn() 会直接 KeyError（实测会让整条插入超链接的语句抛异常，进而被
+    # 上层 except 降级为纯文本，用户看到的还是不可点的链接）。
+    # 这里使用 XML 命名空间的完整 URI。
+    text_el.set(
+        "{http://www.w3.org/XML/1998/namespace}space", "preserve"
+    )
+    new_run.append(text_el)
+    hyperlink.append(new_run)
+
+    paragraph._p.append(hyperlink)
+    return hyperlink
+
+
+def _write_element(element, doc, parent_para=None, base_dir=None):
     """递归写入单个 HTML 元素到 docx"""
     from bs4 import NavigableString, Tag
 
@@ -351,9 +443,12 @@ def _write_element(element, doc, parent_para=None):
     # 段落
     if tag == "p":
         text = element.get_text().strip()
-        if text:
+        # 优化规划 §2.6：只含图片的段落 get_text() 为空，原先会整体跳过 →
+        # 图片被静默丢弃。这里把"含图片"也算作有内容。
+        has_image = element.find("img") is not None
+        if text or has_image:
             p = doc.add_paragraph()
-            _write_inline(element, p)
+            _write_inline(element, p, base_dir)
         return
 
     # 列表
@@ -400,7 +495,13 @@ def _write_element(element, doc, parent_para=None):
     # 容器类标签：递归
     if tag in ("div", "section", "article", "body", "html"):
         for child in element.children:
-            _write_element(child, doc)
+            _write_element(child, doc, base_dir=base_dir)
+        return
+
+    # 独立的图片（不在段落内时）
+    if tag == "img":
+        p = doc.add_paragraph()
+        _write_inline(element, p, base_dir)
         return
 
     # 其他：把文本抽出来
@@ -409,8 +510,8 @@ def _write_element(element, doc, parent_para=None):
         doc.add_paragraph(text)
 
 
-def _write_inline(element, paragraph):
-    """将元素的内联内容写入段落（保留加粗、斜体等）"""
+def _write_inline(element, paragraph, base_dir=None):
+    """将元素的内联内容写入段落（保留加粗、斜体、图片与超链接）"""
     from bs4 import NavigableString, Tag
 
     for child in element.children:
@@ -418,9 +519,30 @@ def _write_inline(element, paragraph):
             paragraph.add_run(str(child))
         elif isinstance(child, Tag):
             tag = child.name.lower()
+
+            # 图片：必须放在"文本为空则跳过"之前判断（<img> 的文本恒为空）
+            if tag == "img":
+                _write_inline_image(child, paragraph, base_dir)
+                continue
+
             text = child.get_text()
             if not text:
                 continue
+
+            # 超链接：优先生成可点击链接（原实现只染色，href 丢失）
+            if tag == "a":
+                href = (child.get("href") or "").strip()
+                if href:
+                    try:
+                        _add_hyperlink(paragraph, href, text)
+                        continue
+                    except Exception as e:
+                        logging.warning(f"插入超链接失败，降级为纯文本: {e}")
+                run = paragraph.add_run(text)
+                run.font.color.rgb = RGBColor(0x15, 0x65, 0xC0)
+                run.font.underline = True
+                continue
+
             run = paragraph.add_run(text)
             if tag in ("strong", "b"):
                 run.bold = True
@@ -429,9 +551,48 @@ def _write_inline(element, paragraph):
             elif tag == "code":
                 run.font.name = "Consolas"
                 run.font.color.rgb = RGBColor(0xD3, 0x2F, 0x2F)
-            elif tag == "a":
-                run.font.color.rgb = RGBColor(0x15, 0x65, 0xC0)
-                run.font.underline = True
+
+
+def _write_inline_image(img_tag, paragraph, base_dir=None):
+    """
+    把 `<img>` 嵌入段落（优化规划 §2.6）。
+
+    找不到文件或格式不受支持时插入**可见占位文字**，而不是静默丢弃——
+    用户需要知道"这里本来有张图，但没被导出"。
+    """
+    src = (img_tag.get("src") or "").strip()
+    alt = (img_tag.get("alt") or "").strip()
+    path = _resolve_image_path(src, base_dir)
+
+    if path is None:
+        placeholder = f"[图片未导出: {src or '无地址'}]"
+        if alt:
+            placeholder = f"[图片未导出: {alt}（{src or '无地址'}）]"
+        logging.warning(f"MD→DOCX: 无法定位图片，插入占位文字: {src}")
+        run = paragraph.add_run(placeholder)
+        run.font.color.rgb = RGBColor(0xB7, 0x1C, 0x1C)
+        return
+
+    try:
+        width = None
+        try:
+            from PIL import Image
+            with Image.open(path) as im:
+                # 超过正文宽度（A4 去掉页边距约 16cm）时按比例缩到 15cm
+                if im.width > 600:
+                    width = Cm(15)
+        except Exception:
+            width = None
+
+        run = paragraph.add_run()
+        if width is not None:
+            run.add_picture(str(path), width=width)
+        else:
+            run.add_picture(str(path))
+    except Exception as e:
+        logging.warning(f"嵌入图片失败 {path}: {e}")
+        run = paragraph.add_run(f"[图片未导出: {alt or src}]")
+        run.font.color.rgb = RGBColor(0xB7, 0x1C, 0x1C)
 
 
 def _write_table(table_tag, doc):
@@ -1174,14 +1335,17 @@ def _wrap_text(text, font, draw, max_width):
 
 
 # ==================== 兼容导出（供 app.py 直接调用） ====================
-def export_html_to_docx(html_content, output_path):
-    """HTML 内容 → DOCX（供特殊场景调用）"""
+def export_html_to_docx(html_content, output_path, base_dir=None):
+    """HTML 内容 → DOCX（供特殊场景调用）
+
+    :param base_dir: 解析相对图片路径的基准目录（优化规划 §2.6）
+    """
     if not HAS_DOCX or not HAS_BS4:
         return False
     try:
         soup = BeautifulSoup(html_content, "html.parser")
         doc = Document()
-        _write_html_to_docx(soup, doc)
+        _write_html_to_docx(soup, doc, base_dir=base_dir)
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         doc.save(output_path)
         return True
