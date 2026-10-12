@@ -312,15 +312,51 @@ class DynamicMixin:
     # ==================== 导出预处理 ====================
     def _render_dynamic_numbers_for_export(self, md_text: str) -> str:
         """
-        导出 PDF / PPTX 时的预处理：把 {{number: ...}} 替换为**最终值**。
+        导出 PDF / PPTX 时的预处理：把动态数字替换为**最终值**。
 
         原因：
           - 导出时不执行 JS
           - 若保留 <span data-to=...>0</span>，PDF 里显示 0 而非最终值
 
-        :param md_text: Markdown 原文
-        :return: 替换后的 Markdown
+        优化规划 §2.7：调用方传进来的是 **HTML**（`self._slides_html`，
+        见 `beeshow_export_mixin._export_pptx` 与 PDF 导出），而本方法原先只按
+        Markdown 的 `{{number: ...}}` 模式替换 —— 对 HTML 一路 `re.sub`
+        完全匹配不到内容，**静默返回原串**：函数看着被调用了，导出的
+        PDF/PPTX 里动态数字却仍然是 **0**。
+
+        现在两种输入都处理：
+          - HTML：把 `<span ... data-final="X">…</span>` 的内文换成 X
+            （HTML 实体反转义），导出不依赖 JS；
+          - Markdown：保留原有的 `{{number: ...}}` 替换，兼容其他调用方。
         """
+        if not md_text:
+            return md_text
+
+        # 1) HTML：按 data-final 回填 span 内文。
+        #    不要求属性顺序，只认 data-final —— 该属性仅由动态数字生成器产出。
+        span_pattern = re.compile(
+            r'(<span[^>]*\bdata-final="([^"]*)"[^>]*>)(.*?)(</span>)',
+            re.DOTALL,
+        )
+
+        def _unescape(value: str) -> str:
+            return (
+                value.replace("&quot;", '"')
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&amp;", "&")
+            )
+
+        def replace_span(match):
+            return (
+                f"{match.group(1)}"
+                f"{_unescape(match.group(2))}"
+                f"{match.group(4)}"
+            )
+
+        html_result = span_pattern.sub(replace_span, md_text)
+
+        # 2) Markdown：原有 {{number: ...}} 替换（保持兼容）
         def replace(match):
             try:
                 inner = match.group(1).strip()
@@ -338,4 +374,4 @@ class DynamicMixin:
                 logging.warning(f"导出动态数字失败：{e}")
                 return match.group(0)
 
-        return DYNAMIC_NUMBER_PATTERN.sub(replace, md_text)
+        return DYNAMIC_NUMBER_PATTERN.sub(replace, html_result)

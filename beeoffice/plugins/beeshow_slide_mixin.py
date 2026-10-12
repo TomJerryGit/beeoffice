@@ -113,34 +113,46 @@ class SlideMixin:
             if not part:
                 continue
 
-            # 提取 <!-- 备注 -->
-            nm = re.search(r'<!--\s*(.*?)\s*-->', part, re.DOTALL)
+            # 提取演讲备注：**只匹配普通注释**。
+            # 优化规划 §2.7：原正则 `<!--\s*(.*?)\s*-->` 会匹配第一个注释而不看
+            # 内容，于是 `<!-- beeoffice-style: {...} -->` 这类特殊标记会被当成
+            # 演讲备注（备注里塞进一段 JSON），同时该标记也被删掉。
+            # 负向前瞻放在 `<!--` 之后、`\s*` 之前，避免 `\s*` 回溯后又匹配上。
+            nm = re.search(
+                r'<!--(?!\s*(?:comments:|beeoffice-style:|beeoffice-image:'
+                r'|morph-id:))\s*(.*?)\s*-->',
+                part,
+                re.DOTALL,
+            )
             if nm:
                 self._speaker_notes.append(nm.group(1).strip())
-                part = part.replace(nm.group(0), '').strip()
+                part = part.replace(nm.group(0), '', 1).strip()
             else:
                 self._speaker_notes.append('')
 
-            # 任务 4.2：剥离 comments 注释
-            part = re.sub(
+            # 优化规划 §2.7：特殊标记必须**留在 _slides_md** 里。
+            # `_on_slides_reordered()` 会用 _slides_md 重建整个编辑器文本，
+            # 此前这里把三类标记全部剥掉，导致**任何一次拖动排序都会永久删除**
+            # 该页的评论 / 样式覆盖 / 图片位置。
+            # `beeshow_notes_mixin._remove_plain_comment()` 的 docstring 也明确
+            # 写着这些前缀必须保留 —— 说明 _slides_md 的设计意图本就是保留标记。
+            source = part
+
+            # 预览 HTML：只剥掉 comments（它就是一段 HTML 注释，留着不可见但没必要）；
+            # beeoffice-style / beeoffice-image 必须**交给** _md_to_html ——
+            # 它自己会先 extract_styles / 提取图片信息再剥离渲染。此前提前剥掉
+            # 会让预览丢失用户的样式覆盖与图片位置。
+            html_part = re.sub(
                 r'<!--\s*comments:.*?-->',
                 '',
                 part,
                 flags=re.DOTALL,
             ).strip()
 
-            # 任务 2.2 / 2.3：剥离 beeoffice-style / beeoffice-image 注释
-            part = re.sub(
-                r'<!--\s*beeoffice-(style|image):.*?-->',
-                '',
-                part,
-                flags=re.DOTALL,
-            ).strip()
-
-            if part:
-                html = self._md_to_html(part)
+            if source:
+                html = self._md_to_html(html_part)
                 self._slides_html.append(html)
-                self._slides_md.append(part)      # P1-13：保留源文本
+                self._slides_md.append(source)    # P1-13：保留源文本（含特殊标记）
 
                 # 提取标题
                 title_match = re.search(

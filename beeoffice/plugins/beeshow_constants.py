@@ -19,6 +19,7 @@ v5.1 增量整合：
   - 任务 5.2：平滑动画 CSS（[data-morph-id]）
 """
 
+from PySide6.QtCore import Qt
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
 
@@ -464,11 +465,20 @@ class _PlayWindow(QWebEngineView):
 
     P0-2：独立 QWebEngineView 时，键盘焦点在 WebView 上，
           BeeShowView.keyPressEvent 收不到事件。此处转发给主视图处理。
+
+    优化规划 §2.7 修复（WebEngine 视图泄漏）：
+      1. **不再以 owner 作为 Qt 父对象**。QObject 子对象只在父对象销毁时才
+         释放，于是"再按一次 F5"（或播放→停止→再播放）会留下一个已隐藏但
+         仍然存活的窗口 —— 实测就是每次操作泄漏一个完整的 WebEngine 渲染
+         进程。owner 只用于键盘事件转发，与父子关系无关。
+      2. 设置 `WA_DeleteOnClose`：否则 `close()` 只是隐藏，对象依然存在。
+      3. `_start_play()` 在新建前会先关闭旧窗口（见 beeshow_play_mixin）。
     """
 
     def __init__(self, owner):
-        super().__init__(owner)
+        super().__init__()              # 注意：不传父对象（见类文档第 1 条）
         self._owner = owner
+        self.setAttribute(Qt.WA_DeleteOnClose, True)
 
     def keyPressEvent(self, event):
         # P0-2：转发给主视图，由其处理翻页 / ESC / 激光笔等

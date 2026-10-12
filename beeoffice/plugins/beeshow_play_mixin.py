@@ -74,6 +74,20 @@ class PlayMixin:
         self._start_time = time.time()
         self._timer_label.show()
 
+        # 优化规划 §2.7：新建播放窗口前先回收上一次的。
+        # 原实现每次 F5 都 new 一个 _PlayWindow 并覆盖引用，而它以 self 为 Qt
+        # 父对象（子对象只在父对象销毁时才释放）且没有 WA_DeleteOnClose ——
+        # close() 只是隐藏。结果每次播放/再播放都会泄漏一个完整的 WebEngine
+        # 渲染进程。现在 _PlayWindow 已去父 + WA_DeleteOnClose，这里再兜一次底，
+        # 覆盖"用户连按 F5 而没走 _stop_play"的路径。
+        previous = getattr(self, "_play_window", None)
+        if previous is not None:
+            try:
+                previous.close()        # WA_DeleteOnClose → 立即销毁并释放
+            except RuntimeError:
+                pass                        # 底层 C++ 对象已释放
+            self._play_window = None
+
         # P0-2：使用 _PlayWindow 转发键盘事件
         self._play_window = _PlayWindow(self)
         self._play_window.resize(1024, 768)
