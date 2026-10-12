@@ -471,7 +471,7 @@ AttributeError 被宽 `except Exception: pass` 吞掉，于是重复点「立即
 
 | 能力 | 现状 | 目标 |
 |---|---|---|
-| Markdown→DOCX | 3 份 | 1 份（Markdown 路径与富文本路径共用 `_write_inline`/`_write_table` 抽象） |
+| Markdown→DOCX | ✅ 已收敛（"3 份"的第三份是不可达降级） | 盘点结果：① `bee_export` 的 `_write_html_to_docx` + `_write_element`/`_write_inline`/`_write_table`（约 179 行，Markdown→HTML→DOCX）；② `beewrite_export_mixin._rich_to_docx`（富文本 QTextDocument→DOCX）；③ `bee_export._write_plain_to_docx` + `_write_inline_md`（约 55 行）——**第③份不可达**：它只在 `markdown`/`beautifulsoup4` 缺失时启用，而这两个包在 `requirements.txt` 里是必需依赖；且它**零测试覆盖**。已删除，并在缺依赖时改为**明确失败 + 记录原因**（原先会悄悄产出一份低保真文档）。**①②不建议合并**：输入类型根本不同（BeautifulSoup 树 vs QTextDocument），共用 `_write_inline` 抽象需要同时抽象两套无关的对象模型，收益远小于风险 |
 | Markdown 表格转换 | ✅ 已收敛（原"3–4 份"不准确） | 规范纯函数**已存在**于 `beewrite_utils`（`parse_md_table` / `render_md_table` / `detect_md_table_at_cursor`），`beewrite_table_mixin` 早已委托给它；真正的问题是 `beewrite_rich_editor._insert_md_table()` **自己又写了一套分裂规则**，且**丢弃空单元格** → `\| 甲 \|  \| 3 \|` 里的 `3` 会左移到第 2 列（实测确认的静默数据错位）。现已改走 `parse_md_table()`。其余几处（`_table_to_md`、`bee_export._docx_table_to_md`）是**不同方向**的转换（Qt 表→MD、DOCX 表→MD），不是重复实现，不应强行合并 |
 | 图片 fragment 扫描 / 路径兜底 | ✅ 已消重（4 处扫描中 4 处已收敛，2 处交错处理有意保留） | 路径兜底见下方"图片路径兜底"小节；fragment 扫描：`beewrite_rich_editor._block_has_image()`、`beewrite_export_mixin._count_document_images()` / `_block_has_image()` / 单元格内图片插入，共 4 处已改走 `image_utils.iter_block_images()` / `iter_image_formats()`。**有意保留** 2 处"交错处理"——`_write_block_runs()` 与 `_block_with_images_to_md()` 都按 fragment 顺序把图片与文本**交替**输出（还要保留粗体/斜体/字号/颜色），不是单纯"扫描图片"，硬套生成器只会更绕 |
 | 标题编号 | 2 份 | `heading_numbering.py` |

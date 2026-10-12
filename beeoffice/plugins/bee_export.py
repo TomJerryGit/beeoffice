@@ -300,17 +300,23 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None):
         logging.error("python-docx 未安装，无法导出 DOCX")
         return False
 
+    # 优化规划 §3.3：markdown 与 beautifulsoup4 在 requirements.txt 里是**必需**
+    # 依赖，因此"缺依赖时逐行转换"的降级实现 `_write_plain_to_docx()` 实际不可达
+    # （38 行、零测试覆盖）。已删除：缺依赖时明确失败，而不是悄悄产出一份
+    # 低保真的 DOCX —— 后者会让用户以为导出成功了。
+    if not (HAS_BS4 and HAS_MARKDOWN):
+        logging.error(
+            "DOCX 导出需要 markdown 与 beautifulsoup4（requirements.txt 中的"
+            "必需依赖）。缺少时不再降级为逐行转换，而是明确失败。"
+        )
+        return False
+
     try:
         # 用 HTML 中间层解析
-        if HAS_BS4 and HAS_MARKDOWN:
-            html = _md_to_html(content)
-            soup = BeautifulSoup(html, "html.parser")
-            doc = Document()
-            _write_html_to_docx(soup, doc, base_dir=base_dir)
-        else:
-            # 无中间层时，逐行处理
-            doc = Document()
-            _write_plain_to_docx(content, doc)
+        html = _md_to_html(content)
+        soup = BeautifulSoup(html, "html.parser")
+        doc = Document()
+        _write_html_to_docx(soup, doc, base_dir=base_dir)
 
         # 页面设置（优化规划 §2.2）：此前 Markdown 路径完全没有应用，
         # 于是导出的纸张是 python-docx 模板默认值，与富文本路径不一致。
@@ -626,59 +632,12 @@ def _write_table(table_tag, doc):
                         run.bold = True
 
 
-def _write_plain_to_docx(content, doc):
-    """无 BeautifulSoup 时的简化写入"""
-    lines = content.split("\n")
-    in_code = False
-    code_buffer = []
+# 优化规划 §3.3：原 `_write_plain_to_docx()` 与 `_write_inline_md()`（约 55 行）
+# 已删除。它们是"缺少 markdown / beautifulsoup4 时的逐行降级转换"，但那两个包在
+# requirements.txt 里是**必需**依赖，因此该分支不可达、也从未有测试覆盖；
+# 留着只会让人以为 DOCX 导出有第二套实现。现在缺依赖时 `export_to_docx()`
+# 明确失败并记录日志，不再悄悄产出一份低保真文档。
 
-    for line in lines:
-        # 代码块
-        if line.strip().startswith("```"):
-            if in_code:
-                # 结束代码块
-                p = doc.add_paragraph()
-                run = p.add_run("\n".join(code_buffer))
-                run.font.name = "Consolas"
-                run.font.size = Pt(10)
-                code_buffer = []
-                in_code = False
-            else:
-                in_code = True
-            continue
-
-        if in_code:
-            code_buffer.append(line)
-            continue
-
-        # 标题
-        m = re.match(r"^(#{1,6})\s+(.+)", line)
-        if m:
-            level = len(m.group(1))
-            doc.add_heading(m.group(2).strip(), level=level)
-            continue
-
-        # 普通段落
-        if line.strip():
-            p = doc.add_paragraph()
-            _write_inline_md(line, p)
-
-
-def _write_inline_md(text, paragraph):
-    """简化版的 Markdown 内联格式写入"""
-    # 处理 **bold** 和 *italic*
-    parts = re.split(r"(\*\*.*?\*\*|\*[^*]+\*)", text)
-    for part in parts:
-        if not part:
-            continue
-        if part.startswith("**") and part.endswith("**"):
-            run = paragraph.add_run(part[2:-2])
-            run.bold = True
-        elif part.startswith("*") and part.endswith("*"):
-            run = paragraph.add_run(part[1:-1])
-            run.italic = True
-        else:
-            paragraph.add_run(part)
 
 
 # ==================== 导出 PDF ====================

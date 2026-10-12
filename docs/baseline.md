@@ -73,7 +73,7 @@ is created` 告警。
 | `pytest --collect-only`（全量） | 710 | **733**（删掉死模块 `formula_engine.py` 的 64 条，新增 86 条安全/数据回归） |
 | `tests/qt` 单独运行 | 97 passed / 17.25 s | 待复测 |
 | 全量 `tests/` 一次性运行 | **原生崩溃**（顺序污染，单独跑子集均通过） | 仍会崩溃，但已有隔离运行方案与定位结论（见 §6.1） |
-| 按文件隔离运行（`tools/run_tests_isolated.py`） | — | **95 文件 / 1006 passed / 0 failed / 0 error**（§3.3 图片扫描消重实测）。注意 passed 计数会波动（上轮 1030）：9 个构造 `QWebEngineView` 的文件在退出期崩溃，**是否来得及打印 summary 会决定那几十个用例算不算进去**；`failed`/`error` 则始终为 0 |
+| 按文件隔离运行（`tools/run_tests_isolated.py`） | — | **96 文件 / 1022 passed / 0 failed / 0 error**（§3.3 DOCX 降级实现删除实测）。注意 passed 计数会波动（曾见 1006~1030）：9 个构造 `QWebEngineView` 的文件在退出期崩溃，**是否来得及打印 summary 会决定那几十个用例算不算进去**；`failed`/`error` 则始终为 0 |
 
 失败根因（已修复）：`AppSettings.save()` 先以 `"w"` 截断文件再在 `json.dump`
 参数位构造 payload，任何构造期异常都会把 `~/.beeoffice_settings.json` 留成
@@ -143,7 +143,8 @@ is created` 告警。
 | 2026-10-11 | 3.3 | **消重：Markdown 表格解析**。规范纯函数早已在 `beewrite_utils`，但 `beewrite_rich_editor._insert_md_table()` 自己又写了一套分裂规则且**丢弃空单元格** → `\| 甲 \|  \| 3 \|` 的 `3` 左移到第 2 列（静默数据错位）。现改走 `parse_md_table()`。**顺带更正规划判断**：另几处（`_table_to_md`、`bee_export._docx_table_to_md`）是不同方向的转换，不是重复实现 | 新增 8 条回归 |
 | 2026-10-11 | 3.3 | **消重：表格样式样板**。`beewrite_rich_editor` 里 `QTextTableFormat` 设置与表头样式（select+mergeCharFormat）**逐字重复 4 遍**（对应 4 个插入入口），现抽成 `_make_table_format()` / `_style_header_cell()`；新增测试同时防"样板长回来"（断言源文件里 `setHeaderRowCount`/`setCellPadding` 各只出现 1 次）。**记录一个既有差异**（非本次引入）：`_insert_table()` 插空表格时表头字重读不到（空 block 无法 format），已用测试钉住现状 | 新增 10 条回归 |
 | 2026-10-11 | 3.3 | **消重：图片 fragment 扫描 4 处全部收敛**（`beewrite_rich_editor._block_has_image`、`beewrite_export_mixin._count_document_images`/`_block_has_image`、单元格内图片插入）→ `image_utils.iter_block_images()` / `iter_image_formats()`。**有意保留 2 处交错处理**（`_write_block_runs`、`_block_with_images_to_md`）：它们按 fragment 顺序把图片与文本交替输出，不是单纯扫描。新增端到端断言"表格单元格里的图片必须出现在导出的 DOCX 里" | 新增 8 条回归；导入检查保持 **77/77 成功** |
-| 2026-10-11 | 3.3 | WebDAV 2 套 → 1 套（随 3.1 完成）；其余 2 项消重待做（幻灯片 HTML 拼接 6 处、Markdown→DOCX） | — |
+| 2026-10-11 | 3.3 | **消重：Markdown→DOCX 的第三份实现**（`_write_plain_to_docx` + `_write_inline_md`，约 55 行）已删除。盘点确认它是"缺 markdown/bs4 时的逐行降级"，而那两个包是**必需**依赖 → 分支不可达且零测试覆盖。改为缺依赖时**明确失败并记录原因**（原先会悄悄产出低保真文档）。并存的两套（`_write_html_to_docx` 与 `_rich_to_docx`）输入类型不同，**不建议合并**，已在规划写明理由 | 新增 5 条回归 |
+| 2026-10-11 | 3.3 | WebDAV 2 套 → 1 套（随 3.1 完成）；剩余 1 项（幻灯片 HTML 拼接 6 处） | — |
 | 2026-10-11 | 2.6 | 插入的图片/公式图片不再只留 `%TEMP%`（系统清理后文档图片永久失效、换机打不开）：复制到文档旁 `<文档名>_media/`，未保存文档落到应用数据目录，失败优雅降级 | 新增 10 条回归 |
 | 2026-10-11 | 附带 | 蜜演 PNG 导出的"导出中"提示定时器建在循环**之后**，导致停表语句是空操作、导出结束 3 秒后仍弹模态框（实测令 pytest 超时卡死）；改为循环前建立 | `tests/regression/v5` + 导出相关：195 passed，无挂起 |
 | 2026-10-11 | 附带 | 蜜演 PNG 导出的「导出中」提示由 `QTimer.singleShot` 改为绑定 self 的单次 QTimer，并在导出完成时 `stop()`（原先导出结束后仍会弹，实测以失效父对象调用 `QMessageBox` 被 Qt 记为 event loop 异常） | `tests/regression/v5` + `test_export_pdf.py`：72 passed / 0 error |
