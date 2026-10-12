@@ -3,6 +3,7 @@
 蜜算公式功能 Mixin：公式输入、函数选择、自动求和、公式重算、
 参数提示、引用高亮、实时预览
 """
+import logging
 import re
 import pandas as pd
 from PySide6.QtWidgets import (
@@ -15,7 +16,7 @@ from PySide6.QtGui import QColor
 from beeoffice.plugins.beesheet_engine import FormulaEngine
 from beeoffice.plugins.beesheet_commands import EditCellCommand
 from beeoffice.plugins.beesheet_utils import (
-    col_index_to_name, col_name_to_index
+    col_index_to_name, col_name_to_index, extract_refs_from_formula
 )
 
 
@@ -557,6 +558,71 @@ class FormulaMixin:
         self._set_status(f"✅ 已按行自动求和 ({count} 行)", 5000)
 
     # ==================== 公式重算 ====================
+    def _find_circular_cells(self):
+        """
+        找出处于循环引用中的公式单元格（优化规划 §2.5）。
+
+        为什么需要：`_recalc_formulas()` 把 `=A1+1`（写在 A1 自己里）当成普通
+        依赖反复计算。实测：
+            A1 = `=A1+1`，初值 0 →一次重算→ **3** →再触发一次→ **6**
+            A1 = `=B1+1`、B1 = `=A1+1` → 1/2 变成 **7/8** 并继续增长
+        也就是说循环引用不会报错，而是**静默产出不断变化的错数**，比一次性
+        错误更危险（用户会以为表格"自己在动"）。
+
+        Excel 的处理是拒绝计算并提示循环引用。这里采取保守做法：识别出环上的
+        单元格，重算时跳过（保持其当前值不被反复自增），并由 `_recalc_formulas`
+        给出一次可见提示。
+
+        用迭代式 DFS（三色标记）而不是递归，避免深依赖链触发 Python 递归上限。
+
+        :return: set of (row, col)
+        """
+        formula_cells = getattr(self, "_formula_cells", None)
+        if not formula_cells:
+            return set()
+
+        # 邻接表：只保留"引用目标同样是公式单元格"的边；
+        # 引用普通数值不可能构成环。
+        deps = {}
+        for key, formula in formula_cells.items():
+            deps[key] = {
+                ref for ref in extract_refs_from_formula(formula or "")
+                if ref in formula_cells
+            }
+
+        WHITE, GRAY, BLACK = 0, 1, 2
+        color = {k: WHITE for k in deps}
+        circular = set()
+
+        for start in list(deps):
+            if color[start] != WHITE:
+                continue
+            color[start] = GRAY
+            path = [start]
+            stack = [(start, iter(deps.get(start, ())))]
+            while stack:
+                node, children = stack[-1]
+                advanced = False
+                for nxt in children:
+                    nxt_color = color.get(nxt, BLACK)
+                    if nxt_color == GRAY:
+                        # 回到当前搜索路径上的灰节点 → 成环
+                        if nxt in path:
+                            circular.update(path[path.index(nxt):])
+                        continue
+                    if nxt_color == WHITE:
+                        color[nxt] = GRAY
+                        path.append(nxt)
+                        stack.append((nxt, iter(deps.get(nxt, ()))))
+                        advanced = True
+                        break
+                if not advanced:
+                    color[node] = BLACK
+                    stack.pop()
+                    if path and path[-1] == node:
+                        path.pop()
+        return circular
+
     def _recalc_formulas(self, max_rounds=3):
         """
         重算所有记录在案的公式单元格。
@@ -564,9 +630,34 @@ class FormulaMixin:
         """
         if not hasattr(self, '_formula_cells') or not self._formula_cells:
             return
+
+        # 优化规划 §2.5：先剔除循环引用，否则每触发一次重算，环上的值就自增
+        # 一轮（见 _find_circular_cells 的实测数据），且完全没有提示。
+        circular = self._find_circular_cells()
+        if circular != getattr(self, "_circular_cells", set()):
+            self._circular_cells = circular
+            if circular:
+                cells = "、".join(
+                    f"{col_index_to_name(c)}{r + 1}"
+                    for r, c in sorted(circular)
+                )
+                logging.warning(f"检测到循环引用，已跳过重算: {cells}")
+                setter = getattr(self, "_set_status", None)
+                if callable(setter):
+                    try:
+                        setter(
+                            f"⚠️ 检测到循环引用（{cells}），"
+                            f"已跳过这些单元格的重算",
+                            8000,
+                        )
+                    except Exception:
+                        pass
+
         for _ in range(max_rounds):
             changed = False
             for (r, c), formula in list(self._formula_cells.items()):
+                if (r, c) in circular:
+                    continue
                 try:
                     result = FormulaEngine.evaluate(formula, self.model)
                     if isinstance(result, (int, float)):
