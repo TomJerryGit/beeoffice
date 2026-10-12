@@ -9,6 +9,8 @@ v5.0.1 修复（P1-11）：
 
 import re
 
+from beeoffice.plugins.heading_numbering import HeadingNumberer
+
 
 class CrossRefManager:
     """交叉引用管理器（简化版）"""
@@ -23,12 +25,15 @@ class CrossRefManager:
         扫描编辑器中的所有标题
         :param editor: RichTextEditor
         :return: [{level, text, number, pos}]
+
+        优化规划 §3.3：编号算法原先在本文件与 `beewrite_outline` 里**逐字重复**，
+        现统一走 `heading_numbering.HeadingNumberer`（唯一实现 + 纯函数可测）。
         """
         self._headings = []
         doc = editor.document()
         block = doc.begin()
 
-        counters = [0, 0, 0, 0, 0, 0]  # 最多支持 6 级
+        numberer = HeadingNumberer()
 
         while block.isValid():
             bf = block.blockFormat()
@@ -36,23 +41,10 @@ class CrossRefManager:
             if 1 <= level <= 6:
                 text = block.text().strip()
                 if text:
-                    # 增量计数
-                    counters[level - 1] += 1
-                    # 重置下级
-                    for i in range(level, 6):
-                        counters[i] = 0
-
-                    # 生成编号：1 / 1.1 / 1.1.1
-                    number = ".".join(
-                        str(counters[i])
-                        for i in range(level)
-                        if counters[i] > 0
-                    )
-
                     self._headings.append({
                         "level": level,
                         "text": text,
-                        "number": number,
+                        "number": numberer.next_number(level),
                         "pos": block.position(),
                     })
 

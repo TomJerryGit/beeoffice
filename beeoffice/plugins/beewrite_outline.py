@@ -15,6 +15,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QFont
 
+from beeoffice.plugins.heading_numbering import HeadingNumberer
+
 
 class OutlinePanel(QWidget):
     """导航窗格：显示文档标题树"""
@@ -183,50 +185,62 @@ class OutlinePanel(QWidget):
         self._tree.expandAll()
 
     def _scan_headings(self):
-        """扫描编辑器中的标题"""
+        """
+        扫描编辑器中的标题。
+
+        优化规划 §3.3：
+          - 编号算法原先与 `beewrite_crossref` **逐字重复**，现共用
+            `heading_numbering.HeadingNumberer`。
+          - 修掉一个由此暴露的真实缺陷：Markdown 模式（默认模式）下
+            `QPlainTextEdit` 的每个 block 的 `headingLevel()` 实测**全为 0**，
+            于是这里扫到 0 个标题、**大纲面板在 Markdown 模式下永远是空的**；
+            而下面那个"按 `#` 解析"的兜底分支又因为
+            `hasattr(QPlainTextEdit, "document")` 为真而**永远走不到**。
+            现改为：Qt 分支没扫到标题时，回退到 `#` 解析。
+          - 兜底分支原先把 `number` 硬编码为空串（同一份代码两种表现），
+            现已同样编号；`pos` 也由"行号"改为**字符偏移**，与 Qt 分支的
+            `block.position()` 语义一致（否则点击大纲会跳到错误位置）。
+        """
         headings = []
         if self._editor is None:
             return headings
 
-        # 支持 QPlainTextEdit 和 QTextEdit
+        numberer = HeadingNumberer()
+
+        # ---------- 1) 富文本：读 block 的 headingLevel ----------
         if hasattr(self._editor, 'document'):
             doc = self._editor.document()
             block = doc.begin()
-            counters = [0, 0, 0, 0, 0, 0]
             while block.isValid():
                 bf = block.blockFormat()
                 level = bf.headingLevel()
                 if 1 <= level <= 6:
                     text = block.text().strip()
                     if text:
-                        counters[level - 1] += 1
-                        for i in range(level, 6):
-                            counters[i] = 0
-                        number = ".".join(
-                            str(counters[i])
-                            for i in range(level)
-                            if counters[i] > 0
-                        )
                         headings.append({
                             "level": level,
                             "text": text,
-                            "number": number,
+                            "number": numberer.next_number(level),
                             "pos": block.position(),
                         })
                 block = block.next()
-        else:
-            # 兜底：按 Markdown 语法解析
+
+        # ---------- 2) 兜底：Markdown 文本按 `#` 解析 ----------
+        if not headings:
+            numberer.reset()
             content = self._editor.toPlainText()
-            for i, line in enumerate(content.split("\n")):
+            pos = 0
+            for line in content.split("\n"):
                 m = re.match(r"^(#{1,6})\s+(.+)", line)
                 if m:
                     level = len(m.group(1))
                     headings.append({
                         "level": level,
                         "text": m.group(2).strip(),
-                        "number": "",
-                        "pos": i,
+                        "number": numberer.next_number(level),
+                        "pos": pos,
                     })
+                pos += len(line) + 1
 
         return headings
 

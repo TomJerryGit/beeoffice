@@ -138,7 +138,8 @@ is created` 告警。
 | 2026-10-11 | 3.1 | 删除死代码：`beeoffice/webdav.py`、`plugins/webdav_sync.py`、`plugins/git_manager.py` 及只覆盖死代码的 `test_p0_10`；清理 `MIN_ROWS`、`ViewMixin._undo/_redo`、`beeshow._ai_service/_pptx_engine/_font_embedder`、`pdf_annotator._note_editor`、`beeshow_pptx_engine` 未用导入、`beesheet_engine` 孤立续行反斜杠。**实测 4 项"死成员"其实活着**（`_real_rows`、`_css_cache/_preloaded_slides`、`ChunkLoader.progress`、`*_fallback`），未删 | 模块数 118 → **114**；导入检查 78 → **75/75 成功**；`beeoffice/` 移除约 13 KB 源码 |
 | 2026-10-11 | 3.1 附带 | 云同步"同步正在进行中"守卫从未生效（对 `QRunnable` 调不存在的 `isRunning()`，AttributeError 被宽 except 吞掉 → 重复点击会并发上传）；改用显式 `_sync_in_progress` | 新增 7 条回归 |
 | 2026-10-11 | 4.1 | **真正建立 CI**：`.github/workflows/test.yml`（三平台矩阵；跑 `check_imports.py` + 隔离运行器；ruff 非阻断）。此前 `.github` 目录根本不存在，CHANGELOG 的"新增 test.yml"是空头承诺 | 基线指标：`ruff check beeoffice` **1571** 问题、`E722` 裸 except **14** 处 |
-| 2026-10-11 | 3.3 | WebDAV 2 套 → 1 套（随 3.1 完成）；其余 5 项消重待做 | — |
+| 2026-10-11 | 3.3 | **消重：标题编号**。两处逐字重复的多级计数算法（`beewrite_crossref` 与 `beewrite_outline`）统一到新模块 `heading_numbering.py`。顺带修掉一个真实缺陷：**Markdown 模式（默认模式）下大纲面板永远是空的**（`QPlainTextEdit` 的 `headingLevel()` 实测全为 0，而按 `#` 解析的兜底分支因 `hasattr(...,"document")` 为真而永不触发）；同处还修了兜底分支 `number` 恒为空串与 `pos` 用行号而非字符偏移两个问题 | 新增 `tests/unit/test_heading_numbering.py`（23 条）；导入检查 75 → **76/76 成功** |
+| 2026-10-11 | 3.3 | WebDAV 2 套 → 1 套（随 3.1 完成）；其余 4 项消重待做 | — |
 | 2026-10-11 | 2.6 | 插入的图片/公式图片不再只留 `%TEMP%`（系统清理后文档图片永久失效、换机打不开）：复制到文档旁 `<文档名>_media/`，未保存文档落到应用数据目录，失败优雅降级 | 新增 10 条回归 |
 | 2026-10-11 | 附带 | 蜜演 PNG 导出的"导出中"提示定时器建在循环**之后**，导致停表语句是空操作、导出结束 3 秒后仍弹模态框（实测令 pytest 超时卡死）；改为循环前建立 | `tests/regression/v5` + 导出相关：195 passed，无挂起 |
 | 2026-10-11 | 附带 | 蜜演 PNG 导出的「导出中」提示由 `QTimer.singleShot` 改为绑定 self 的单次 QTimer，并在导出完成时 `stop()`（原先导出结束后仍会弹，实测以失效父对象调用 `QMessageBox` 被 Qt 记为 event loop 异常） | `tests/regression/v5` + `test_export_pdf.py`：72 passed / 0 error |

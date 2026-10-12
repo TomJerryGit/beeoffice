@@ -122,6 +122,7 @@ MODULES = [
     "beeoffice.plugins.empty_state",
     "beeoffice.plugins.find_replace",
     "beeoffice.plugins.friendly_errors",
+    "beeoffice.plugins.heading_numbering",
     "beeoffice.plugins.memory_monitor",
     "beeoffice.plugins.onboarding",
     "beeoffice.plugins.plugin_market",
