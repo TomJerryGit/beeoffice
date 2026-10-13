@@ -280,6 +280,11 @@ class DocMixin:
                 setattr(self, f"_docx_{key}", extras[key] or "")
                 applied += 1
 
+        # 表格合并信息（Markdown 表格语法表达不了，故绕开 Markdown 传递）
+        if extras.get("table_merges"):
+            self._docx_table_merges = list(extras["table_merges"])
+            applied += 1
+
         return applied
 
     def get_docx_extras(self):
@@ -287,6 +292,7 @@ class DocMixin:
         return {
             "header_text": getattr(self, "_docx_header_text", ""),
             "footer_text": getattr(self, "_docx_footer_text", ""),
+            "table_merges": getattr(self, "_docx_table_merges", []),
         }
 
     # ==================================================================

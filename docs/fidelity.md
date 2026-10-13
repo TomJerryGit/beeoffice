@@ -45,53 +45,51 @@ python -m pytest tests/fidelity -q                    # 跑基线断言
 
 ## 3. 实测结果
 
-### 3.1 DOCX：丢失 6 项 → **现已只剩 1 项**（2026-10-11 四刀）
+### 3.1 DOCX：丢失 6 项 → **现已零丢失**（2026-10-11 五刀修完）
 
 | 状态 | 特征 | 往返前 | 往返后 |
 |---|---|---|---|
-| ✅ 已修复 | `hyperlinks` | 1 | **1** |
-| ✅ 已修复 | `header_parts` | 1 | **1** |
-| ✅ 已修复 | `footer_parts` | 1 | **1** |
-| ✅ 已修复 | `page_margins`（twips） | 1417,1701,1417,1701 | **完全相同** |
-| ✅ 已修复 | 段落结构 | 顶层 6 段 | **顶层 6 段**（逐段文字一致） |
-| **丢失** | `merged_cells` | 1 | 0 |
-| 增加 | `paragraphs` / `table_cells` / `text_chars` | 14 / 8 / 102 | 15 / 9 / 104 |
+| ✅ | `hyperlinks` | 1 | 1 |
+| ✅ | `header_parts` | 1 | 1 |
+| ✅ | `footer_parts` | 1 | 1 |
+| ✅ | `page_margins`（twips） | 1417,1701,1417,1701 | 完全相同 |
+| ✅ | 段落结构 | 顶层 6 段 | 顶层 6 段（逐段文字一致） |
+| ✅ | `merged_cells` | 1 | 1 |
+| ✅ | `paragraphs` / `table_cells` / `text_chars` | 14 / 8 / 102 | 14 / 8 / 102 |
 
-**关于末尾"增加"那一行**：它不是新问题，而是**合并单元格丢失的必然结果** ——
-一个合并格被拆回两格，于是单元格数 8→9、多出一个单元格段落（14→15）、
-被重复的合并文字让字数 102→104。三者是**同一个原因**，修好 `merged_cells`
-就会一起回到基线。
+**五刀各解决了什么**（全部用同一把尺子测量）：
 
-**段落结构这一项修了什么**（实测机制）：
+| 刀 | 改了什么 | 效果 |
+|---|---|---|
+| 1 | `_para_to_md` 按**文档顺序**遍历，超链接写成 `[文字](url)` | `hyperlinks` 1→0 修复；文字不再少 12 字 |
+| 2 | 页面设置与页眉页脚**绕开 Markdown**（`read_docx_extras`） | `header_parts`/`footer_parts`/`page_margins` 全部保住 |
+| 3 | 段落之间补空行（列表项除外） | 顶层段落 6→4 变成 6→6 |
+| 4 | 表格合并信息加入 extras（新一项） | `merged_cells` 1→0 修复 |
+| 5 | 非标准纸张支持精确尺寸 | 200×280 这类自定义纸张不再被静默当成 A4 |
 
-`import_from_docx()` 原先每个段落输出**一行**、行间不留空行。而 Markdown 的语义是
-**连续非空行属于同一段**，于是"正文段 / 图片段 / 链接段"三行被渲染成一段，
-重新导出后粘在一起：实测顶层段落 **6 → 4**。
+（第 4 刀与"非标准纸张"是同一批改动里的两件事，为叙述清楚在此分列。）
 
-修法：段落之间补空行；**列表项之间除外**（空行会把一个列表拆成多个）。
-修完顶层段落 6 → 6，逐段文字完全一致。
+**表格合并是怎么修的**：Markdown 表格语法**表达不了合并**，所以与前两刀同样
+**绕开 Markdown** —— 导入时 `_read_table_merges()` 记下
+"第几张表 + 网格行列 + 跨度 + 合并后文字"，导出时 `apply_table_merges()`
+用 python-docx 的 `merge()` 还原。两个易错点都已写成测试：
+
+1. **`merge()` 会拼接两个单元格的文字**，所以合并后必须用记录里的原文覆盖，
+   否则会变成"合计合计"。
+2. **`row.cells` 对合并格会按网格列重复返回同一个单元格** —— 用
+   `"".join(row.cells)` 判断"文字是否重复"会得到假阳性（我第一版就误判了）。
+
+**一处仍存在的、用户可见的小瑕疵**（已知，未修）：`_docx_table_to_md()` 在把
+合并表格转成 Markdown 时，会把合并单元格的文字**在每一列重复输出**
+（`| 合计 | 合计 | 3,234 |`）。导出时因为还原了合并、并用原文覆盖，最终 DOCX 是
+正确的；但**用户在蜜写里看到的 Markdown 仍带着重复文字**。这属于"表格在
+Markdown 里的表示法"问题，需要与合并信息一起设计，留待后续。
 
 **保留**：`sections`、`style_defined`、`styled_paragraphs`、`headings`、`tables`、
 `table_rows`、`images`、`has_numbering`。
 
-**页面设置与页眉页脚是怎么修好的**（关键思路）：**绕开 Markdown** 传递。
-
-`import_from_docx()` 的返回类型是 Markdown 字符串，而 Markdown 没有"页面设置/
-页眉页脚"的概念——继续往 Markdown 里塞标记会污染用户文档。所以改为：
-
-```
-导入: read_docx_extras(path)            # 读出纸张/边距/页眉页脚文字
-      → widget.apply_docx_extras(...)   # 存到文档对象上（页面设置进 _page_settings）
-导出: _write_docx(path)
-      → export_to_docx(..., header_text=..., footer_text=...)
-      → apply_page_settings(doc, page_settings) + apply_header_footer(doc, ...)
-```
-
-顺带补了一处：`apply_page_settings()` 原先只认 5 种**命名纸张**，非标准尺寸会
-被静默当成 A4。现在支持 `page_width_mm` / `page_height_mm` 显式精确尺寸，
-因此 200×280 这类自定义纸张也能原样往返（有测试）。
-
 **超链接这一项修了什么**（实测机制，不是猜的）：
+
 
 `import_from_docx()` 把普通段落交给 `_para_to_md()`，而它遍历 `para.runs` ——
 python-docx 的 `Paragraph.runs` 只返回 `w:p` 的**直接子** `w:r`，超链接的文字位于
@@ -246,7 +244,9 @@ python-docx 的 `Paragraph.runs` 只返回 `w:p` 的**直接子** `w:r`，超链
 | 2026-10-11 | **第二刀**：`write_workbook` 改为"打开源工作簿只更新值" | XLSX **丢 5 项 → 丢 0 项**（11 项特征零差异）✅ |
 | 2026-10-11 | **第三刀**：`_para_to_md` 按文档顺序遍历，超链接写成 `[文字](url)` | DOCX **丢 6 项 → 丢 4 项**：`hyperlinks` 1→1、文字不再减少 |
 | 2026-10-11 | **第四刀**：页面设置与页眉页脚**绕开 Markdown**（`read_docx_extras` + `apply_header_footer`），并支持非标准精确纸张 | DOCX **丢 4 项 → 丢 2 项**：`header_parts`/`footer_parts`/`page_margins` 全部保住 |
-| 2026-10-11 | **第五刀**：段落之间补空行（列表项除外） | DOCX **丢 2 项 → 丢 1 项**：顶层段落 6→4 变成 6→6，逐段文字一致。仅剩 `merged_cells`（及其连带的 +1 单元格/+1 段落/+2 字） |
+| 2026-10-11 | **第五刀**：段落之间补空行（列表项除外） | DOCX **丢 2 项 → 丢 1 项**：顶层段落 6→4 变成 6→6，逐段文字一致 |
+| 2026-10-11 | **第六刀**：表格合并信息加入 extras（`_read_table_merges` + `apply_table_merges`） | DOCX **丢 1 项 → 丢 0 项** ✅ `merged_cells` 1→1，连带 `table_cells`/`paragraphs`/`text_chars` 也回到基线 |
+| 2026-10-11 | **收口**：路径收敛到产品代码 | **DOCX 与 XLSX 往返均为零丢失**；PPTX 仍无导入路径 |
 
 **怎么读这张表**：每一行都是一次可复现的测量（`python tools/fidelity_roundtrip.py`），
 不是估计值。改善后 `tests/fidelity/test_ooxml_probe.py` 里的旧断言会失败并要求更新 ——

@@ -294,6 +294,121 @@ def apply_page_settings(doc, page_settings):
         return False
 
 
+def _read_table_merges(doc):
+    """
+    读出表格的合并信息（保真度阶段 A 最后一项）。
+
+    Markdown 表格语法**表达不了合并**，所以导入时把它记下来（坐标用
+    **网格列号**，与 `w:tblGrid` 对齐），导出时再还原。
+
+    :return: [{"table": i, "row": r, "col": c, "colspan": n, "rowspan": m,
+               "text": "合并后的文字"}, ...]
+             `row`/`col` 为 0 起；`colspan`/`rowspan` 至少为 1。
+    """
+    from docx.oxml.ns import qn
+
+    merges = []
+    for t_idx, table in enumerate(doc.tables):
+        tbl = table._tbl
+        rows = tbl.findall(qn("w:tr"))
+        # (起始行, 起始列) → 记录，用于累计纵向合并
+        pending = {}
+
+        for r_idx, tr in enumerate(rows):
+            col = 0
+            for tc in tr.findall(qn("w:tc")):
+                tcPr = tc.find(qn("w:tcPr"))
+                colspan = 1
+                vmerge = None
+                if tcPr is not None:
+                    gs = tcPr.find(qn("w:gridSpan"))
+                    if gs is not None:
+                        try:
+                            colspan = int(gs.get(qn("w:val")) or 1)
+                        except (TypeError, ValueError):
+                            colspan = 1
+                    vm = tcPr.find(qn("w:vMerge"))
+                    if vm is not None:
+                        vmerge = vm.get(qn("w:val")) or "continue"
+
+                text = "".join(
+                    t.text or "" for t in tc.iter(qn("w:t"))
+                ).strip()
+
+                if vmerge == "continue":
+                    # 纵向合并的延续行：给起始记录加一行跨度
+                    record = pending.get((None, col))
+                    if record is not None:
+                        record["rowspan"] += 1
+                elif vmerge == "restart" or colspan > 1:
+                    record = {
+                        "table": t_idx, "row": r_idx, "col": col,
+                        "colspan": colspan, "rowspan": 1, "text": text,
+                    }
+                    merges.append(record)
+                    if vmerge == "restart":
+                        pending[(None, col)] = record
+
+                col += colspan
+
+    return merges
+
+
+def apply_table_merges(doc, table_merges):
+    """
+    把合并信息还原到导出的文档上。
+
+    `python-docx` 的 `merge()` 会把两个单元格的**文字拼接**起来，所以合并后
+    用记录里的原文覆盖，避免出现"合计合计"。
+
+    :param doc: python-docx 的 Document
+    :param table_merges: `read_docx_extras()` 返回的 table_merges
+    :return: 成功应用的合并数
+    """
+    if not table_merges:
+        return 0
+
+    from docx.oxml.ns import qn
+
+    applied = 0
+    for record in table_merges:
+        try:
+            t_idx = int(record.get("table", 0))
+            if t_idx < 0 or t_idx >= len(doc.tables):
+                continue
+            table = doc.tables[t_idx]
+
+            row = int(record.get("row", 0))
+            col = int(record.get("col", 0))
+            rowspan = max(1, int(record.get("rowspan", 1)))
+            colspan = max(1, int(record.get("colspan", 1)))
+            if rowspan == 1 and colspan == 1:
+                continue
+
+            n_rows = len(table._tbl.findall(qn("w:tr")))
+            grid = len(table.columns)
+            if row + rowspan > n_rows or col + colspan > grid:
+                logging.debug(
+                    f"跳过越界的合并（表 {t_idx} {row},{col} "
+                    f"{rowspan}x{colspan}；表 {n_rows} 行 {grid} 列）"
+                )
+                continue
+
+            first = table.cell(row, col)
+            last = table.cell(row + rowspan - 1, col + colspan - 1)
+            merged = first.merge(last)
+
+            text = record.get("text", "")
+            if text:
+                # merge() 会拼接文字；用原文覆盖，避免重复
+                merged.text = text
+            applied += 1
+        except Exception as e:  # noqa: BLE001 - 单个表格失败不应中断导出
+            logging.warning(f"应用表格合并失败: {e}")
+
+    return applied
+
+
 # ==================== 导入侧：读取页面设置与页眉页脚 ====================
 def read_docx_extras(docx_path):
     """
@@ -357,6 +472,7 @@ def read_docx_extras(docx_path):
             "margin_right": _mm(section.right_margin),
             "header_text": _text(section.header),
             "footer_text": _text(section.footer),
+            "table_merges": _read_table_merges(doc),
         }
         # 去掉解析不到的项（None），让调用方的默认值生效
         return {k: v for k, v in extras.items() if v is not None}
@@ -397,7 +513,7 @@ def apply_header_footer(doc, header_text=None, footer_text=None):
 
 # ==================== 导出 DOCX ====================
 def export_to_docx(content, output_path, page_settings=None, base_dir=None,
-                   header_text=None, footer_text=None):
+                   header_text=None, footer_text=None, table_merges=None):
     """
     Markdown 导出为 DOCX 文件
 
@@ -409,6 +525,8 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
         （优化规划 §2.6）。为 None 时相对路径按当前工作目录解析。
     :param header_text: 页眉文字（保真度阶段 A）。为 None/空串时不写页眉。
     :param footer_text: 页脚文字，同上。
+    :param table_merges: 表格合并信息（`read_docx_extras()` 的 table_merges）。
+        Markdown 表格语法表达不了合并，故**绕开 Markdown** 传递。
     :return: 是否成功
     """
     if not HAS_DOCX:
@@ -440,6 +558,10 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
         # 页眉页脚（保真度阶段 A）：原先**整个部件都不存在**，
         # 因为导入侧只返回 Markdown，信息没有承载者。
         apply_header_footer(doc, header_text, footer_text)
+
+        # 表格合并（保真度阶段 A 最后一项）：Markdown 表格语法表达不了合并，
+        # 因此由导入时记录的 table_merges 还原。
+        apply_table_merges(doc, table_merges)
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         doc.save(output_path)

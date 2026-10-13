@@ -458,6 +458,7 @@ class ExportMixin:
                     base_dir=base_dir,
                     header_text=extras.get("header_text"),
                     footer_text=extras.get("footer_text"),
+                    table_merges=extras.get("table_merges"),
                 ):
                     QMessageBox.warning(self, "失败", "无法生成 Word 文档")
                     return False

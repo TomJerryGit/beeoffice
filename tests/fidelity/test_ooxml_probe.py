@@ -177,23 +177,38 @@ class TestCurrentFidelityDOCX:
             f"若这是回归，请检查 _para_to_md 是否还在遍历 w:hyperlink"
         )
 
-    # ---- 仍丢失：留给后续切片 ----
+    # ---- 已修复（第五刀）：表格合并 ----
 
-    @pytest.mark.parametrize("feature,expected_after", [
-        ("merged_cells", 0),
-        ("tables", 1),
-        ("images", 1),
-    ])
-    def test_feature_after_roundtrip(self, docx_result, feature,
-                                     expected_after):
+    def test_merged_cells_are_preserved(self, docx_result):
+        """
+        **已修复**：Markdown 表格语法表达不了合并，原先 `merged_cells 1 → 0`，
+        并连带 `table_cells` 8→9、`paragraphs` 14→15、`text_chars` 102→104。
+        现由 `_read_table_merges()` 记录、导出时 `apply_table_merges()` 还原。
+        """
+        before = docx_result["before"]["features"]["merged_cells"]
+        after = docx_result["after"]["features"]["merged_cells"]
+        assert before == 1, before
+        assert after == before, f"合并单元格又丢了: {before} → {after}"
+
+    def test_no_docx_feature_is_lost(self, docx_result):
+        """**总断言**：DOCX 往返不应有任何特征减少（五刀之后的验收）。"""
+        rows = compare(docx_result["before"], docx_result["after"])
+        lost = [r for r in rows if r["status"] == "lost"]
+        assert not lost, (
+            "DOCX 往返出现丢失：\n"
+            + "\n".join(
+                f"  {r['feature']}: {r['before']} → {r['after']}"
+                for r in lost
+            )
+        )
+
+    # ---- 保结构项 ----
+
+    @pytest.mark.parametrize("feature", ["tables", "images"])
+    def test_feature_after_roundtrip(self, docx_result, feature):
         before = docx_result["before"]["features"][feature]
         after = docx_result["after"]["features"][feature]
-        assert after == expected_after, (
-            f"{feature}: 往返前 {before} → 往返后 {after}，"
-            f"实测基线是 {expected_after}。"
-            f"若这是**改善**，请更新本测试与 docs/fidelity.md；"
-            f"若是**回归**，请修代码。"
-        )
+        assert after == before == 1, f"{feature}: {before} → {after}"
 
     # ---- 已修复（第三刀）：页面设置与页眉页脚 ----
 
