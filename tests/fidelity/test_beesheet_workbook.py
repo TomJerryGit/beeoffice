@@ -294,7 +294,283 @@ def test_formula_value_is_nan_without_cached_result(tmp_path):
     assert sheet.formulas == {(1, 1): "=A3*2"}, "但公式字符串必须保留下来"
 
 
-# ==================== 6. 与保真度探针联动 ====================
+# ==================== 7. 在原结构上更新（保留非数据属性） ====================
+
+def _make_rich_xlsx(path: Path) -> Path:
+    """构造一个"什么都有"的工作簿：合并/条件格式/验证/冻结/数字格式/图表/公式。"""
+    from openpyxl import Workbook
+    from openpyxl.chart import BarChart, Reference
+    from openpyxl.formatting.rule import CellIsRule
+    from openpyxl.styles import PatternFill
+    from openpyxl.worksheet.datavalidation import DataValidation
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "明细"
+    ws.append(["产品", "数量", "金额"])
+    ws.append(["甲", 10, "=B2*2"])
+    ws.append(["乙", 80, "=B3*2"])
+    ws.append(["丙", 5, "=B4*2"])
+    ws["C2"].number_format = "#,##0.00"
+    ws.merge_cells("A6:C6")
+    ws["A6"] = "合并标题"
+    ws.freeze_panes = "A2"
+    ws.conditional_formatting.add(
+        "B2:B4", CellIsRule(operator="greaterThan", formula=["50"],
+                            fill=PatternFill("solid", fgColor="FFC7CE")))
+    dv = DataValidation(type="list", formula1='"甲,乙,丙"', allow_blank=True)
+    ws.add_data_validation(dv)
+    dv.add("E2:E4")
+    chart = BarChart()
+    chart.add_data(Reference(ws, min_col=2, min_row=1, max_row=4),
+                   titles_from_data=True)
+    ws.add_chart(chart, "G2")
+    # 表格**之外**的内容：写回时绝不能碰
+    ws["A20"] = "表外备注：请勿删除"
+    ws["B20"] = 12345
+    wb.save(str(path))
+    return path
+
+
+def _features(path: Path) -> dict:
+    from tools.ooxml_probe import probe
+
+    return probe(path)["features"]
+
+
+def test_in_place_update_preserves_all_non_data_features(tmp_path):
+    """
+    核心：只改值，合并/条件格式/验证/冻结/数字格式/图表**全部保留**。
+
+    这正是"新建工作簿"写法做不到的事（那一版实测 5 项丢失）。
+    """
+    src = _make_rich_xlsx(tmp_path / "rich.xlsx")
+    wb = read_workbook(src)
+    df = wb.get("明细").df.copy()
+    df.loc[0, "产品"] = "甲（已改）"
+    sync_active_sheet(wb, "明细", df)
+
+    out = tmp_path / "out.xlsx"
+    mode = write_workbook(wb, out)
+
+    assert mode == "updated", f"应走「在原结构上更新」，实际 {mode}"
+    before, after = _features(src), _features(out)
+    for key in ("merged_ranges", "conditional_formatting",
+                "data_validations", "freeze_panes", "charts", "cell_xfs"):
+        assert after[key] == before[key], (
+            f"{key} 没保留: {before[key]} → {after[key]}"
+        )
+
+
+def test_in_place_update_keeps_formulas_and_applies_edit(tmp_path):
+    src = _make_rich_xlsx(tmp_path / "rich.xlsx")
+    wb = read_workbook(src)
+    df = wb.get("明细").df.copy()
+    df.loc[1, "数量"] = 99
+    sync_active_sheet(wb, "明细", df)
+
+    out = tmp_path / "out.xlsx"
+    write_workbook(wb, out)
+
+    from openpyxl import load_workbook
+
+    ws = load_workbook(out)["明细"]
+    assert ws["C2"].value == "=B2*2", "公式被缓存值取代了（多半是 data_only=True 加载）"
+    assert ws["B3"].value == 99, "用户改动没有落盘"
+
+
+def _make_clean_xlsx(path: Path) -> Path:
+    """
+    **干净**的工作表：只有表头 + 3 行数据，没有合并标题、没有表外备注。
+
+    为什么需要它：pandas 按**已用区域**判断表格范围，`_make_rich_xlsx` 里
+    第 6 行的合并标题与第 20 行的备注会让 DataFrame 变成 **19 行**（见
+    `test_used_range_absorbs_content_below_table`）。所以"增删行"这类
+    按行号断言的测试必须用干净的表。
+    """
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "明细"
+    ws.append(["产品", "数量", "金额"])
+    ws.append(["甲", 10, "=B2*2"])
+    ws.append(["乙", 80, "=B3*2"])
+    ws.append(["丙", 5, "=B4*2"])
+    wb.save(str(path))
+    return path
+
+
+def test_deleted_row_clears_stale_cells(tmp_path):
+    """用户删掉一行后，原来那一行的值不应残留。"""
+    src = _make_clean_xlsx(tmp_path / "clean.xlsx")
+    wb = read_workbook(src)
+    assert wb.get("明细").df.shape[0] == 3, "前置条件：干净的表应是 3 行"
+
+    df = wb.get("明细").df.iloc[:-1]        # 删掉最后一行（丙 / 5）
+    sync_active_sheet(wb, "明细", df)
+
+    out = tmp_path / "out.xlsx"
+    write_workbook(wb, out)
+
+    from openpyxl import load_workbook
+
+    ws = load_workbook(out)["明细"]
+    assert ws["A4"].value is None, f"被删的行还留着: {ws['A4'].value!r}"
+    assert ws["B4"].value is None
+    # 公式属于结构，保留（只是它所依赖的行没了）
+    assert ws["C4"].value == "=B4*2"
+
+
+def test_openpyxl_cell_value_none_is_a_noop(tmp_path):
+    """
+    **钉住一个 openpyxl 陷阱**（本模块曾因此静默失效）：
+
+        ws.cell(row=1, column=1, value=None)   # ← 什么都不做！
+
+    `Worksheet.cell()` 仅在 `value is not None` 时才赋值，所以"清空单元格"
+    必须写成 `ws.cell(...).value = None`。
+
+    实测后果：用户删掉的一行**仍留在导出文件里**。这条测试直接验证该陷阱
+    本身，避免将来有人"顺手改回"更简洁的写法。
+    """
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws["A1"] = "原值"
+
+    ws.cell(row=1, column=1, value=None)          # 空操作
+    assert ws["A1"].value == "原值", "若此处为 None，说明 openpyxl 行为变了"
+
+    ws.cell(row=1, column=1).value = None         # 正确写法
+    assert ws["A1"].value is None
+
+
+def test_cleared_cell_does_not_resurrect_old_value(tmp_path):
+    """
+    用户把某个单元格清空后，导出文件里不应"复活"旧值。
+
+    直接对应上面那个陷阱：`value=None` 是空操作时，旧值会留在文件里。
+    """
+    src = _make_clean_xlsx(tmp_path / "clean.xlsx")
+    wb = read_workbook(src)
+    df = wb.get("明细").df.copy()
+    df.loc[0, "产品"] = None            # 用户清空了"甲"
+
+    sync_active_sheet(wb, "明细", df)
+    out = tmp_path / "out.xlsx"
+    write_workbook(wb, out)
+
+    from openpyxl import load_workbook
+
+    assert load_workbook(out)["明细"]["A2"].value is None, (
+        "旧值又回来了 —— 多半是用了 ws.cell(..., value=None)"
+    )
+
+
+def test_added_row_is_written(tmp_path):
+    src = _make_clean_xlsx(tmp_path / "clean.xlsx")
+    wb = read_workbook(src)
+    df = wb.get("明细").df.copy()
+    df.loc[len(df)] = ["丁", 7, None]
+    sync_active_sheet(wb, "明细", df)
+
+    out = tmp_path / "out.xlsx"
+    write_workbook(wb, out)
+
+    again = read_workbook(out).get("明细").df
+    assert again.loc[3, "产品"] == "丁", again["产品"].tolist()
+    assert again.shape[0] == 4
+
+
+def test_used_range_absorbs_content_below_table(tmp_path):
+    """
+    **特性化（重要）**：pandas 按**已用区域**判断表格范围 —— 工作表下方/右方的
+    说明文字会被当作数据行吸收进 DataFrame。
+
+    实测：`_make_rich_xlsx` 只写了 3 行数据，却因为第 6 行有合并标题、
+    第 20 行有备注，读出来是 **19 行**（中间全是 NaN）。
+
+    这不是本模块引入的，而是"用 pandas 读表"的固有行为。它的用户可见后果是：
+    表格下方有备注的工作表，在蜜算里会显示一长串空行。
+    这里把它钉住，免得将来当成新 bug 排查。
+    """
+    src = _make_rich_xlsx(tmp_path / "rich.xlsx")
+
+    sheet = read_workbook(src).get("明细")
+
+    assert sheet.df.shape[0] == 19, (
+        f"实测应为 19 行（第 20 行的备注被吸收）；实际 {sheet.df.shape[0]} 行。"
+        f"若行为改变，请更新此测试与 docs/fidelity.md"
+    )
+    assert sheet.df["产品"].iloc[-1] == "表外备注：请勿删除", (
+        "表格下方的备注被当成了数据行的首列"
+    )
+
+
+def test_content_below_table_survives_rewrite(tmp_path):
+    """
+    表格下方的备注在"只改一格"的重写后必须仍在原位置。
+
+    注意它之所以能保留，是因为它被当作**数据行**原样重写回去了
+    （见上一条），而不是因为本模块能识别"表外内容"。
+    """
+    src = _make_rich_xlsx(tmp_path / "rich.xlsx")
+    wb = read_workbook(src)
+    df = wb.get("明细").df.copy()
+    df.loc[0, "产品"] = "甲（改）"
+    sync_active_sheet(wb, "明细", df)
+
+    out = tmp_path / "out.xlsx"
+    write_workbook(wb, out)
+
+    from openpyxl import load_workbook
+
+    ws = load_workbook(out)["明细"]
+    assert ws["A20"].value == "表外备注：请勿删除", (
+        f"表格下方的备注丢了: {ws['A20'].value!r}"
+    )
+    assert ws["A2"].value == "甲（改）"
+
+
+def test_update_in_place_of_same_path(tmp_path):
+    """覆盖保存（path == source）也要能工作。"""
+    src = _make_rich_xlsx(tmp_path / "rich.xlsx")
+    wb = read_workbook(src)
+    df = wb.get("明细").df.copy()
+    df.loc[0, "产品"] = "就地改"
+    sync_active_sheet(wb, "明细", df)
+
+    mode = write_workbook(wb, src)
+
+    assert mode == "updated"
+    assert read_workbook(src).get("明细").df.loc[0, "产品"] == "就地改"
+    assert _features(src)["charts"] == 1, "就地保存后图表丢了"
+
+
+def test_missing_source_falls_back_to_new_workbook(tmp_path):
+    """源文件不存在时（或没有源）退回新建，不应报错。"""
+    wb = WorkbookData(sheets=[
+        SheetData(name="新表", df=pd.DataFrame({"A": [1, 2]}))
+    ])
+    out = tmp_path / "new.xlsx"
+
+    assert write_workbook(wb, out) == "created"
+    assert read_workbook(out).get("新表").df["A"].tolist() == [1, 2]
+
+
+def test_preserve_structure_can_be_disabled(tmp_path):
+    """显式关闭保结构时应走新建路径（便于对照与排查）。"""
+    src = _make_rich_xlsx(tmp_path / "rich.xlsx")
+    wb = read_workbook(src)
+    out = tmp_path / "flat.xlsx"
+
+    assert write_workbook(wb, out, preserve_structure=False) == "created"
+    assert _features(out)["charts"] == 0
+
+
+# ==================== 8. 与保真度探针联动 ====================
 
 def test_workbook_roundtrip_keeps_probe_features(tmp_path):
     """

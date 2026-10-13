@@ -192,66 +192,60 @@ class TestCurrentFidelityXLSX:
     """
     XLSX 往返现状。
 
-    2026-10-11 更新：引入 `beesheet_workbook`（工作簿对象）后，
-    **`sheets` 与 `formulas` 不再丢失**（原先 9 项丢 8 项 → 现在丢 6 项）。
-    这组断言随之更新 —— 这正是特性化测试的预期用途。
+    2026-10-11 第二次更新：`write_workbook()` 改为
+    **"打开源工作簿、只更新单元格值"** 后，**全部 11 项特征零差异** ——
+    合并区域、条件格式、数据验证、冻结窗格、图表、自定义数字格式都不再丢失。
+
+    演进轨迹（同一把尺子测量）：
+        建立基线          9 项丢 8 项
+        + 多表与公式      9 项丢 5 项
+        + 只改值保结构    9 项丢 0 项  ← 现在
     """
 
     def test_roundtrip_runs(self, xlsx_result):
         assert xlsx_result["error"] is None, xlsx_result["error"]
         assert xlsx_result["after"] is not None
 
-    # ---- 已修复：不再丢失 ----
+    def test_no_feature_is_lost(self, xlsx_result):
+        """**核心断言**：往返后不应有任何特征减少。"""
+        rows = compare(xlsx_result["before"], xlsx_result["after"])
+        lost = [r for r in rows if r["status"] == "lost"]
+        assert not lost, (
+            "xlsx 往返出现丢失（应已全部保留）：\n"
+            + "\n".join(
+                f"  {r['feature']}: {r['before']} → {r['after']}"
+                for r in lost
+            )
+        )
 
     def test_all_sheets_are_preserved(self, xlsx_result):
-        """**已修复**：原先第 2 张工作表直接消失（read_excel 只读首张）。"""
         before = xlsx_result["before"]["features"]["sheets"]
         after = xlsx_result["after"]["features"]["sheets"]
-        assert before == 2, before
-        assert after == before, f"工作表又丢了: {before} → {after}"
+        assert before == 2 and after == before, f"{before} → {after}"
 
     def test_formulas_are_preserved(self, xlsx_result):
-        """**已修复**：原先公式全丢（写的是 pandas 的计算值）。"""
         before = xlsx_result["before"]["features"]["formulas"]
         after = xlsx_result["after"]["features"]["formulas"]
         assert before > 0, "前置条件：构造文件里应有公式"
         assert after == before, f"公式又丢了: {before} → {after}"
 
-    def test_cell_values_are_preserved(self, xlsx_result):
-        """**已修复**：非空单元格数不再减少。"""
-        before = xlsx_result["before"]["features"]["nonempty_cells"]
-        after = xlsx_result["after"]["features"]["nonempty_cells"]
-        assert after >= before, f"单元格丢多了: {before} → {after}"
-
-    # ---- 仍丢失：留给后续切片 ----
-
     @pytest.mark.parametrize("feature", [
         "merged_ranges", "conditional_formatting", "data_validations",
-        "freeze_panes", "charts",
+        "freeze_panes", "charts", "cell_xfs",
     ])
-    def test_feature_still_lost(self, xlsx_result, feature):
+    def test_non_data_features_are_preserved(self, xlsx_result, feature):
         """
-        特性化：这些当前**仍然**丢失。
+        特性化 + 回归：这些非数据属性曾经全丢，现在必须原样保留。
 
-        根因同一条 —— 它们都不是 DataFrame 能承载的东西，
-        `write_workbook` 目前也只写值（不复制样式/合并/条件格式）。
+        （`cell_xfs` 是自定义数字格式的体现。）
         """
         before = xlsx_result["before"]["features"][feature]
         after = xlsx_result["after"]["features"][feature]
         assert before > 0, f"前置条件：构造文件里应有 {feature}"
-        assert after == 0, (
+        assert after == before, (
             f"{feature}: {before} → {after}。"
-            f"若已改善，请更新本测试与 docs/fidelity.md"
-        )
-
-    def test_custom_number_formats_are_lost(self, xlsx_result):
-        """
-        数字格式仍丢：`write_workbook` 只写值，用新工作簿起步，
-        源文件里自定义的 `number_format`（体现在 cellXfs 数量上）不会带过去。
-        """
-        after = xlsx_result["after"]["features"]["cell_xfs"]
-        assert after < 2, (
-            f"cellXfs={after}；若数字格式已能保留，请更新基线"
+            f"若这是回归，请检查 write_workbook 是否还在"
+            f"'打开源工作簿只更新值'的模式下工作"
         )
 
 

@@ -75,45 +75,62 @@ python -m pytest tests/fidelity -q                    # 跑基线断言
   就没了，不是导出时漏写。
 - 文字少 12 字、段落少 1 段：空段落/纯空格段落没有往返。
 
-### 3.2 XLSX：9 项特征丢 8 项 → **现已降到丢 5 项**（2026-10-11 改善）
+### 3.2 XLSX：9 项特征丢 8 项 → **现已零丢失**（2026-10-11 两刀修完）
 
-**改善后（当前）**：7455 B → 5593 B
+**当前**：7455 B → 7462 B，**全部 11 项特征零差异**
 
 | 状态 | 特征 | 往返前 | 往返后 |
 |---|---|---|---|
-| ✅ 保留 | `sheets` | 2 | 2 |
-| ✅ 保留 | `formulas` | 4 | 4 |
-| ✅ 保留 | `nonempty_cells` | 21 | 21 |
-| **丢失** | `merged_ranges` | 1 | 0 |
-| **丢失** | `conditional_formatting` | 1 | 0 |
-| **丢失** | `data_validations` | 1 | 0 |
-| **丢失** | `freeze_panes` | 1 | 0 |
-| **丢失** | `charts` | 1 | 0 |
-| **丢失** | `cell_xfs`（数字格式） | 2 | 1 |
+| ✅ | `sheets` | 2 | 2 |
+| ✅ | `formulas` | 4 | 4 |
+| ✅ | `nonempty_cells` | 21 | 21 |
+| ✅ | `merged_ranges` | 1 | 1 |
+| ✅ | `conditional_formatting` | 1 | 1 |
+| ✅ | `data_validations` | 1 | 1 |
+| ✅ | `freeze_panes` | 1 | 1 |
+| ✅ | `charts` | 1 | 1 |
+| ✅ | `cell_xfs`（数字格式） | 2 | 2 |
 
-**修复前（同一次测量的历史基线）**：第二张工作表直接消失、公式 4→0、
-非空单元格 19→14。
+**演进轨迹**（同一把尺子 `python tools/fidelity_roundtrip.py` 测量）：
 
-**改了什么**：新增 `plugins/beesheet_workbook.py`，把"工作簿"作为显式对象承载
-**全部工作表**与**每格公式**；导入用 `read_workbook()`（openpyxl 扫公式 +
-pandas 读各表值），导出用 `write_workbook()`（openpyxl 直接写，公式格写公式
-字符串而非 pandas 的计算值）。接线在 `beesheet.py::_import_file_from_path`
-与 `beesheet_data_mixin._export_xlsx`，并保留 `pd.read_excel` / `df.to_excel`
-作为回退。
+| 阶段 | 丢失项 |
+|---|---|
+| 建立基线 | **8 / 9**（第二张表消失、公式全丢） |
+| 第一刀：工作簿对象承载多表 + 公式 | 5 / 9 |
+| 第二刀：**打开源工作簿、只更新单元格值** | **0 / 9** ✅ |
 
-**仍需解决**：合并区域、条件格式、数据验证、冻结窗格、图表、自定义数字格式
-——根因仍是同一条：`write_workbook()` 目前只写**值**，用新工作簿起步，
-源文件的样式/合并/条件格式没有随行。下一步应当**复制源文件再改**（而不是新建
-工作簿），这样这些"非数据"属性可以天然保留。
+**两刀各做了什么**：
 
-**两个已知约束**（已写成测试，不再当谜题）：
+1. 新增 `plugins/beesheet_workbook.py`：把"工作簿"作为显式对象承载全部工作表与
+   每格公式；`read_workbook()` 用 pandas 读各表值 + openpyxl（`data_only=False`）
+   扫公式字符串，`write_workbook()` 把公式格写回**公式**而不是 pandas 的计算值。
+2. `write_workbook()` 改为 **"打开源文件 → 只改 `.value` → 另存"**：合并区域、
+   条件格式、数据验证、冻结窗格、图表、数字格式都是 openpyxl 不碰的东西，
+   因此**天然保留**。只有在没有源文件时（CSV 导入、新建表格）才新建工作簿。
+
+**这一刀暴露的两个 openpyxl 陷阱**（都已写成测试）：
+
+1. **`ws.cell(row, col, value=None)` 是空操作** —— openpyxl 只在
+   `value is not None` 时赋值。所以"清空单元格"必须写
+   `ws.cell(...).value = None`。踩到时表现为：**用户删掉的一行仍留在导出文件里**
+   （`test_openpyxl_cell_value_none_is_a_noop`）。
+2. **合并区域内的非锚点格子是只读的**（`MergedCell`），给它赋值会抛
+   `AttributeError`。有意思的是它**曾被陷阱 1 掩盖**：早先用 `value=None`
+   恰好不会对合并格赋值，所以不报错；一旦改成正确的 `.value = ...` 就暴露了。
+   修法是 `_readonly_merged_coords()` 跳过这些格子。
+
+**仍存在的既有约束**（已写成测试，不再是谜题）：
 
 1. **首行一律当表头**：pandas 的固定约定，因此没有表头行的表会丢掉首行
    （`test_headerless_sheet_loses_its_first_row`）。
 2. **公式格的值在无缓存时读为 NaN**：openpyxl 写出的 xlsx 不含缓存计算值，
-   而 pandas 读的正是缓存值。真实 Excel 保存的文件里有缓存值，故只影响
-   "由程序生成的文件"；公式字符串本身不受影响
-   （`test_formula_value_is_nan_without_cached_result`）。
+   而 pandas 读的正是缓存值。真实 Excel 文件里有缓存值，故只影响程序生成的文件；
+   公式字符串本身不受影响（`test_formula_value_is_nan_without_cached_result`）。
+3. **pandas 按"已用区域"判断表格范围**：工作表下方/右方的说明文字会被当作
+   数据行吸收进 DataFrame。实测：一个只写了 3 行数据的表，因为第 20 行有一句
+   备注，读出来是 **19 行**。用户可见后果是"表格下方有备注的工作表在蜜算里会
+   显示一长串空行"（`test_used_range_absorbs_content_below_table`）——
+   这是下一个值得处理的项。
 
 ### 3.3 PPTX：只出不进
 
@@ -185,7 +202,8 @@ pandas 读各表值），导出用 `write_workbook()`（openpyxl 直接写，公
 | 日期 | 变更 | 效果（实测） |
 |---|---|---|
 | 2026-10-11 | 建立基线（探针 + 往返运行器 + 25 条测试） | DOCX 丢 6 项；XLSX **丢 8/9 项**；PPTX 无导入 |
-| 2026-10-11 | **第一刀**：新增 `beesheet_workbook`（多工作表 + 公式），接入导入/导出 | XLSX **丢 8 项 → 丢 5 项**：`sheets` 2→2、`formulas` 4→4、非空单元格 21→21 均不再丢失 |
+| 2026-10-11 | **第一刀**：新增 `beesheet_workbook`（多工作表 + 公式），接入导入/导出 | XLSX **丢 8 项 → 丢 5 项** |
+| 2026-10-11 | **第二刀**：`write_workbook` 改为"打开源工作簿只更新值" | XLSX **丢 5 项 → 丢 0 项**（11 项特征零差异）✅ |
 
 **怎么读这张表**：每一行都是一次可复现的测量（`python tools/fidelity_roundtrip.py`），
 不是估计值。改善后 `tests/fidelity/test_ooxml_probe.py` 里的旧断言会失败并要求更新 ——

@@ -56,6 +56,10 @@ class SheetData:
     df: pd.DataFrame
     #: {(df 行, df 列): "=B2*C2"}，均为 0 起
     formulas: Dict[Tuple[int, int], str] = field(default_factory=dict)
+    #: 读入时表格的范围 (行数, 列数)，**不含表头**。
+    #: 用途：写回时只清理"原本属于表格、现在已不在表格里"的格子，
+    #: 避免把表格**之外**的内容（备注、第二个表格）一并清掉。
+    original_shape: Tuple[int, int] = (0, 0)
 
     def formula_count(self) -> int:
         return len(self.formulas)
@@ -68,6 +72,9 @@ class WorkbookData:
     sheets: List[SheetData] = field(default_factory=list)
     #: 首张表名（蜜算当前只编辑一张，其余原样保留待写回）
     active: str = ""
+    #: 源文件路径。有它才能"打开源工作簿只更新值"，
+    #: 从而保留合并区域/条件格式/数据验证/冻结窗格/图表/数字格式。
+    source: Optional[str] = None
 
     @property
     def sheet_names(self) -> List[str]:
@@ -112,11 +119,14 @@ def read_workbook(path, max_rows: Optional[int] = None) -> WorkbookData:
                 name=str(name),
                 df=df,
                 formulas=formulas_by_sheet.get(str(name), {}),
+                original_shape=(len(df), len(df.columns)),
             )
         )
 
     active = sheets[0].name if sheets else ""
-    return WorkbookData(sheets=sheets, active=active)
+    return WorkbookData(
+        sheets=sheets, active=active, source=str(path.resolve())
+    )
 
 
 def _read_formulas(path: Path) -> Dict[str, Dict[Tuple[int, int], str]]:
@@ -173,16 +183,153 @@ def _cell_value(value):
     return value
 
 
-def write_workbook(workbook: WorkbookData, path) -> None:
+def write_workbook(workbook: WorkbookData, path, *,
+                   preserve_structure: bool = True) -> str:
     """
-    把全部工作表与公式写回 .xlsx。
+    把工作簿写回 .xlsx。
 
-    公式单元格写**公式字符串**（如 `=B2*C2`），Excel 打开时会自行计算；
-    这样公式本身得以保留（原实现写的是 pandas 的**计算值**，公式消失）。
+    **优先"打开源工作簿，只更新单元格值"**（`preserve_structure=True` 且有源文件）：
+    这样合并区域、条件格式、数据验证、冻结窗格、图表、数字格式等**非数据属性**
+    全部天然保留 —— 它们是 openpyxl 不碰的东西，因为我们只改 `.value`。
+
+    没有源文件时（CSV 导入、新建表格、数据透视结果等）退回"新建工作簿"。
+
+    :return: "updated"（在原结构上更新）或 "created"（新建）
     """
     if not HAS_OPENPYXL:
         raise RuntimeError("需要 openpyxl 才能读写 xlsx")
 
+    source = workbook.source
+    if preserve_structure and source and Path(source).is_file():
+        try:
+            _update_existing(workbook, path)
+            return "updated"
+        except Exception as e:  # noqa: BLE001 - 不能因为保结构失败就不导出
+            logging.warning(
+                f"在原结构上更新失败，退回新建工作簿: {e}"
+            )
+
+    _write_new(workbook, path)
+    return "created"
+
+
+def _update_existing(workbook: WorkbookData, path) -> None:
+    """
+    打开源工作簿，逐表更新单元格值后另存为 `path`。
+
+    关键点：
+      - `load_workbook()` 默认 `data_only=False`，因此**公式字符串被保留**；
+        若用 data_only=True 加载，保存时公式会被缓存值取代而丢失。
+      - 公式格写回公式字符串，不写值。
+      - 只清理"原表格范围内、现已不属于表格"的格子，**不碰表格外的内容**。
+    """
+    wb = load_workbook(workbook.source)      # 默认 data_only=False
+
+    for sheet in workbook.sheets:
+        title = _safe_title(sheet.name)
+        if title in wb.sheetnames:
+            ws = wb[title]
+        else:
+            ws = wb.create_sheet(title=title)
+        _update_sheet_values(ws, sheet)
+
+    wb.save(str(path))
+
+
+def _readonly_merged_coords(ws) -> set:
+    """
+    返回合并区域里**不能直接写**的坐标（即除左上角锚点以外的格子）。
+
+    为什么必须避开：openpyxl 里合并区域内的非锚点格子是 `MergedCell`，
+    给它赋值会抛 `AttributeError: 'MergedCell' object attribute 'value'
+    is read-only`。
+
+    注意这个坑曾经被"另一个坑"掩盖：早先代码用
+    `ws.cell(row, col, value=None)`（空操作），恰好不会对合并格赋值，
+    所以没报错；一旦改成正确的 `.value = ...` 写法就会暴露。
+    """
+    coords = set()
+    for rng in list(ws.merged_cells.ranges):
+        try:
+            min_col, min_row, max_col, max_row = rng.bounds
+        except Exception:  # pragma: no cover - 罕见范围对象
+            continue
+        for row in range(min_row, max_row + 1):
+            for col in range(min_col, max_col + 1):
+                if (row, col) != (min_row, min_col):
+                    coords.add((row, col))
+    return coords
+
+
+def _update_sheet_values(ws, sheet: SheetData) -> None:
+    """把 DataFrame 的值写进既有工作表的对应格子（保留其它一切）。"""
+    df = sheet.df
+    columns = list(df.columns)
+    n_cols = len(columns)
+    n_rows = len(df)
+    merged = _readonly_merged_coords(ws)
+
+    # 表头（第 1 行）
+    for col_idx, col_name in enumerate(columns, start=1):
+        if (1, col_idx) in merged:
+            continue
+        ws.cell(row=1, column=col_idx).value = str(col_name)
+
+    # 数据（第 2 行起）
+    for df_row, (_, row) in enumerate(df.iterrows()):
+        sheet_row = df_row + 2
+        values = row.tolist()
+        for col_idx in range(n_cols):
+            col = col_idx + 1
+            if (sheet_row, col) in merged:
+                continue              # 合并格不可写，交给锚点单元格承载
+            formula = sheet.formulas.get((df_row, col_idx))
+            # ⚠️ 必须用 `.value = ...` 赋值，**不能**用
+            # `ws.cell(row, col, value=x)`：openpyxl 的 `cell()` 在
+            # `value is None` 时**什么都不做**，于是"清空单元格"会静默失效
+            # （实测：用户删掉的一行仍留在文件里）。
+            cell = ws.cell(row=sheet_row, column=col)
+            if formula:
+                cell.value = formula
+            else:
+                value = values[col_idx] if col_idx < len(values) else None
+                cell.value = _cell_value(value)
+
+    _clear_stale_cells(ws, sheet, n_rows, n_cols, merged)
+
+
+def _clear_stale_cells(ws, sheet: SheetData, n_rows: int, n_cols: int,
+                       merged: set = frozenset()):
+    """
+    清掉"原本属于表格、现在不在表格里"的格子（用户删了行/列的情况）。
+
+    只在 `original_shape` 记录的矩形内清理，并且**从不删除整行/整列** ——
+    删行会让合并区域、图表引用等结构失效，风险远大于收益。
+
+    ⚠️ 关于"表格之外的内容"：实测发现 pandas 会按**已用区域**判断表格范围，
+    因此工作表下方/右方的说明文字、第二个表格都会被当作**数据行**吸收进
+    DataFrame（实测：一个只写了 3 行数据的表，因为第 20 行有一句备注，
+    读出来是 **19 行**）。所以"表格之外"对本模块而言并不是可辨识的概念；
+    真正的保护是——只动记录下来的矩形、且不删结构。
+    """
+    old_rows, old_cols = sheet.original_shape
+    for df_row in range(old_rows):
+        sheet_row = df_row + 2
+        if df_row >= n_rows:
+            col_start = 0                 # 整行已不在新表格里
+        else:
+            col_start = n_cols            # 只有多出来的列需要清理
+        for col_idx in range(col_start, old_cols):
+            if (df_row, col_idx) in sheet.formulas:
+                continue                  # 保留公式
+            if (sheet_row, col_idx + 1) in merged:
+                continue                  # 合并格不可写
+            # 同上：必须用 `.value = None`；`ws.cell(..., value=None)` 是空操作
+            ws.cell(row=sheet_row, column=col_idx + 1).value = None
+
+
+def _write_new(workbook: WorkbookData, path) -> None:
+    """新建工作簿（无源文件时的路径）。"""
     wb = Workbook()
     wb.remove(wb.active)          # 去掉默认空表，避免多出一张
 
