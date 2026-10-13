@@ -1163,7 +1163,7 @@ def import_from_docx(docx_path):
                     level = int(style_name.split()[-1])
                 except (ValueError, IndexError):
                     level = 1
-                _emit("#" * level + " " + text)
+                _emit("#" * level + " " + _escape_markdown_text(text))
                 for img_md in inline_imgs:
                     _emit(img_md)
                 continue
@@ -1171,9 +1171,9 @@ def import_from_docx(docx_path):
             # 列表
             if "List" in style_name:
                 if "Number" in style_name:
-                    _emit("1. " + text, is_list=True)
+                    _emit("1. " + _escape_markdown_text(text), is_list=True)
                 else:
-                    _emit("- " + text, is_list=True)
+                    _emit("- " + _escape_markdown_text(text), is_list=True)
                 for img_md in inline_imgs:
                     _emit(img_md)
                 continue
@@ -1446,6 +1446,75 @@ def _iter_para_children(para):
                 yield run, url
 
 
+def _escape_inline_text(text):
+    """
+    **行内**转义：让一段纯文本在 Markdown 里语义不变。
+
+    ⚠️ 只做行内的事，**绝不能**做行首缩进/块级标记的剥离 —— 本函数是**按 run**
+    调用的，而一个 run 完全可能只包含空格（实测真实文档里 `'原', '  ', '因：'`
+    就是三个 run）。早期版本在这里做了 `lstrip(" \\t")`，把那个纯空格 run 变成
+    空串，导致"原  因"变成"原因"。行级处理请用 `_escape_block_markers()`。
+
+    为什么 `<` `>` `&` 用 HTML 实体而不是反斜杠：Python-Markdown 的可转义集合
+    只含标点（`* _ { } [ ] ( ) # + - . !` 等），**不含 `<` 与 `&`** ——
+    实测 `\\<UP,...>` 里的 `\\` 原样留下、尖括号内容照样被当标签吃掉。
+    """
+    if not text:
+        return text
+
+    # 已有的反斜杠先转义，之后加的反斜杠才不会被二次转义
+    text = text.replace("\\", "\\\\")
+    text = text.replace("&", "&amp;")
+    text = text.replace("<", "&lt;").replace(">", "&gt;")
+    # 行内强调/链接标记：`a*b*c` 会被渲染成强调（实测变成 `abc`）
+    for ch in ("*", "_", "`", "[", "]"):
+        text = text.replace(ch, "\\" + ch)
+    return text
+
+
+def _escape_block_markers(markdown_text):
+    """
+    **行级**处理：行首缩进与块级标记。
+
+    必须在**整段（或整行）拼好之后**调用，不能按 run 调用：
+    否则会把"只含空格的 run"整段抹掉（真实文档实测踩过）。
+
+    处理内容：
+      - 行首缩进（tab 或 ≥4 空格）→ 会触发代码块，去掉
+      - 行首 `#` / `-` / `+` / `数字.` → 会被当成标题/列表
+      - 整行由 `=` 或 `-` 组成 → 会成为 setext 标题的下划线
+    """
+    if not markdown_text:
+        return markdown_text
+
+    out_lines = []
+    for line in markdown_text.split("\n"):
+        # 行首缩进（tab 或 ≥4 空格）会触发代码块。
+        # **不要直接 strip 掉** —— 对技术文档，代码行的缩进是有意义的。
+        # 用实体表示：`&#32;`/`&#9;` 在块级解析时不是空白（不会成为代码块），
+        # 渲染时又变回空格/制表符。实测真实教程文档里 shell/YAML 缩进全靠它保住。
+        stripped = line.lstrip(" \t")
+        indent = line[: len(line) - len(stripped)]
+        if indent:
+            indent = "".join(
+                "&#9;" if ch == "\t" else "&#32;" for ch in indent
+            )
+        line = indent + stripped
+
+        line = re.sub(r"^(#{1,6})", r"\\\1", line)
+        line = re.sub(r"^([-+])(?=\s|$)", r"\\\1", line)
+        line = re.sub(r"^(\d+)([.)])(?=\s)", r"\1\\\2", line)
+        if re.fullmatch(r"[=\-]+", line):
+            line = "\\" + line
+        out_lines.append(line)
+    return "\n".join(out_lines)
+
+
+def _escape_markdown_text(text):
+    """行内 + 行级一起做（用于"整段文字已经拼好"的场合）。"""
+    return _escape_block_markers(_escape_inline_text(text))
+
+
 def _para_to_md(para):
     """
     将段落转为 Markdown（保留粗体、斜体，**并把超链接写成 `[文字](url)`**）。
@@ -1461,6 +1530,8 @@ def _para_to_md(para):
         text = run.text
         if not text:
             continue
+        # 只做**行内**转义（按 run 调用是安全的）；行级处理放到整段拼好之后
+        text = _escape_inline_text(text)
         if run.bold:
             text = f"**{text}**"
         if run.italic:
@@ -1468,15 +1539,18 @@ def _para_to_md(para):
         if url:
             text = f"[{text}]({url})"
         parts.append(text)
-    return "".join(parts)
+    return _escape_block_markers("".join(parts))
 
 
 def _docx_table_to_md(table):
     """将 docx 表格转为 Markdown 表格"""
     lines = []
     for ri, row in enumerate(table.rows):
-        cells = [cell.text.strip().replace("|", "\\|")
-                 for cell in row.cells]
+        # 先按纯文本转义（含 < > & 与行首标记），再处理表格自己的 `|`
+        cells = [
+            _escape_markdown_text(cell.text.strip()).replace("|", "\\|")
+            for cell in row.cells
+        ]
         lines.append("| " + " | ".join(cells) + " |")
         if ri == 0:
             lines.append("|" + "|".join(["---"] * len(cells)) + "|")

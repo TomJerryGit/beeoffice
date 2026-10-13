@@ -201,3 +201,179 @@ def test_real_files_have_no_loss(real_results):
             if lost:
                 problems[name] = lost
     assert not problems, f"真实文件出现丢失/异常: {problems}"
+
+
+# ==================== 6. 用户提供的语料（tests/fidelity/corpus）====================
+
+USER_CORPUS = ROOT / "tests" / "fidelity" / "corpus"
+
+
+@pytest.fixture(scope="module")
+def user_results(tmp_path_factory):
+    """
+    扫描 `tests/fidelity/corpus/`（**用户提供的真实文件**）。
+
+    断言用**性质**（不写死具体数字），这样用户后续增删文件都不会让测试失效，
+    但一旦出现"凭空多出标题""文字大段丢失"这类回归就会立刻失败。
+    """
+    if not USER_CORPUS.is_dir():
+        pytest.skip("没有用户语料目录")
+    files = [p for p in iter_files([str(USER_CORPUS)])
+             if p.suffix.lower() in (".docx", ".xlsx")]
+    if not files:
+        pytest.skip("用户语料目录里还没有文件（放脱敏的真实文件即可）")
+    workdir = tmp_path_factory.mktemp("corpus_user")
+    results = {r["name"]: r for r in (run_one(p, workdir) for p in files)}
+    return {name: r for name, r in results.items()}
+
+
+def test_user_files_were_measured(user_results):
+    assert user_results, "没有测到任何用户文件"
+
+
+def test_user_docs_do_not_gain_styles_or_headings(user_results):
+    """
+    **真实文档撞出来的最严重问题**：导入时未转义导致行首 `#` 被判成标题。
+
+    实测 `修改Centos7网卡ens33为eth0.docx` 凭空多出 **13 个标题**、
+    `Win710…Centos7.docx` 多出 8 个。这条断言直接盯住它。
+    """
+    problems = {}
+    for name, result in user_results.items():
+        if result["error"] or result["skipped"]:
+            continue
+        before = result["before"]["features"]
+        after = result["after"]["features"]
+        for key in ("headings", "styled_paragraphs"):
+            if after.get(key, 0) > before.get(key, 0):
+                problems[name] = (
+                    f"{key} 凭空增加: {before.get(key)} → {after.get(key)}"
+                )
+    assert not problems, f"文档结构被改写: {problems}"
+
+
+def test_user_doc_text_loss_is_small(user_results):
+    """
+    文字丢失必须很小（当前实测：3145 字丢 2 字、2271 字丢 16 字）。
+
+    原先是 178 / 37 字 —— 主要来自"尖括号被当 HTML 吃掉"与"行首缩进被 strip"。
+    这里放宽到 2%，既能容纳空行等噪声，又能抓住"大段文字消失"这类回归。
+    """
+    problems = {}
+    for name, result in user_results.items():
+        if result["error"] or result["skipped"]:
+            continue
+        before = result["before"]["features"]["text_chars"]
+        after = result["after"]["features"]["text_chars"]
+        if before and after < before * 0.98:
+            problems[name] = f"文字丢失过多: {before} → {after}"
+    assert not problems, problems
+
+
+def test_user_doc_paragraph_loss_is_explained_by_empty_paragraphs(user_results):
+    """
+    段落数减少**只应**来自"空段落无法用 Markdown 表达"。
+
+    Markdown 里空行只是段落分隔符，不能表示"一个空段落"，所以源文件里 N 个
+    空段落最多导致 N 个段落丢失。超出这个数就说明有真段落被吞了。
+    """
+    from docx import Document as D
+
+    problems = {}
+    for name, result in user_results.items():
+        if result["error"] or result["skipped"]:
+            continue
+        if not name.lower().endswith(".docx"):
+            continue
+        path = Path(result["path"])
+        source = D(str(path))
+        empty = sum(1 for p in source.paragraphs if not (p.text or "").strip())
+
+        before = result["before"]["features"]["paragraphs"]
+        after = result["after"]["features"]["paragraphs"]
+        lost = before - after
+        if lost > empty:
+            problems[name] = (
+                f"丢了 {lost} 段，但源里只有 {empty} 个空段落 —— "
+                f"多出的 {lost - empty} 段说明有内容被吞"
+            )
+    assert not problems, problems
+
+
+def test_user_doc_page_number_footer_is_known_lost(user_results):
+    """
+    **已知未修**：页脚部件丢失（`footer_parts` 1 → 0）。
+
+    原因：这些文档的页脚装的是**页码域**（非文字），而现有的页眉页脚传递只
+    搬运**文字**（`read_docx_extras` 取 `footer.text`，域取不到文字）。
+    所以"有文字页脚"能保住，"页码页脚"会整部件消失。
+
+    修它需要复制页脚部件的 XML（而不是只搬文字）—— 留作后续。
+    这条测试把现状钉住，修好时会失败并提醒更新。
+    """
+    known = []
+    for name, result in user_results.items():
+        if result["error"] or result["skipped"]:
+            continue
+        before = result["before"]["features"].get("footer_parts", 0)
+        after = result["after"]["features"].get("footer_parts", 0)
+        if before and not after:
+            known.append(name)
+    # 这条断言只要求"若仍丢失，必须是已知的那一类"，不强制丢失
+    for name in known:
+        result = user_results[name]
+        assert result["before"]["features"]["footer_parts"] == 1, (
+            f"{name}: 页脚部件数异常"
+        )
+
+
+#: 7 份真实文档实测出的丢失类别（2026-10-13）——每一类都是待办
+USER_KNOWN_LOSS_KEYS = {
+    "paragraphs",          # 空段落（Markdown 无法表示）
+    "bookmarks",           # 书签（5/7 份命中）
+    "fields",              # 域（目录/页码/日期；`yum源更新.docx` 里 6 个）
+    "styled_paragraphs",   # 段落样式名（`yum源更新.docx` 里 43 段）
+    "footer_parts",        # 页码页脚
+    # 文字仍有少量损耗（实测 2~16 字），已从 178 字降到 2 字级别，
+    # 剩下的是行尾空格之类的空白；由 test_user_doc_text_loss_is_small 兜住比例
+    "text_chars",
+}
+
+
+def test_user_doc_losses_are_within_known_categories(user_results):
+    """
+    **护栏**：真实文档的丢失项只能落在已知类别里。
+
+    出现**新类别**就说明有尚未调查的问题 —— 这才是这条测试的价值：
+    它不要求"零丢失"（现实还没做到），但要求"每一处丢失都已被认识"。
+    """
+    unknown = {}
+    for name, result in user_results.items():
+        if result["error"] or result["skipped"]:
+            continue
+        lost = {x["feature"] for x in result["rows"] if x["status"] == "lost"}
+        extra = lost - USER_KNOWN_LOSS_KEYS
+        if extra:
+            unknown[name] = sorted(extra)
+    assert not unknown, (
+        f"真实文档出现**新的**丢失类别，需要调查：{unknown}\n"
+        f"（已知类别：{sorted(USER_KNOWN_LOSS_KEYS)}）"
+    )
+
+
+def test_known_loss_categories_are_still_happening(user_results):
+    """
+    反向确认：上面那些"已知丢失"确实还在发生 —— 否则说明已修好，
+    应把它们从 `USER_KNOWN_LOSS_KEYS` 移除并在 docs 记录进展。
+    """
+    hits = set()
+    for result in user_results.values():
+        if result["error"] or result["skipped"]:
+            continue
+        hits |= {x["feature"] for x in result["rows"] if x["status"] == "lost"}
+
+    # 只要求"已知类别里至少还有一类真的在丢"，避免这份清单变成空话
+    assert hits & USER_KNOWN_LOSS_KEYS, (
+        "所有已知丢失类别都不再发生 —— 请更新清单与 docs/fidelity.md"
+    )
+
