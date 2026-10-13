@@ -157,6 +157,7 @@ is created` 告警。
 | 2026-10-11 | 4.3 | **工具自身的编码缺陷（已修）**：`sync_version.py` 打印 `✓` 时在 GBK stdout 下抛 `UnicodeEncodeError` → 退出码变 1，会让 CI 步骤无端失败（实测发现于子进程调用）。改为 reconfigure UTF-8 + 仅用 ASCII 标记 | — |
 | 2026-10-11 | 4.3 | **剩余**：分析报告 §5.1 的完整功能清单尚未整体搬入 README；约 45/118 个模块仍在 docstring 里内嵌补丁历史 | — |
 | 2026-10-11 | 3.3 | 状态：**6/7 完成**（标题编号、图片路径+扫描、Markdown 表格、表格样式、WebDAV）；WebDAV 2 套 → 1 套（随 3.1）。**剩余 1 项：幻灯片 HTML 模板拼接 6 处**（牵动预览/播放/三种导出，测试可观测性最差，建议 CI 通过后再做） | — |
+| 2026-10-11 | A | **建立保真度基线（阶段 A）**：新增 `tools/ooxml_probe.py`（OOXML 特征探针）、`tools/fidelity_roundtrip.py`（用**产品代码**跑 DOCX/XLSX 往返并前后对比）、`tests/fidelity/test_ooxml_probe.py`（25 条：仪器自检 + 特性化基线）、`docs/fidelity.md`（实测报告）。**实测结论**：DOCX 往返丢 6 项（合并单元格、超链接、页眉/页脚部件、页边距变默认、文字少 12 字）；XLSX **9 项特征丢 8 项**（公式/合并/条件格式/数据验证/冻结窗格/图表全丢，多工作表只剩第一张）；PPTX **无导入路径**故无往返可测。根因三条：蜜算"数据即模型"导致格式无处存身、蜜写以 Markdown 为中间层、蜜演只出不进。已验证 `import_from_docx` 里**零处**提及 hyperlink/Relationships，即导入侧确实丢弃超链接 | 新增 25 条测试；仪器含"非恒真"自检 |
 | 2026-10-11 | 2.6 | 插入的图片/公式图片不再只留 `%TEMP%`（系统清理后文档图片永久失效、换机打不开）：复制到文档旁 `<文档名>_media/`，未保存文档落到应用数据目录，失败优雅降级 | 新增 10 条回归 |
 | 2026-10-11 | 附带 | 蜜演 PNG 导出的"导出中"提示定时器建在循环**之后**，导致停表语句是空操作、导出结束 3 秒后仍弹模态框（实测令 pytest 超时卡死）；改为循环前建立 | `tests/regression/v5` + 导出相关：195 passed，无挂起 |
 | 2026-10-11 | 附带 | 蜜演 PNG 导出的「导出中」提示由 `QTimer.singleShot` 改为绑定 self 的单次 QTimer，并在导出完成时 `stop()`（原先导出结束后仍会弹，实测以失效父对象调用 `QMessageBox` 被 Qt 记为 event loop 异常） | `tests/regression/v5` + `test_export_pdf.py`：72 passed / 0 error |
