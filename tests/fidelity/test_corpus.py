@@ -79,9 +79,10 @@ def test_clean_corpus_file_has_no_loss(stress_results, name):
 # ==================== 3. 已撞出的丢失：特性化钉住 ====================
 
 #: 2026-10-11 由压力语料撞出的丢失 → 每一类都是下一刀的方向
+#: （`docx_sections` 的 `sections` 已在"第七刀：多分节"修好，故只剩 `paragraphs`）
 KNOWN_LOSSES = {
     "docx_inline.docx": {"bookmarks"},
-    "docx_sections.docx": {"sections", "paragraphs"},
+    "docx_sections.docx": {"paragraphs"},
     "docx_tables.docx": {"tables", "text_chars"},
 }
 
@@ -117,16 +118,22 @@ def test_nested_table_is_lost(stress_results):
     assert before == 4 and after == 3, f"{before} → {after}"
 
 
-def test_second_section_is_lost(stress_results):
+def test_sections_are_now_preserved(stress_results):
     """
-    `docx_sections.docx` 有 2 个分节（第二节横向），往返后只剩 1 个。
+    `docx_sections.docx` 有 2 个分节（第二节横向）。
 
-    后果是用户可见的：**横向的那一节会变成纵向**，页边距也跟著第一节。
+    **已修复**（第七刀）：原先 `sections 2 → 1`，后果是横向页变成纵向、
+    页边距随第一节。现由 `_read_sections()` + `apply_sections()` 重建。
+
+    仍剩 `paragraphs` 5 → 4：承载 `sectPr` 的那个**空段落**在 Markdown 里
+    没有对应表达（空行不等于空段落），属已知项。
     """
     result = stress_results["docx_sections.docx"]
-    before = result["before"]["features"]["sections"]
-    after = result["after"]["features"]["sections"]
-    assert before == 2 and after == 1, f"{before} → {after}"
+    before = result["before"]["features"]
+    after = result["after"]["features"]
+    assert before["sections"] == 2 and after["sections"] == 2, (
+        f"分节又丢了: {before['sections']} → {after['sections']}"
+    )
 
 
 def test_bookmark_is_lost(stress_results):

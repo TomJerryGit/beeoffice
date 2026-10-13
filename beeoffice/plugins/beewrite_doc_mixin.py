@@ -285,6 +285,11 @@ class DocMixin:
             self._docx_table_merges = list(extras["table_merges"])
             applied += 1
 
+        # 分节信息（多分节文档，例如第二节横向）
+        if extras.get("sections"):
+            self._docx_sections = list(extras["sections"])
+            applied += 1
+
         return applied
 
     def get_docx_extras(self):
@@ -293,6 +298,7 @@ class DocMixin:
             "header_text": getattr(self, "_docx_header_text", ""),
             "footer_text": getattr(self, "_docx_footer_text", ""),
             "table_merges": getattr(self, "_docx_table_merges", []),
+            "sections": getattr(self, "_docx_sections", []),
         }
 
     # ==================================================================

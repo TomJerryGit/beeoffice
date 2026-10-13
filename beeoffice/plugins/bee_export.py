@@ -409,6 +409,176 @@ def apply_table_merges(doc, table_merges):
     return applied
 
 
+def _read_sections(doc):
+    """
+    读出**每个分节**的页面属性与它在文档中的位置（保真度阶段 A）。
+
+    为什么不能只读第一节：`docx_sections.docx` 这类文档有 2 个分节（第二节横向），
+    原先往返后 `sections 2 → 1` —— 用户可见后果是**横向页变成纵向**。
+
+    OOXML 的表示：每个分节的 `w:sectPr` 挂在**该节最后一个段落**的
+    `w:pPr` 里；最后一节的 `sectPr` 挂在 body 上。
+
+    **定位用文字而不是段落索引**：持有 `sectPr` 的段落常常是**空段落**
+    （`add_section()` 就是新建一个空段承载它），而空段落在 Markdown 里会丢
+    （实测顶层段落 5 → 4）。所以记录"该节最后一个**非空**段落的文字"作锚点，
+    导出时按文字定位，才是稳的。
+
+    :return: [{"end_paragraph": int|None, "after_text": str,
+               "page_width_mm", "page_height_mm", "orientation",
+               "margin_top/bottom/left/right"}, ...]
+    """
+    from docx.oxml.ns import qn
+
+    paragraphs = list(doc.paragraphs)
+
+    def _locate(sectPr):
+        """返回持有该 sectPr 的段落索引；body 级的返回 None。"""
+        for idx, para in enumerate(paragraphs):
+            pPr = para._p.find(qn("w:pPr"))
+            if pPr is None:
+                continue
+            found = pPr.find(qn("w:sectPr"))
+            if found is not None and found is sectPr:
+                return idx
+        return None
+
+    def _mm(length):
+        try:
+            return round(float(length.mm), 2)
+        except Exception:
+            return None
+
+    def _last_non_empty_text(before_idx):
+        """向上找该节最后一个非空段落的文字（作为定位锚点）。"""
+        for idx in range(before_idx, -1, -1):
+            text = (paragraphs[idx].text or "").strip()
+            if text:
+                return text
+        return ""
+
+    sections = []
+    for sect in doc.sections:
+        width = _mm(sect.page_width)
+        height = _mm(sect.page_height)
+        landscape = bool(width and height and width > height)
+
+        end_paragraph = _locate(sect._sectPr)
+        sections.append({
+            "end_paragraph": end_paragraph,
+            "after_text": (
+                _last_non_empty_text(end_paragraph)
+                if end_paragraph is not None else ""
+            ),
+            "page_width_mm": width,
+            "page_height_mm": height,
+            "orientation": "landscape" if landscape else "portrait",
+            "margin_top": _mm(sect.top_margin),
+            "margin_bottom": _mm(sect.bottom_margin),
+            "margin_left": _mm(sect.left_margin),
+            "margin_right": _mm(sect.right_margin),
+        })
+
+    return sections
+
+
+def apply_sections(doc, sections):
+    """
+    按记录重建分节（保真度阶段 A）。
+
+    定位策略：优先按 `after_text`（该节最后一个非空段落的文字）匹配，匹配不到
+    再退回 `end_paragraph` 索引。前者对"空段落丢失导致的索引偏移"免疫。
+
+    :return: 成功重建的分节数（不含最后一节）
+    """
+    if not sections:
+        return 0
+
+    from copy import deepcopy
+
+    from docx.oxml.ns import qn
+
+    applied = 0
+    paragraphs = list(doc.paragraphs)
+
+    # 用 body 级的 sectPr 作为骨架：它已含 pgSz/pgMar/cols/docGrid 等，
+    # 只改尺寸与边距即可，避免手搓出不符合 schema 的 sectPr。
+    try:
+        base = doc.sections[-1]._sectPr
+    except Exception:
+        return 0
+
+    for record in sections[:-1]:
+        target = None
+
+        after_text = (record.get("after_text") or "").strip()
+        if after_text:
+            for para in paragraphs:
+                if (para.text or "").strip() == after_text:
+                    target = para
+                    break
+
+        if target is None:
+            idx = record.get("end_paragraph")
+            if isinstance(idx, int) and 0 <= idx < len(paragraphs):
+                target = paragraphs[idx]
+
+        if target is None:
+            logging.debug(f"找不到分节锚点，跳过: {record}")
+            continue
+
+        try:
+            new_sect = deepcopy(base)
+            _fill_sect_pr(new_sect, record, qn)
+            pPr = target._p.get_or_add_pPr()
+            for existing in pPr.findall(qn("w:sectPr")):
+                pPr.remove(existing)
+            pPr.append(new_sect)
+            applied += 1
+        except Exception as e:  # noqa: BLE001 - 单个分节失败不应中断导出
+            logging.warning(f"重建分节失败: {e}")
+
+    # 最后一节：填 body 级的 sectPr
+    try:
+        _fill_sect_pr(base, sections[-1], qn)
+    except Exception as e:  # noqa: BLE001
+        logging.warning(f"应用最后一节属性失败: {e}")
+
+    return applied
+
+
+def _fill_sect_pr(sectPr, record, qn):
+    """把纸张尺寸/方向/页边距写进一个 sectPr（mm → twips）。"""
+    from docx.oxml import OxmlElement
+    from docx.shared import Mm
+
+    width = record.get("page_width_mm")
+    height = record.get("page_height_mm")
+    if width and height:
+        pgSz = sectPr.find(qn("w:pgSz"))
+        if pgSz is None:
+            pgSz = OxmlElement("w:pgSz")
+            sectPr.insert(0, pgSz)
+        pgSz.set(qn("w:w"), str(int(Mm(float(width)).twips)))
+        pgSz.set(qn("w:h"), str(int(Mm(float(height)).twips)))
+        if record.get("orientation") == "landscape":
+            pgSz.set(qn("w:orient"), "landscape")
+        else:
+            pgSz.attrib.pop(qn("w:orient"), None)
+
+    pgMar = sectPr.find(qn("w:pgMar"))
+    if pgMar is None:
+        pgMar = OxmlElement("w:pgMar")
+        sectPr.append(pgMar)
+    for key, attr in (
+        ("margin_top", "w:top"), ("margin_bottom", "w:bottom"),
+        ("margin_left", "w:left"), ("margin_right", "w:right"),
+    ):
+        value = record.get(key)
+        if value is not None:
+            pgMar.set(qn(attr), str(int(Mm(float(value)).twips)))
+
+
 # ==================== 导入侧：读取页面设置与页眉页脚 ====================
 def read_docx_extras(docx_path):
     """
@@ -473,6 +643,7 @@ def read_docx_extras(docx_path):
             "header_text": _text(section.header),
             "footer_text": _text(section.footer),
             "table_merges": _read_table_merges(doc),
+            "sections": _read_sections(doc),
         }
         # 去掉解析不到的项（None），让调用方的默认值生效
         return {k: v for k, v in extras.items() if v is not None}
@@ -513,7 +684,8 @@ def apply_header_footer(doc, header_text=None, footer_text=None):
 
 # ==================== 导出 DOCX ====================
 def export_to_docx(content, output_path, page_settings=None, base_dir=None,
-                   header_text=None, footer_text=None, table_merges=None):
+                   header_text=None, footer_text=None, table_merges=None,
+                   sections=None):
     """
     Markdown 导出为 DOCX 文件
 
@@ -527,6 +699,8 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
     :param footer_text: 页脚文字，同上。
     :param table_merges: 表格合并信息（`read_docx_extras()` 的 table_merges）。
         Markdown 表格语法表达不了合并，故**绕开 Markdown** 传递。
+    :param sections: 分节信息（`read_docx_extras()` 的 sections）。为 None 时
+        按 `page_settings` 只设置第一节（原行为）。
     :return: 是否成功
     """
     if not HAS_DOCX:
@@ -553,7 +727,12 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
 
         # 页面设置（优化规划 §2.2）：此前 Markdown 路径完全没有应用，
         # 于是导出的纸张是 python-docx 模板默认值，与富文本路径不一致。
-        apply_page_settings(doc, page_settings)
+        # 保真度阶段 A：若有**多分节**记录，则按分节重建（它会一并处理第一节）；
+        # 否则退回原来的单节应用方式。
+        if sections:
+            apply_sections(doc, sections)
+        else:
+            apply_page_settings(doc, page_settings)
 
         # 页眉页脚（保真度阶段 A）：原先**整个部件都不存在**，
         # 因为导入侧只返回 Markdown，信息没有承载者。
