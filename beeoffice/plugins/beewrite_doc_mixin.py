@@ -280,6 +280,13 @@ class DocMixin:
                 setattr(self, f"_docx_{key}", extras[key] or "")
                 applied += 1
 
+        # 页眉页脚**部件 XML**（保真度阶段 A）：页码在嵌套的 w:sdt 里，
+        # python-docx 取不到文字，必须整段搬运才能保住域与内容控件。
+        for key in ("header_xml", "footer_xml"):
+            if extras.get(key):
+                setattr(self, f"_docx_{key}", extras[key])
+                applied += 1
+
         # 表格合并信息（Markdown 表格语法表达不了，故绕开 Markdown 传递）
         if extras.get("table_merges"):
             self._docx_table_merges = list(extras["table_merges"])
@@ -302,6 +309,8 @@ class DocMixin:
         return {
             "header_text": getattr(self, "_docx_header_text", ""),
             "footer_text": getattr(self, "_docx_footer_text", ""),
+            "header_xml": getattr(self, "_docx_header_xml", ""),
+            "footer_xml": getattr(self, "_docx_footer_xml", ""),
             "table_merges": getattr(self, "_docx_table_merges", []),
             "sections": getattr(self, "_docx_sections", []),
             "bookmarks": getattr(self, "_docx_bookmarks", []),

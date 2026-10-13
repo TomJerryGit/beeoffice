@@ -231,6 +231,8 @@ def roundtrip_docx(src: Path, out: Path):
         md, str(out), page_settings=extras, base_dir=str(src.parent),
         header_text=extras.get("header_text"),
         footer_text=extras.get("footer_text"),
+        header_xml=extras.get("header_xml", ""),
+        footer_xml=extras.get("footer_xml", ""),
         table_merges=extras.get("table_merges"),
         sections=extras.get("sections"),
         bookmarks=extras.get("bookmarks"),

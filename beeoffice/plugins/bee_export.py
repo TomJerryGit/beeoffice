@@ -761,12 +761,30 @@ def read_docx_extras(docx_path):
                 break
 
         def _text(part):
+            # 用 _paragraph_text 而不是 p.text：页脚的页码在**域**里，
+            # p.text 返回空串（实测 3 份真实文档的页脚都因此被当成空的）
             try:
                 return "\n".join(
-                    p.text for p in part.paragraphs if p.text.strip()
+                    _paragraph_text(p) for p in part.paragraphs
+                    if _paragraph_text(p).strip()
                 ).strip()
             except Exception:
                 return ""
+
+        # 页眉/页脚**部件 XML**：优先整段搬运，以保留域（页码）与内容控件
+        # （python-docx 不进入 w:sdt，文字提取会得到空串）。
+        header_xml = footer_xml = ""
+        try:
+            if not section.header.is_linked_to_previous:
+                candidate = _serialize_part(section.header)
+                if candidate and not _part_has_external_refs(candidate):
+                    header_xml = candidate
+            if not section.footer.is_linked_to_previous:
+                candidate = _serialize_part(section.footer)
+                if candidate and not _part_has_external_refs(candidate):
+                    footer_xml = candidate
+        except Exception as e:
+            logging.debug(f"序列化页眉页脚失败，退回文字: {e}")
 
         extras = {
             "paper": paper or "A4",
@@ -779,6 +797,8 @@ def read_docx_extras(docx_path):
             "margin_right": _mm(section.right_margin),
             "header_text": _text(section.header),
             "footer_text": _text(section.footer),
+            "header_xml": header_xml,
+            "footer_xml": footer_xml,
             "table_merges": _read_table_merges(doc),
             "sections": _read_sections(doc),
             "bookmarks": _read_bookmarks(doc),
@@ -790,40 +810,117 @@ def read_docx_extras(docx_path):
         return {}
 
 
-def apply_header_footer(doc, header_text=None, footer_text=None):
-    """
-    把页眉/页脚文字写入第一个 section。
+#: 序列化/反序列化页眉页脚部件时需要声明的前缀（源文件里可能用到任意一个）
+_PART_NAMESPACES = (
+    "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" "
+    "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+    "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" "
+    "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+    "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" "
+    "xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\" "
+    "xmlns:wpg=\"http://schemas.microsoft.com/office/word/2010/wordprocessingGroup\" "
+    "xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" "
+    "xmlns:v=\"urn:schemas-microsoft-com:vml\""
+)
 
-    python-docx 支持直接写 `section.header` / `section.footer`（它们本身是
-    "继承自上一节"的部件；`is_linked_to_previous` 为 True 时写入会自动创建）。
+
+def _serialize_part(part) -> str:
+    """
+    把页眉/页脚部件的子元素序列化成字符串。
+
+    为什么整段搬运而不是只取文字：实测 3 份真实文档的页脚把页码放在
+    **嵌套的 `w:sdt`（内容控件）**里，而 python-docx **不进入 `w:sdt`** ——
+    `section.footer.paragraphs` 只返回一个空段落，于是文字提取得到空串、
+    整个页脚部件都不写。搬运 XML 可以连域（PAGE / NUMPAGES）与内容控件一起保留。
+    """
+    from lxml import etree
+
+    try:
+        element = part._element
+    except Exception:
+        return ""
+
+    chunks = []
+    for child in element:
+        try:
+            chunks.append(etree.tostring(child, encoding="unicode"))
+        except Exception:
+            return ""
+    return "".join(chunks)
+
+
+def _part_has_external_refs(xml: str) -> bool:
+    """
+    部件里是否有**关系引用**（图片等）。
+
+    这类内容不能只靠搬家 XML —— 关系 id 在新文档里不存在，搬过去会变成悬空引用
+    （Word 会报文档损坏）。检出后改用"文字"路径，宁少勿坏。
+    """
+    for token in ('r:id="', 'r:embed="', 'r:link="'):
+        if token in xml:
+            return True
+    return False
+
+
+def apply_header_footer(doc, header_text=None, footer_text=None,
+                        header_xml="", footer_xml=""):
+    """
+    写回页眉/页脚。
+
+    **优先按 XML 搬运**（`header_xml`/`footer_xml`）—— 这样域（页码）与内容控件
+    都能保留；仅在部件含关系引用（图片）或解析失败时退回"只写文字"。
+
     空字符串视为"不写"，避免把用户原本没有的页眉变成空段落。
     """
-    if not header_text and not footer_text:
+    if not any((header_text, footer_text, header_xml, footer_xml)):
         return False
-    try:
-        section = doc.sections[0]
 
-        def _write(part, text):
-            if not text:
-                return
+    from lxml import etree
+
+    section = doc.sections[0]
+    applied = False
+
+    for attr, xml, text in (
+        ("header", header_xml, header_text),
+        ("footer", footer_xml, footer_text),
+    ):
+        if not xml and not text:
+            continue
+        try:
+            part = getattr(section, attr)
+
+            if xml:
+                # 断开"继承上一节"，从而生成一个真实的部件
+                part.is_linked_to_previous = False
+                wrapper = etree.fromstring(
+                    f"<w:root {_PART_NAMESPACES}>{xml}</w:root>"
+                )
+                element = part._element
+                for child in list(element):
+                    element.remove(child)
+                for child in wrapper:
+                    element.append(child)
+                applied = True
+                continue
+
+            # 退路：只写文字
             paragraphs = part.paragraphs
             if paragraphs:
                 paragraphs[0].text = text
             else:
                 part.add_paragraph(text)
+            applied = True
+        except Exception as e:  # noqa: BLE001 - 页眉页脚失败不应中断导出
+            logging.warning(f"写入{attr}失败: {e}")
 
-        _write(section.header, header_text)
-        _write(section.footer, footer_text)
-        return True
-    except Exception as e:
-        logging.warning(f"写入页眉页脚失败: {e}")
-        return False
+    return applied
 
 
 # ==================== 导出 DOCX ====================
 def export_to_docx(content, output_path, page_settings=None, base_dir=None,
                    header_text=None, footer_text=None, table_merges=None,
-                   sections=None, bookmarks=None):
+                   sections=None, bookmarks=None,
+                   header_xml="", footer_xml=""):
     """
     Markdown 导出为 DOCX 文件
 
@@ -875,7 +972,11 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
 
         # 页眉页脚（保真度阶段 A）：原先**整个部件都不存在**，
         # 因为导入侧只返回 Markdown，信息没有承载者。
-        apply_header_footer(doc, header_text, footer_text)
+        # 优先按部件 XML 搬运（保留页码域与内容控件），退回文字。
+        apply_header_footer(
+            doc, header_text, footer_text,
+            header_xml=header_xml, footer_xml=footer_xml,
+        )
 
         # 表格合并（保真度阶段 A 最后一项）：Markdown 表格语法表达不了合并，
         # 因此由导入时记录的 table_merges 还原。
@@ -1281,7 +1382,7 @@ def import_from_docx(docx_path):
             prev_is_list = is_list
 
         for para in doc.paragraphs:
-            text = para.text.strip()
+            text = _paragraph_text(para).strip()
 
             # 提取段落内嵌图片
             inline_imgs = _extract_para_images(
@@ -1545,6 +1646,104 @@ def _iter_header_footer_paragraphs(section):
         pass
 
 
+def _url_from_field_instruction(instr):
+    """
+    从**域指令**里取出 HYPERLINK 的目标 URL（不是超链接域则返回 ""）。
+
+    实测真实文档里超链接有两种存法：`w:hyperlink` 元素，以及**域**
+    （`' HYPERLINK "https://blog.csdn.net/…"'`）。`yum源更新.docx` 的 6 个
+    "域" 全是后者 —— 文字还在、链接目标丢失。
+    """
+    if not instr or "HYPERLINK" not in instr.upper():
+        return ""
+    match = re.search(r'HYPERLINK\s+"([^"]+)"', instr, re.IGNORECASE)
+    if match:
+        return match.group(1)
+    match = re.search(r"HYPERLINK\s+(\S+)", instr, re.IGNORECASE)
+    return match.group(1) if match else ""
+
+
+def _iter_para_children(para):
+    """
+    按**文档顺序**遍历段落里的文字片段，返回 `(run 元素, 链接 URL 或 "")`。
+
+    为什么不能直接用 `para.runs` / `para.text`：python-docx 只看 `w:p` 的
+    **直接子** `w:r`，凡是嵌在容器里的文字都会被漏掉。真实文档实测到三类：
+
+    1. `w:hyperlink/w:r` —— 超链接文字（已修）
+    2. **复杂域**（`w:fldChar` + `w:instrText` + 缓存结果）—— 页脚的页码
+       `12 / 12` 就在这里：`w:t` 明明有 `'12'`、`' / '`、`'12'`，
+       但 `paragraph.text` 返回 `''`，于是页脚被当成空的、整个部件都不写。
+    3. `HYPERLINK` **域** —— 实测 `yum源更新.docx` 有 6 个，丢失后链接变纯文字。
+
+    因此这里用一个状态机遍历全部子元素：
+      - `w:r`：若是域控制符（begin/separate/end）或指令文本则不产出；
+        否则产出该 run（若身处域的**结果区**，带上域里解析出的 URL）
+      - `w:hyperlink` / `w:fldSimple`：取其 URL，产出内部所有嵌套 run
+      - 其它容器（`w:smartTag`/`w:ins`/`w:sdt`…）：递归产出内部 run
+    """
+    from docx.oxml.ns import qn
+
+    in_field = False
+    result_started = False
+    field_url = ""
+
+    for child in para._p:
+        tag = child.tag
+
+        if tag == qn("w:r"):
+            fld_char = child.find(qn("w:fldChar"))
+            if fld_char is not None:
+                ftype = fld_char.get(qn("w:fldCharType"))
+                if ftype == "begin":
+                    in_field, result_started, field_url = True, False, ""
+                elif ftype == "separate":
+                    result_started = True
+                elif ftype == "end":
+                    in_field, result_started, field_url = False, False, ""
+                continue
+
+            instr = child.find(qn("w:instrText"))
+            if instr is not None:
+                url = _url_from_field_instruction(instr.text or "")
+                if url:
+                    field_url = url
+                continue
+
+            yield child, (field_url if (in_field and result_started) else "")
+
+        elif tag == qn("w:hyperlink"):
+            url = _hyperlink_target(child, para)
+            for run in child.iter(qn("w:r")):
+                yield run, url
+
+        elif tag == qn("w:fldSimple"):
+            url = _url_from_field_instruction(
+                child.get(qn("w:instr")) or ""
+            )
+            for run in child.iter(qn("w:r")):
+                yield run, url
+
+        else:
+            # 其它容器：递归取出里面的 run（不带链接语义）
+            for run in child.iter(qn("w:r")):
+                yield run, ""
+
+
+def _paragraph_text(para):
+    """
+    段落的**可见文字**（含嵌套 run 与域的缓存结果）。
+
+    用它替代 `para.text` —— 后者会漏掉嵌在 `w:hyperlink`、复杂域、
+    `w:smartTag` 等容器里的文字（实测页脚页码就是这样被漏掉的）。
+    """
+    from docx.text.run import Run
+
+    return "".join(
+        Run(element, para).text for element, _ in _iter_para_children(para)
+    )
+
+
 def _hyperlink_target(hyperlink, para):
     """
     取出 `w:hyperlink` 的目标。
@@ -1564,29 +1763,6 @@ def _hyperlink_target(hyperlink, para):
     if anchor:
         return f"#{anchor}"
     return ""
-
-
-def _iter_para_children(para):
-    """
-    按**文档顺序**遍历段落里的文字片段，**包括超链接内的 run**。
-
-    为什么不能用 `para.runs`：python-docx 的 `Paragraph.runs` 只返回 `w:p` 的
-    **直接子** `w:r`，而超链接的文字位于 `w:hyperlink/w:r`。
-    实测后果（保真度基线 `hyperlinks 1 → 0`、文字少 12 字）：一个只含超链接的
-    段落转出来是**空字符串**，链接文字与链接一起静默消失。
-
-    :return: 生成器，元素为 (run 元素, 所属超链接的 URL 或 "")
-    """
-    from docx.oxml.ns import qn
-
-    for child in para._p:
-        tag = child.tag
-        if tag == qn("w:r"):
-            yield child, ""
-        elif tag == qn("w:hyperlink"):
-            url = _hyperlink_target(child, para)
-            for run in child.findall(qn("w:r")):
-                yield run, url
 
 
 def _escape_inline_text(text):

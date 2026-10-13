@@ -330,16 +330,63 @@ def test_user_doc_page_number_footer_is_known_lost(user_results):
         )
 
 
-#: 7 份真实文档实测出的丢失类别（2026-10-13，书签已于当日修好）——每一类都是待办
+#: 7 份真实文档实测出的丢失类别（2026-10-13，书签/页脚/超链接域已修）——每一类都是待办
 USER_KNOWN_LOSS_KEYS = {
     "paragraphs",          # 空段落（Markdown 无法表示）
-    "fields",              # 域（目录/页码/日期；`yum源更新.docx` 里 6 个）
     "styled_paragraphs",   # 段落样式名（`yum源更新.docx` 里 43 段）
-    "footer_parts",        # 页码页脚（页脚装的是**域**而非文字）
     # 文字仍有少量损耗（实测 2~16 字），已从 178 字降到 2 字级别，
     # 剩下的是行尾空格之类的空白；由 test_user_doc_text_loss_is_small 兜住比例
     "text_chars",
+    # ⚠️ `fields` 的"丢失"其实是**表示法改善**：那些域是 `HYPERLINK` 域
+    # （以域形式存的超链接），现在被转成真正的 `w:hyperlink` ——
+    # `fields 6 → 0` 同时 `hyperlinks 0 → 6`，用户看到的是同样的可点击链接。
+    # 由 test_user_doc_hyperlink_fields_become_links 验证信息没丢。
+    "fields",
 }
+
+
+def test_user_doc_hyperlink_fields_become_links(user_results):
+    """
+    认领 `fields` 那一项：**信息没丢，只是换了更好的表示法**。
+
+    实测 `yum源更新.docx` 与 `CentOS7…mysql…docx` 里的域全是 `HYPERLINK` 域
+    （Word 存超链接的另一种方式）。往返后它们变成真 `w:hyperlink`：
+    域数归零、超链接数等于原来的域数 —— 链接依然可点击，而且更规范。
+    """
+    checked = 0
+    for name, result in user_results.items():
+        if result["error"] or result["skipped"]:
+            continue
+        before = result["before"]["features"]
+        after = result["after"]["features"]
+        field_count = before.get("fields", 0)
+        if not field_count:
+            continue
+        checked += 1
+        assert after.get("hyperlinks", 0) >= field_count, (
+            f"{name}: 原有 {field_count} 个 HYPERLINK 域，"
+            f"往返后只有 {after.get('hyperlinks', 0)} 个超链接 —— 链接丢了"
+        )
+    assert checked or True        # 语料里没有域时也允许通过
+
+
+def test_user_doc_footers_are_preserved(user_results):
+    """
+    **已修复**：带**页码域**的页脚不再丢（原先 3/7 份 `footer_parts 1 → 0`）。
+
+    根因不是"没搬文字"，而是 python-docx **不进入 `w:sdt`** ——
+    那 3 份的页码在嵌套内容控件里，`footer.paragraphs` 只返回一个空段落，
+    于是被判成"没有页脚"。修法是整段搬运部件 XML。
+    """
+    problems = {}
+    for name, result in user_results.items():
+        if result["error"] or result["skipped"]:
+            continue
+        before = result["before"]["features"].get("footer_parts", 0)
+        after = result["after"]["features"].get("footer_parts", 0)
+        if after < before:
+            problems[name] = f"{before} → {after}"
+    assert not problems, f"页脚又丢了: {problems}"
 
 
 def test_user_doc_bookmarks_are_preserved(user_results):

@@ -458,6 +458,8 @@ class ExportMixin:
                     base_dir=base_dir,
                     header_text=extras.get("header_text"),
                     footer_text=extras.get("footer_text"),
+                    header_xml=extras.get("header_xml", ""),
+                    footer_xml=extras.get("footer_xml", ""),
                     table_merges=extras.get("table_merges"),
                     sections=extras.get("sections"),
                     bookmarks=extras.get("bookmarks"),
