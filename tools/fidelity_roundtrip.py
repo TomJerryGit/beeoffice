@@ -236,6 +236,8 @@ def roundtrip_docx(src: Path, out: Path):
         table_merges=extras.get("table_merges"),
         sections=extras.get("sections"),
         bookmarks=extras.get("bookmarks"),
+        paragraph_styles=extras.get("paragraph_styles"),
+        style_definitions=extras.get("style_definitions"),
     )
     return ok, {"markdown_chars": len(md or ""),
                 "markdown_lines": len((md or "").splitlines()),

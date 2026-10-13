@@ -716,6 +716,188 @@ def apply_bookmarks(doc, bookmarks):
     return applied
 
 
+def _read_paragraph_styles(doc):
+    """
+    读出**非默认样式**的段落（保真度阶段 A）。
+
+    实测 7 份真实教程里 3 份用了内置样式，且都很有意义：
+
+    | 样式 | 命中 | 作用 |
+    |---|---|---|
+    | `HTML Preformatted` | 41 段（`yum源更新.docx`） | Word 给预格式化/代码文本的**等宽**样式 |
+    | `Normal (Web)` | 2 段 ×2 份 | Word 的网页版式 Normal |
+
+    丢失后果：技术文档里 41 段代码记录退化成普通正文，等宽版式全丢。
+
+    :return: [{"style": 样式名, "paragraph_text": str, "index": int}, ...]
+    """
+    records = []
+    for idx, para in enumerate(doc.paragraphs):
+        try:
+            name = para.style.name
+        except Exception:
+            continue
+        if not name or name == "Normal":
+            continue
+        records.append({
+            "style": name,
+            "paragraph_text": _paragraph_text(para).strip(),
+            "index": idx,
+        })
+    return records
+
+
+def _style_name_of(style_element) -> str:
+    from docx.oxml.ns import qn
+
+    name_el = style_element.find(qn("w:name"))
+    if name_el is None:
+        return ""
+    return name_el.get(qn("w:val")) or ""
+
+
+def _read_style_definitions(doc, names):
+    """
+    把需要的样式**定义**序列化出来（含 `w:basedOn` 链）。
+
+    为什么必须搬定义：python-docx 的默认模板里**没有** `HTML Preformatted` /
+    `Normal (Web)`（实测默认模板 164 个样式里都没有），只记名字的话导出时
+    `doc.styles[name]` 直接 KeyError，样式装不回去。
+
+    :return: {样式名: w:style 元素的 XML 字符串}
+    """
+    from lxml import etree
+    from docx.oxml.ns import qn
+
+    by_name, by_id = {}, {}
+    for style in doc.styles.element.findall(qn("w:style")):
+        style_id = style.get(qn("w:styleId")) or ""
+        if style_id:
+            by_id[style_id] = style
+        name = _style_name_of(style)
+        if name:
+            by_name[name] = style
+
+    definitions = {}
+    pending = list(names)
+    while pending:
+        name = pending.pop()
+        if name in definitions or name not in by_name:
+            continue
+        style = by_name[name]
+        try:
+            definitions[name] = etree.tostring(style, encoding="unicode")
+        except Exception:
+            continue
+        # basedOn 用的是 styleId，需要换成名字继续追
+        based_on = style.find(qn("w:basedOn"))
+        if based_on is not None:
+            base_style = by_id.get(based_on.get(qn("w:val")) or "")
+            base_name = _style_name_of(base_style) if base_style is not None \
+                else ""
+            if base_name:
+                pending.append(base_name)
+    return definitions
+
+
+def apply_paragraph_styles(doc, records, definitions=None):
+    """
+    把段落样式装回导出的文档。
+
+    两步：
+      1. **先注入样式定义**（`definitions`）—— 目标模板里可能没有这些样式；
+         注入时若 `w:styleId` 撞车则改名，若同名样式已存在则跳过。
+      2. 按锚点定位段落（文字 → 索引）并设置样式。
+
+    :return: 成功应用样式的段落数
+    """
+    if not records:
+        return 0
+
+    from docx.oxml import parse_xml
+    from docx.oxml.ns import qn
+
+    styles_root = doc.styles.element
+    existing_names = {_style_name_of(s) for s in
+                      styles_root.findall(qn("w:style"))}
+    existing_ids = {s.get(qn("w:styleId")) for s in
+                    styles_root.findall(qn("w:style"))}
+
+    # ---- 1. 注入定义 ----
+    for name, xml in (definitions or {}).items():
+        if not name or name in existing_names:
+            continue
+        try:
+            # ⚠️ 必须用 python-docx 自己的解析器：`lxml.etree.fromstring` 造出的
+            # 是裸 `_Element`，没有 python-docx 元素类的 `.type` 属性，
+            # `doc.styles[...]` 会抛 AttributeError（曾被宽 except 吞掉、静默返回 0）。
+            element = parse_xml(xml)
+        except Exception as e:
+            logging.debug(f"样式定义解析失败（跳过）{name}: {e}")
+            continue
+
+        style_id = element.get(qn("w:styleId")) or ""
+        if style_id in existing_ids:
+            new_id = f"{style_id}_copy"
+            suffix = 2
+            while new_id in existing_ids:
+                new_id = f"{style_id}_copy{suffix}"
+                suffix += 1
+            element.set(qn("w:styleId"), new_id)
+
+        # basedOn 若指向目标里不存在的 id，去掉它，避免悬空引用
+        based_on = element.find(qn("w:basedOn"))
+        if based_on is not None \
+                and (based_on.get(qn("w:val")) or "") not in existing_ids:
+            element.remove(based_on)
+
+        styles_root.append(element)
+        existing_names.add(name)
+        existing_ids.add(element.get(qn("w:styleId")))
+
+    # ---- 2. 应用 ----
+    paragraphs = list(doc.paragraphs)
+    applied = 0
+    # 记录已用过的段落：正文里常有**内容完全相同**的段落（实测 41 段代码记录里
+    # 就有重复），只按"第一个文字相同"去匹配会让它们全部落到同一段上，
+    # 导致 43 段里只有 36 段装上样式。
+    used = set()
+
+    for record in records:
+        target = None
+        position = None
+
+        text = (record.get("paragraph_text") or "").strip()
+        if text:
+            for pos, para in enumerate(paragraphs):
+                if pos in used:
+                    continue
+                if _paragraph_text(para).strip() == text:
+                    target, position = para, pos
+                    break
+
+        if target is None:
+            idx = record.get("index")
+            if isinstance(idx, int) and 0 <= idx < len(paragraphs) \
+                    and idx not in used:
+                target, position = paragraphs[idx], idx
+
+        if target is None:
+            continue
+
+        try:
+            target.style = doc.styles[record.get("style")]
+            if position is not None:
+                used.add(position)
+            applied += 1
+        except KeyError:
+            logging.debug(f"目标文档没有样式 {record.get('style')!r}，跳过")
+        except Exception as e:  # noqa: BLE001
+            logging.debug(f"应用段落样式失败: {e}")
+
+    return applied
+
+
 # ==================== 导入侧：读取页面设置与页眉页脚 ====================
 def read_docx_extras(docx_path):
     """
@@ -802,6 +984,11 @@ def read_docx_extras(docx_path):
             "table_merges": _read_table_merges(doc),
             "sections": _read_sections(doc),
             "bookmarks": _read_bookmarks(doc),
+            "paragraph_styles": _read_paragraph_styles(doc),
+            "style_definitions": _read_style_definitions(
+                doc,
+                {r["style"] for r in _read_paragraph_styles(doc)},
+            ),
         }
         # 去掉解析不到的项（None），让调用方的默认值生效
         return {k: v for k, v in extras.items() if v is not None}
@@ -875,7 +1062,7 @@ def apply_header_footer(doc, header_text=None, footer_text=None,
     if not any((header_text, footer_text, header_xml, footer_xml)):
         return False
 
-    from lxml import etree
+    from docx.oxml import parse_xml
 
     section = doc.sections[0]
     applied = False
@@ -892,7 +1079,9 @@ def apply_header_footer(doc, header_text=None, footer_text=None,
             if xml:
                 # 断开"继承上一节"，从而生成一个真实的部件
                 part.is_linked_to_previous = False
-                wrapper = etree.fromstring(
+                # 同样必须用 python-docx 的解析器，否则搬进去的是裸 lxml 元素，
+                # 后续 python-docx 的 API（part.paragraphs 等）会用不了
+                wrapper = parse_xml(
                     f"<w:root {_PART_NAMESPACES}>{xml}</w:root>"
                 )
                 element = part._element
@@ -920,7 +1109,8 @@ def apply_header_footer(doc, header_text=None, footer_text=None,
 def export_to_docx(content, output_path, page_settings=None, base_dir=None,
                    header_text=None, footer_text=None, table_merges=None,
                    sections=None, bookmarks=None,
-                   header_xml="", footer_xml=""):
+                   header_xml="", footer_xml="",
+                   paragraph_styles=None, style_definitions=None):
     """
     Markdown 导出为 DOCX 文件
 
@@ -937,6 +1127,11 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
     :param sections: 分节信息（`read_docx_extras()` 的 sections）。为 None 时
         按 `page_settings` 只设置第一节（原行为）。
     :param bookmarks: 书签信息（`read_docx_extras()` 的 bookmarks）。
+    :param paragraph_styles: 段落样式信息（`read_docx_extras()` 的
+        paragraph_styles）。
+    :param style_definitions: 样式**定义**（`read_docx_extras()` 的
+        style_definitions）——目标模板里往往没有这些样式（实测默认模板
+        164 个样式里没有 `HTML Preformatted`），必须连定义一起注入。
     :return: 是否成功
     """
     if not HAS_DOCX:
@@ -985,6 +1180,11 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
         # 书签（阶段 A）：Markdown 无书签语法，实测 5/7 份真实文档带书签；
         # 丢失会让指向它的内部跳转变成死链。
         apply_bookmarks(doc, bookmarks)
+
+        # 段落样式（阶段 A）：实测 41 段代码记录用的是内置等宽样式
+        # `HTML Preformatted`，而 python-docx 默认模板里**没有**这个样式，
+        # 所以必须连**样式定义**一起搬（否则 doc.styles[name] 直接 KeyError）。
+        apply_paragraph_styles(doc, paragraph_styles, style_definitions)
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         doc.save(output_path)
@@ -1834,6 +2034,33 @@ def _escape_markdown_text(text):
     return _escape_block_markers(_escape_inline_text(text))
 
 
+def _wrap_emphasis(text, marker):
+    """
+    给文字套上强调标记，并**把首尾空白留在标记外面**。
+
+    为什么必须这样（渲染时才发现的缺陷）
+    ------------------------------------
+    Markdown 要求强调的收尾定界符**不能紧跟在空白之后**（`**x **` 不解析）。
+    实测真实文档里有 `bold=True` 且**结尾带空格**的 run：
+
+        run.text = 'Linux-mount: 在 /dev/sr0 上找不到媒体 '   (bold=True)
+
+    直接套成 `**…媒体 **` 后，星号**原样显示**在文档里。
+
+    这个问题**结构性指标完全看不到** —— `**` 本身也是字符，字符数一点没变，
+    只有把导出的 DOCX 真的渲染出来才看得见。
+    """
+    if not text:
+        return text
+    blank = " \t\u3000"
+    stripped = text.strip(blank)
+    if not stripped:
+        return text
+    lead = text[: len(text) - len(text.lstrip(blank))]
+    trail = text[len(text.rstrip(blank)):]
+    return f"{lead}{marker}{stripped}{marker}{trail}"
+
+
 def _para_to_md(para):
     """
     将段落转为 Markdown（保留粗体、斜体，**并把超链接写成 `[文字](url)`**）。
@@ -1852,9 +2079,9 @@ def _para_to_md(para):
         # 只做**行内**转义（按 run 调用是安全的）；行级处理放到整段拼好之后
         text = _escape_inline_text(text)
         if run.bold:
-            text = f"**{text}**"
+            text = _wrap_emphasis(text, "**")
         if run.italic:
-            text = f"*{text}*"
+            text = _wrap_emphasis(text, "*")
         if url:
             text = f"[{text}]({url})"
         parts.append(text)

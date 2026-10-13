@@ -222,6 +222,7 @@ def test_editor_apply_and_get_extras(beewrite_editor):
         "header_text": "我的页眉", "footer_text": "我的页脚",
         "header_xml": "", "footer_xml": "",
         "table_merges": [], "sections": [], "bookmarks": [],
+        "paragraph_styles": [], "style_definitions": {},
     }
 
 
@@ -245,6 +246,7 @@ def test_editor_get_extras_defaults_to_empty(beewrite_editor):
         "header_text": "", "footer_text": "",
         "header_xml": "", "footer_xml": "",
         "table_merges": [], "sections": [], "bookmarks": [],
+        "paragraph_styles": [], "style_definitions": {},
     }
 
 

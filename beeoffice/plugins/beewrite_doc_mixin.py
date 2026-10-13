@@ -302,6 +302,15 @@ class DocMixin:
             self._docx_bookmarks = list(extras["bookmarks"])
             applied += 1
 
+        # 段落样式（含样式定义）：实测 41 段代码记录用 `HTML Preformatted`，
+        # 而默认模板里没有该样式，必须连定义一起搬
+        if extras.get("paragraph_styles"):
+            self._docx_paragraph_styles = list(extras["paragraph_styles"])
+            applied += 1
+        if extras.get("style_definitions"):
+            self._docx_style_definitions = dict(extras["style_definitions"])
+            applied += 1
+
         return applied
 
     def get_docx_extras(self):
@@ -314,6 +323,8 @@ class DocMixin:
             "table_merges": getattr(self, "_docx_table_merges", []),
             "sections": getattr(self, "_docx_sections", []),
             "bookmarks": getattr(self, "_docx_bookmarks", []),
+            "paragraph_styles": getattr(self, "_docx_paragraph_styles", []),
+            "style_definitions": getattr(self, "_docx_style_definitions", {}),
         }
 
     # ==================================================================

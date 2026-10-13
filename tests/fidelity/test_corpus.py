@@ -330,10 +330,9 @@ def test_user_doc_page_number_footer_is_known_lost(user_results):
         )
 
 
-#: 7 份真实文档实测出的丢失类别（2026-10-13，书签/页脚/超链接域已修）——每一类都是待办
+#: 7 份真实文档实测出的丢失类别（2026-10-13；书签/页脚/超链接域/段落样式已修）
 USER_KNOWN_LOSS_KEYS = {
     "paragraphs",          # 空段落（Markdown 无法表示）
-    "styled_paragraphs",   # 段落样式名（`yum源更新.docx` 里 43 段）
     # 文字仍有少量损耗（实测 2~16 字），已从 178 字降到 2 字级别，
     # 剩下的是行尾空格之类的空白；由 test_user_doc_text_loss_is_small 兜住比例
     "text_chars",
@@ -343,6 +342,25 @@ USER_KNOWN_LOSS_KEYS = {
     # 由 test_user_doc_hyperlink_fields_become_links 验证信息没丢。
     "fields",
 }
+
+
+def test_user_doc_paragraph_styles_are_preserved(user_results):
+    """
+    **已修复**：段落样式不再丢（原先 3/7 份，`yum源更新.docx` 有 43 段）。
+
+    那几份用的是内置样式 `HTML Preformatted`（Word 给代码/预格式化文本的
+    **等宽**样式）与 `Normal (Web)`。python-docx 的默认模板里**没有**它们
+    （实测 164 个样式里都没有），所以必须连**样式定义**一起搬。
+    """
+    problems = {}
+    for name, result in user_results.items():
+        if result["error"] or result["skipped"]:
+            continue
+        before = result["before"]["features"].get("styled_paragraphs", 0)
+        after = result["after"]["features"].get("styled_paragraphs", 0)
+        if after < before:
+            problems[name] = f"{before} → {after}"
+    assert not problems, f"段落样式又丢了: {problems}"
 
 
 def test_user_doc_hyperlink_fields_become_links(user_results):
