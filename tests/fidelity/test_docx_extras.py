@@ -220,7 +220,7 @@ def test_editor_apply_and_get_extras(beewrite_editor):
     assert settings["page_width_mm"] == 215.9
     assert beewrite_editor.get_docx_extras() == {
         "header_text": "我的页眉", "footer_text": "我的页脚",
-        "table_merges": [], "sections": [],
+        "table_merges": [], "sections": [], "bookmarks": [],
     }
 
 
@@ -239,10 +239,10 @@ def test_editor_apply_extras_ignores_empty_values(beewrite_editor):
 
 
 def test_editor_get_extras_defaults_to_empty(beewrite_editor):
-    """没导入过 DOCX 时，导出不应写出页眉页脚/分节/表格合并。"""
+    """没导入过 DOCX 时，导出不应写出页眉页脚/分节/表格合并/书签。"""
     assert beewrite_editor.get_docx_extras() == {
         "header_text": "", "footer_text": "",
-        "table_merges": [], "sections": [],
+        "table_merges": [], "sections": [], "bookmarks": [],
     }
 
 

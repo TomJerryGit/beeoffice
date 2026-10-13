@@ -460,6 +460,7 @@ class ExportMixin:
                     footer_text=extras.get("footer_text"),
                     table_merges=extras.get("table_merges"),
                     sections=extras.get("sections"),
+                    bookmarks=extras.get("bookmarks"),
                 ):
                     QMessageBox.warning(self, "失败", "无法生成 Word 文档")
                     return False

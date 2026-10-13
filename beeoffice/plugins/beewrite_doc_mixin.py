@@ -290,6 +290,11 @@ class DocMixin:
             self._docx_sections = list(extras["sections"])
             applied += 1
 
+        # 书签（Markdown 无书签语法；实测 5/7 份真实文档带书签）
+        if extras.get("bookmarks"):
+            self._docx_bookmarks = list(extras["bookmarks"])
+            applied += 1
+
         return applied
 
     def get_docx_extras(self):
@@ -299,6 +304,7 @@ class DocMixin:
             "footer_text": getattr(self, "_docx_footer_text", ""),
             "table_merges": getattr(self, "_docx_table_merges", []),
             "sections": getattr(self, "_docx_sections", []),
+            "bookmarks": getattr(self, "_docx_bookmarks", []),
         }
 
     # ==================================================================

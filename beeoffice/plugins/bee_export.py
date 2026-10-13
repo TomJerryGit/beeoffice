@@ -579,6 +579,143 @@ def _fill_sect_pr(sectPr, record, qn):
             pgMar.set(qn(attr), str(int(Mm(float(value)).twips)))
 
 
+def _read_bookmarks(doc):
+    """
+    读出文档里的书签（保真度阶段 A）。
+
+    为什么需要：Markdown 没有书签语法。实测 7 份真实教程里有 **5 份**带书签，
+    往返后 `bookmarks 1 → 0`。
+
+    ⚠️ **但那些书签名全是 `_GoBack`** —— Word 的"上次编辑位置"内部标记，
+    **不是用户内容**，丢失它不会让任何链接变成死链。这一点我最初判断错了
+    （以为多半是目录锚点 `_Toc…`），已更正到 docs/fidelity.md。
+    即便如此仍然**原样保留**：本工作的目标是"往返不改动用户的文件"，而
+    `_GoBack` 是文件的一部分；顺带也让"书签"这个指标保持可比。
+    真正的用户书签（`_Toc…`、自定义锚点）同样走这条通路。
+
+    定位方式与分节一致：记下"书签所在段落的文字"作锚点。Markdown 无法表达
+    段内偏移，所以还原时放在**该段落开头** —— 对目录锚点（书签本来就在标题
+    段首）是完全正确的；对段中书签是近似。
+
+    :return: [{"name": str, "paragraph_text": str, "prev_text": str,
+               "index": int}, ...]
+             `prev_text` 是"最近的前一个非空段落"，用于**书签落在空段落里**的情况
+             （实测两份真实文档的 `_GoBack` 就是空的；空段落在 Markdown 里会丢，
+             此时索引锚点必然失效）。
+    """
+    from docx.oxml.ns import qn
+
+    paragraphs = list(doc.paragraphs)
+
+    bookmarks = []
+    for para_idx, para in enumerate(paragraphs):
+        starts = para._p.findall(qn("w:bookmarkStart"))
+        if not starts:
+            continue
+
+        # 最近的前一个非空段落（供空段落锚点使用）
+        prev_text = ""
+        for back in range(para_idx - 1, -1, -1):
+            candidate = (paragraphs[back].text or "").strip()
+            if candidate:
+                prev_text = candidate
+                break
+
+        for start in starts:
+            name = start.get(qn("w:name")) or ""
+            if not name:
+                continue
+            bookmarks.append({
+                "name": name,
+                "paragraph_text": (para.text or "").strip(),
+                "prev_text": prev_text,
+                "index": para_idx,
+            })
+    return bookmarks
+
+
+def apply_bookmarks(doc, bookmarks):
+    """
+    按记录写回书签（`w:bookmarkStart` / `w:bookmarkEnd`）。
+
+    - 定位：优先按 `paragraph_text` 匹配（对空段落丢失导致的索引偏移免疫），
+      找不到再退回 `index`；都找不到就跳过（记 debug 日志）。
+    - 位置：插在该段**开头**（在 `w:pPr` 之后，否则 schema 不合法）。
+
+    :return: 成功写回的书签数
+    """
+    if not bookmarks:
+        return 0
+
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    paragraphs = list(doc.paragraphs)
+    applied = 0
+    next_id = 1000        # 避开源文档可能用过的 id
+
+    for record in bookmarks:
+        target = None
+
+        text = (record.get("paragraph_text") or "").strip()
+        if text:
+            for para in paragraphs:
+                if (para.text or "").strip() == text:
+                    target = para
+                    break
+
+        if target is None:
+            # 书签落在**空段落**里（真实文档的 `_GoBack` 就是这样）：空段落在
+            # Markdown 里会丢，索引必然失效。退化为"挂到最近的前一个非空段落之后"。
+            prev_text = (record.get("prev_text") or "").strip()
+            if prev_text:
+                for pos, para in enumerate(paragraphs):
+                    if (para.text or "").strip() == prev_text:
+                        target = (
+                            paragraphs[pos + 1]
+                            if pos + 1 < len(paragraphs) else para
+                        )
+                        break
+
+        if target is None:
+            idx = record.get("index")
+            if isinstance(idx, int) and 0 <= idx < len(paragraphs):
+                target = paragraphs[idx]
+
+        if target is None:
+            logging.debug(f"找不到书签锚点，跳过: {record}")
+            continue
+
+        try:
+            bookmark_id = str(next_id)
+            next_id += 1
+
+            start = OxmlElement("w:bookmarkStart")
+            start.set(qn("w:id"), bookmark_id)
+            start.set(qn("w:name"), str(record.get("name") or ""))
+
+            end = OxmlElement("w:bookmarkEnd")
+            end.set(qn("w:id"), bookmark_id)
+
+            p = target._p
+            pPr = p.find(qn("w:pPr"))
+            # 必须插在 pPr 之后（pPr 必须是 w:p 的第一个子元素），
+            # 并且**跳过已有的 bookmarkStart** —— 否则同一段落里的多个书签
+            # 会因每次插在同一位置而**顺序颠倒**（实测 b1,b2 → b1,b3,b2）。
+            children = list(p)
+            pos = (children.index(pPr) + 1) if pPr is not None else 0
+            while pos < len(children) \
+                    and children[pos].tag == qn("w:bookmarkStart"):
+                pos += 1
+            p.insert(pos, start)
+            p.append(end)
+            applied += 1
+        except Exception as e:  # noqa: BLE001 - 单个书签失败不应中断导出
+            logging.warning(f"写回书签失败: {e}")
+
+    return applied
+
+
 # ==================== 导入侧：读取页面设置与页眉页脚 ====================
 def read_docx_extras(docx_path):
     """
@@ -644,6 +781,7 @@ def read_docx_extras(docx_path):
             "footer_text": _text(section.footer),
             "table_merges": _read_table_merges(doc),
             "sections": _read_sections(doc),
+            "bookmarks": _read_bookmarks(doc),
         }
         # 去掉解析不到的项（None），让调用方的默认值生效
         return {k: v for k, v in extras.items() if v is not None}
@@ -685,7 +823,7 @@ def apply_header_footer(doc, header_text=None, footer_text=None):
 # ==================== 导出 DOCX ====================
 def export_to_docx(content, output_path, page_settings=None, base_dir=None,
                    header_text=None, footer_text=None, table_merges=None,
-                   sections=None):
+                   sections=None, bookmarks=None):
     """
     Markdown 导出为 DOCX 文件
 
@@ -701,6 +839,7 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
         Markdown 表格语法表达不了合并，故**绕开 Markdown** 传递。
     :param sections: 分节信息（`read_docx_extras()` 的 sections）。为 None 时
         按 `page_settings` 只设置第一节（原行为）。
+    :param bookmarks: 书签信息（`read_docx_extras()` 的 bookmarks）。
     :return: 是否成功
     """
     if not HAS_DOCX:
@@ -741,6 +880,10 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
         # 表格合并（保真度阶段 A 最后一项）：Markdown 表格语法表达不了合并，
         # 因此由导入时记录的 table_merges 还原。
         apply_table_merges(doc, table_merges)
+
+        # 书签（阶段 A）：Markdown 无书签语法，实测 5/7 份真实文档带书签；
+        # 丢失会让指向它的内部跳转变成死链。
+        apply_bookmarks(doc, bookmarks)
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         doc.save(output_path)

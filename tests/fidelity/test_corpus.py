@@ -79,9 +79,9 @@ def test_clean_corpus_file_has_no_loss(stress_results, name):
 # ==================== 3. 已撞出的丢失：特性化钉住 ====================
 
 #: 2026-10-11 由压力语料撞出的丢失 → 每一类都是下一刀的方向
-#: （`docx_sections` 的 `sections` 已在"第七刀：多分节"修好，故只剩 `paragraphs`）
+#: （`docx_sections` 的 `sections` 已修；`docx_inline` 的书签已于 2026-10-13 修好，
+#:   它现在零丢失，故不在表内）
 KNOWN_LOSSES = {
-    "docx_inline.docx": {"bookmarks"},
     "docx_sections.docx": {"paragraphs"},
     "docx_tables.docx": {"tables", "text_chars"},
 }
@@ -136,15 +136,18 @@ def test_sections_are_now_preserved(stress_results):
     )
 
 
-def test_bookmark_is_lost(stress_results):
+def test_bookmark_is_now_preserved(stress_results):
     """
-    `docx_inline.docx` 的书签丢失 → **内部跳转链接会变成死链**。
+    `docx_inline.docx` 里有一个具名书签（`ch1`）与一个指向它的内部链接。
 
-    注意超链接本身是保住的（上一刀修的），但指向书签的 `#ch1` 没有目标了。
+    **已修复（第九刀）**：原先 `bookmarks 1 → 0` —— 链接还在、锚点没了，
+    也就是**内部跳转变成死链**。现由 `_read_bookmarks()` + `apply_bookmarks()`
+    写回，两侧都在（见 tests/fidelity/test_docx_bookmarks.py 的端到端断言）。
     """
     result = stress_results["docx_inline.docx"]
-    assert result["before"]["features"]["bookmarks"] == 1
-    assert result["after"]["features"]["bookmarks"] == 0
+    before = result["before"]["features"]["bookmarks"]
+    after = result["after"]["features"]["bookmarks"]
+    assert before == 1 and after == 1, f"书签又丢了: {before} → {after}"
 
 
 # ==================== 4. 非矩形工作表会被规范化（行为记录，非丢失） ====================
@@ -327,17 +330,38 @@ def test_user_doc_page_number_footer_is_known_lost(user_results):
         )
 
 
-#: 7 份真实文档实测出的丢失类别（2026-10-13）——每一类都是待办
+#: 7 份真实文档实测出的丢失类别（2026-10-13，书签已于当日修好）——每一类都是待办
 USER_KNOWN_LOSS_KEYS = {
     "paragraphs",          # 空段落（Markdown 无法表示）
-    "bookmarks",           # 书签（5/7 份命中）
     "fields",              # 域（目录/页码/日期；`yum源更新.docx` 里 6 个）
     "styled_paragraphs",   # 段落样式名（`yum源更新.docx` 里 43 段）
-    "footer_parts",        # 页码页脚
+    "footer_parts",        # 页码页脚（页脚装的是**域**而非文字）
     # 文字仍有少量损耗（实测 2~16 字），已从 178 字降到 2 字级别，
     # 剩下的是行尾空格之类的空白；由 test_user_doc_text_loss_is_small 兜住比例
     "text_chars",
 }
+
+
+def test_user_doc_bookmarks_are_preserved(user_results):
+    """
+    **已修复（第九刀）**：书签不再丢失。
+
+    7 份里的 5 份带书签，往返后 `bookmarks 1 → 0`。
+
+    ⚠️ 更正一处我先前的判断：那些书签名**全是 `_GoBack`** —— Word 的
+    "上次编辑位置"内部标记，**不是用户内容**，也没有链接指向它，所以
+    **不会造成死链**。我最初推测"多半是目录锚点 `_Toc…`"是错的。
+    仍然选择保留它（往返不该改动用户的文件）。
+    """
+    problems = {}
+    for name, result in user_results.items():
+        if result["error"] or result["skipped"]:
+            continue
+        before = result["before"]["features"].get("bookmarks", 0)
+        after = result["after"]["features"].get("bookmarks", 0)
+        if after < before:
+            problems[name] = f"{before} → {after}"
+    assert not problems, f"书签又丢了: {problems}"
 
 
 def test_user_doc_losses_are_within_known_categories(user_results):
