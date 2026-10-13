@@ -166,8 +166,11 @@ def build_xlsx_fixture(path: Path) -> dict:
     ws.add_chart(chart, "G2")
 
     summary = wb.create_sheet("汇总")
-    summary["A1"] = "合计"
-    summary["B1"] = "=SUM(明细!D2:D4)"
+    # 注意：pandas 固定把工作表**第 1 行**当表头，所以这里要有表头行。
+    # "无表头的表会丢首行" 是一个真实约束，已在
+    # tests/fidelity/test_beesheet_workbook.py 里单独钉住。
+    summary.append(["项目", "值"])
+    summary.append(["合计", "=SUM(明细!D2:D4)"])
     wb.save(str(path))
     return {"sheets": 2, "formulas": 4, "merged_ranges": 1,
             "conditional_formatting": 1, "data_validations": 1,
@@ -222,15 +225,30 @@ def roundtrip_docx(src: Path, out: Path):
 
 def roundtrip_xlsx(src: Path, out: Path):
     """
-    XLSX 往返：`pd.read_excel` → `df.to_excel(index=False)`。
+    XLSX 往返：走**产品的导入/导出路径**。
 
-    对应 `beesheet.py` 的导入与 `beesheet_data_mixin._export_xlsx()`。
+    对应 `beesheet.py::_import_file_from_path` 与
+    `beesheet_data_mixin._export_xlsx` —— 即
+        beesheet_workbook.read_workbook()
+        → （编辑）→ beesheet_workbook.sync_active_sheet() + write_workbook()
+
+    2026-10-11 之前这两处是 `pd.read_excel` + `df.to_excel`，实测 9 项特征丢 8 项；
+    改为工作簿对象后**工作表数与公式数不再丢失**（仍丢的项见 docs/fidelity.md）。
     """
-    import pandas as pd
+    from beeoffice.plugins.beesheet_workbook import (
+        read_workbook,
+        sync_active_sheet,
+        write_workbook,
+    )
 
-    df = pd.read_excel(src, engine="openpyxl")
-    df.to_excel(out, index=False)
-    return True, {"rows": int(df.shape[0]), "cols": int(df.shape[1])}
+    workbook = read_workbook(src)
+    first = workbook.sheets[0]
+    sync_active_sheet(workbook, first.name, first.df)
+    write_workbook(workbook, out)
+    return True, {
+        "sheets": len(workbook.sheets),
+        "formulas": workbook.formula_count,
+    }
 
 
 # ==================== 3. 测量 ====================

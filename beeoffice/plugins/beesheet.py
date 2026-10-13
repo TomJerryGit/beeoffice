@@ -517,7 +517,31 @@ class BeeSheetView(
                     nrows=200001
                 )
             else:
-                df = pd.read_excel(path, engine='openpyxl', nrows=200001)
+                # 保真度阶段 A（docs/fidelity.md 根因 1 第一刀）：
+                # 原先 `pd.read_excel(...)` **只读首张工作表、且公式全丢**
+                # （实测 9 项特征丢 8 项：sheets 2→1、formulas 4→0）。
+                # 现在用 beesheet_workbook 读**全部**工作表与每格公式，
+                # 首张表进模型（当前只编辑一张），其余留在工作簿对象里，
+                # 导出时原样写回。
+                workbook = None
+                try:
+                    from beeoffice.plugins.beesheet_workbook import (
+                        read_workbook,
+                    )
+
+                    workbook = read_workbook(path, max_rows=200001)
+                    df = (
+                        workbook.sheets[0].df
+                        if workbook.sheets else pd.DataFrame()
+                    )
+                except Exception as e:  # noqa: BLE001 - 回退不应中断导入
+                    logging.warning(
+                        f"工作簿读取失败，回退为只读首张表: {e}"
+                    )
+                    workbook = None
+                    df = pd.read_excel(
+                        path, engine='openpyxl', nrows=200001
+                    )
             total_rows = len(df)
             if total_rows > 200000:
                 if QMessageBox.question(
@@ -530,7 +554,21 @@ class BeeSheetView(
             self._undo_stack.clear()
             self._redo_stack.clear()
             self._auto_resize_columns()
-            self._set_status(f"已加载：{len(df)} 行 × {len(df.columns)} 列")
+
+            # 记住工作簿（导出时把全部工作表与公式写回）
+            self._workbook = workbook
+            self._active_sheet_name = workbook.active if workbook else ""
+
+            sheet_count = len(workbook.sheets) if workbook else 1
+            formula_count = workbook.formula_count if workbook else 0
+            extra = ""
+            if sheet_count > 1:
+                extra += f"，含 {sheet_count} 张工作表"
+            if formula_count:
+                extra += f"，保留 {formula_count} 个公式"
+            self._set_status(
+                f"已加载：{len(df)} 行 × {len(df.columns)} 列{extra}"
+            )
         except Exception as e:
             QMessageBox.warning(self, "导入失败", str(e))
 

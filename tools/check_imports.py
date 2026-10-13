@@ -75,6 +75,7 @@ MODULES_TO_CHECK = [
     # 蜜算
     "beeoffice.plugins.beesheet",
     "beeoffice.plugins.beesheet_utils",
+    "beeoffice.plugins.beesheet_workbook",
     "beeoffice.plugins.beesheet_commands",
     "beeoffice.plugins.beesheet_delegate",
     "beeoffice.plugins.beesheet_loaders",

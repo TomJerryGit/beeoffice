@@ -49,7 +49,14 @@ class DataMixin:
         return self._trim_empty_tail(self.model.df.copy())
 
     def _export_xlsx(self):
-        """导出为 Excel"""
+        """
+        导出为 Excel。
+
+        保真度阶段 A（docs/fidelity.md 根因 1 第一刀）：若导入时保留了工作簿
+        （`self._workbook`），则把**全部工作表与公式**写回；否则退回原来的
+        `df.to_excel()`。原实现永远是 `df.to_excel()` —— 公式、多工作表、
+        合并、条件格式、冻结窗格、图表全部丢失（实测 9 项丢 8 项）。
+        """
         path, _ = QFileDialog.getSaveFileName(
             self, "导出", "表格.xlsx", "Excel (*.xlsx)"
         )
@@ -57,7 +64,19 @@ class DataMixin:
             return
         try:
             df = self._get_export_df()
-            df.to_excel(path, index=False)
+            workbook = getattr(self, "_workbook", None)
+            if workbook is not None and workbook.sheets:
+                from beeoffice.plugins.beesheet_workbook import (
+                    sync_active_sheet,
+                    write_workbook,
+                )
+
+                name = getattr(self, "_active_sheet_name", "") \
+                    or workbook.active
+                sync_active_sheet(workbook, name, df)
+                write_workbook(workbook, path)
+            else:
+                df.to_excel(path, index=False)
             QMessageBox.information(self, "成功", f"已保存：\n{path}")
         except Exception as e:
             QMessageBox.warning(self, "失败", str(e))
