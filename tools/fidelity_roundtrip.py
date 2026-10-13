@@ -210,17 +210,31 @@ def build_pptx_fixture(path: Path) -> dict:
 
 def roundtrip_docx(src: Path, out: Path):
     """
-    DOCX 往返：`bee_export.import_from_docx()` → Markdown → `export_to_docx()`。
+    DOCX 往返：`import_from_docx()` → Markdown → `export_to_docx()`。
 
-    这两个函数就是产品路径：`app._open_docx_file` 与 `_export_docx` 调的
-    就是它们。注意中间经过 **Markdown** —— 这是保真的结构性弱点。
+    这两个函数就是产品路径：`app._open_docx_file` 与 `_write_docx` 调的就是它们。
+    注意中间经过 **Markdown** —— 这是保真的结构性弱点。
+
+    保真度阶段 A：页面设置与页眉页脚**不走 Markdown**，而是像产品那样
+    用 `read_docx_extras()` 另读一份、导出时写回
+    （产品里由 `app._open_docx_file` → `widget.apply_docx_extras()` 承担）。
     """
-    from beeoffice.plugins.bee_export import export_to_docx, import_from_docx
+    from beeoffice.plugins.bee_export import (
+        export_to_docx,
+        import_from_docx,
+        read_docx_extras,
+    )
 
     md = import_from_docx(str(src))
-    ok = export_to_docx(md, str(out), base_dir=str(src.parent))
+    extras = read_docx_extras(src)
+    ok = export_to_docx(
+        md, str(out), page_settings=extras, base_dir=str(src.parent),
+        header_text=extras.get("header_text"),
+        footer_text=extras.get("footer_text"),
+    )
     return ok, {"markdown_chars": len(md or ""),
-                "markdown_lines": len((md or "").splitlines())}
+                "markdown_lines": len((md or "").splitlines()),
+                "extras": sorted(k for k, v in extras.items() if v not in ("", None))}
 
 
 def roundtrip_xlsx(src: Path, out: Path):

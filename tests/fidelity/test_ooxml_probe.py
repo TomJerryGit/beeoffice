@@ -140,10 +140,14 @@ class TestCurrentFidelityDOCX:
     """
     DOCX 往返现状。
 
-    2026-10-11 更新：修复 `_para_to_md()` 漏掉超链接后，
-    **`hyperlinks` 不再丢失**，链接文字也不再消失
-    （原先"文字少 12 字"正是漏掉的链接文字）。
-    仍丢失：合并单元格、页眉/页脚部件、页边距。
+    2026-10-11 更新（两次）：
+    1. 修复 `_para_to_md()` 漏掉超链接后，**`hyperlinks` 不再丢失**，
+       链接文字也不再消失（原先"文字少 12 字"正是漏掉的链接文字）。
+    2. 页面设置与页眉页脚改走 `read_docx_extras()` **绕开 Markdown** 传递，
+       因此 `header_parts` / `footer_parts` / `page_margins` **全部保住**。
+
+    仍丢失：**合并单元格**（Markdown 表格语法表达不了合并；它同时导致
+    `table_cells` 变多、`text_chars` 略增）与**段落少 1 段**（空段落）。
     """
 
     def test_roundtrip_runs(self, docx_result):
@@ -177,8 +181,6 @@ class TestCurrentFidelityDOCX:
 
     @pytest.mark.parametrize("feature,expected_after", [
         ("merged_cells", 0),
-        ("header_parts", 0),
-        ("footer_parts", 0),
         ("tables", 1),
         ("images", 1),
     ])
@@ -193,19 +195,27 @@ class TestCurrentFidelityDOCX:
             f"若是**回归**，请修代码。"
         )
 
-    def test_page_margins_do_not_survive(self, docx_result):
-        """
-        页边距变成 python-docx 默认值。
+    # ---- 已修复（第三刀）：页面设置与页眉页脚 ----
 
-        原因：`import_from_docx()` 的返回值是 **Markdown 字符串** ——
-        Markdown 表达不了页面设置，所以往返后这些信息必然丢失。
+    def test_header_and_footer_parts_are_preserved(self, docx_result):
+        """
+        **已修复**：原先 `header_parts` / `footer_parts` 直接归零
+        （部件根本不存在）。现由 `read_docx_extras()` 另读一份、导出时写回。
+        """
+        for key in ("header_parts", "footer_parts"):
+            before = docx_result["before"]["features"][key]
+            after = docx_result["after"]["features"][key]
+            assert before == 1, f"前置条件：构造文件里应有 {key}"
+            assert after == before, f"{key} 又丢了: {before} → {after}"
+
+    def test_page_margins_are_preserved(self, docx_result):
+        """
+        **已修复**：原先变成 python-docx 默认 1 英寸
+        （1417,1701,1417,1701 → 1440,1800,1440,1800）。
         """
         before = docx_result["before"]["features"]["page_margins"]
         after = docx_result["after"]["features"]["page_margins"]
-        assert before != after, "若页边距已能保留，请更新基线"
-        assert after.startswith("1440,"), (
-            f"往返后应是默认 1 英寸（1440 twips），实际 {after}"
-        )
+        assert before == after, f"页边距又变了: {before} → {after}"
 
 
 class TestCurrentFidelityXLSX:

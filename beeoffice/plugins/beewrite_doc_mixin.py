@@ -244,6 +244,52 @@ class DocMixin:
         return dict(self._page_settings)
 
     # ==================================================================
+    # DOCX 扩展信息（保真度阶段 A）
+    # ==================================================================
+    def apply_docx_extras(self, extras):
+        """
+        导入 DOCX 时保存**Markdown 表达不了**的信息。
+
+        为什么需要：`import_from_docx()` 只返回 Markdown 字符串，而 Markdown
+        没有"页面设置/页眉页脚"的概念 —— 实测往返后页边距变成默认 1 英寸、
+        页眉页脚部件直接消失。这些信息必须在 Markdown **之外**随文档保留，
+        导出时再写回。
+
+        :param extras: `bee_export.read_docx_extras()` 的返回值
+        :return: 实际应用了多少项（便于调用方决定是否提示用户）
+        """
+        if not extras:
+            return 0
+
+        applied = 0
+
+        # 页面设置：只覆盖解析得到的项，其余保持编辑器当前值
+        page_keys = (
+            "paper", "orientation", "margin_top", "margin_bottom",
+            "margin_left", "margin_right",
+            "page_width_mm", "page_height_mm",
+        )
+        for key in page_keys:
+            if key in extras and extras[key] not in ("", None):
+                self._page_settings[key] = extras[key]
+                applied += 1
+
+        # 页眉页脚文字：另存，导出时由 export_to_docx 写入
+        for key in ("header_text", "footer_text"):
+            if key in extras:
+                setattr(self, f"_docx_{key}", extras[key] or "")
+                applied += 1
+
+        return applied
+
+    def get_docx_extras(self):
+        """返回需要在导出时写回的 DOCX 扩展信息（供 ExportMixin 使用）。"""
+        return {
+            "header_text": getattr(self, "_docx_header_text", ""),
+            "footer_text": getattr(self, "_docx_footer_text", ""),
+        }
+
+    # ==================================================================
     # 打印预览
     # ==================================================================
     def _print_preview(self):

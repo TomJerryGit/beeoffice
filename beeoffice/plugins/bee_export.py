@@ -267,6 +267,17 @@ def apply_page_settings(doc, page_settings):
         if landscape:
             w, h = h, w
 
+        # 保真度阶段 A：允许显式指定精确尺寸（导入非标准纸张时必须，
+        # 否则 5 种命名纸张之外的一律被当成 A4 —— 那是一次静默改变）。
+        # 约定：page_width_mm / page_height_mm 是**已考虑方向之后**的最终尺寸。
+        try:
+            if page_settings.get("page_width_mm") \
+                    and page_settings.get("page_height_mm"):
+                w = float(page_settings["page_width_mm"])
+                h = float(page_settings["page_height_mm"])
+        except (TypeError, ValueError):
+            pass
+
         section = doc.sections[0]
         section.page_width = Mm(w)
         section.page_height = Mm(h)
@@ -283,8 +294,110 @@ def apply_page_settings(doc, page_settings):
         return False
 
 
+# ==================== 导入侧：读取页面设置与页眉页脚 ====================
+def read_docx_extras(docx_path):
+    """
+    读取 DOCX 里**Markdown 表达不了**的信息（保真度阶段 A）。
+
+    为什么需要单独一个函数：`import_from_docx()` 的返回值是 Markdown 字符串，
+    而 Markdown 没有"页面设置/页眉页脚"这些概念 —— 信息在第一步就丢了。
+    实测症状：往返后 `page_margins` 变成 python-docx 默认 1 英寸、
+    `header_parts` / `footer_parts` 直接归零（部件根本不存在）。
+
+    调用方（`app._open_docx_file`）把它交给编辑器的 `apply_docx_extras()`，
+    导出时再原样写回，从而**绕开 Markdown** 传递这些信息。
+
+    :return: dict；解析失败时返回 {}（调用方按"无扩展信息"处理）
+    """
+    if not HAS_DOCX:
+        return {}
+    try:
+        doc = Document(str(docx_path))
+        section = doc.sections[0]
+
+        def _mm(length):
+            try:
+                return round(float(length.mm), 2)
+            except Exception:
+                return None
+
+        width = _mm(section.page_width)
+        height = _mm(section.page_height)
+
+        # 方向：宽 > 高 视为横向；纸张名字按"未旋转"的尺寸匹配
+        landscape = bool(width and height and width > height)
+        if landscape:
+            short, long_ = height, width
+        else:
+            short, long_ = width, height
+
+        paper = ""
+        for name, (pw, ph) in PAPER_SIZES_MM.items():
+            if short is not None and long_ is not None \
+                    and abs(short - pw) <= 1 and abs(long_ - ph) <= 1:
+                paper = name
+                break
+
+        def _text(part):
+            try:
+                return "\n".join(
+                    p.text for p in part.paragraphs if p.text.strip()
+                ).strip()
+            except Exception:
+                return ""
+
+        extras = {
+            "paper": paper or "A4",
+            "page_width_mm": width,
+            "page_height_mm": height,
+            "orientation": "landscape" if landscape else "portrait",
+            "margin_top": _mm(section.top_margin),
+            "margin_bottom": _mm(section.bottom_margin),
+            "margin_left": _mm(section.left_margin),
+            "margin_right": _mm(section.right_margin),
+            "header_text": _text(section.header),
+            "footer_text": _text(section.footer),
+        }
+        # 去掉解析不到的项（None），让调用方的默认值生效
+        return {k: v for k, v in extras.items() if v is not None}
+    except Exception as e:
+        logging.warning(f"读取 DOCX 扩展信息失败: {e}")
+        return {}
+
+
+def apply_header_footer(doc, header_text=None, footer_text=None):
+    """
+    把页眉/页脚文字写入第一个 section。
+
+    python-docx 支持直接写 `section.header` / `section.footer`（它们本身是
+    "继承自上一节"的部件；`is_linked_to_previous` 为 True 时写入会自动创建）。
+    空字符串视为"不写"，避免把用户原本没有的页眉变成空段落。
+    """
+    if not header_text and not footer_text:
+        return False
+    try:
+        section = doc.sections[0]
+
+        def _write(part, text):
+            if not text:
+                return
+            paragraphs = part.paragraphs
+            if paragraphs:
+                paragraphs[0].text = text
+            else:
+                part.add_paragraph(text)
+
+        _write(section.header, header_text)
+        _write(section.footer, footer_text)
+        return True
+    except Exception as e:
+        logging.warning(f"写入页眉页脚失败: {e}")
+        return False
+
+
 # ==================== 导出 DOCX ====================
-def export_to_docx(content, output_path, page_settings=None, base_dir=None):
+def export_to_docx(content, output_path, page_settings=None, base_dir=None,
+                   header_text=None, footer_text=None):
     """
     Markdown 导出为 DOCX 文件
 
@@ -294,6 +407,8 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None):
         为 None 时沿用 python-docx 默认模板（保持向后兼容）。
     :param base_dir: Markdown 所在目录，用于解析**相对图片路径**
         （优化规划 §2.6）。为 None 时相对路径按当前工作目录解析。
+    :param header_text: 页眉文字（保真度阶段 A）。为 None/空串时不写页眉。
+    :param footer_text: 页脚文字，同上。
     :return: 是否成功
     """
     if not HAS_DOCX:
@@ -321,6 +436,10 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None):
         # 页面设置（优化规划 §2.2）：此前 Markdown 路径完全没有应用，
         # 于是导出的纸张是 python-docx 模板默认值，与富文本路径不一致。
         apply_page_settings(doc, page_settings)
+
+        # 页眉页脚（保真度阶段 A）：原先**整个部件都不存在**，
+        # 因为导入侧只返回 Markdown，信息没有承载者。
+        apply_header_footer(doc, header_text, footer_text)
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         doc.save(output_path)

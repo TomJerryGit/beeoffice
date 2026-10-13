@@ -590,6 +590,22 @@ class BeeApp(QMainWindow):
                 except Exception as e:
                     logging.error(f"切换到富文本模式失败: {e}")
 
+            # 3.5 保真度阶段 A：把 Markdown **表达不了**的信息另存到文档上
+            #     （页面设置 / 页眉页脚）。不加这一步，"导出 Word"会把页边距
+            #     变成默认 1 英寸，并且页眉页脚部件整个消失 —— 实测两项都丢。
+            try:
+                from beeoffice.plugins.bee_export import read_docx_extras
+
+                extras = read_docx_extras(path)
+                if extras and hasattr(widget, "apply_docx_extras"):
+                    applied = widget.apply_docx_extras(extras)
+                    logging.info(
+                        f"[打开 DOCX] 保留扩展信息 {applied} 项: "
+                        f"{sorted(extras)}"
+                    )
+            except Exception as e:
+                logging.warning(f"读取 DOCX 扩展信息失败（不影响打开）: {e}")
+
             # 4. 收尾
             if hasattr(widget, "_update_save_btn_text"):
                 widget._update_save_btn_text()

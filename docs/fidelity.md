@@ -45,21 +45,38 @@ python -m pytest tests/fidelity -q                    # 跑基线断言
 
 ## 3. 实测结果
 
-### 3.1 DOCX：丢失 6 项 → **现已降到 4 项**（2026-10-11 修掉超链接）
+### 3.1 DOCX：丢失 6 项 → **现已降到 2 项**（2026-10-11 修掉超链接与页面设置/页眉页脚）
 
 | 状态 | 特征 | 往返前 | 往返后 |
 |---|---|---|---|
 | ✅ 已修复 | `hyperlinks` | 1 | **1** |
+| ✅ 已修复 | `header_parts` | 1 | **1** |
+| ✅ 已修复 | `footer_parts` | 1 | **1** |
+| ✅ 已修复 | `page_margins`（twips） | 1417,1701,1417,1701 | **完全相同**（原先 1440,1800,…） |
 | ✅ 已修复 | `text_chars` | 102 | **104**（原先 90） |
 | **丢失** | `merged_cells` | 1 | 0 |
-| **丢失** | `header_parts` | 1 | 0 |
-| **丢失** | `footer_parts` | 1 | 0 |
 | **丢失** | `paragraphs` | 14 | 13 |
-| 变化 | `page_margins`（twips） | 1417,1701,1417,1701 | 1440,1800,1440,1800 |
-| 增加 | `table_cells` | 8 | 9 |
+| 增加 | `table_cells` | 8 | 9（合并格被拆开的必然结果） |
 
 **保留**：`sections`、`style_defined`、`styled_paragraphs`、`headings`、`tables`、
 `table_rows`、`images`、`has_numbering`。
+
+**页面设置与页眉页脚是怎么修好的**（关键思路）：**绕开 Markdown** 传递。
+
+`import_from_docx()` 的返回类型是 Markdown 字符串，而 Markdown 没有"页面设置/
+页眉页脚"的概念——继续往 Markdown 里塞标记会污染用户文档。所以改为：
+
+```
+导入: read_docx_extras(path)            # 读出纸张/边距/页眉页脚文字
+      → widget.apply_docx_extras(...)   # 存到文档对象上（页面设置进 _page_settings）
+导出: _write_docx(path)
+      → export_to_docx(..., header_text=..., footer_text=...)
+      → apply_page_settings(doc, page_settings) + apply_header_footer(doc, ...)
+```
+
+顺带补了一处：`apply_page_settings()` 原先只认 5 种**命名纸张**，非标准尺寸会
+被静默当成 A4。现在支持 `page_width_mm` / `page_height_mm` 显式精确尺寸，
+因此 200×280 这类自定义纸张也能原样往返（有测试）。
 
 **超链接这一项修了什么**（实测机制，不是猜的）：
 
@@ -75,18 +92,15 @@ python-docx 的 `Paragraph.runs` 只返回 `w:p` 的**直接子** `w:r`，超链
 （外部 `r:id` → URL，内部 `w:anchor` → `#书签`）写成 `[文字](url)`；
 导出路径既有的 `_add_hyperlink()` 再把它还原成真正的 `w:hyperlink`。
 
-**仍然丢失的 4 项及原因**：
+**仍然丢失的 2 项及原因**：
 
-- **页眉页脚整部件消失**（`word/header1.xml`、`word/footer1.xml` 不再存在）：
-  同样因为 `import_from_docx()` 只返回 Markdown 字符串。
-- **页边距变成默认 1 英寸**：Markdown 没有"页面设置"这个概念，信息在第一步就没了。
-- **合并单元格丢失**，并**必然**导致 `table_cells` 从 8 变 9 —— 一个合并格被拆回两格。
-  这两条是同一个原因，放在一起看才解释得通；Markdown 表格语法表达不了合并。
+- **合并单元格丢失**（并**必然**导致 `table_cells` 从 8 变 9、`text_chars` 略增）：
+  Markdown 表格语法表达不了合并，这是最后一项结构性损失。
 - **段落少 1 段**：空段落/纯空格段落没有往返。
 
-这四项的共同根因是**同一条**：`import_from_docx()` → `export_to_docx()` 之间只有
-一个 Markdown 字符串承载全部信息。要修就得让页面设置、页眉页脚、表格合并信息
-**绕开 Markdown 另行传递**（内部模型或 sidecar），而不是继续往 Markdown 里塞。
+剩下的共同根因只剩一条：**表格合并信息仍然只能走 Markdown**。
+要修就得给表格引入一个新的承载方式（例如把合并信息放进一份 sidecar，
+按"第几张表 + 行列"记录），代价比页面设置这一刀大。
 
 ### 3.2 XLSX：9 项特征丢 8 项 → **现已零丢失**（2026-10-11 两刀修完）
 
@@ -218,6 +232,7 @@ python-docx 的 `Paragraph.runs` 只返回 `w:p` 的**直接子** `w:r`，超链
 | 2026-10-11 | **第一刀**：新增 `beesheet_workbook`（多工作表 + 公式），接入导入/导出 | XLSX **丢 8 项 → 丢 5 项** |
 | 2026-10-11 | **第二刀**：`write_workbook` 改为"打开源工作簿只更新值" | XLSX **丢 5 项 → 丢 0 项**（11 项特征零差异）✅ |
 | 2026-10-11 | **第三刀**：`_para_to_md` 按文档顺序遍历，超链接写成 `[文字](url)` | DOCX **丢 6 项 → 丢 4 项**：`hyperlinks` 1→1、文字不再减少 |
+| 2026-10-11 | **第四刀**：页面设置与页眉页脚**绕开 Markdown**（`read_docx_extras` + `apply_header_footer`），并支持非标准精确纸张 | DOCX **丢 4 项 → 丢 2 项**：`header_parts`/`footer_parts`/`page_margins` 全部保住 |
 
 **怎么读这张表**：每一行都是一次可复现的测量（`python tools/fidelity_roundtrip.py`），
 不是估计值。改善后 `tests/fidelity/test_ooxml_probe.py` 里的旧断言会失败并要求更新 ——

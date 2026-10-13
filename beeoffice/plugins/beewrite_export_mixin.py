@@ -446,8 +446,18 @@ class ExportMixin:
                 # 同时传 base_dir，让相对路径的图片能被嵌入（§2.6）。
                 src = getattr(self, "_current_file_path", None)
                 base_dir = str(Path(src).parent) if src else None
+                # 页眉页脚（保真度阶段 A）：这两个信息**不住在 Markdown 里**，
+                # 由导入时读到的 extras 随文档保留（见 apply_docx_extras）。
+                # 原先导出从不写页眉页脚，于是往返后部件直接消失。
+                extras = (
+                    self.get_docx_extras()
+                    if hasattr(self, "get_docx_extras") else {}
+                )
                 if not export_to_docx(
-                    content, path, self.get_page_settings(), base_dir=base_dir
+                    content, path, self.get_page_settings(),
+                    base_dir=base_dir,
+                    header_text=extras.get("header_text"),
+                    footer_text=extras.get("footer_text"),
                 ):
                     QMessageBox.warning(self, "失败", "无法生成 Word 文档")
                     return False
