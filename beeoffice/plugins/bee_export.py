@@ -820,6 +820,22 @@ def import_from_docx(docx_path):
 
         # ---------- 1. 顶层段落 ----------
         logging.debug("[import_from_docx] 开始处理顶层段落")
+
+        # 保真度阶段 A：**段落之间必须留空行**。
+        # Markdown 会把连续的非空行渲染成**同一个段落**，因此原先"一行一段"
+        # 的输出会让相邻段落粘在一起 —— 实测：图片段与超链接段被并进上一段，
+        # 顶层段落 6 → 4（`paragraphs` 也因此从 14 变 13）。
+        # 列表项之间例外：空行会把一个列表拆成多个。
+        prev_is_list = False
+
+        def _emit(line, is_list=False):
+            nonlocal prev_is_list
+            if md_lines and md_lines[-1] != "" \
+                    and not (is_list and prev_is_list):
+                md_lines.append("")
+            md_lines.append(line)
+            prev_is_list = is_list
+
         for para in doc.paragraphs:
             text = para.text.strip()
 
@@ -832,9 +848,10 @@ def import_from_docx(docx_path):
                 # 段落无文字
                 if inline_imgs:
                     for img_md in inline_imgs:
-                        md_lines.append(img_md)
+                        _emit(img_md)
                 else:
                     md_lines.append("")
+                    prev_is_list = False
                 continue
 
             style_name = para.style.name if para.style else ""
@@ -845,25 +862,25 @@ def import_from_docx(docx_path):
                     level = int(style_name.split()[-1])
                 except (ValueError, IndexError):
                     level = 1
-                md_lines.append("#" * level + " " + text)
+                _emit("#" * level + " " + text)
                 for img_md in inline_imgs:
-                    md_lines.append(img_md)
+                    _emit(img_md)
                 continue
 
             # 列表
             if "List" in style_name:
                 if "Number" in style_name:
-                    md_lines.append("1. " + text)
+                    _emit("1. " + text, is_list=True)
                 else:
-                    md_lines.append("- " + text)
+                    _emit("- " + text, is_list=True)
                 for img_md in inline_imgs:
-                    md_lines.append(img_md)
+                    _emit(img_md)
                 continue
 
-            # 普通段落（处理粗体、斜体）
-            md_lines.append(_para_to_md(para))
+            # 普通段落（处理粗体、斜体、超链接）
+            _emit(_para_to_md(para))
             for img_md in inline_imgs:
-                md_lines.append(img_md)
+                _emit(img_md)
 
         # ---------- 2. v5.0.2 增强：表格单元格图片 ----------
         logging.debug("[import_from_docx] 开始处理表格")
