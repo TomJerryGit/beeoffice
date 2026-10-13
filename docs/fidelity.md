@@ -45,35 +45,48 @@ python -m pytest tests/fidelity -q                    # 跑基线断言
 
 ## 3. 实测结果
 
-### 3.1 DOCX：丢失 6 项（38786 B → 37566 B）
+### 3.1 DOCX：丢失 6 项 → **现已降到 4 项**（2026-10-11 修掉超链接）
 
 | 状态 | 特征 | 往返前 | 往返后 |
 |---|---|---|---|
-| **丢失** | `paragraphs` | 14 | 13 |
-| **丢失** | `text_chars` | 102 | 90 |
+| ✅ 已修复 | `hyperlinks` | 1 | **1** |
+| ✅ 已修复 | `text_chars` | 102 | **104**（原先 90） |
 | **丢失** | `merged_cells` | 1 | 0 |
-| **丢失** | `hyperlinks` | 1 | 0 |
 | **丢失** | `header_parts` | 1 | 0 |
 | **丢失** | `footer_parts` | 1 | 0 |
-| 增加 | `table_cells` | 8 | 9 |
+| **丢失** | `paragraphs` | 14 | 13 |
 | 变化 | `page_margins`（twips） | 1417,1701,1417,1701 | 1440,1800,1440,1800 |
+| 增加 | `table_cells` | 8 | 9 |
 
 **保留**：`sections`、`style_defined`、`styled_paragraphs`、`headings`、`tables`、
 `table_rows`、`images`、`has_numbering`。
 
-解读：
+**超链接这一项修了什么**（实测机制，不是猜的）：
 
-- `merged_cells` 丢失**必然**导致 `table_cells` 从 8 变 9 —— 一个合并格被拆回两格。
-  这两条是同一个原因，放在一起看才解释得通。
-- **页眉页脚整部件消失**（`word/header1.xml`、`word/footer1.xml` 不再存在）。
-- **超链接消失**：`Markdown → DOCX` 这条路上 `[文字](url)` 没有被还原成
-  `w:hyperlink`。（阶段 2 修过"导出时写真正可点击的超链接"，但那是 Markdown
-  文本里**本来就有的**链接；这里丢的是**从 DOCX 导入**的链接 —— 导入侧没有把它
-  转成 Markdown 链接。）
-- **页边距变成默认 1 英寸**：根因是 `import_from_docx()` 的返回类型是
-  **Markdown 字符串** —— Markdown 根本没有"页面设置"这个概念，信息在第一步
-  就没了，不是导出时漏写。
-- 文字少 12 字、段落少 1 段：空段落/纯空格段落没有往返。
+`import_from_docx()` 把普通段落交给 `_para_to_md()`，而它遍历 `para.runs` ——
+python-docx 的 `Paragraph.runs` 只返回 `w:p` 的**直接子** `w:r`，超链接的文字位于
+`w:hyperlink/w:r`，所以 **整段超链接被静默丢掉**：链接和链接文字一起消失。
+
+这同时解释了"文字少 12 字"——少的正是链接文字。（我一开始猜是 `para.text`
+不含链接文字，**实测否定了这个猜测**：`para.text` 合计 82 字符，与底层 `w:t`
+的 82 字符一致，说明 python-docx 已能取到链接文字；真正的漏洞在 `para.runs`。）
+
+修法：按**文档顺序**遍历 `w:p` 子元素，`w:hyperlink` 取文字与目标
+（外部 `r:id` → URL，内部 `w:anchor` → `#书签`）写成 `[文字](url)`；
+导出路径既有的 `_add_hyperlink()` 再把它还原成真正的 `w:hyperlink`。
+
+**仍然丢失的 4 项及原因**：
+
+- **页眉页脚整部件消失**（`word/header1.xml`、`word/footer1.xml` 不再存在）：
+  同样因为 `import_from_docx()` 只返回 Markdown 字符串。
+- **页边距变成默认 1 英寸**：Markdown 没有"页面设置"这个概念，信息在第一步就没了。
+- **合并单元格丢失**，并**必然**导致 `table_cells` 从 8 变 9 —— 一个合并格被拆回两格。
+  这两条是同一个原因，放在一起看才解释得通；Markdown 表格语法表达不了合并。
+- **段落少 1 段**：空段落/纯空格段落没有往返。
+
+这四项的共同根因是**同一条**：`import_from_docx()` → `export_to_docx()` 之间只有
+一个 Markdown 字符串承载全部信息。要修就得让页面设置、页眉页脚、表格合并信息
+**绕开 Markdown 另行传递**（内部模型或 sidecar），而不是继续往 Markdown 里塞。
 
 ### 3.2 XLSX：9 项特征丢 8 项 → **现已零丢失**（2026-10-11 两刀修完）
 
@@ -204,7 +217,26 @@ python -m pytest tests/fidelity -q                    # 跑基线断言
 | 2026-10-11 | 建立基线（探针 + 往返运行器 + 25 条测试） | DOCX 丢 6 项；XLSX **丢 8/9 项**；PPTX 无导入 |
 | 2026-10-11 | **第一刀**：新增 `beesheet_workbook`（多工作表 + 公式），接入导入/导出 | XLSX **丢 8 项 → 丢 5 项** |
 | 2026-10-11 | **第二刀**：`write_workbook` 改为"打开源工作簿只更新值" | XLSX **丢 5 项 → 丢 0 项**（11 项特征零差异）✅ |
+| 2026-10-11 | **第三刀**：`_para_to_md` 按文档顺序遍历，超链接写成 `[文字](url)` | DOCX **丢 6 项 → 丢 4 项**：`hyperlinks` 1→1、文字不再减少 |
 
 **怎么读这张表**：每一行都是一次可复现的测量（`python tools/fidelity_roundtrip.py`），
 不是估计值。改善后 `tests/fidelity/test_ooxml_probe.py` 里的旧断言会失败并要求更新 ——
 这是有意设计的，避免"基线悄悄过期"。
+
+---
+
+## 8. 被调查后**否决**的候选（记录理由，避免重复讨论）
+
+### 8.1 "表格下方备注被吸成空行"——**不是缺陷，不做**
+
+上一轮我把它列为下一个候选，理由是"表格下方有备注的工作表在蜜算里会显示一长串
+空行"。核查后认为**不该改**：
+
+- pandas 与 Excel/WPS 一样按**已用区域**判定范围。在 Excel 里 A20 有内容时，
+  你同样会看到第 2–20 行。**这就是电子表格的正常行为**，不是 bug。
+- 要"修"成只显示到表格末尾，就得**丢掉第 20 行的备注** —— 那是用户写的真实内容，
+  属于静默数据丢失，恰好是这套保真度工作要消灭的东西。
+- 往返已经不会丢它（`test_content_below_table_survives_rewrite`）。
+
+保留的只有一条特性化测试（`test_used_range_absorbs_content_below_table`），
+用来记录行为、便于将来讨论"是否给用户一个提示"，而不是当作待修缺陷。

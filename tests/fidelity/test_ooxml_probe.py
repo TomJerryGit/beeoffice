@@ -137,17 +137,46 @@ def xlsx_result(tmp_path_factory):
 
 
 class TestCurrentFidelityDOCX:
-    """DOCX 往返现状（2026-10-11 实测）。"""
+    """
+    DOCX 往返现状。
+
+    2026-10-11 更新：修复 `_para_to_md()` 漏掉超链接后，
+    **`hyperlinks` 不再丢失**，链接文字也不再消失
+    （原先"文字少 12 字"正是漏掉的链接文字）。
+    仍丢失：合并单元格、页眉/页脚部件、页边距。
+    """
 
     def test_roundtrip_runs(self, docx_result):
         assert docx_result["error"] is None, docx_result["error"]
         assert docx_result["roundtrip"]["ok"] is True
         assert docx_result["after"] is not None
 
+    # ---- 已修复：不再丢失 ----
+
+    def test_hyperlinks_are_preserved(self, docx_result):
+        """**已修复**：原先 `hyperlinks 1 → 0`（`para.runs` 漏掉 `w:hyperlink`）。"""
+        before = docx_result["before"]["features"]["hyperlinks"]
+        after = docx_result["after"]["features"]["hyperlinks"]
+        assert before == 1, before
+        assert after == before, f"超链接又丢了: {before} → {after}"
+
+    def test_text_is_no_longer_lost(self, docx_result):
+        """
+        **已修复**：原先文字少 12 字（正是超链接文字）。
+
+        现在不再减少（实测略增，因为表格合并单元格被拆开后文字重复出现）。
+        """
+        before = docx_result["before"]["features"]["text_chars"]
+        after = docx_result["after"]["features"]["text_chars"]
+        assert after >= before, (
+            f"文字又丢了: {before} → {after}。"
+            f"若这是回归，请检查 _para_to_md 是否还在遍历 w:hyperlink"
+        )
+
+    # ---- 仍丢失：留给后续切片 ----
+
     @pytest.mark.parametrize("feature,expected_after", [
-        # 特性化：这些**当前**在往返中丢失（值 = 往返后的实测数量）
         ("merged_cells", 0),
-        ("hyperlinks", 0),
         ("header_parts", 0),
         ("footer_parts", 0),
         ("tables", 1),
@@ -163,15 +192,6 @@ class TestCurrentFidelityDOCX:
             f"若这是**改善**，请更新本测试与 docs/fidelity.md；"
             f"若是**回归**，请修代码。"
         )
-
-    def test_text_is_partially_lost(self, docx_result):
-        """正文文字有损失（14 段 → 13 段、102 字 → 90 字）。"""
-        before = docx_result["before"]["features"]
-        after = docx_result["after"]["features"]
-        assert after["text_chars"] < before["text_chars"], (
-            "实测往返后文字变少；若已修好，请更新基线"
-        )
-        assert after["text_chars"] == 90, after["text_chars"]
 
     def test_page_margins_do_not_survive(self, docx_result):
         """

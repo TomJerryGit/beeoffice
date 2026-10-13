@@ -965,10 +965,62 @@ def _iter_header_footer_paragraphs(section):
         pass
 
 
+def _hyperlink_target(hyperlink, para):
+    """
+    取出 `w:hyperlink` 的目标。
+
+    - 外部链接：`r:id` → 解析关系 → URL
+    - 内部书签：`w:anchor` → `#书签名`
+    """
+    from docx.oxml.ns import qn
+
+    r_id = hyperlink.get(qn("r:id"))
+    if r_id:
+        try:
+            return para.part.rels[r_id].target_ref or ""
+        except Exception:
+            return ""
+    anchor = hyperlink.get(qn("w:anchor"))
+    if anchor:
+        return f"#{anchor}"
+    return ""
+
+
+def _iter_para_children(para):
+    """
+    按**文档顺序**遍历段落里的文字片段，**包括超链接内的 run**。
+
+    为什么不能用 `para.runs`：python-docx 的 `Paragraph.runs` 只返回 `w:p` 的
+    **直接子** `w:r`，而超链接的文字位于 `w:hyperlink/w:r`。
+    实测后果（保真度基线 `hyperlinks 1 → 0`、文字少 12 字）：一个只含超链接的
+    段落转出来是**空字符串**，链接文字与链接一起静默消失。
+
+    :return: 生成器，元素为 (run 元素, 所属超链接的 URL 或 "")
+    """
+    from docx.oxml.ns import qn
+
+    for child in para._p:
+        tag = child.tag
+        if tag == qn("w:r"):
+            yield child, ""
+        elif tag == qn("w:hyperlink"):
+            url = _hyperlink_target(child, para)
+            for run in child.findall(qn("w:r")):
+                yield run, url
+
+
 def _para_to_md(para):
-    """将段落转为 Markdown（保留粗体、斜体）"""
+    """
+    将段落转为 Markdown（保留粗体、斜体，**并把超链接写成 `[文字](url)`**）。
+
+    写回 `[文字](url)` 之后，导出路径的 `_add_hyperlink()` 会把它还原成
+    真正的 `w:hyperlink`，于是超链接可以完整往返。
+    """
+    from docx.text.run import Run
+
     parts = []
-    for run in para.runs:
+    for element, url in _iter_para_children(para):
+        run = Run(element, para)
         text = run.text
         if not text:
             continue
@@ -976,6 +1028,8 @@ def _para_to_md(para):
             text = f"**{text}**"
         if run.italic:
             text = f"*{text}*"
+        if url:
+            text = f"[{text}]({url})"
         parts.append(text)
     return "".join(parts)
 
