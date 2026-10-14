@@ -58,6 +58,7 @@ from beeoffice.plugins.beeshow_comment_mixin import CommentMixin
 from beeoffice.plugins.beeshow_sync_mixin import SyncMixin
 from beeoffice.plugins.beeshow_morph_mixin import MorphMixin
 from beeoffice.plugins.beeshow_ai_mixin import AIMixin
+from beeoffice.plugins.beeshow_print_mixin import ShowPrintMixin
 
 # ==================== 常量 re-export（兼容外部 import） ====================
 from beeoffice.plugins.beeshow_constants import (   # noqa: F401
@@ -86,6 +87,7 @@ class BeeShowView(
     SyncMixin,
     MorphMixin,
     AIMixin,
+    ShowPrintMixin,      # ← P1-B：打印（幻灯片/讲义/备注页/大纲）
     QWidget,
 ):
     """蜜演主视图（组装层）"""

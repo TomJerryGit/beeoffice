@@ -101,6 +101,15 @@ class ToolbarMixin:
         btn_presenter = QPushButton("🎤 演讲者模式")
         btn_presenter.clicked.connect(self._start_presenter_mode)
         toolbar.addWidget(btn_presenter)
+
+        # P1-B：打印预览（幻灯片 / 讲义 / 备注页 / 大纲）
+        btn_print = QPushButton("🖨️ 打印")
+        btn_print.setToolTip(
+            "打印预览：幻灯片、讲义（每页多张）、备注页、大纲\n"
+            "快捷键 Ctrl+P"
+        )
+        btn_print.clicked.connect(self._print_preview)
+        toolbar.addWidget(btn_print)
         toolbar.addSeparator()
 
         for text, slot in [
@@ -384,3 +393,7 @@ class ToolbarMixin:
     def _build_shortcuts(self):
         QShortcut(QKeySequence("F5"), self).activated.connect(self._start_play)
         QShortcut(QKeySequence("Escape"), self).activated.connect(self._stop_play)
+        # P1-B：打印预览（与蜜写/蜜算保持一致用 Ctrl+P）
+        QShortcut(QKeySequence("Ctrl+P"), self).activated.connect(
+            self._print_preview
+        )
