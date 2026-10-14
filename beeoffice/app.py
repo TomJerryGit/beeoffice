@@ -1260,6 +1260,22 @@ class BeeApp(QMainWindow):
         from beeoffice.cloud_settings import show_cloud_settings
         show_cloud_settings(self)
 
+    def _show_ai_settings(self):
+        """
+        AI 设置（P1-B 延伸）。
+
+        之前蜜演的 AI 功能**没有可视化配置入口** —— 用户点了「AI 大纲」只看到
+        降级模板，而 `ai_api_key` 得手动去改 `~/.beeoffice_settings.json`。
+        """
+        from beeoffice.ai_settings import show_ai_settings
+
+        saved = show_ai_settings(self, settings=self.settings)
+        if saved:
+            self.set_global_status(
+                tr("msg.ai_settings_saved", "AI 配置已保存（重新点「AI 大纲」生效）"),
+                5000,
+            )
+
     def _sync_now(self):
         from beeoffice.cloud import get_cloud_storage
 

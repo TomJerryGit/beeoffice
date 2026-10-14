@@ -386,6 +386,15 @@ def setup_menus(main_window):
     cloud_action.triggered.connect(main_window._show_webdav_settings)
     help_menu.addAction(cloud_action)
 
+    # AI 设置（服务商 / Key / 地址 / 模型 / 测试连接）。
+    # 之前 AI 功能没有任何可视化配置入口，用户得手动改 settings.json。
+    ai_action = QAction(
+        tr("menu.help.ai_settings", "🤖 AI 设置"), main_window
+    )
+    ai_action.setToolTip("配置 AI 大纲/讲稿使用的服务商与 API Key")
+    ai_action.triggered.connect(main_window._show_ai_settings)
+    help_menu.addAction(ai_action)
+
     # 立即同步
     sync_action = QAction(tr("cmd.sync_now", "立即同步"), main_window)
     sync_action.triggered.connect(main_window._sync_now)

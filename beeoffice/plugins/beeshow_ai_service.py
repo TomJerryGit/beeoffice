@@ -34,7 +34,7 @@ import logging
 import urllib.request
 import urllib.error
 from dataclasses import dataclass, field, asdict
-from typing import List, Optional, Dict, Any
+from typing import Any, Callable, Dict, List, Optional
 
 
 # ==================== 数据结构 ====================
@@ -527,6 +527,166 @@ class BeeshowAIService:
                 notes="",
             ),
         ]
+
+
+# ==================== 服务商预设（供设置界面用）====================
+#: 预设服务商。`needs_key=False` 的（本地 Ollama）不要求填 Key。
+#: 之所以只给"预设"而不是硬绑一家：调用协议就是 OpenAI 兼容，
+#: 用户换任何兼容服务（通义/智谱/Kimi/自建）都只需改地址与模型名。
+AI_PROVIDER_PRESETS = {
+    "deepseek": {
+        "label": "DeepSeek（默认，需要 API Key）",
+        "api_base": "https://api.deepseek.com/v1",
+        "model": "deepseek-chat",
+        "needs_key": True,
+        "hint": "在 platform.deepseek.com 申请 Key",
+    },
+    "custom": {
+        "label": "OpenAI 兼容（自定义地址）",
+        "api_base": "",
+        "model": "",
+        "needs_key": True,
+        "hint": "任何兼容 /chat/completions 的服务；地址通常以 /v1 结尾",
+    },
+    "ollama": {
+        "label": "本地 Ollama（无需 Key，数据不出本机）",
+        "api_base": "http://localhost:11434/v1",
+        "model": "qwen2.5",
+        "needs_key": False,
+        "hint": "先执行 ollama serve，并 ollama pull 一个模型",
+    },
+}
+
+
+def detect_preset(api_base: str, model: str) -> str:
+    """
+    反查当前配置属于哪个预设（用于设置界面打开时定位下拉项）。
+
+    地址/模型被用户改得对不上任何预设时返回 `"custom"` ——
+    绝不把用户的配置悄悄改回某个预设。
+    """
+    api_base = (api_base or "").rstrip("/")
+    model = (model or "").strip()
+    for key, preset in AI_PROVIDER_PRESETS.items():
+        if key == "custom":
+            continue
+        if preset["api_base"].rstrip("/") == api_base:
+            # 地址对上就算这个预设；模型不同只在 custom 场景下才不认
+            if not model or model == preset["model"]:
+                return key
+            return key
+    return "custom"
+
+
+def probe_ai_connection(config: Optional[Dict[str, Any]] = None,
+                        opener: Optional[Callable[..., Dict[str, Any]]] = None,
+                        timeout: int = 12) -> tuple:
+    """
+    发一次**极短**的请求，用于设置界面的「测试连接」。
+
+    ⚠️ 名字**故意不叫** `test_ai_connection`：以 `test_` 开头的函数会被
+    pytest **当成测试用例收集**（任何 import 它的测试模块都会多出一个用例，
+    还会因为返回 tuple 报警告）。实测踩过 —— 改名前
+    `tests/fidelity/test_ai_settings.py` 就因为它多收集了一条。
+
+    与真正生成大纲的区别：`max_tokens=8`、提示词极短、超时更短 ——
+    用户点一下就该有结果，不该等 30 秒。
+
+    :param config: {api_key, api_base, model}
+    :param opener: 可注入的传输层（测试用假函数，避免真联网）
+    :return: (ok: bool, message: str, latency_ms: int | None)
+        message 是**给用户看的可操作提示**（不要只说"失败"）
+    """
+    config = config or {}
+    api_key = (config.get("api_key") or "").strip()
+    api_base = (config.get("api_base")
+                or BeeshowAIService.DEFAULT_API_BASE).rstrip("/")
+    model = (config.get("model") or "deepseek-chat").strip()
+
+    is_local = "localhost" in api_base or "127.0.0.1" in api_base
+    if not api_key and not is_local:
+        return False, "请先填写 API Key（本地 Ollama 不需要）", None
+
+    url = f"{api_base}/chat/completions"
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": "回复：OK"}],
+        "max_tokens": 8,
+        "temperature": 0,
+    }
+    headers = {"Content-Type": "application/json"}
+    if api_key:                      # Ollama 不需要 Authorization
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    import time as _time
+
+    start = _time.perf_counter()
+    try:
+        if opener is None:
+            opener = _default_opener
+        data = opener(url, headers, payload, timeout)
+    except Exception as e:  # noqa: BLE001 - 全部转成可操作提示
+        latency = int((_time.perf_counter() - start) * 1000)
+        return False, _explain_connection_error(e, api_base, is_local), latency
+
+    latency = int((_time.perf_counter() - start) * 1000)
+    choices = (data or {}).get("choices") or []
+    if not choices:
+        return False, f"服务有响应但格式不对（没有 choices）：{str(data)[:120]}", None
+    content = (choices[0].get("message") or {}).get("content", "")
+    return True, f"连接成功：{model} 已响应「{str(content).strip()[:20]}」", latency
+
+
+def _default_opener(url, headers, payload, timeout):
+    """默认传输层：优先 requests，回退 urllib（与 _call_llm 一致）。"""
+    try:
+        import requests
+
+        response = requests.post(url, headers=headers, json=payload,
+                                 timeout=timeout)
+        response.raise_for_status()
+        return response.json()
+    except ImportError:
+        import json
+        import urllib.error
+        import urllib.request
+
+        request = urllib.request.Request(
+            url, data=json.dumps(payload).encode("utf-8"),
+            headers=headers, method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            # 统一成带状态码的异常，便于下面映射成提示
+            raise RuntimeError(f"HTTP {e.code}: {e.reason}") from e
+
+
+def _explain_connection_error(error, api_base: str, is_local: bool) -> str:
+    """把各种失败翻译成**用户能照着修**的一句话。"""
+    text = str(error)
+    lowered = text.lower()
+
+    if "401" in text or "403" in text or "unauthorized" in lowered:
+        return "API Key 无效或没有权限（HTTP 401/403）。请检查 Key 是否填对、是否有余额。"
+    if "404" in text:
+        return ("接口地址不对（HTTP 404）。"
+                "地址应指向兼容 OpenAI 的端点，通常以 /v1 结尾，"
+                "例如 https://api.deepseek.com/v1")
+    if "429" in text:
+        return "请求太频繁或额度用尽（HTTP 429）。稍后再试，或检查账户余额。"
+    if is_local and ("connection" in lowered or "refused" in lowered
+                     or "无法连接" in text or "timed out" in lowered):
+        return (f"连不上本地服务 {api_base}。"
+                "若是 Ollama：请先运行 `ollama serve`，"
+                "并确认已 `ollama pull` 过对应模型。")
+    if "timed out" in lowered or "timeout" in lowered:
+        return f"连接超时（{api_base}）。请检查网络，或换用本地 Ollama。"
+    if "name or service not known" in lowered or "getaddrinfo" in lowered \
+            or "nodename" in lowered:
+        return f"域名解析失败（{api_base}）。请检查 API 地址是否写错。"
+    return f"连接失败：{text[:160]}"
 
 
 # ==================== 模块级便捷函数 ====================
