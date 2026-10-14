@@ -1785,6 +1785,7 @@ def _media_cache_root() -> Path:
     只在"文档所在位置不可写"时才用到（见 `_resolve_media_dir`）。
     """
     import os
+    import tempfile
 
     candidates = []
     local = os.environ.get("LOCALAPPDATA")

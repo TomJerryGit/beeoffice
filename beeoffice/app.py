@@ -501,6 +501,34 @@ class BeeApp(QMainWindow):
         self.settings.add_recent_file(path)
         self._update_recent_menu()
 
+    def _attach_fidelity_report(self, widget, path):
+        """
+        P1-A：记录这份文件里"保不住"的构造，供导出前提示。
+
+        放在打开时做（而不是导出时才分析）有两个好处：
+          · 分析的是**源文件**，构造还在，信息完整；
+          · 用户一开始就知道哪些内容要自己另存/确认。
+
+        分析失败绝不能影响打开流程，所以整体包异常、只记日志。
+        """
+        try:
+            from beeoffice.plugins.fidelity_report import analyze_file
+
+            report = analyze_file(path)
+            # 直接赋值：**不能**写成 `if hasattr(widget, ...)` ——
+            # 首次打开时该属性还不存在，hasattr 为 False，报告就永远挂不上
+            # （这个 bug 是被 test_open_attaches_report_to_widget 抓出来的）
+            widget._fidelity_report = report
+            if report.has_losses or report.note:
+                logging.info(
+                    f"[保真度提示] {Path(path).name}: {report.summary()} "
+                    f"{[(i.key, i.count) for i in report.items]}"
+                )
+                # 状态栏提示（不打断用户；明细在导出前给）
+                self.set_global_status(report.summary(), 8000)
+        except Exception as e:  # noqa: BLE001 - 提示功能不能影响打开
+            logging.debug(f"[保真度提示] 分析失败（忽略）: {e}")
+
     def _open_sheet_file(self, path):
         self._new_beesheet()
         widget = self.tab_manager.currentWidget()
@@ -514,6 +542,7 @@ class BeeApp(QMainWindow):
         def on_result(_):
             self.tab_manager.set_tab_file_path(widget, path)
             self._add_file_watch(path)
+            self._attach_fidelity_report(widget, path)
             self.set_global_status(
                 tr("msg.open_success", "已打开 {file}").format(
                     file=Path(path).name
@@ -611,6 +640,7 @@ class BeeApp(QMainWindow):
                 widget._update_save_btn_text()
             self.tab_manager.set_tab_file_path(widget, path)
             self._add_file_watch(path)
+            self._attach_fidelity_report(widget, path)
             # 同步标签标题为文件名
             self.sync_tab_title(widget, path)
             self.set_global_status(

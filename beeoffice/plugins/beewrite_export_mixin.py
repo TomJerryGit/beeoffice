@@ -660,10 +660,58 @@ class ExportMixin:
     # ==================================================================
     # 导出 DOCX（独立入口，用户主动导出）
     # ==================================================================
+    def _confirm_fidelity_losses(self, action: str = "导出") -> bool:
+        """
+        导出前提示"这份文件里哪些内容保不住"（P1-A）。
+
+        背景：有些构造（脚注、批注、文本框、公式、嵌套表格、宏…）在
+        导入→导出之间**必然**丢失或降级，而以往是**静默**发生的 ——
+        用户要等导出后自己发现。竞品普遍也不提示。
+
+        规则来自实测（见 `beeoffice/plugins/fidelity_report.py` 顶部说明），
+        并且**经过"零误报"验收**：对我们已验证零丢失的真实文档不会弹窗。
+
+        只对**真会丢内容**（high）或**有明确说明**（如旧格式/加密文档）的
+        情况提示；纯"能力降级"（目录域、内容控件、修订痕迹——文字都在）
+        不打断用户。
+
+        :param action: 显示给用户的动作名（"导出"/"保存"）
+        :return: True = 继续；False = 用户取消
+        """
+        report = getattr(self, "_fidelity_report", None)
+        try:
+            from beeoffice.plugins.fidelity_report import (
+                format_report, should_prompt_before_export,
+            )
+        except Exception:  # noqa: BLE001 - 提示模块不可用不影响导出
+            return True
+
+        if not should_prompt_before_export(report):
+            return True
+
+        name = Path(report.path).name if report.path else "当前文档"
+        detail = format_report(report, name)
+        reply = QMessageBox.warning(
+            self,
+            "保真度提示",
+            f"这份文件里有内容无法完整保留：\n\n{detail}\n\n"
+            f"仍要继续{action}吗？",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        )
+        if reply != QMessageBox.Yes:
+            logging.info(f"[保真度提示] 用户取消{action}：{name}")
+            return False
+        logging.info(f"[保真度提示] 用户确认继续{action}：{name}")
+        return True
+
     def export_docx(self):
         """导出当前文档为 DOCX（不改变 _current_file_path）"""
         if self._edit_mode == "rich_text":
             return self.export_rich_docx()
+
+        if not self._confirm_fidelity_losses("导出"):
+            return
 
         dn = "文档.docx"
         content_text = self.content().strip()
@@ -708,6 +756,8 @@ class ExportMixin:
 
     def export_rich_docx(self):
         """富文本模式导出 DOCX（保留表格结构 + 页面设置 + 分页符）"""
+        if not self._confirm_fidelity_losses("导出"):
+            return
         if self._edit_mode != "rich_text":
             QMessageBox.information(
                 self, "提示", "请先切换到所见即所得模式"

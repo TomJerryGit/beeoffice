@@ -141,12 +141,39 @@ def test_media_dir_uses_adjacent_when_writable(tmp_path, monkeypatch):
     assert media_dir.is_dir()
 
 
-def test_media_dir_falls_back_when_adjacent_blocked(tmp_path, monkeypatch):
+def test_media_cache_root_is_really_callable(tmp_path):
+    """
+    **回归**：`_media_cache_root()` 必须能真的跑起来（不 stub）。
+
+    ⚠️ 这条是被"真实应用冒烟"逼出来的：我原先的实现里用了 `tempfile.gettempdir()`
+    却**没有 import tempfile**，而那一行在**构造候选列表时无条件执行** ——
+    于是"文档在只读位置"的回退路径**每次都抛 NameError**，文档根本打不开
+    （比原本要修的"静默丢图"更糟）。
+
+    **为什么原测试没抓到**：那两个测试把 `_media_cache_root` 本身
+    monkeypatch 掉了 —— **把被测函数打桩等于没测**。所以这里直接调真的。
+    """
+    from beeoffice.plugins.bee_export import _media_cache_root
+
+    root = _media_cache_root()
+
+    assert root.is_dir(), f"回退根目录没建出来: {root}"
+    # 必须真的可写（否则"回退"没有任何意义）
+    probe = root / ".p0a_write_probe"
+    probe.write_text("ok", encoding="utf-8")
+    assert probe.read_text(encoding="utf-8") == "ok"
+    probe.unlink()
+
+
+def test_media_dir_falls_back_when_adjacent_blocked(tmp_path):
     """
     **核心回归**：同级位置不可写时回退到缓存目录，且链接写成绝对路径。
 
     构造方式：把 `<名>_media` 做成一个**文件**，`mkdir(exist_ok=True)` 会
     抛 FileExistsError（exist_ok 只忽略"已存在的目录"）—— 等效于权限拒绝。
+
+    **不 stub `_media_cache_root`**：回退路径的内部实现（选目录、建目录、写探针）
+    必须是真实执行的那份代码（见上面那条测试的教训）。
     """
     from beeoffice.plugins import bee_export
 
@@ -155,14 +182,14 @@ def test_media_dir_falls_back_when_adjacent_blocked(tmp_path, monkeypatch):
     blocker = tmp_path / "样本_media"
     blocker.write_text("占位文件，挡住目录创建", encoding="utf-8")
 
-    cache = tmp_path / "cache"
-    monkeypatch.setattr(bee_export, "_media_cache_root", lambda: cache)
-
     media_dir, prefix = bee_export._resolve_media_dir(docx)
 
     assert media_dir != blocker
-    assert media_dir.parent == cache, f"没回退到缓存目录: {media_dir}"
-    assert prefix.endswith("/") and Path(prefix.rstrip("/")) == media_dir, (
+    assert media_dir.is_dir(), f"回退目录没建出来: {media_dir}"
+    assert media_dir.name.startswith("样本-"), (
+        f"回退目录应按文档名+哈希命名，实测 {media_dir.name}"
+    )
+    assert prefix.endswith("/") and prefix.rstrip("/") == media_dir.as_posix(), (
         f"回退后链接应是绝对路径: {prefix}"
     )
     assert not prefix.startswith("样本_media"), "回退后不能再写相对链接"
@@ -173,6 +200,10 @@ def test_image_extraction_writes_to_fallback(tmp_path, monkeypatch):
     端到端：同级不可写时，图片真的落到回退目录，**且 Markdown 里保留图片**。
 
     这就是"静默丢图"的修复验证 —— 原先这种情况下图片会变成占位文字。
+
+    这里**不 stub `_media_cache_root`**（教训见
+    `test_media_cache_root_is_really_callable`）：回退路径要真跑。
+    为避免往用户真实缓存目录写测试文件，改为把 `LOCALAPPDATA` 指到 tmp_path。
     """
     import io
 
@@ -195,11 +226,12 @@ def test_image_extraction_writes_to_fallback(tmp_path, monkeypatch):
 
     # 挡住同级 media 目录
     (tmp_path / "带图_media").write_text("占位", encoding="utf-8")
-    cache = tmp_path / "cache"
-    monkeypatch.setattr(bee_export, "_media_cache_root", lambda: cache)
+    # 把缓存根指到 tmp_path 下，避免污染真实用户目录
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "fake_localappdata"))
+    monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
 
     md = bee_export.import_from_docx(str(src))
 
     assert "![](" in md, f"图片在 Markdown 里没了（静默丢图）: {md[:300]}"
-    written = list(cache.rglob("image_*"))
+    written = list((tmp_path / "fake_localappdata").rglob("image_*"))
     assert written, "回退目录里没有图片文件"

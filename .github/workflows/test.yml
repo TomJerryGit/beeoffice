@@ -92,6 +92,18 @@ jobs:
         # 引入前实测：README 写 5.0.2、源码是 5.0.7，差 5 个补丁版本无人发现。
         run: python tools/sync_version.py
 
+      - name: 静态检查：**确定性 bug 类必须阻断**
+        # 为什么单独这一步：原先 ruff 是"仅作可见指标、不阻断"，而 `ruff check`
+        # 默认规则下有 1600+ 条风格问题，把真正的 bug 类**淹没了**。
+        # 实测代价：`bee_export._media_cache_root()` 里用了 `tempfile` 却没 import，
+        # 导致"文档在只读位置时图片回退目录"这条路径**每次抛 NameError**，
+        # 只读位置的文档根本打不开 —— 而 CI 全绿。
+        # 这里只把**确定性 bug 类**设为阻断（未定义名/重复定义/语法错误），
+        # 风格问题仍走下面那一步的"可见指标"。
+        run: |
+          ruff check beeoffice --select F821,F811,F822,F823,E9
+          ruff check tests tools --select F821,F811,E9
+
       - name: 静态检查（ruff，仅作可见指标，不阻断）
         continue-on-error: true
         run: |
