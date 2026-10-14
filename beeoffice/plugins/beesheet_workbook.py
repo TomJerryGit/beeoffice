@@ -129,13 +129,83 @@ def read_workbook(path, max_rows: Optional[int] = None) -> WorkbookData:
     )
 
 
+def _sheets_possibly_having_formulas(path: Path) -> Dict[str, bool]:
+    """
+    字节级预检：每张工作表的 XML 里**是否存在** `<f`（公式元素）。
+
+    为什么需要（P0-B 实测）
+    -----------------------
+    `_read_formulas()` 用 openpyxl 逐格遍历来找公式，在 5000×50（25 万格）上要
+    **2634.9 ms**。但绝大多数数值型表格**一个公式都没有**（基准文件实测 0 个）。
+
+    于是先做一次"存在性"检查：把 worksheet XML 当字节读进来找 `<f`，
+    实测 **29.9 ms**（比逐格扫描快约 90 倍）；找不到就**整张表跳过**，
+    公式字典留空 —— 写回路径据此按"普通值"处理，本来也确实没有公式要保。
+
+    只判"有没有"，**不解析公式内容**：真正的解析仍交给 openpyxl，
+    这样可以完整保留共享公式（shared formula）等复杂情形的既有正确性。
+
+    映射方式：解析 `xl/workbook.xml` 的 `<sheet name r:id>` 与
+    `xl/_rels/workbook.xml.rels`，**按关系精确映射到部件路径**，
+    不靠"sheet1.xml 就是第一张表"这种顺序假设。
+
+    :return: {表名: 是否可能含公式}；**解析失败时返回空 dict**，
+        调用方应据此退回"全表扫描"（宁可慢，不能漏公式）。
+    """
+    import zipfile
+
+    ns_main = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    ns_rel = ("http://schemas.openxmlformats.org/officeDocument/2006/"
+              "relationships")
+
+    try:
+        from lxml import etree
+
+        with zipfile.ZipFile(path) as archive:
+            workbook_xml = etree.fromstring(archive.read("xl/workbook.xml"))
+            rels_xml = etree.fromstring(
+                archive.read("xl/_rels/workbook.xml.rels")
+            )
+            rid_to_target = {
+                rel.get("Id"): rel.get("Target") for rel in rels_xml
+            }
+
+            result: Dict[str, bool] = {}
+            for sheet in workbook_xml.iter(f"{{{ns_main}}}sheet"):
+                name = sheet.get("name")
+                rid = sheet.get(f"{{{ns_rel}}}id")
+                target = rid_to_target.get(rid) or ""
+                if not name or not target:
+                    continue
+                # Target 可能是 "worksheets/sheet1.xml" 或 "/xl/worksheets/..."
+                if target.startswith("/"):
+                    part = target.lstrip("/")
+                else:
+                    part = "xl/" + target.lstrip("/")
+                try:
+                    data = archive.read(part)
+                except KeyError:
+                    continue
+                result[name] = b"<f" in data
+            return result
+    except Exception as e:  # noqa: BLE001 - 预检失败不影响正确性，全表扫描兜底
+        logging.debug(f"公式存在性预检失败，将全表扫描: {e}")
+        return {}
+
+
 def _read_formulas(path: Path) -> Dict[str, Dict[Tuple[int, int], str]]:
     """
     用 openpyxl 扫出每张表的公式（保持公式字符串，不求值）。
 
+    P0-B：先用 `_sheets_possibly_having_formulas()` 做字节级预检，
+    **只对"确实含 `<f`"的表做逐格扫描**（5000×50 上这一步要 2.6 秒，
+    而实测绝大多数数值表格一个公式都没有）。
+
     :return: {表名: {(df 行, df 列): 公式}}
     """
     result: Dict[str, Dict[Tuple[int, int], str]] = {}
+    presence = _sheets_possibly_having_formulas(path)
+
     try:
         wb = load_workbook(path, data_only=False, read_only=True)
     except Exception as e:  # noqa: BLE001 - 读不到公式不应让导入整体失败
@@ -144,6 +214,13 @@ def _read_formulas(path: Path) -> Dict[str, Dict[Tuple[int, int], str]]:
 
     try:
         for name in wb.sheetnames:
+            # 预检明确说"没有公式" → 整张表跳过（这是本刀的性能收益所在）。
+            # 预检失败时 presence 为空 dict，`.get()` 返回 None ≠ False，
+            # 于是仍会扫描 —— 宁可慢，不能漏公式。
+            if presence.get(str(name)) is False:
+                logging.debug(f"[_read_formulas] {name} 预检无公式，跳过扫描")
+                continue
+
             ws = wb[name]
             cells: Dict[Tuple[int, int], str] = {}
             for row in ws.iter_rows():
