@@ -246,6 +246,31 @@ class DocMixin:
     # ==================================================================
     # DOCX 扩展信息（保真度阶段 A）
     # ==================================================================
+    def reset_undo_history(self):
+        """
+        打开文件后**清空撤销栈**（P1-B，数据安全）。
+
+        实测缺陷：刚打开一份文档时 `document().isUndoAvailable()` 就是 True
+        —— 因为**程序化装载内容（`set_markdown` 逐块插入）本身进了撤销栈**。
+        于是用户什么都没改，按一下 Ctrl+Z 就会**删掉文档正文**：
+
+            加载后 689 字符 → 撤销一次 677 → 再撤 677 → 676
+
+        这是"用户没做任何编辑，撤销却破坏了文档"，属数据安全问题。
+        装载完成后清栈即可：此时"无可撤销的操作"才是符合直觉的状态。
+
+        ⚠️ 只在**文件加载完成**时调用，不要放进 `set_markdown` 里 ——
+        否则用户在编辑中途切换模式（也会调 set_markdown）会丢掉自己的撤销历史。
+        """
+        for widget in (getattr(self, "rich_editor", None),
+                       getattr(self, "markdown_editor", None)):
+            if widget is None:
+                continue
+            try:
+                widget.document().clearUndoRedoStacks()
+            except Exception as e:  # noqa: BLE001 - 清栈失败不应影响打开
+                logging.debug(f"清空撤销栈失败: {e}")
+
     def apply_docx_extras(self, extras):
         """
         导入 DOCX 时保存**Markdown 表达不了**的信息。

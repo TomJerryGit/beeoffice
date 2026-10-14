@@ -496,7 +496,26 @@ class BeeApp(QMainWindow):
         elif ext in TEXT_EXTENSIONS:
             self._open_text_file(path)
         else:
+            # P1-B 实测：原先这里**只写一行日志**，用户看到的是"点了没反应"
+            # —— 不弹提示、不开标签，还照样把文件记进"最近文件"。
+            # 这是最糟的一种失败模式：用户以为程序坏了。
             logging.warning(f"不支持的文件类型: {ext}")
+            QMessageBox.information(
+                self,
+                tr("dialog.unsupported_title", "暂不支持这种格式"),
+                tr(
+                    "dialog.unsupported_body",
+                    "蜜蜂办公目前无法打开 {ext} 文件。\n\n"
+                    "支持的格式：\n"
+                    "· 文字：.docx、.md、.txt\n"
+                    "· 表格：.xlsx、.xls、.csv\n"
+                    "· 演示：蜜演只支持导出，不支持导入\n\n"
+                    "建议先用 WPS / Office 把它另存为 .docx 或 .xlsx 再打开。",
+                ).format(ext=ext or "该类型"),
+            )
+            # 直接返回：**不要**把它记进"最近文件"（记进去只会让用户
+            # 下次又点一次仍然打不开的东西）
+            return
 
         self.settings.add_recent_file(path)
         self._update_recent_menu()
@@ -638,6 +657,10 @@ class BeeApp(QMainWindow):
             # 4. 收尾
             if hasattr(widget, "_update_save_btn_text"):
                 widget._update_save_btn_text()
+            # P1-B：清空撤销栈 —— 否则 Ctrl+Z 会把程序化装载的内容撤销掉
+            #        （实测：刚打开就按 Ctrl+Z，文档被删成 689→677 字符）
+            if hasattr(widget, "reset_undo_history"):
+                widget.reset_undo_history()
             self.tab_manager.set_tab_file_path(widget, path)
             self._add_file_watch(path)
             self._attach_fidelity_report(widget, path)
