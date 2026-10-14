@@ -660,6 +660,78 @@ class ExportMixin:
     # ==================================================================
     # 导出 DOCX（独立入口，用户主动导出）
     # ==================================================================
+    def spell_check(self):
+        """
+        拼写检查（**按需**，P1-B ★）。
+
+        为什么不做"边打字边标红"：实测装上真英文词典后，对真实**中文技术文档**
+        跑一遍有 **619 处误报**（`CentOS`/`mysql`/`yum`/`Xshell`/`VMware` 全被判错）。
+        常驻波浪线会让用户满屏红字 —— 那是骚扰不是功能。
+        改成用户主动触发 + 列表 + 「全部忽略 / 加入词典」，把控制权交给用户。
+        """
+        from beeoffice.plugins.beewrite_spellcheck_dialog import (
+            SpellCheckDialog,
+        )
+        from beeoffice.plugins.spellcheck import SpellCheckerService
+
+        service = getattr(self, "_spell_service", None)
+        if service is None:
+            service = SpellCheckerService()
+            self._spell_service = service
+
+        if not service.available:
+            QMessageBox.information(
+                self,
+                "拼写检查不可用",
+                f"{service.reason}\n\n"
+                "说明：蜜蜂办公的拼写检查沿用**系统/本机**的英文词典，"
+                "不会把任何数据传到网上。\n"
+                "启用办法（任选其一）：\n"
+                "· Windows 设置 → 时间和语言 → 语言 → 添加 English 语言包\n"
+                "· 或用 pip 安装 pyspellchecker 后重启本程序\n\n"
+                "（中文没有词形拼写检查，本功能只检查英文单词。）",
+            )
+            return
+
+        # 取当前可见文本：富文本模式与 Markdown 模式分别取
+        if getattr(self, "_edit_mode", "") == "rich_text":
+            editor = self.rich_editor
+        else:
+            editor = getattr(self, "markdown_editor", None) or self.rich_editor
+        text = editor.toPlainText()
+
+        def apply_replace(start, end, replacement):
+            from PySide6.QtGui import QTextCursor
+
+            cursor = editor.textCursor()
+            cursor.setPosition(max(0, start))
+            cursor.setPosition(max(0, end), QTextCursor.MoveMode.KeepAnchor)
+            cursor.insertText(replacement)
+
+        dialog = SpellCheckDialog(
+            self, service, text, apply_replace,
+            on_locate=self._locate_in_editor,
+            text_provider=lambda: editor.toPlainText(),
+        )
+        dialog.exec()
+
+    def _locate_in_editor(self, start, end):
+        """把编辑器光标选中到指定范围（双击列表项时用）。"""
+        try:
+            from PySide6.QtGui import QTextCursor
+
+            mode = getattr(self, "_edit_mode", "")
+            editor = self.rich_editor if mode == "rich_text" else (
+                getattr(self, "markdown_editor", None) or self.rich_editor
+            )
+            cursor = editor.textCursor()
+            cursor.setPosition(max(0, start))
+            cursor.setPosition(max(0, end), QTextCursor.MoveMode.KeepAnchor)
+            editor.setTextCursor(cursor)
+            editor.setFocus()
+        except Exception as e:  # noqa: BLE001 - 定位失败不影响检查
+            logging.debug(f"[拼写检查] 定位失败: {e}")
+
     def _confirm_fidelity_losses(self, action: str = "导出") -> bool:
         """
         导出前提示"这份文件里哪些内容保不住"（P1-A）。

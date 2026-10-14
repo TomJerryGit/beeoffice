@@ -420,6 +420,15 @@ class ToolbarMixin:
         btn_print.clicked.connect(self._print_preview)
         layout.addWidget(btn_print)
 
+        # P1-B：拼写检查（**按需**触发 —— 不做常驻波浪线，理由见 spell_check()）
+        btn_spell = QPushButton("🔤 拼写检查")
+        btn_spell.setToolTip(
+            "检查英文单词拼写（中文没有词形拼写检查）\n"
+            "技术词/产品名可点「加入词典」永久忽略"
+        )
+        btn_spell.clicked.connect(self.spell_check)
+        layout.addWidget(btn_spell)
+
         layout.addStretch()
 
         # 首次构建后同步一次按钮文字

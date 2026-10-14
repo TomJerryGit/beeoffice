@@ -87,23 +87,30 @@ DEFAULT_LANGUAGE = "en"
 # 词法：屏蔽区 + 拉丁单词
 # ====================================================================
 
-#: CJK 及中文标点/全角符号的码点范围（不含这些范围之外的拉丁字符）
-_CJK_RANGES = (
-    "\u2e80-\u303f"      # CJK 部首补充 + CJK 符号和标点
+#: 汉字/假名等"词"字符：紧贴拉丁字母时说明那是夹在中文里的片段（如 使用Linux系统）
+_CJK_WORD_RANGES = (
     "\u3040-\u30ff"      # 日文假名
     "\u3400-\u4dbf"      # CJK 扩展 A
     "\u4e00-\u9fff"      # CJK 基本区
     "\uf900-\ufaff"      # CJK 兼容表意
+)
+
+#: 中文标点 / 全角符号（**是分隔符**，不该让相邻的英文词被跳过，但要能截断 URL）
+_CJK_PUNCT_RANGES = (
+    "\u2e80-\u303f"      # CJK 部首补充 + CJK 符号和标点
     "\ufe30-\ufe4f"      # CJK 兼容形式
     "\uff00-\uffef"      # 全角字符
 )
 
-_CJK_RE = re.compile("[" + _CJK_RANGES + "]")
+#: URL 里不该出现的字符：空白、括注、汉字、中文标点
+_URL_STOP_RANGES = _CJK_WORD_RANGES + _CJK_PUNCT_RANGES
+
+_CJK_WORD_RE = re.compile("[" + _CJK_WORD_RANGES + "]")
 _LATIN_RUN_RE = re.compile(r"[A-Za-z]+")
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
-#: 网址（含 scheme 或 www.）；末尾不吃中文，避免把整句中文吞掉
+#: 网址（含 scheme 或 www.）；末尾不吃汉字/中文标点，避免把整句中文吞掉
 _URL_RE = re.compile(
-    r"""(?:[A-Za-z][A-Za-z0-9+.\-]*://|www\.)[^\s<>"'()\[\]{}""" + _CJK_RANGES + r"""]*"""
+    r"""(?:[A-Za-z][A-Za-z0-9+.\-]*://|www\.)[^\s<>"'()\[\]{}""" + _URL_STOP_RANGES + r"""]*"""
 )
 #: 数字：整数、千分位、小数（含版本号 5.0.2 / 2021.10.20）、百分比
 _NUMBER_RE = re.compile(r"[0-9][0-9,]*(?:\.[0-9]+)*%?")
@@ -217,10 +224,13 @@ def _touches_identifier_or_number(text: str, start: int, end: int) -> bool:
 
 
 def _touches_cjk(text: str, start: int, end: int) -> bool:
-    """中文紧邻（无空格/标点分隔）的拉丁片段跳过：中文正文里多是拼音/术语残留。"""
-    if start > 0 and _CJK_RE.match(text[start - 1]):
+    """
+    紧贴**汉字/假名**的拉丁片段跳过：中文正文里那多半是术语残留或拼音
+    （如 ``使用Linux系统``）。注意中文**标点**（，。、！）是分隔符，不算紧贴。
+    """
+    if start > 0 and _CJK_WORD_RE.match(text[start - 1]):
         return True
-    if end < len(text) and _CJK_RE.match(text[end]):
+    if end < len(text) and _CJK_WORD_RE.match(text[end]):
         return True
     return False
 
