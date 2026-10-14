@@ -244,6 +244,20 @@ class UIMixin:
         self._stat_btn.clicked.connect(self._show_selection_stats)
         t1.addWidget(self._stat_btn)
 
+        # P1-B：打印预览（实机清点发现蜜算此前**完全没有打印入口**）
+        self._print_btn = QPushButton("🖨️ 打印预览")
+        self._print_btn.setToolTip(
+            "打印当前工作表（分页、跨页重复标题行、缩放适应页宽）\n"
+            "选中多个单元格时只打印选中区域"
+        )
+        self._print_btn.setStyleSheet(
+            "QPushButton{background:#E8F5E9;border:1px solid #4CAF50;"
+            "color:#1B5E20;padding:3px 10px;border-radius:3px;font-size:12px;}"
+            "QPushButton:hover{background:#C8E6C9;}"
+        )
+        self._print_btn.clicked.connect(self._print_preview)
+        t1.addWidget(self._print_btn)
+
         tc.addLayout(t1)
 
         # ===== 第 2 行：排序 / 筛选 / 图表 / 透视表 / 求和 / 插入函数 =====
@@ -522,6 +536,10 @@ class UIMixin:
         )
         QShortcut(QKeySequence("Ctrl+R"), self).activated.connect(
             self._shortcut_fill_right
+        )
+        # P1-B：打印预览（与蜜写保持一致用 Ctrl+P）
+        QShortcut(QKeySequence("Ctrl+P"), self).activated.connect(
+            self._print_preview
         )
         QShortcut(QKeySequence("Ctrl+H"), self).activated.connect(
             self._show_find_replace
