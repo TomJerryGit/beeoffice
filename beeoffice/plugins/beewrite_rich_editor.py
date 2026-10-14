@@ -134,6 +134,9 @@ class RichTextEditor(QTextEdit):
         super().__init__(parent)
         self.setAcceptRichText(True)
         self._current_file_dir = str(Path.home())
+        # P0-B：`set_markdown` 批量加载期间为 True，让状态栏统计合并成一次
+        #        （否则逐块插入会触发 N 次全文统计 → O(N²)）
+        self._loading_markdown = False
         self.setStyleSheet("""
             QTextEdit {
                 border: none; padding: 20px 40px;
@@ -625,8 +628,14 @@ class RichTextEditor(QTextEdit):
           - 匹配 ![alt](path) 或 ![alt](path "title")
           - 按路径加载并插入图片
           - 图片不存在时插入占位文字
+
+        P0-B：整个过程置 `_loading_markdown = True`，让状态栏统计**合并成一次**。
+        本方法是**逐块插入**的（几百次 insertBlock/insertText），而每次插入都会
+        触发 `textChanged → _update_status_bar`；若每次都去统计全文，就是 O(N²)
+        —— 实测打开一份文档时 `to_markdown` 被调用 1032 次、耗时 6.2 秒。
         """
         self.clear()
+        self._loading_markdown = True
         lines = md_text.split('\n')
         i = 0
         while i < len(lines):
@@ -696,6 +705,7 @@ class RichTextEditor(QTextEdit):
             self._insert_formatted_paragraph(line)
             i += 1
         self.moveCursor(QTextCursor.Start)
+        self._loading_markdown = False
 
     # ==================== 表格样式（优化规划 §3.3 消重） ====================
     @staticmethod

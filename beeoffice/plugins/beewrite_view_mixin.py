@@ -47,7 +47,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QApplication,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QTextCursor
 
 from beeoffice.plugins.beewrite_utils import (
@@ -418,12 +418,57 @@ class ViewMixin:
     # 状态栏
     # ==================================================================
     def _update_status_bar(self):
-        """更新状态栏（字数 / 字符）"""
-        text = self.content()
-        char_count = len(text)
-        word_count = count_words(text)
-        self._word_count_label.setText(f"字数：{word_count}")
-        self._char_count_label.setText(f"字符：{char_count}")
+        """
+        更新状态栏（字数 / 字符）。
+
+        **P0-B 性能修复**（实测：打开 400 段文档时这一项占 6.4 秒）
+        ----------------------------------------------------------
+        两个问题叠在一起：
+
+        1. **来源太重**：原先走 `self.content()`，富文本模式下就是
+           `rich_editor.to_markdown()` —— **把整篇转成 Markdown** 只为数字数。
+        2. **被调用太频**：`rich_editor.set_markdown()` 是**逐块插入**的，
+           每插入一块都触发 `textChanged` → 本函数 → 又一次整篇转换。
+           N 个块 ⇒ N 次全篇转换 ⇒ **O(N²)**。
+
+        实测打开 `yum源更新.docx`：`to_markdown` 被调用 **1032 次、累计 6.2 秒**
+        （调用链 `_insert_formatted_paragraph → textChanged →
+        _update_status_bar → content() → to_markdown()`）。
+
+        修法：
+          · 统计只取**纯文本**（`toPlainText()`），不做 Markdown 转换；
+          · **批量加载期间合并成一次**（见 `_refresh_status_counts`）——
+            `set_markdown` 期间只安排一次刷新，加载结束回到事件循环时执行。
+
+        ⚠️ **行为变化（有意）**：字数/字符原先算的是 **Markdown 源码**
+        （含 `#`、`**`、`![](...)` 标记），现在算的是**用户看到的正文**。
+        "字数"本就该指后者。
+        """
+        # 批量加载中：N 次变更只安排一次刷新（singleShot(0) 在当前调用栈结束后执行）
+        if getattr(self.rich_editor, "_loading_markdown", False):
+            if not getattr(self, "_status_flush_pending", False):
+                self._status_flush_pending = True
+                QTimer.singleShot(0, self._flush_status_bar)
+            return
+        self._refresh_status_counts()
+
+    def _flush_status_bar(self):
+        """批量加载结束后的那次刷新。"""
+        self._status_flush_pending = False
+        self._refresh_status_counts()
+
+    def _refresh_status_counts(self):
+        """真正算字数并写标签（只读纯文本，不做 Markdown 转换）。"""
+        try:
+            if self._edit_mode == "markdown":
+                text = self.markdown_editor.toPlainText()
+            else:
+                text = self.rich_editor.toPlainText()
+        except Exception:
+            # 兜底：实在取不到就用原来的路径（宁可慢也不要空）
+            text = self.content()
+        self._word_count_label.setText(f"字数：{count_words(text)}")
+        self._char_count_label.setText(f"字符：{len(text)}")
 
     def _update_cursor_position(self):
         """更新状态栏光标行列位置"""
