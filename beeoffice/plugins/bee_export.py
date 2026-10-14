@@ -1554,8 +1554,9 @@ def import_from_docx(docx_path):
         md_lines = []
 
         # ---------- v5.0.2：准备图片导出目录 ----------
+        # P0-A：同级目录不可写时回退到用户缓存目录，**不再静默丢图**
         docx_p = Path(docx_path).resolve()
-        media_dir = docx_p.parent / (docx_p.stem + "_media")
+        media_dir, link_prefix = _resolve_media_dir(docx_p)
         img_counter = [0]   # 用 list 便于内部函数修改
 
         logging.info(
@@ -1586,7 +1587,7 @@ def import_from_docx(docx_path):
 
             # 提取段落内嵌图片
             inline_imgs = _extract_para_images(
-                para, doc, media_dir, img_counter, docx_p
+                para, doc, media_dir, img_counter, docx_p, link_prefix
             )
 
             if not text:
@@ -1637,7 +1638,7 @@ def import_from_docx(docx_path):
             # 提取表格单元格内的图片
             for para in _iter_table_paragraphs(table):
                 cell_imgs = _extract_para_images(
-                    para, doc, media_dir, img_counter, docx_p
+                    para, doc, media_dir, img_counter, docx_p, link_prefix
                 )
                 for img_md in cell_imgs:
                     md_lines.append(img_md)
@@ -1648,7 +1649,7 @@ def import_from_docx(docx_path):
             try:
                 for para in _iter_header_footer_paragraphs(section):
                     hf_imgs = _extract_para_images(
-                        para, doc, media_dir, img_counter, docx_p
+                        para, doc, media_dir, img_counter, docx_p, link_prefix
                     )
                     for img_md in hf_imgs:
                         md_lines.append(img_md)
@@ -1666,7 +1667,8 @@ def import_from_docx(docx_path):
         raise
 
 
-def _extract_para_images(para, doc, media_dir, img_counter, docx_p):
+def _extract_para_images(para, doc, media_dir, img_counter, docx_p,
+                         link_prefix=None):
     """
     v5.0.2 新增：从段落中提取内嵌图片。
 
@@ -1762,8 +1764,8 @@ def _extract_para_images(para, doc, media_dir, img_counter, docx_p):
                     f"{img_path}"
                 )
 
-                # 相对于 docx 文件的相对路径
-                rel_path = f"{docx_p.stem}_media/{img_name}"
+                # 相对于 docx 文件的相对路径；回退到缓存目录时是绝对路径
+                rel_path = f"{link_prefix or (docx_p.stem + '_media/')}{img_name}"
                 imgs_md.append(f"![]({rel_path})")
             except Exception as e:
                 logging.warning(
@@ -1774,6 +1776,87 @@ def _extract_para_images(para, doc, media_dir, img_counter, docx_p):
         logging.warning(f"提取段落图片失败: {e}")
 
     return imgs_md
+
+
+def _media_cache_root() -> Path:
+    """
+    图片**回退目录**的根：用户缓存区（可写、不进文档目录）。
+
+    只在"文档所在位置不可写"时才用到（见 `_resolve_media_dir`）。
+    """
+    import os
+
+    candidates = []
+    local = os.environ.get("LOCALAPPDATA")
+    if local:
+        candidates.append(Path(local) / "BeeOffice" / "media")
+    xdg = os.environ.get("XDG_CACHE_HOME")
+    if xdg:
+        candidates.append(Path(xdg) / "beeoffice" / "media")
+    try:
+        candidates.append(Path.home() / ".cache" / "beeoffice" / "media")
+    except Exception:  # noqa: BLE001
+        pass
+    candidates.append(Path(tempfile.gettempdir()) / "beeoffice_media")
+
+    for path in candidates:
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            # 真写一次才算数：mkdir 成功但不可写的情况是存在的
+            probe = path / ".write_probe"
+            probe.write_text("ok", encoding="utf-8")
+            probe.unlink(missing_ok=True)
+            return path
+        except Exception:  # noqa: BLE001
+            continue
+    return Path(tempfile.gettempdir())
+
+
+def _resolve_media_dir(docx_p: Path):
+    """
+    决定图片落地目录，返回 `(目录, Markdown 链接前缀)`。
+
+    **为什么要回退**（真实缺陷）
+    ---------------------------
+    原先无条件写到文档同级的 `<名>_media/`。文档放在**只读位置**时
+    （光盘、网络共享、`Program Files`、只读归档），`mkdir`/写入被拒，
+    图片被**静默降级为占位文字** —— 用户看到的是一份缺图的文档，
+    而唯一的线索只是日志里一行 warning。
+
+    策略：
+      1. 优先文档同级 `<名>_media/`（保持既有行为与**相对链接**不变）；
+      2. 该位置不可写 → 回退到用户缓存目录，并把链接写成**绝对路径**
+         （`base_dir` 解析不了别的目录，绝对路径最稳）。
+
+    :return: (media_dir, link_prefix)；`link_prefix` 形如 `"名字_media/"` 或
+        `"C:/…/media/名字-1a2b3c4d/"`
+    """
+    adjacent = docx_p.parent / (docx_p.stem + "_media")
+    try:
+        adjacent.mkdir(parents=True, exist_ok=True)
+        probe = adjacent / ".write_probe"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink(missing_ok=True)
+        return adjacent, f"{docx_p.stem}_media/"
+    except Exception as e:  # noqa: BLE001
+        logging.warning(
+            f"[import_from_docx] 文档同级目录不可写（{type(e).__name__}: {e}），"
+            f"图片改存用户缓存目录，链接将写成绝对路径"
+        )
+
+    import hashlib
+
+    digest = hashlib.sha1(
+        str(docx_p).encode("utf-8", "ignore")
+    ).hexdigest()[:8]
+    fallback = _media_cache_root() / f"{docx_p.stem}-{digest}"
+    try:
+        fallback.mkdir(parents=True, exist_ok=True)
+    except Exception as e:  # noqa: BLE001
+        logging.error(f"[import_from_docx] 回退目录也不可写: {e}")
+        return adjacent, f"{docx_p.stem}_media/"
+    # 绝对路径：Windows 反斜杠换成正斜杠，避免 Markdown/URL 解析出岔子
+    return fallback, fallback.as_posix().rstrip("/") + "/"
 
 
 def _iter_table_paragraphs(table):
