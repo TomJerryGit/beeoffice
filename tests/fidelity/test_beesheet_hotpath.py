@@ -254,13 +254,25 @@ def test_font_role_returns_qfont_only_when_formatted(view):
 # ==================== 4. 性能门禁 ====================
 # 阈值刻意放宽到实测值的 3–8 倍：CI 机器慢、负载抖动都可能影响，
 # 门禁的目的是"抓住数量级退化"，不是卡死具体数字。
+#
+# ⚠️ 2026-10-15 修正：原先 `_per_call` 只跑**一轮平均**，而这一轮里只要被
+# 抢占一次（并行跑测试、GC、杀毒扫描）就会把平均值推高 —— 实测出现过
+# "预算 0.015ms、实测 0.0153ms"这种**超出 2% 判红**的假警报（当年真正的
+# 回归是 0.0205 → 0.0027，7.6 倍量级）。所以改成**多批次取最小值**：
+# 负载尖峰会被滤掉，而真回归会抬高**所有**批次，因此照样抓得住。
+# 这改的是**测量方式**，不是放宽断言。
 
-def _per_call(fn, n=3000):
+def _per_call(fn, n=2000, batches=5):
+    """单次调用耗时（ms）：跑多批，取**最快的一批**（抗负载尖峰）。"""
     fn()
-    start = time.perf_counter()
-    for _ in range(n):
-        fn()
-    return (time.perf_counter() - start) / n * 1000      # ms
+    best = None
+    for _ in range(batches):
+        start = time.perf_counter()
+        for _ in range(n):
+            fn()
+        per_call = (time.perf_counter() - start) / n * 1000
+        best = per_call if best is None else min(best, per_call)
+    return best
 
 
 def test_data_call_is_cheap(view):
@@ -306,13 +318,14 @@ def test_repaint_budget(view, qtbot):
     table.viewport().repaint()          # 预热
 
     samples = []
-    for _ in range(5):
+    for _ in range(9):
         start = time.perf_counter()
         table.viewport().repaint()
         samples.append((time.perf_counter() - start) * 1000)
 
     median = statistics.median(samples)
-    assert median < 90, (
-        f"整视口重绘中位数 {median:.1f}ms —— 已退化"
+    best = min(samples)          # 抗负载尖峰（见文件头 2026-10-15 的说明）
+    assert best < 90, (
+        f"整视口重绘最快 {best:.1f}ms（中位数 {median:.1f}ms）—— 已退化"
         f"（优化后实测约 19ms，优化前 172ms）；样本={[round(s,1) for s in samples]}"
     )

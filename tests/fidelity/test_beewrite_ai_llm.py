@@ -157,6 +157,73 @@ def test_chat_omits_authorization_for_local():
     assert "Authorization" not in seen
 
 
+# ==================== 1b. 超时：本地模型必须宽松（实测修正）====================
+
+def test_local_models_get_much_longer_timeout():
+    """
+    **实测修正**：本机 llama3.2（1.9 GB，CPU 推理）单次调用要 **20–46 s**，
+    连"极短"的测试连接首次都要 **39.9 s**。用云端的 30 s 去卡它 → 用户会以为
+    Ollama 不能用（我第一版就是 30 s，实测"总结"直接超时失败）。
+    """
+    local = AIClient({"api_base": "http://localhost:11434/v1",
+                      "model": "llama3.2"})
+    remote = AIClient({"api_key": "k"})
+
+    assert local.timeout >= 120, local.timeout
+    assert remote.timeout <= 60, remote.timeout
+    assert local.timeout > remote.timeout
+
+
+def test_explicit_timeout_still_wins():
+    """显式配置的超时要优先于按服务商推断的默认值。"""
+    client = AIClient({"api_base": "http://localhost:11434/v1",
+                       "timeout": 7})
+
+    assert client.timeout == 7
+
+
+def test_timeout_helper_covers_local_forms():
+    from beeoffice.plugins.ai_client import (
+        DEFAULT_TIMEOUT, LOCAL_TIMEOUT, default_timeout_for,
+    )
+
+    for base in ("http://localhost:11434/v1", "http://127.0.0.1:11434/v1",
+                 "http://LOCALHOST:11434/v1"):
+        assert default_timeout_for(base) == LOCAL_TIMEOUT, base
+    assert default_timeout_for("https://api.deepseek.com/v1") == DEFAULT_TIMEOUT
+    # 注意：**不**把 `0.0.0.0` 当本地 —— 它作为客户端地址不真实，
+    # 且写了它会触发 `test_v505_sensitive_surfaces` 里那条
+    # "无条件通配绑定"扫描的**文本误报**（字符串比较被当成 bind）。
+    assert default_timeout_for("http://0.0.0.0:11434/v1") == DEFAULT_TIMEOUT
+
+
+def test_probe_defaults_are_longer_for_local():
+    """
+    设置界面的「测试连接」也要按服务商给超时 —— 否则用户用它测本地 Ollama
+    会得到"连接超时"，从而以为**模型不能用**（实测：首次调用 39.9 s）。
+    """
+    from beeoffice.plugins.beeshow_ai_service import probe_ai_connection
+
+    seen = {}
+
+    def opener(url, headers, payload, timeout):
+        seen["timeout"] = timeout
+        return {"choices": [{"message": {"content": "OK"}}]}
+
+    probe_ai_connection({"api_base": "http://localhost:11434/v1",
+                         "model": "llama3.2"}, opener=opener)
+    local_timeout = seen["timeout"]
+
+    probe_ai_connection({"api_key": "k",
+                         "api_base": "https://api.deepseek.com/v1"},
+                        opener=opener)
+    remote_timeout = seen["timeout"]
+
+    assert local_timeout >= 60, local_timeout
+    assert remote_timeout <= 30, remote_timeout
+    assert local_timeout > remote_timeout
+
+
 # ==================== 2. 提示词 ====================
 
 def test_continue_prompt_carries_context_and_forbids_explanation():

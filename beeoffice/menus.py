@@ -400,6 +400,20 @@ def setup_menus(main_window):
     sync_action.triggered.connect(main_window._sync_now)
     help_menu.addAction(sync_action)
 
+    # R6：备份与恢复（本地历史版本；WPS 有"备份中心"，我们原先只有自动保存）
+    backup_action = QAction(
+        tr("menu.help.backup_center", "🗂️ 备份与恢复"), main_window
+    )
+    backup_action.setToolTip("查看历史版本、恢复、立即备份")
+    backup_action.triggered.connect(main_window._show_backup_center)
+    help_menu.addAction(backup_action)
+
+    backup_now_action = QAction(
+        tr("cmd.backup_now", "立即备份当前文件"), main_window
+    )
+    backup_now_action.triggered.connect(main_window._backup_now)
+    help_menu.addAction(backup_now_action)
+
     help_menu.addSeparator()
 
     # 移动端下载

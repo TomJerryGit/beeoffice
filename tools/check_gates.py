@@ -100,6 +100,12 @@ GATES = [
         "曾经：兜底返回一个不可写目录 → 每张图各失败一次（23 张图 23 次异常）",
     ),
     Gate(
+        "backup-restore",
+        "备份：覆盖前留档、恢复可回退、轮转不删光（R6）",
+        "tests/fidelity/test_backup.py",
+        "曾经：只有自动保存（直接覆盖）→ 用户看不到历史、写坏就没救",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",

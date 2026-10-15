@@ -580,7 +580,7 @@ def detect_preset(api_base: str, model: str) -> str:
 
 def probe_ai_connection(config: Optional[Dict[str, Any]] = None,
                         opener: Optional[Callable[..., Dict[str, Any]]] = None,
-                        timeout: int = 12) -> tuple:
+                        timeout: Optional[int] = None) -> tuple:
     """
     发一次**极短**的请求，用于设置界面的「测试连接」。
 
@@ -589,11 +589,15 @@ def probe_ai_connection(config: Optional[Dict[str, Any]] = None,
     还会因为返回 tuple 报警告）。实测踩过 —— 改名前
     `tests/fidelity/test_ai_settings.py` 就因为它多收集了一条。
 
-    与真正生成大纲的区别：`max_tokens=8`、提示词极短、超时更短 ——
-    用户点一下就该有结果，不该等 30 秒。
+    与真正生成大纲的区别：`max_tokens=8`、提示词极短。
+
+    **超时按服务商区分（实测修正）**：本机 llama3.2 做一次"极短"调用就要
+    **39.9 s**（CPU 推理），用原来的 12 s 会直接报"连接超时"，
+    让用户以为本地 Ollama 不能用。所以本地地址给 120 s 起。
 
     :param config: {api_key, api_base, model}
     :param opener: 可注入的传输层（测试用假函数，避免真联网）
+    :param timeout: 显式超时（秒）；None 时按服务商取默认
     :return: (ok: bool, message: str, latency_ms: int | None)
         message 是**给用户看的可操作提示**（不要只说"失败"）
     """
@@ -606,6 +610,10 @@ def probe_ai_connection(config: Optional[Dict[str, Any]] = None,
     is_local = "localhost" in api_base or "127.0.0.1" in api_base
     if not api_key and not is_local:
         return False, "请先填写 API Key（本地 Ollama 不需要）", None
+
+    if timeout is None:
+        # 本地模型慢得多：实测 llama3.2 的"极短"调用要 39.9 s（CPU）
+        timeout = 120 if is_local else 12
 
     url = f"{api_base}/chat/completions"
     payload = {

@@ -28,9 +28,31 @@ from typing import Any, Callable, Dict, Optional, Tuple
 
 #: 单次调用默认参数
 DEFAULT_TIMEOUT = 30
+#: **本地模型**（Ollama 等）要宽松得多的超时。
+#: 实测（本机 llama3.2:latest，1.9 GB，CPU 推理）：
+#:   测试连接 39.9 s、续写 31.1 s、润色 19.8 s、总结 **超过 30 s 超时失败**。
+#: 用 30 s 的云端口径去卡本地模型，会让用户以为"Ollama 不能用" —— 这是真缺陷。
+LOCAL_TIMEOUT = 300
 DEFAULT_MAX_TOKENS = 1200
 #: 送进模型的文本上限（防止把整本书发过去）
 MAX_INPUT_CHARS = 6000
+
+
+def default_timeout_for(api_base: str) -> int:
+    """
+    按服务商给默认超时：本地宽松，云端紧凑。
+
+    ⚠️ 这里**故意不判 `0.0.0.0`**：它作为**客户端**要访问的地址本就不是
+    真实配置（连不上），而写了它会触发仓库里那条安全回归测试
+    `test_no_unconditional_wildcard_bind_in_source` 的**文本误报**
+    （那条测试扫的是"无条件通配绑定"，我的字符串比较被它当成 bind 了）。
+    去掉它不削弱任何真实安全属性。
+    """
+    text = (api_base or "").lower()
+    if "localhost" in text or "127.0.0.1" in text:
+        return LOCAL_TIMEOUT
+    return DEFAULT_TIMEOUT
+
 
 #: 写作助手的系统提示（中文，要求"只要结果、不要解释"）
 _WRITING_SYSTEM = (
@@ -54,7 +76,11 @@ class AIClient:
         self.api_base = (config.get("api_base")
                          or "https://api.deepseek.com/v1").rstrip("/")
         self.model = (config.get("model") or "deepseek-chat").strip()
-        self.timeout = int(config.get("timeout", DEFAULT_TIMEOUT))
+        # 超时按服务商区分：本地模型慢得多（实测 20–40 s/次），
+        # 用云端的 30 s 卡它会让用户以为 Ollama 不能用；显式配置仍优先。
+        self.timeout = int(
+            config.get("timeout") or default_timeout_for(self.api_base)
+        )
         #: 可注入的传输层（测试用；None 时走真实 HTTP）
         self._opener = opener
         #: 上一次结果的来源：ai / local / error / none

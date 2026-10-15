@@ -375,6 +375,87 @@ class BeeApp(QMainWindow):
     # ==================================================================
     # 自动保存
     # ==================================================================
+    # ==================================================================
+    # R6：本地备份与恢复
+    # ==================================================================
+    def _backup_store(self):
+        """取（并缓存）备份仓库。"""
+        store = getattr(self, "_backup_store_cache", None)
+        if store is None:
+            from beeoffice.backup import BackupStore
+
+            store = BackupStore()
+            self._backup_store_cache = store
+        return store
+
+    def _backup_before_save(self, widget, reason: str = "before_save") -> bool:
+        """
+        **覆盖保存之前**给当前文件留一份（R6）。
+
+        这是备份功能的核心价值：保存是**直接覆盖**的，写坏了就真的没了。
+        先留一份"上一个好状态"，用户随时能回去。
+
+        备份失败**绝不阻断保存**（只记日志）—— 备份是保险，不是门禁。
+        """
+        try:
+            path = getattr(widget, "_current_file_path", None)
+            if not path:
+                return False
+            from pathlib import Path as _Path
+
+            if not _Path(path).is_file():
+                return False        # 新文件（还没落过盘）没什么可备份的
+            return bool(self._backup_store().create(path, reason=reason))
+        except Exception as e:  # noqa: BLE001
+            logging.debug(f"[备份] 保存前备份失败（忽略）: {e}")
+            return False
+
+    def _show_backup_center(self):
+        """打开备份与恢复中心（当前文件的版本列表）。"""
+        from beeoffice.backup_center import show_backup_center
+
+        widget = self.tab_manager.currentWidget()
+        source = getattr(widget, "_current_file_path", None) if widget else None
+        dialog = show_backup_center(self, source=source,
+                                    store=self._backup_store())
+        restored = getattr(dialog, "restored_path", None)
+        if restored:
+            self.set_global_status(
+                tr("msg.backup_restored", "已恢复备份：{file}").format(
+                    file=Path(restored).name), 6000
+            )
+            # 界面里还是旧内容 —— 问用户要不要立刻重开，避免"文件换了界面没换"
+            if QMessageBox.question(
+                self, "重新打开？",
+                f"已恢复到：\n{restored}\n\n现在重新打开它吗？",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes,
+            ) == QMessageBox.Yes:
+                self._open_recent(str(restored))
+
+    def _backup_now(self):
+        """手动立即备份当前文件。"""
+        widget = self.tab_manager.currentWidget()
+        if widget is None:
+            return
+        path = getattr(widget, "_current_file_path", None)
+        if not path:
+            QMessageBox.information(
+                self, "无法备份", "当前文档还没有保存到文件，先保存一次再备份。"
+            )
+            return
+        created = self._backup_store().create(path, reason="manual")
+        if created:
+            self.set_global_status(
+                tr("msg.backup_created", "已备份：{file}").format(
+                    file=Path(created).name), 5000
+            )
+        else:
+            QMessageBox.warning(
+                self, "备份失败",
+                "备份没写成功（可能是备份目录不可写或磁盘空间不足）。\n"
+                "保存不受影响。",
+            )
+
     def _autosave(self):
         widget = self.tab_manager.currentWidget()
         if widget is None:
@@ -383,6 +464,8 @@ class BeeApp(QMainWindow):
             return
 
         try:
+            # R6：覆盖保存前先留一份（备份失败会静默，不阻断保存）
+            self._backup_before_save(widget, reason="before_save")
             if widget.save():
                 self.set_global_status(tr("msg.autosave_done", "已自动保存"), 3000)
                 try:
@@ -847,6 +930,9 @@ class BeeApp(QMainWindow):
 
         if hasattr(widget, "save"):
             try:
+                # R6：**手动保存（Ctrl+S）同样要先留一份** ——
+                # 保存是直接覆盖，用户手滑写坏就没救了。
+                self._backup_before_save(widget, reason="before_save")
                 if widget.save():
                     try:
                         self.tab_manager._mark_saved(widget)
