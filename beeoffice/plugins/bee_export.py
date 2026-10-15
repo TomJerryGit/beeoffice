@@ -1675,6 +1675,15 @@ def import_from_docx(docx_path):
         media_dir, link_prefix = _resolve_media_dir(docx_p)
         img_counter = [0]   # 用 list 便于内部函数修改
 
+        # R7：文档同级与缓存目录**都不可写**时，`_resolve_media_dir` 返回
+        # `(None, "")` —— 此时**一次性放弃提取图片**，并给出一条明确提示，
+        # 而不是让每张图各失败一次（23 张图 = 23 次异常、日志一片 error）。
+        images_disabled = media_dir is None
+        if images_disabled:
+            logging.warning(
+                "[import_from_docx] 无可用图片目录：本次只导入正文，不提取图片"
+            )
+
         logging.info(
             f"[import_from_docx] 源文件: {docx_p}\n"
             f"[import_from_docx] 媒体目录: {media_dir}"
@@ -1701,8 +1710,8 @@ def import_from_docx(docx_path):
         for para in doc.paragraphs:
             text = _paragraph_text(para).strip()
 
-            # 提取段落内嵌图片
-            inline_imgs = _extract_para_images(
+            # 提取段落内嵌图片（R7：无可用目录时整体跳过，不做无用的失败写入）
+            inline_imgs = [] if images_disabled else _extract_para_images(
                 para, doc, media_dir, img_counter, docx_p, link_prefix
             )
 
@@ -1751,9 +1760,9 @@ def import_from_docx(docx_path):
             md_lines.append(_docx_table_to_md(table))
             md_lines.append("")
 
-            # 提取表格单元格内的图片
+            # 提取表格单元格内的图片（R7：同样整体跳过）
             for para in _iter_table_paragraphs(table):
-                cell_imgs = _extract_para_images(
+                cell_imgs = [] if images_disabled else _extract_para_images(
                     para, doc, media_dir, img_counter, docx_p, link_prefix
                 )
                 for img_md in cell_imgs:
@@ -1764,7 +1773,7 @@ def import_from_docx(docx_path):
         for s_idx, section in enumerate(doc.sections):
             try:
                 for para in _iter_header_footer_paragraphs(section):
-                    hf_imgs = _extract_para_images(
+                    hf_imgs = [] if images_disabled else _extract_para_images(
                         para, doc, media_dir, img_counter, docx_p, link_prefix
                     )
                     for img_md in hf_imgs:
@@ -1776,6 +1785,14 @@ def import_from_docx(docx_path):
         logging.info(
             f"[import_from_docx] 提取完成，共提取 {img_counter[0]} 张图片"
         )
+
+        # R7：无可用图片目录时，给用户**一条明确的说明**（而不是 23 行失败日志）
+        if images_disabled:
+            md_lines.append("")
+            md_lines.append(
+                "> ⚠️ **本文档的图片未能提取**：文档所在位置与用户缓存目录都不可写。"
+                "正文已正常导入；如需图片，请把文档复制到可写目录（如桌面）后重新打开。"
+            )
 
         return "\n".join(md_lines)
     except Exception as e:
@@ -1926,7 +1943,16 @@ def _media_cache_root() -> Path:
             return path
         except Exception:  # noqa: BLE001
             continue
-    return Path(tempfile.gettempdir())
+    # ⚠️ R7：这里**不能**再"兜底返回 tempfile.gettempdir()" ——
+    # 它本身也可能不可写（沙箱/受限账户/磁盘满），于是调用方会拿到一个
+    # **已知不可写**的目录，然后**每张图各失败一次**（23 张图 = 23 次异常），
+    # 日志里一片 error 却看不出真正原因。
+    # 返回 None 让调用方**一次性判定并快速失败**。
+    logging.error(
+        "[import_from_docx] 找不到可写的图片缓存目录（候选：%s）",
+        ", ".join(str(c) for c in candidates),
+    )
+    return None
 
 
 def _resolve_media_dir(docx_p: Path):
@@ -1966,12 +1992,24 @@ def _resolve_media_dir(docx_p: Path):
     digest = hashlib.sha1(
         str(docx_p).encode("utf-8", "ignore")
     ).hexdigest()[:8]
-    fallback = _media_cache_root() / f"{docx_p.stem}-{digest}"
+    root = _media_cache_root()
+    if root is None:
+        # 文档同级不可写、缓存区也不可写：**一次性放弃提取图片**
+        # （而不是每张图各失败一次）。调用方会用占位提示替代图片。
+        logging.error(
+            "[import_from_docx] 文档同级与用户缓存目录**都不可写**，"
+            "本次不提取图片（正文仍会正常导入）"
+        )
+        return None, ""
+    fallback = root / f"{docx_p.stem}-{digest}"
     try:
         fallback.mkdir(parents=True, exist_ok=True)
+        probe = fallback / ".write_probe"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink(missing_ok=True)
     except Exception as e:  # noqa: BLE001
         logging.error(f"[import_from_docx] 回退目录也不可写: {e}")
-        return adjacent, f"{docx_p.stem}_media/"
+        return None, ""
     # 绝对路径：Windows 反斜杠换成正斜杠，避免 Markdown/URL 解析出岔子
     return fallback, fallback.as_posix().rstrip("/") + "/"
 

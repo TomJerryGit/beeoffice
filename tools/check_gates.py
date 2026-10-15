@@ -94,6 +94,12 @@ GATES = [
         "曾经：内层表格整块丢失（w:tbl 2→1）",
     ),
     Gate(
+        "media-fallback-failfast",
+        "图片目录全不可写时快速失败（R7）",
+        "tests/fidelity/test_r7_media_fallback.py",
+        "曾经：兜底返回一个不可写目录 → 每张图各失败一次（23 张图 23 次异常）",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",
