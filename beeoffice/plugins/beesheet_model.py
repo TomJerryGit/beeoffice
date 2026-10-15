@@ -7,6 +7,8 @@ v5.0.1 修复（P1-1）：
     修复原实现 chr(65 + i) 在 cols > 26 时产生 [ \ ] 等乱码
   - 新增顶部导入：from beeoffice.plugins.beesheet_utils import col_index_to_name
 """
+import logging
+
 import numpy as np
 import pandas as pd
 from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex
@@ -71,7 +73,77 @@ class SheetDataModel(QAbstractTableModel):
         # 见 `_column_arrays()` —— 按列是为了保证"就地修改也可见"。
         self._mirror_df = None
         self._cols = None
+        # R1：两阶段载入状态。
+        #   · `set_partial_dataframe()` 之后 `_fully_loaded=False` → **只读**
+        #     （关键：加载未完成时不许编辑，阶段 2 整体替换才不会丢用户改动、
+        #      更不会把"半份数据"写回源文件 —— 实测过，见
+        #      tests/fidelity/test_beesheet_lazy_load.py 的排序后再保存那条）
+        #   · `complete_full_dataframe()` / `set_full_dataframe()` → True
+        self._fully_loaded = True
+        self._full_loader = None
+        self.load_error = ""
         self._init_empty()
+
+    # ==================== R1：两阶段载入 ====================
+    @property
+    def is_fully_loaded(self) -> bool:
+        return self._fully_loaded
+
+    def set_partial_dataframe(self, df, loader=None):
+        """
+        设置**部分**数据用于快速显示；在补全之前模型处于**只读**状态。
+
+        :param df: 阶段 1 读到的前若干行
+        :param loader: 补全回调（应返回**完整** DataFrame）；供
+            `ensure_fully_loaded()` 与后台任务使用
+        """
+        self.set_full_dataframe(df)
+        self._fully_loaded = False
+        self._full_loader = loader
+        self.load_error = ""
+        self.dataChanged.emit(self.index(0, 0), self.index(0, 0))
+        return self
+
+    def complete_full_dataframe(self, df):
+        """
+        阶段 2 完成：用完整数据替换，并恢复可编辑。
+
+        **必须在主线程调用**（与既有 `load_chunk` 的约定一致）。
+        """
+        if df is None:
+            self.load_error = "完整数据为空"
+            return False
+        self.set_full_dataframe(df)
+        self._fully_loaded = True
+        self.load_error = ""
+        return True
+
+    def ensure_fully_loaded(self, loader=None) -> bool:
+        """
+        **安全门**：确保内存里是完整数据，否则先补全。
+
+        保存与任何"会动到整表"的操作（排序/筛选/透视/导出/批量填充）都必须
+        先过这道门 —— 否则就是拿半份数据去写源文件（实测会造成
+        前 N 行被覆盖、其余行留旧值的错乱）。
+
+        :return: True = 现在是完整数据；False = 补全失败（**不要继续写**）
+        """
+        if self._fully_loaded:
+            return True
+        loader = loader or self._full_loader
+        if loader is None:
+            self.load_error = "没有可用的完整数据加载器"
+            return False
+        try:
+            df = loader()
+        except Exception as e:  # noqa: BLE001 - 失败要如实上报，不能假装成功
+            self.load_error = f"加载完整数据失败：{e}"
+            logging.error(f"[beesheet] {self.load_error}")
+            return False
+        if df is None:
+            self.load_error = "加载完整数据失败：读取结果为空"
+            return False
+        return self.complete_full_dataframe(df)
 
     # ==================== 快速取值（P0-B 性能） ====================
     def _refresh_values(self):
@@ -480,6 +552,11 @@ class SheetDataModel(QAbstractTableModel):
         # P0-B：这两个标志值是**常量**，原先每次调用都用 Python 的枚举 `|`
         # 现算（实测 1080 次/帧，每次约 32µs，其中 3240 次 enum.__or__）。
         # 预先算好直接返回。
+        #
+        # R1：两阶段载入期间**一律只读** —— 这样阶段 2 的整体替换不可能
+        # 丢掉用户改动（安全是构造出来的，不靠事后合并）。
+        if not self._fully_loaded:
+            return _FLAGS_READONLY
         if index.row() >= len(self._loaded_df):
             return _FLAGS_READONLY
         return _FLAGS_EDITABLE

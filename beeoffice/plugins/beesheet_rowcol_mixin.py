@@ -164,6 +164,9 @@ class RowColMixin:
     # ==================== 填充快捷键 ====================
     def _shortcut_fill_down(self):
         """Ctrl+D：向下填充"""
+        # R1 安全门：批量填充会写整列，必须在数据完整时做
+        if not self._ensure_full_data("向下填充"):
+            return
         sel = self.table_view.selectionModel().selection()
         if not sel:
             return
@@ -177,6 +180,9 @@ class RowColMixin:
 
     def _shortcut_fill_right(self):
         """Ctrl+R：向右填充"""
+        # R1 安全门：批量填充会写整行，必须在数据完整时做
+        if not self._ensure_full_data("向右填充"):
+            return
         sel = self.table_view.selectionModel().selection()
         if not sel:
             return

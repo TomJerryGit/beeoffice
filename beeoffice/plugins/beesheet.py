@@ -505,10 +505,79 @@ class BeeSheetView(
         except Exception as e:
             QMessageBox.warning(self, "导入失败", str(e))
 
+    # ==================================================================
+    # R1：两阶段载入
+    #
+    # 注意：**安全门 `_ensure_full_data()` 定义在 `DataMixin` 里**
+    # （见 `beesheet_data_mixin.py`），不在这里 —— 因为既有的
+    # `test_beesheet_export_wiring.py` 用了一个只混入 `DataMixin` 的精简替身
+    # 来驱动真实的 `_export_xlsx()`；把门放在视图类上会让那个替身报
+    # AttributeError（我第一版就是这么把 4 条既有测试弄挂的）。
+    # 放在 mixin 上，替身与真实视图都能用，且只有一处定义。
+    # ==================================================================
+    #: 阶段 1 只读多少行（目标是"窗口尽快可交互"）
+    PHASE1_ROWS = 500
+    #: 超过这个大小才走两阶段。
+    #: 取 1 MB 的依据：实测 1.4 MB（5000×50）急切载入要 **2.27 s**，
+    #: 值得为它做两阶段；更小的文件本身不到 1 秒就开完了，
+    #: 走两阶段只会多出复杂度与行为差异。
+    LAZY_THRESHOLD_BYTES = 1024 * 1024
+
+    def _start_phase2_full_load(self, path):
+        """
+        阶段 2：后台读完整数据，完成后**整体替换**模型数据。
+
+        安全性来自"加载期间模型只读"（见 `SheetDataModel.flags`）：
+        替换时不可能存在用户改动，因此不需要任何"合并/重放编辑"的逻辑
+        —— 那种逻辑正是数据损坏的来源。
+        """
+        from beeoffice.async_task import AsyncTaskManager
+        from beeoffice.plugins.beesheet_workbook import read_workbook
+
+        def load_full():
+            workbook = read_workbook(path, max_rows=200001)
+            df = workbook.sheets[0].df if workbook.sheets else None
+            return workbook, df
+
+        def on_result(result):
+            workbook, df = result
+            model = getattr(self, "model", None)
+            if model is None or df is None:
+                return
+            # 用户可能已经切走了工作表/关了标签：只在仍处于"部分载入"时替换
+            if model.is_fully_loaded:
+                return
+            model.complete_full_dataframe(df)
+            self._workbook = workbook
+            self._load_full_workbook = workbook
+            rows = len(model._loaded_df)
+            self._set_status(f"✅ 已加载完整数据（{rows} 行）", 4000)
+
+        def on_error(error):
+            model = getattr(self, "model", None)
+            if model is not None and not model.is_fully_loaded:
+                model.load_error = f"完整数据加载失败：{error}"
+                self._set_status(
+                    "⚠️ 只加载了前 "
+                    f"{self.PHASE1_ROWS} 行且补全失败，"
+                    "编辑与保存已禁用",
+                    0,
+                )
+
+        AsyncTaskManager.run(load_full, on_result=on_result, on_error=on_error)
+
+    # ==================================================================
+    # 导入
+    # ==================================================================
     def _import_file_from_path(self, path):
         """从路径导入 CSV / Excel（自动检测编码，限制 20 万行）"""
         try:
             ext = os.path.splitext(path)[1].lower()
+            # R1：默认不走两阶段（小文件没必要，避免改变既有行为）；
+            # 下面 xlsx 分支会按文件大小重新判定。
+            # 必须在这里初始化：CSV 分支不会进入 xlsx 分支，
+            # 否则后面引用 `lazy` 会 NameError（我第一版就漏了这一步）。
+            lazy = False
             if ext == '.csv':
                 import chardet
                 with open(path, 'rb') as f:
@@ -531,7 +600,16 @@ class BeeSheetView(
                         read_workbook,
                     )
 
-                    workbook = read_workbook(path, max_rows=200001)
+                    # R1：**两阶段载入**。大文件先只读前 PHASE1_ROWS 行，
+                    # 让窗口尽快可交互；完整数据随后在后台补齐
+                    # （期间模型只读，见 _start_phase2_full_load 的说明）。
+                    lazy = self._should_lazy_load(path)
+                    if lazy:
+                        workbook = read_workbook(
+                            path, max_rows=self.PHASE1_ROWS
+                        )
+                    else:
+                        workbook = read_workbook(path, max_rows=200001)
                     df = (
                         workbook.sheets[0].df
                         if workbook.sheets else pd.DataFrame()
@@ -541,6 +619,7 @@ class BeeSheetView(
                         f"工作簿读取失败，回退为只读首张表: {e}"
                     )
                     workbook = None
+                    lazy = False
                     df = pd.read_excel(
                         path, engine='openpyxl', nrows=200001
                     )
@@ -551,7 +630,12 @@ class BeeSheetView(
                     QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
                 ) == QMessageBox.Yes:
                     df = df.head(200000)
-            self.model.set_full_dataframe(df)
+            if lazy:
+                # 阶段 1：先显示前 PHASE1_ROWS 行（模型此时**只读**），
+                # 随后后台补全；补全前禁止编辑，于是阶段 2 的替换永远安全。
+                self.model.set_partial_dataframe(df)
+            else:
+                self.model.set_full_dataframe(df)
             self.table_view.setModel(self.model)
             self._undo_stack.clear()
             self._redo_stack.clear()
@@ -569,10 +653,52 @@ class BeeSheetView(
             if formula_count:
                 extra += f"，保留 {formula_count} 个公式"
             self._set_status(
-                f"已加载：{len(df)} 行 × {len(df.columns)} 列{extra}"
+                (
+                    f"已显示前 {len(df)} 行，正在后台加载完整数据…" if lazy
+                    else f"已加载：{len(df)} 行 × {len(df.columns)} 列{extra}"
+                ),
+                0 if lazy else 5000,
             )
+            if lazy:
+                # 记下阶段 2 的加载器（供 _ensure_full_data 兜底调用），
+                # 并立刻启动后台补全。
+                self.model._full_loader = self._make_full_loader(path)
+                self._start_phase2_full_load(path)
         except Exception as e:
             QMessageBox.warning(self, "导入失败", str(e))
+
+    def _should_lazy_load(self, path) -> bool:
+        """
+        是否走两阶段载入（R1）。
+
+        只对**大 xlsx**启用：
+          · CSV 用 `pd.read_csv` 本来就快，且块读取路径不同，不在本次范围；
+          · 小文件一次性读完毫无问题，改走两阶段只会增加复杂度与行为差异。
+        """
+        try:
+            ext = os.path.splitext(path)[1].lower()
+            if ext not in ('.xlsx', '.xlsm'):
+                return False
+            return os.path.getsize(path) > self.LAZY_THRESHOLD_BYTES
+        except OSError:
+            return False
+
+    def _make_full_loader(self, path):
+        """
+        阶段 2 的**同步**加载器（供 `_ensure_full_data` 在用户发起写操作时兜底调用）。
+        后台补全用的是 `_start_phase2_full_load` 里的同类逻辑。
+        """
+        def load_full():
+            from beeoffice.plugins.beesheet_workbook import read_workbook
+
+            workbook = read_workbook(path, max_rows=200001)
+            if workbook.sheets:
+                self._workbook = workbook
+                self._load_full_workbook = workbook
+                return workbook.sheets[0].df
+            return None
+
+        return load_full
 
     def _auto_resize_columns(self):
         """自动调整列宽（在 60~300 之间）"""
@@ -622,6 +748,9 @@ class BeeSheetView(
 
     def _show_sort_dialog(self):
         """排序对话框（选择列 + 升/降序）"""
+        # R1 安全门：排序会重排整表，必须在数据完整时做
+        if not self._ensure_full_data("排序"):
+            return
         dlg = QDialog(self)
         form = QFormLayout(dlg)
         cc = QComboBox()

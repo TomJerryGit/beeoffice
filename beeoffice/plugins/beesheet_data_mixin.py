@@ -23,6 +23,62 @@ from beeoffice.plugins.beesheet_commands import (
 class DataMixin:
     """数据操作相关功能的 Mixin"""
 
+    # ==================== R1 安全门 ====================
+    def _ensure_full_data(self, action: str) -> bool:
+        """
+        **安全门**：会动到"整表"的操作，必须先确保内存里是完整数据。
+
+        为什么必须有（实测，不是推断）：`write_workbook` 是"打开源工作簿、
+        只更新值"，拿**部分载入**的数据去写，**后面的行会保留源文件旧值**。
+        实测：部分载入 10 行 → 排序 → 保存 → 前 10 行倒序、第 11–40 行旧值，
+        **文件内容与界面显示不一致**。
+        （见 `tests/fidelity/test_beesheet_lazy_load.py` 的排序那条。）
+
+        **为什么定义在这里而不是视图类上**：既有
+        `test_beesheet_export_wiring.py` 用"只混入 `DataMixin` 的精简替身"
+        驱动真实的 `_export_xlsx()`。把门放在视图类上会让那个替身报
+        AttributeError（我第一版就把 4 条既有测试弄挂了）。放在 mixin 上，
+        替身与真实视图都能用，且**只有一处定义**。
+
+        对精简宿主容错：`model` 缺失或没有 `is_fully_loaded` 属性时按
+        "已加载完"处理（等价于老行为），避免把测试桩/第三方宿主弄崩。
+
+        :return: True = 可以继续；False = 补全失败（**调用方必须中止**）
+        """
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QApplication, QMessageBox
+
+        model = getattr(self, "model", None)
+        if model is None or getattr(model, "is_fully_loaded", True):
+            return True
+        # `ensure_fully_loaded` 不存在时同样按"已加载完"处理（老宿主/桩）
+        if not hasattr(model, "ensure_fully_loaded"):
+            return True
+
+        status = getattr(self, "_set_status", None)
+        if callable(status):
+            status(f"⏳ 正在加载完整数据以便{action}…")
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            ok = model.ensure_fully_loaded()
+        finally:
+            QApplication.restoreOverrideCursor()
+
+        if not ok:
+            QMessageBox.warning(
+                self,
+                f"无法{action}",
+                f"{getattr(model, 'load_error', '') or '完整数据加载失败'}\n\n"
+                "为避免把**不完整的数据**写回文件，本次操作已取消。\n"
+                "请重新打开该文件后再试。",
+            )
+            if callable(status):
+                status(f"⚠️ 已取消{action}（数据未完整加载）", 6000)
+            return False
+        if callable(status):
+            status("✅ 已加载完整数据", 3000)
+        return True
+
     # ==================== 导出 ====================
     def _show_export_menu(self):
         """导出菜单"""
@@ -62,6 +118,12 @@ class DataMixin:
         )
         if not path:
             return
+        # R1 安全门：保存**必须**在数据完整的前提下进行。
+        # 实测（tests/fidelity/test_beesheet_lazy_load.py）：
+        # 拿"只载入了前 N 行"的数据写回源文件，第 1–N 行会被覆盖、
+        # 其余行仍留旧值 —— 文件内容与界面显示不一致（用户重开看到乱序/重复）。
+        if not self._ensure_full_data("保存"):
+            return
         try:
             df = self._get_export_df()
             workbook = getattr(self, "_workbook", None)
@@ -83,6 +145,9 @@ class DataMixin:
 
     def _export_csv(self):
         """导出为 CSV（带 UTF-8 BOM）"""
+        # R1 安全门：导出必须基于完整数据（否则导出的文件只有前 N 行）
+        if not self._ensure_full_data("导出 CSV"):
+            return
         path, _ = QFileDialog.getSaveFileName(
             self, "导出 CSV", "表格.csv", "CSV (*.csv)"
         )
@@ -292,6 +357,9 @@ class DataMixin:
     # ==================== 筛选 ====================
     def _show_filter_dialog(self):
         """筛选对话框"""
+        # R1 安全门：筛选会隐藏/重排行，必须基于完整数据
+        if not self._ensure_full_data("筛选"):
+            return
         dlg = QDialog(self)
         form = QFormLayout(dlg)
         cc = QComboBox()

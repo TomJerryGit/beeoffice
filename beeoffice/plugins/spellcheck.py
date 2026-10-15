@@ -39,6 +39,16 @@
 紧贴数字或标识符边界的片段、中文**紧邻**（无分隔）的拉丁片段、单字母词。
 规则见各 ``_touches_*`` 函数；具体取值由 ``tests/fidelity/test_spellcheck.py`` 钉住。
 
+技术词白名单
+------------
+中文技术文档里产品名/命令/缩写（``CentOS`` / ``yum`` / ``iptables`` / ``ens33``）极多，
+英文词典一律判错 → 满屏误报。白名单把这类"词典没有、技术语境正确"的词当作已知词：
+词表在数据文件 ``beeoffice/data/tech_words.txt``（一行一词，``#`` 注释），
+由 :func:`load_tech_words` / :func:`get_tech_words` 惰性加载，
+:class:`SpellCheckerService` 默认（``use_tech_words=True``）并入 ``_dictionary``。
+它**只减少误报**：不会让任何本来正确的词变成错误。词表缺失/损坏时退化为空白名单（不抛异常）。
+只有通过了英文功能自检的后端（:func:`backend_is_english_dictionary`）才会套用白名单。
+
 约定
 ----
 ``SpellBackend.check(word) -> bool``：**True = 拼写正确**。
@@ -65,10 +75,18 @@ __all__ = [
     "WindowsNativeSpellBackend",
     "SpellCheckerService",
     "detect_backend",
+    "backend_is_english_dictionary",
+    "ENGLISH_PROBE_WORDS",
     "tokenize_words",
     "load_user_dictionary",
     "save_user_dictionary",
     "DICTIONARY_HEADER",
+    "TECH_WORDS_HEADER",
+    "TECH_WORDS_FILE",
+    "tech_words_path",
+    "load_tech_words",
+    "get_tech_words",
+    "reset_tech_words_cache",
 ]
 
 logger = logging.getLogger(__name__)
@@ -703,6 +721,37 @@ def detect_backend(probes=None) -> SpellBackend:
     return UnavailableBackend("未检测到可用的拼写检查后端：" + "；".join(reasons))
 
 
+#: 判定"后端到底是不是能用的英文词典"的功能自检词：连它们都判错的后端不是英文词典
+ENGLISH_PROBE_WORDS = ("hello", "world", "the")
+
+
+def backend_is_english_dictionary(backend: SpellBackend) -> bool:
+    """
+    后端是否是一个**能用的英文词典**？判据是功能自检，**不看类名/名字**。
+
+    沿用 Windows 原生后端那套思路（``_WindowsSpellChecker.is_usable_for_english``）：
+    ``hello`` / ``world`` / ``the`` 这类最普通的正确英文词，一个都不该被判错。
+
+    为什么 :class:`SpellCheckerService` 要用它决定**是否加载技术词白名单**：
+
+    * 白名单的用途是"补英文词典的缺口"（CentOS / yum / iptables / ens33 词典里没有）。
+    * 一个连 hello/world/the 都判错的后端（本机只有 zh-Latn 检查器；测试里"把所有词都
+      判错"的桩后端也是）根本不是英文词典。这时把白名单并进词典，会把"它把所有词都
+      判错"这个**诊断事实**掩盖掉 —— 而
+      ``tests/fidelity/test_spellcheck.py::test_corpus_live_pipeline_reports_when_backend_flags_everything``
+      正是用这个事实证明词法切分管道是活的（不是空管道造成的假绿）。
+    * 后端 ``check()`` 抛异常 → 视为不可信 → 不加载白名单，保持既有降级行为。
+    """
+    for word in ENGLISH_PROBE_WORDS:
+        try:
+            if not backend.check(word):
+                return False
+        except Exception as exc:
+            logger.debug("后端英文自检 check(%r) 异常，按「不是英文词典」处理: %s", word, exc)
+            return False
+    return True
+
+
 # ====================================================================
 # 自定义词典持久化
 # ====================================================================
@@ -748,6 +797,86 @@ def save_user_dictionary(path, words: Iterable[str]) -> bool:
 
 
 # ====================================================================
+# 技术词白名单（数据文件：beeoffice/data/tech_words.txt）
+# ====================================================================
+#
+# 为什么需要：中文技术文档里全是产品名/命令/协议缩写（``CentOS`` / ``yum`` /
+# ``iptables`` / ``ens33``），英文词典不认识它们 → 满屏误报。白名单把这些
+# "词典里没有、但技术语境下正确"的词当成已知词，**只减少误报、不新增误报**
+# （它永远只是让某个词从"错"变成"对"，不会反过来）。
+#
+# 词表放在**数据文件**里，代码只负责加载：改词表不用改代码，也不用在 Python 里
+# 维护一个巨大的字面量列表。
+
+#: 数据文件名（位于 ``beeoffice/data/`` 下）
+TECH_WORDS_FILE = "tech_words.txt"
+
+#: 词表文件头的说明（供人工维护时参考；读取时会忽略 ``#`` 行）
+TECH_WORDS_HEADER = "# 蜜蜂办公 拼写检查技术词白名单：每行一个词，# 开头为注释，UTF-8 编码"
+
+#: 惰性缓存：``None`` 表示"还没读过盘"。import 时不读盘，所以文件丢了也绝不会崩。
+_TECH_WORDS_CACHE: set[str] | None = None
+
+
+def tech_words_path() -> Path:
+    """内置技术词表的绝对路径（``beeoffice/data/tech_words.txt``）。"""
+    return Path(__file__).resolve().parents[1] / "data" / TECH_WORDS_FILE
+
+
+def load_tech_words(path=None) -> set[str]:
+    """
+    加载技术词白名单（UTF-8，可带 BOM；空行与 ``#`` 注释忽略），**全部小写归一化**。
+
+    * ``path`` 省略时读内置词表 :func:`tech_words_path`。
+    * 文件不存在 / 读不动 / 内容是二进制垃圾时**返回空集合，绝不抛异常**（只记 debug）。
+      宁可白名单为空（退化成改动前的行为），也不能让拼写检查整个挂掉。
+    """
+    file = tech_words_path() if path is None else Path(path)
+    try:
+        raw = file.read_text(encoding="utf-8-sig")
+    except FileNotFoundError:
+        logger.debug("技术词表不存在，按空白名单处理: %s", file)
+        return set()
+    except (OSError, UnicodeDecodeError) as exc:
+        logger.debug("读取技术词表失败，按空白名单处理: %s（%s）", file, exc)
+        return set()
+    words: set[str] = set()
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        words.add(line.lower())
+    return words
+
+
+def get_tech_words() -> set[str]:
+    """内置技术词表（**惰性**：首次调用才读盘，之后走缓存）。返回的是缓存本身。"""
+    global _TECH_WORDS_CACHE
+    if _TECH_WORDS_CACHE is None:
+        _TECH_WORDS_CACHE = load_tech_words()
+        logger.debug("技术词表已加载：%d 个词", len(_TECH_WORDS_CACHE))
+    return _TECH_WORDS_CACHE
+
+
+def reset_tech_words_cache() -> None:
+    """清空惰性缓存（测试用：改完词表文件后强制重新读盘）。"""
+    global _TECH_WORDS_CACHE
+    _TECH_WORDS_CACHE = None
+
+
+def __getattr__(name: str):
+    """
+    ``TECH_WORDS``：惰性模块属性（PEP 562）。
+
+    只在**第一次访问**时才读盘并缓存，所以 ``import spellcheck`` 永远不会因为
+    词表文件缺失/损坏而失败。
+    """
+    if name == "TECH_WORDS":
+        return frozenset(get_tech_words())
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+# ====================================================================
 # 检查服务
 # ====================================================================
 
@@ -766,15 +895,23 @@ class Misspelling:
 
 class SpellCheckerService:
     """
-    拼写检查服务：持有后端 + "忽略词" + "自定义词典"。
+    拼写检查服务：持有后端 + "忽略词" + "自定义词典" + "技术词白名单"。
 
     * 后端不可用时 ``available is False``、``reason`` 是中文原因、``check_text()`` 恒返回 ``[]``
       （不制造满屏红线）。
     * 只检查拉丁字母单词（见 :func:`tokenize_words`），**中文不做拼写检查**。
+    * **技术词白名单**（``use_tech_words=True``，默认开）：启动时把
+      :func:`get_tech_words` 的词并进 ``_dictionary``，因此 ``knows()`` 一条路就够，
+      不为白名单另起判断逻辑。词表只把词从"错"变成"对"，**不会新增误报**。
+      ``use_tech_words=False`` 可以整块关掉（有人只想要纯英文词典行为）。
+    * 白名单只在**后端真的是英文词典**时才加载（见 :func:`backend_is_english_dictionary`）：
+      连 hello/world/the 都判错的后端不是英文词典，对它套白名单只会掩盖"后端不可用"
+      这一诊断事实。此时 ``use_tech_words`` 仍为 True，但 ``tech_words`` 是空集。
     """
 
     def __init__(self, backend: SpellBackend | None = None, dictionary: Iterable[str] | None = None,
-                 suggest: bool = True, max_suggestions: int = MAX_SUGGESTIONS):
+                 suggest: bool = True, max_suggestions: int = MAX_SUGGESTIONS,
+                 use_tech_words: bool = True):
         self.backend = detect_backend() if backend is None else backend
         self.available = bool(getattr(self.backend, "available", False))
         self.reason = getattr(self.backend, "reason", "") or ""
@@ -782,6 +919,19 @@ class SpellCheckerService:
         self.max_suggestions = max_suggestions
         self._ignored: set[str] = set()
         self._dictionary: set[str] = set()
+        self.use_tech_words = bool(use_tech_words)
+        self._tech_words: set[str] = set()
+        if self.use_tech_words:
+            if backend_is_english_dictionary(self.backend):
+                # 复用 add_to_dictionary：白名单词与用户词典共用一个集合、一条 knows() 判断
+                self._tech_words = {_normalise_word(word) for word in get_tech_words()}
+                self._tech_words.discard("")
+                for word in self._tech_words:
+                    self.add_to_dictionary(word)
+            else:
+                logger.debug(
+                    "后端 %s 不像英文词典（连 %s 都判错），跳过技术词白名单",
+                    self.backend_name, "/".join(ENGLISH_PROBE_WORDS))
         for word in dictionary or ():
             self.add_to_dictionary(word)
 
@@ -789,6 +939,11 @@ class SpellCheckerService:
     @property
     def backend_name(self) -> str:
         return getattr(self.backend, "name", "unknown")
+
+    @property
+    def tech_words(self) -> frozenset[str]:
+        """当前生效的技术词白名单（``use_tech_words=False`` 时是空集）。"""
+        return frozenset(self._tech_words)
 
     def ignore(self, word) -> None:
         """用户点"忽略"：本次会话内不再报这个词。"""
@@ -813,8 +968,13 @@ class SpellCheckerService:
         return len(words)
 
     def save_dictionary(self, path) -> bool:
-        """把当前词表（忽略词 + 词典）写到文件。"""
-        return save_user_dictionary(path, self._ignored | self._dictionary)
+        """
+        把当前词表（忽略词 + 用户词典）写到文件。
+
+        技术词白名单**不写进去**：它是随程序发布的数据文件，不是用户自己攒的词 ——
+        写进去会把几百行白名单灌进用户的词典文件（见 ``_tech_words``）。
+        """
+        return save_user_dictionary(path, self._ignored | (self._dictionary - self._tech_words))
 
     # ---------------- 检查 ----------------
     def check_word(self, word) -> bool:

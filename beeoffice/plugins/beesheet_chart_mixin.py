@@ -38,6 +38,9 @@ class ChartMixin:
     # ==================== 图表类型选择 ====================
     def _create_chart(self):
         """弹出图表类型选择对话框，用户选择后调用 _generate_chart"""
+        # R1 安全门：图表基于整表数据
+        if not self._ensure_full_data("插入图表"):
+            return
         sel = self.table_view.selectionModel().selection()
         if not sel:
             QMessageBox.information(self, "提示", "请先选中数据")
@@ -157,6 +160,9 @@ class ChartMixin:
     # ==================== 数据透视表 ====================
     def _show_pivot_table(self):
         """打开数据透视表对话框，在新标签页生成结果"""
+        # R1 安全门：透视表要统计整表
+        if not self._ensure_full_data("透视表"):
+            return
         df = self.model.df
         if df is None or df.empty:
             QMessageBox.information(self, "提示", "当前表格没有数据")
