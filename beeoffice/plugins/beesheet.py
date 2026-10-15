@@ -85,6 +85,7 @@ from beeoffice.plugins.beesheet_context_menu_mixin import ContextMenuMixin
 from beeoffice.plugins.beesheet_rowcol_mixin import RowColMixin
 from beeoffice.plugins.beesheet_ui_mixin import UIMixin
 from beeoffice.plugins.beesheet_print_mixin import SheetPrintMixin
+from beeoffice.plugins.beesheet_ai_mixin import SheetAIMixin
 
 
 # ==================== 主视图 ====================
@@ -98,6 +99,7 @@ class BeeSheetView(
     RowColMixin,
     UIMixin,
     SheetPrintMixin,
+    SheetAIMixin,
     QWidget,
 ):
     """蜜算主视图（组装层）"""

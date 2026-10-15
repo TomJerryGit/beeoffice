@@ -258,6 +258,24 @@ class UIMixin:
         self._print_btn.clicked.connect(self._print_preview)
         t1.addWidget(self._print_btn)
 
+        # R5：AI 助手（公式建议 / 解释问题 / 表格摘要）。
+        # 定位"本地优先、可解释"：不追"一键生成整表"，只给建议与解释。
+        self._ai_btn = QPushButton("🤖 AI ▾")
+        self._ai_btn.setToolTip(
+            "AI 助手：\n"
+            "· 用中文描述需求 → 公式建议（只给建议，不改数据）\n"
+            "· 解释表格问题（事实由本地规则查出）\n"
+            "· 生成表格摘要\n"
+            "未配置 AI 时会先说明并征求同意，再用本地规则"
+        )
+        self._ai_btn.setStyleSheet(
+            "QPushButton{background:#EDE7F6;border:1px solid #7E57C2;"
+            "color:#4527A0;padding:3px 10px;border-radius:3px;font-size:12px;}"
+            "QPushButton:hover{background:#D1C4E9;}"
+        )
+        self._ai_btn.clicked.connect(self._show_sheet_ai_menu)
+        t1.addWidget(self._ai_btn)
+
         tc.addLayout(t1)
 
         # ===== 第 2 行：排序 / 筛选 / 图表 / 透视表 / 求和 / 插入函数 =====

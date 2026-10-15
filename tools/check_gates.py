@@ -106,6 +106,12 @@ GATES = [
         "曾经：只有自动保存（直接覆盖）→ 用户看不到历史、写坏就没救",
     ),
     Gate(
+        "sheet-ai",
+        "蜜算 AI：不给整表、本地兜底要标注、不静默糊弄（R5）",
+        "tests/fidelity/test_beesheet_ai.py",
+        "曾经：蜜算 0 处 AI；且上下文漏列字母会让模型给出错公式（实测 A2*B2）",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",
@@ -233,6 +239,8 @@ def main():
     print("✓ 全部阻断项通过")
     if not args.strict_timing:
         print("  （计时项只报告，未参与阻断；用 --strict-timing 可在空载机上卡住它）")
+        print("  注意：计时门禁在**满载**时出现 FAIL(不阻断) 是预期现象 ——")
+        print("        本项目实测它满载会红、空载连跑 3 次都过；请单独复测再判断。")
     return 0
 
 

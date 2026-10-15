@@ -553,7 +553,11 @@ AI_PROVIDER_PRESETS = {
         "api_base": "http://localhost:11434/v1",
         "model": "qwen2.5",
         "needs_key": False,
-        "hint": "先执行 ollama serve，并 ollama pull 一个模型",
+        # 写实测数据，别只给空泛建议（2026-10-15 在本机 llama3.2 上量的）
+        "hint": "先执行 ollama serve，再 ollama pull qwen2.5:7b（中文更强）。"
+                "注意本地模型较慢：实测 llama3.2（3B）单次 20–50 秒，"
+                "首次调用还要加模型加载时间；小模型的中文推理也有限，"
+                "建议选 7B 以上。",
     },
 }
 
