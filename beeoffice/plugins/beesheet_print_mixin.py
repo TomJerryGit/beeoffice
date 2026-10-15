@@ -35,6 +35,23 @@ MIN_COL_WIDTH_MM = 12.0
 #: 单张表打印的行数上限（避免几十万行直接送去打印）
 MAX_PRINT_ROWS = 5000
 
+#: R8：缩放模式（对齐 WPS"缩放到一页/适应 N 页"）
+FIT_NONE = "none"          # 不缩放：超宽按列横向分页
+FIT_WIDTH = "width"        # 适应 1 页宽（默认，保持既有行为）
+FIT_HEIGHT = "height"      # 适应 1 页高
+FIT_PAGE = "page"          # 缩放到 1 页（宽高都塞进一页）
+
+#: 缩放到这个比例以下就在页脚提醒"可能难以阅读"（WPS 也会提示）
+TINY_SCALE_WARN = 0.35
+
+#: 界面上的中文标签（顺序即下拉框顺序）
+FIT_LABELS = [
+    (FIT_PAGE, "缩放到 1 页（整表塞进一页）"),
+    (FIT_WIDTH, "适应 1 页宽（默认）"),
+    (FIT_HEIGHT, "适应 1 页高"),
+    (FIT_NONE, "不缩放（超宽自动分页）"),
+]
+
 
 class SheetPrintMixin:
     """蜜算打印 / 打印预览。"""
@@ -144,7 +161,7 @@ class SheetPrintMixin:
     # 预览入口
     # ==================================================================
     def _print_preview(self):
-        """打开打印预览（蜜算）。"""
+        """打开打印预览（蜜算）。R8：先选**缩放模式**（对齐 WPS）。"""
         try:
             from PySide6.QtPrintSupport import QPrinter, QPrintPreviewDialog
         except ImportError:
@@ -153,11 +170,47 @@ class SheetPrintMixin:
             QMessageBox.warning(self, "提示", "当前环境不支持打印功能")
             return
 
-        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+        from PySide6.QtWidgets import (
+            QComboBox, QDialog, QDialogButtonBox, QFormLayout, QLabel,
+            QVBoxLayout,
+        )
 
         # 列很多时自动横向：纵向可用的宽度按 A4 估算（210 - 2*12 mm）
         data = self._collect_print_data()
         col_count = len(data["headers"])
+
+        # ---- 打印设置（缩放模式）----
+        dialog = QDialog(self)
+        dialog.setWindowTitle("🖨️ 打印设置（蜜算）")
+        layout = QVBoxLayout(dialog)
+        form = QFormLayout()
+        combo = QComboBox(dialog)
+        for key, label in FIT_LABELS:
+            combo.addItem(label, key)
+        current = getattr(self, "_print_fit", FIT_WIDTH)
+        for index in range(combo.count()):
+            if combo.itemData(index) == current:
+                combo.setCurrentIndex(index)
+                break
+        form.addRow("缩放：", combo)
+        total_rows = len(data["rows"])
+        form.addRow(QLabel(
+            f"将打印 {total_rows} 行 × {col_count} 列"
+            f"（超过 {MAX_PRINT_ROWS} 行会截断）"
+        ))
+        layout.addLayout(form)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok
+            | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._print_fit = combo.currentData()
+
+        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
         if col_count > 7:
             printer.setPageOrientation(QPageLayout.Orientation.Landscape)
         else:
@@ -177,7 +230,8 @@ class SheetPrintMixin:
     # 排版计划（**纯数据，可测**）
     # ==================================================================
     @staticmethod
-    def _build_print_plan(data, usable_w, usable_h, px_per_mm):
+    def _build_print_plan(data, usable_w, usable_h, px_per_mm,
+                          fit=FIT_WIDTH, custom_scale=None):
         """
         生成**排版计划**：每页画什么、在哪里 —— 全是数据，不做任何绘制。
 
@@ -192,48 +246,195 @@ class SheetPrintMixin:
         文字、截断说明、列宽、对齐），测试直接断言这些数据，**完全不依赖字体**；
         绘制层只负责把计划画出来。渲染与计划的一致性用
         "**PDF 实际页数 == 计划页数**"这个与字体无关的不变量来锁。
+
+        R8 新增的**缩放模式**（WPS 官方教程主推的"缩放到一页"）：
+          · `FIT_NONE`   不缩放：列宽用自然宽度；**超宽就按列横向分页**
+          · `FIT_WIDTH`  适应 1 页宽（默认，保持既有行为）：整体等比缩小到页宽内
+          · `FIT_HEIGHT` 适应 1 页高：缩小到页高内（列宽不动）
+          · `FIT_PAGE`   缩放到 1 页：宽高都塞进一页
+          · `custom_scale` 自定义百分比（0.1–1.0 之外的会被夹住）
+
+        **等比缩放 ≠ 压列宽**：早期实现是把列宽挤到页宽内，文字会被挤坏；
+        现在缩放的是**整体比例**（列宽与行高一起按 `scale` 缩），
+        这才是"缩放到一页"的真正含义。
         """
         row_h = ROW_HEIGHT_MM * px_per_mm
         header_h = HEADER_HEIGHT_MM * px_per_mm
         margin = MARGIN_MM * px_per_mm
         footer_h = 6.0 * px_per_mm
 
-        widths = SheetPrintMixin._compute_column_widths(data, usable_w)
-        body_h = max(row_h, usable_h - header_h - footer_h)
-        rows_per_page = max(1, int(body_h // row_h))
-
+        natural = SheetPrintMixin._natural_column_widths(data, usable_w)
+        # ⚠️ 第一个宽度是**行号列**（伪列，不在 headers 里）。列带索引必须只按
+        # **表头**算，否则 band_end 会与 len(headers) 差 1：
+        # 越界判断失效（截断说明不出现在最后一页）、横向带的列也会切错。
+        # 这个 off-by-one 是被既有测试 `..._truncation_on_last_page` 抓到的。
+        rownum_w = natural[0] if natural else 0.0
+        natural_headers = natural[1:]
+        total_w = sum(natural) or 1.0
         rows = data["rows"]
-        total_pages = max(1, math.ceil(len(rows) / rows_per_page)) if rows else 1
+        # 自然高度（含表头、页脚；行数为 0 时按 1 页算）
+        content_h = header_h + footer_h + max(1, len(rows)) * row_h
+
+        scale, bands = SheetPrintMixin._plan_scale_and_bands(
+            natural_headers, usable_w, usable_h, content_h, fit,
+            custom_scale, rownum_w=rownum_w,
+        )
+
+        eff_row_h = row_h * scale
+        eff_header_h = header_h * scale
+
+        body_h = max(eff_row_h, usable_h - eff_header_h - footer_h * scale)
+        # ⚠️ 浮点边界：`int(58.9/0.4909) == 119` 会让"刚好一行塞满"的表
+        # 多出一页（120 行的表被拆成 2 页，测试抓到）。加个极小容差再取整。
+        rows_per_page = max(1, int(body_h / eff_row_h + 1e-9))
+        row_pages = (max(1, math.ceil(len(rows) / rows_per_page))
+                     if rows else 1)
 
         pages = []
-        for page_index in range(total_pages):
-            start = page_index * rows_per_page
-            chunk = rows[start:start + rows_per_page]
-            is_first = page_index == 0
-            is_last = (start + rows_per_page) >= len(rows)
-            footer_left = str(data["sheet"])
-            if data["truncated"] and is_last:
-                footer_left += f"（已截断 {data['truncated']} 行）"
-            pages.append({
-                "page_no": page_index + 1,
-                "total_pages": total_pages,
-                # 重复标题行：非首页时，页首额外画一次数据区第一行
-                "repeat_header_row": rows[0] if (rows and not is_first) else None,
-                "rows": chunk,
-                "headers": list(data["headers"]),
-                "title": str(data["sheet"]) if is_first else "",
-                "footer_left": footer_left,
-                "footer_right": f"第 {page_index + 1} / {total_pages} 页",
-            })
+        page_no = 0
+        header_count = len(data["headers"])
+        for band_start, band_end in bands:
+            band_headers = natural_headers[band_start:band_end]
+            # 每一带都要带**行号列**（横向分页后每页都有行号）
+            band_widths = [rownum_w] + [w * scale for w in band_headers]
+            bands_count = len(bands)
+            # 缩放在整表上算过；这里再兜一次"单带仍超宽"
+            band_widths = SheetPrintMixin._fit_single_band(
+                band_widths, usable_w
+            )
+            for row_index in range(row_pages):
+                page_no += 1
+                start = row_index * rows_per_page
+                chunk = rows[start:start + rows_per_page]
+                is_first = (row_index == 0 and band_start == 0)
+                is_last = (
+                    (start + rows_per_page) >= len(rows)
+                    and band_end == header_count
+                )
+                footer_left = str(data["sheet"])
+                if bands_count > 1:
+                    footer_left += f"（第 {band_start + 1}-{band_end} 列）"
+                if data["truncated"] and is_last:
+                    footer_left += f"（已截断 {data['truncated']} 行）"
+                # 缩得太小时**明确告诉用户**（而不是让他打出来才发现看不清）
+                if TINY_SCALE_WARN and scale < TINY_SCALE_WARN and band_start == 0:
+                    footer_left += f"（已缩放到 {scale * 100:.0f}%，可能难以阅读）"
+                pages.append({
+                    "page_no": page_no,
+                    "total_pages": 0,            # 稍后回填
+                    # 重复标题行：非首页时，页首额外画一次数据区第一行
+                    "repeat_header_row": (
+                        rows[0] if (rows and not is_first) else None
+                    ),
+                    # ⚠️ `data["rows"]` 的元素是 `(行号, [单元格...])`。
+                    # 横向分页只能切**单元格那一半** —— 我第一版切了外层元组，
+                    # 结果每页都带着整行数据（测试当场抓到）。
+                    "rows": [
+                        (row[0], list(row[1])[band_start:band_end])
+                        for row in chunk
+                    ],
+                    "headers": list(data["headers"][band_start:band_end]),
+                    # 每一带自己的列宽（横向分页后各页列不同）
+                    "widths": band_widths,
+                    "col_start": band_start,
+                    "col_end": band_end,
+                    "title": str(data["sheet"]) if is_first else "",
+                    "footer_left": footer_left,
+                    "footer_right": "",
+                })
 
+        for page in pages:
+            page["total_pages"] = len(pages)
+            page["footer_right"] = f"第 {page['page_no']} / {len(pages)} 页"
+
+        eff_widths = [rownum_w * scale] + [w * scale for w in natural_headers]
+        eff_widths = SheetPrintMixin._fit_single_band(eff_widths, usable_w)
         return {
             "pages": pages,
-            "widths": widths,
-            "row_height": row_h,
-            "header_height": header_h,
+            "widths": eff_widths,
+            "scale": scale,
+            "fit": fit,
+            "bands": bands,
+            "tiny_scale": bool(scale < TINY_SCALE_WARN),
+            "row_height": eff_row_h,
+            "header_height": eff_header_h,
             "margin": margin,
             "empty": not rows,
         }
+
+    @staticmethod
+    def _plan_scale_and_bands(natural_headers, usable_w, usable_h, content_h,
+                              fit, custom_scale=None, rownum_w=0.0):
+        """
+        决定**缩放比例**与**列带（横向分页）** —— 纯计算，便于单独断言。
+
+        :param natural_headers: **只含表头**的自然宽度（不含行号列）
+        :param rownum_w: 行号列宽度（每一带都会带上它，所以要占宽度）
+        :return: (scale, [(band_start, band_end), ...]) —— 索引是**表头索引**
+        """
+        total_w = (rownum_w + sum(natural_headers)) or 1.0
+        if fit == FIT_NONE:
+            # 不缩放：能放下就一页宽；放不下就**按列横向分页**
+            if total_w <= usable_w:
+                return 1.0, [(0, len(natural_headers))]
+            # 每一带都要容下行号列
+            available = max(1.0, usable_w - rownum_w)
+            return 1.0, SheetPrintMixin._split_column_bands(
+                natural_headers, available
+            )
+
+        if custom_scale is not None:
+            try:
+                value = float(custom_scale)
+            except (TypeError, ValueError):
+                value = 1.0
+            # **用户手动填的百分比**要夹在合理范围（别缩成看不见）
+            return max(0.05, min(1.0, value)), [(0, len(natural_headers))]
+
+        by_width = usable_w / total_w if total_w > usable_w else 1.0
+        by_height = usable_h / content_h if content_h > usable_h else 1.0
+        if fit == FIT_WIDTH:
+            scale = by_width
+        elif fit == FIT_HEIGHT:
+            scale = by_height
+        else:                                   # FIT_PAGE
+            scale = min(by_width, by_height)
+        # ⚠️ **自动缩放不夹下限**：用户明确要求"塞进一页"，就该塞进去。
+        # 我第一版用了统一 5% 下限，结果 120 行的表选"适应 1 页高"仍是多页
+        # （测试 `test_fit_height_only_limits_height` 当场抓到）。
+        # 太小的时候由 `tiny_scale` 提示"可能难以阅读"（见页脚），而不是偷偷不生效。
+        return max(0.0, min(1.0, scale)), [(0, len(natural_headers))]
+
+    @staticmethod
+    def _split_column_bands(natural, usable_w):
+        """
+        把列按**自然宽度**贪心分成若干带，每带宽度 ≤ 可用宽度。
+
+        单列自己就超宽时**单独成带**（再由 `_fit_single_band` 压到页内）——
+        否则会出现"永远放不下"的死循环。
+        """
+        bands = []
+        start = 0
+        current = 0.0
+        for index, width in enumerate(natural):
+            if current and current + width > usable_w:
+                bands.append((start, index))
+                start = index
+                current = width
+            else:
+                current += width
+        if start < len(natural):
+            bands.append((start, len(natural)))
+        return bands or [(0, len(natural))]
+
+    @staticmethod
+    def _fit_single_band(widths, usable_w):
+        """单带内仍然超宽（例如某列特别宽）时，把它压进页内。"""
+        total = sum(widths)
+        if total <= usable_w or not widths:
+            return widths
+        factor = usable_w / total
+        return [w * factor for w in widths]
 
     # ==================================================================
     # 绘制
@@ -286,7 +487,8 @@ class SheetPrintMixin:
             px = geom["px"]
             margin = geom["margin"]
             plan = self._build_print_plan(
-                data, geom["usable_w"], geom["body_h"], px
+                data, geom["usable_w"], geom["body_h"], px,
+                fit=getattr(self, "_print_fit", FIT_WIDTH),
             )
             painter.translate(rect.left(), rect.top())
 
@@ -306,6 +508,8 @@ class SheetPrintMixin:
                     # newPage 会把 painter 变换重置为 identity，需重新定位
                     painter.translate(rect.left(), rect.top())
 
+                # R8：横向分页后**每页列不同**，列宽以本页为准
+                page_widths = page.get("widths") or widths
                 y = margin
                 if page["title"]:
                     y = self._draw_page_title(
@@ -313,14 +517,15 @@ class SheetPrintMixin:
                         geom["usable_w"], header_h
                     )
                 y = self._draw_header_row(
-                    painter, page["headers"], widths, margin, y, header_h
+                    painter, page["headers"], page_widths, margin, y,
+                    header_h
                 )
                 y = self._draw_body_rows(
-                    painter, page["rows"], widths, margin, y, row_h
+                    painter, page["rows"], page_widths, margin, y, row_h
                 )
                 if page["repeat_header_row"] is not None:
                     self._draw_body_rows(
-                        painter, [page["repeat_header_row"]], widths,
+                        painter, [page["repeat_header_row"]], page_widths,
                         margin, y, row_h, highlight=True,
                     )
                 footer_y = rect.height() - margin + 1.0 * px
@@ -336,28 +541,47 @@ class SheetPrintMixin:
     # 绘制辅助（全部使用设备像素；字号用真实磅值）
     # ------------------------------------------------------------------
     @staticmethod
+    def _natural_column_widths(data, usable_w=None):
+        """
+        按内容长度估算列的**自然宽度**（不做压缩）。
+
+        ⚠️ **单位必须跟随 `usable_w`**（原实现里就有、我抽出本函数时差点弄丢的
+        关键约定）：`usable_w` 在测试里可能是毫米、渲染时是设备像素
+        （600dpi 下 A4 可用宽约 6450 像素）。若宽度写死成毫米，
+        与像素比较会永远"放得下" → **横向分页永不触发**（测试当场抓到）。
+
+        R8 之前这里顺带"压到页宽内"；现在压缩只作为**缩放**的一种结果出现
+        （见 `_plan_scale_and_bands`），自然宽度单独算出来。
+        """
+        headers = data["headers"]
+        if not headers:
+            return []
+        unit = (usable_w / 180.0) if usable_w else 1.0
+        widths = [10.0 * unit]                     # 行号列
+        for i in range(len(headers)):
+            longest = len(str(headers[i]))
+            for _, values in data["rows"][:200]:   # 抽样前 200 行估宽
+                cell = values[i] if i < len(values) else ""
+                longest = max(longest, len(str(cell)))
+            widths.append(min(70.0 * unit,
+                              max(MIN_COL_WIDTH_MM * unit,
+                                  longest * 2.0 * unit)))
+        return widths
+
+    @staticmethod
     def _compute_column_widths(data, usable_w):
         """
         按内容长度估算列宽，并整体等比压到可用宽度内。
 
         单位与 `usable_w` 一致（测试里可用毫米，渲染时用设备像素）——
         本函数**不做单位假设**，便于单独测。
+
+        （保留它是因为既有测试与调用方以"页宽内"为契约；
+        R8 的缩放路径走 `_natural_column_widths` + `_plan_scale_and_bands`。）
         """
-        headers = data["headers"]
-        if not headers:
-            return []
-        unit = usable_w / 180.0 if usable_w else 1.0
-        widths = [10.0 * unit]                     # 行号列
-        for i in range(len(headers)):
-            longest = len(str(headers[i]))
-            for _, values in data["rows"][:200]:   # 抽样前 200 行估宽
-                if i < len(values):
-                    longest = max(longest, len(values[i]))
-            widths.append(min(70.0 * unit,
-                              max(MIN_COL_WIDTH_MM * unit,
-                                  longest * 2.0 * unit)))
+        widths = SheetPrintMixin._natural_column_widths(data, usable_w)
         total = sum(widths)
-        if total > usable_w:
+        if total > usable_w and widths:
             scale = usable_w / total
             widths = [w * scale for w in widths]
         return widths

@@ -856,8 +856,27 @@ class BeeSheetView(
         """
         self.status_label.setText(msg)
         if timeout > 0:
-            QTimer.singleShot(timeout,
-                              lambda: self.status_label.setText(""))
+            # ⚠️ 不能用 `QTimer.singleShot(timeout, lambda: ...)`：
+            # 回调会**脱离控件生命周期**，控件先被销毁时定时器仍会触发 →
+            # `RuntimeError: Internal C++ object (QLabel) already deleted`
+            # （门禁 `sheet-lazy-safety` 在删除标签后当场抓到）。
+            # 改成**控件自己持有**的单发定时器：控件销毁时定时器一并销毁，
+            # 回调不可能再碰已删除的对象（与 `app.py` 里的状态栏同一套做法）。
+            timer = getattr(self, "_status_clear_timer", None)
+            if timer is None:
+                timer = QTimer(self)
+                timer.setSingleShot(True)
+                timer.timeout.connect(self._clear_status_label)
+                self._status_clear_timer = timer
+            timer.stop()
+            timer.start(timeout)
+
+    def _clear_status_label(self):
+        """清空状态栏（由自持有定时器调用；控件已销毁时静默忽略）。"""
+        try:
+            self.status_label.setText("")
+        except RuntimeError:      # 控件已销毁 —— 不该发生，兜一层不报错
+            pass
 
     def _update_info_panel(self):
         """刷新底部信息面板（坐标 / 值 / 公式 / 批注）"""

@@ -44,6 +44,44 @@ W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 M = "{http://schemas.openxmlformats.org/officeDocument/2006/math}"
 R = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
 
+#: R9：每项最多列出多少个"位置"（其余以"…等 N 处"概括）——
+#: 报告要能看，不能变成几百行
+LOCATION_LIMIT = 5
+#: 位置里引用的正文片段最长多少字
+SNIPPET_CHARS = 18
+
+
+def _paragraph_snippet(paragraph) -> str:
+    """取一段的可见文字作为"这是哪一处"的线索（太长的截断）。"""
+    text = "".join(t.text or "" for t in paragraph.iter(f"{W}t"))
+    text = " ".join(text.split())
+    if not text:
+        return ""
+    if len(text) > SNIPPET_CHARS:
+        return text[:SNIPPET_CHARS] + "…"
+    return text
+
+
+def _locate(root, tag: str, limit: int = LOCATION_LIMIT) -> List[str]:
+    """
+    R9：找出含 `tag` 的段落，返回形如 `第 3 段：『片段』` 的位置说明。
+
+    只扫**顶层 `w:p`**（含表格单元格里的段落由 `iter` 覆盖）——
+    "第几段"按文档顺序数，用户能对上大概位置。
+    """
+    found: List[str] = []
+    for index, paragraph in enumerate(root.iter(f"{W}p"), start=1):
+        if paragraph.find(f".//{tag}") is None:
+            continue
+        snippet = _paragraph_snippet(paragraph)
+        if snippet:
+            found.append(f"第 {index} 段：『{snippet}』")
+        else:
+            found.append(f"第 {index} 段")
+        if len(found) >= limit:
+            break
+    return found
+
 
 @dataclass
 class LossItem:
@@ -54,9 +92,28 @@ class LossItem:
     count: int        # 出现次数
     effect: str       # 一句话说明后果
     severity: str = HIGH
+    #: R9：**具体位置**（哪一段、什么内容），让人能自己判断要不要处理。
+    #: 只列前若干处（`LOCATION_LIMIT`），其余以"…等 N 处"概括。
+    locations: List[str] = field(default_factory=list)
 
     def line(self) -> str:
         return f"· {self.label}（{self.count} 处）：{self.effect}"
+
+    def location_lines(self) -> List[str]:
+        """
+        R9：位置明细。
+
+        为什么值得做：只说"脚注 2 处"用户没法判断该不该处理，
+        也不知道去文档哪一页找。给出"第 3 段：『…』"就**可预期**了 ——
+        R9 的定位正是"让不兼容从'打开后才发现'变成'打开前就知道'"。
+        """
+        if not self.locations:
+            return []
+        shown = self.locations[:LOCATION_LIMIT]
+        lines = [f"    · {text}" for text in shown]
+        if len(self.locations) > len(shown):
+            lines.append(f"    · …等 {len(self.locations)} 处")
+        return lines
 
 
 @dataclass
@@ -91,13 +148,15 @@ class FidelityReport:
         return f"ℹ️ 有 {total} 类内容会降级（文字保留）"
 
     def detail_lines(self) -> List[str]:
-        """明细（对话框用）：先内容丢失，再能力降级。"""
+        """明细（对话框用）：先内容丢失，再能力降级；每项带**位置**（R9）。"""
         lines = []
         for item in self.high_items:
             lines.append(item.line())
+            lines.extend(item.location_lines())
         for item in self.items:
             if item.severity != HIGH:
                 lines.append(item.line())
+                lines.extend(item.location_lines())
         return lines
 
 
@@ -121,19 +180,22 @@ def _docx_items(names: List[str], root, nsmap) -> List[LossItem]:
     if footnote_refs:
         items.append(LossItem(
             "footnote", "脚注", footnote_refs,
-            "脚注内容与正文里的脚注标记都不会保留", HIGH))
+            "脚注内容与正文里的脚注标记都不会保留", HIGH,
+            locations=_locate(root, f"{W}footnoteReference")))
 
     endnote_refs = count(f"{W}endnoteReference")
     if endnote_refs:
         items.append(LossItem(
             "endnote", "尾注", endnote_refs,
-            "尾注内容与标记都不会保留", HIGH))
+            "尾注内容与标记都不会保留", HIGH,
+            locations=_locate(root, f"{W}endnoteReference")))
 
     comment_refs = count(f"{W}commentReference")
     if comment_refs:
         items.append(LossItem(
             "comment", "批注", comment_refs,
-            "批注内容不会保留（被批注的文字会保留）", HIGH))
+            "批注内容不会保留（被批注的文字会保留）", HIGH,
+            locations=_locate(root, f"{W}commentReference")))
 
     # ---- 独立部件：这些"有就是有"，不存在默认空部件的情况 ----
     if any(n.endswith("vbaProject.bin") for n in names):
@@ -158,13 +220,15 @@ def _docx_items(names: List[str], root, nsmap) -> List[LossItem]:
     if textboxes:
         items.append(LossItem(
             "textbox", "文本框", textboxes,
-            "文本框里的文字与图形整块丢失", HIGH))
+            "文本框里的文字与图形整块丢失", HIGH,
+            locations=_locate(root, f"{W}txbxContent")))
 
     equations = count(f"{M}oMath")
     if equations:
         items.append(LossItem(
             "equation", "公式（OMML）", equations,
-            "公式内容丢失（不是变成图片，是直接没有）", HIGH))
+            "公式内容丢失（不是变成图片，是直接没有）", HIGH,
+            locations=_locate(root, f"{M}oMath")))
 
     # 嵌套表格：某个 w:tbl 的后代里还有 w:tbl
     # ⚠️ R4（2026-10-14）之后**降级为 medium**：结构（几行几列）与每格文字
@@ -186,7 +250,8 @@ def _docx_items(names: List[str], root, nsmap) -> List[LossItem]:
     if vml:
         items.append(LossItem(
             "legacy_graphics", "旧版图形（VML）", vml,
-            "旧版图形/形状不会保留", HIGH))
+            "旧版图形/形状不会保留", HIGH,
+            locations=_locate(root, f"{W}pict")))
 
     # ---- 能力降级：文字保留 ----
     toc = 0
@@ -196,19 +261,24 @@ def _docx_items(names: List[str], root, nsmap) -> List[LossItem]:
     if toc:
         items.append(LossItem(
             "toc_field", "目录域", toc,
-            "目录文字会保留，但不再是域——导出后无法“更新目录”", MEDIUM))
+            "目录文字会保留，但不再是域——导出后无法“更新目录”", MEDIUM,
+            locations=_locate(root, f"{W}instrText")))
 
     controls = count(f"{W}sdt")
     if controls:
         items.append(LossItem(
             "content_control", "内容控件", controls,
-            "控件里的文字会保留，控件结构（下拉/日期选择等）消失", MEDIUM))
+            "控件里的文字会保留，控件结构（下拉/日期选择等）消失", MEDIUM,
+            locations=_locate(root, f"{W}sdt")))
 
     revisions = count(f"{W}ins") + count(f"{W}del")
     if revisions:
         items.append(LossItem(
             "revision", "修订痕迹", revisions,
-            "改动后的文字会保留，但“谁改的/何时改的”不再可查", MEDIUM))
+            "改动后的文字会保留，但“谁改的/何时改的”不再可查", MEDIUM,
+            # 修订是插/删两种标记，两种都定位一下
+            locations=(_locate(root, f"{W}ins") + _locate(root, f"{W}del"))
+            [:LOCATION_LIMIT]))
 
     return items
 

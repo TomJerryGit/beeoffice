@@ -112,6 +112,18 @@ GATES = [
         "曾经：蜜算 0 处 AI；且上下文漏列字母会让模型给出错公式（实测 A2*B2）",
     ),
     Gate(
+        "print-fit-modes",
+        "打印缩放：列不越界、等比缩放、横向分页（R8）",
+        "tests/fidelity/test_beesheet_print_fit.py",
+        "曾经：只有'压列宽'（把文字挤坏）且无'缩放到一页'；横向分页会切错单元格",
+    ),
+    Gate(
+        "loss-locations",
+        "损失提示要能说出'哪一处'（R9）",
+        "tests/fidelity/test_r9_loss_locations.py",
+        "曾经：只说'脚注 2 处'，用户不知道去哪找、也没法判断该不该处理",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",
