@@ -116,6 +116,16 @@ jobs:
       - name: 测试（按文件隔离运行）
         run: python tools/run_tests_isolated.py --quiet
 
+      - name: 回归门禁（把每一轮的真实踩坑固化成检查）
+        # 为什么要单独一步：`run_tests_isolated.py` 只告诉你"有没有失败"，
+        # 而门禁回答的是"**上一轮修的那些坑有没有被退回去**"，并逐条写明守的是什么。
+        # 确定性门禁（调用次数/结构/文件内容）失败即红；
+        # 计时门禁默认只报告（绝对耗时会受 CI 机器负载影响，
+        # 本项目已两次被污染的机器骗过：2817ms→5199ms、19ms→108ms）。
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python tools/check_gates.py
+
       - name: 上传隔离运行日志（失败时）
         if: failure()
         uses: actions/upload-artifact@v4

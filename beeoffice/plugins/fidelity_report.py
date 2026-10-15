@@ -167,6 +167,11 @@ def _docx_items(names: List[str], root, nsmap) -> List[LossItem]:
             "公式内容丢失（不是变成图片，是直接没有）", HIGH))
 
     # 嵌套表格：某个 w:tbl 的后代里还有 w:tbl
+    # ⚠️ R4（2026-10-14）之后**降级为 medium**：结构（几行几列）与每格文字
+    # 已由 extras 保真往返（见 `bee_export._read_nested_tables` /
+    # `apply_nested_tables` 与 tests/fidelity/test_docx_nested_tables.py）。
+    # 内层的**字符格式/边框/底色仍不保** —— 所以不能整个不报，但也不能再
+    # 说成"整块丢失"（那是误报，会吓到用户）。
     nested = 0
     for table in root.findall(f".//{W}tbl"):
         if any(child is not table for child in table.iter(f"{W}tbl")):
@@ -174,7 +179,8 @@ def _docx_items(names: List[str], root, nsmap) -> List[LossItem]:
     if nested:
         items.append(LossItem(
             "nested_table", "嵌套表格", nested,
-            "单元格里的表格整块丢失（外层表格保留）", HIGH))
+            "单元格里的表格——结构与文字会保留，但内层的字体/边框/底色不保",
+            MEDIUM))
 
     vml = count(f"{W}pict")
     if vml:
@@ -326,3 +332,22 @@ def should_prompt_before_export(report: Optional[FidelityReport]) -> bool:
     if report is None:
         return False
     return report.has_high_losses or bool(report.note)
+
+
+def write_report_file(report: FidelityReport, path) -> bool:
+    """
+    把保真度报告**写成文件**（R4）。
+
+    :return: 成功 True；失败 False（**绝不假装成功** —— 调用方据此提示用户）
+
+    为什么值得做：竞品普遍不告诉用户"这份文件哪些内容保不住"。
+    能导出成文件，用户就可以**存档 / 转发给同事**，而不只是看完弹框就没了。
+    """
+    try:
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(format_report(report), encoding="utf-8")
+        return True
+    except Exception as e:  # noqa: BLE001 - 写失败要如实返回，不能静默
+        logging.warning(f"[保真度报告] 写文件失败: {e}")
+        return False

@@ -317,6 +317,12 @@ class DocMixin:
             self._docx_table_merges = list(extras["table_merges"])
             applied += 1
 
+        # 嵌套表格（R4 收尾）：Markdown 更表达不了"单元格里的表格"，
+        # 不随文档保留就会在导出时整块消失（实测 表 2→1、内层文字一并丢）
+        if extras.get("nested_tables"):
+            self._docx_nested_tables = list(extras["nested_tables"])
+            applied += 1
+
         # 分节信息（多分节文档，例如第二节横向）
         if extras.get("sections"):
             self._docx_sections = list(extras["sections"])
@@ -346,6 +352,7 @@ class DocMixin:
             "header_xml": getattr(self, "_docx_header_xml", ""),
             "footer_xml": getattr(self, "_docx_footer_xml", ""),
             "table_merges": getattr(self, "_docx_table_merges", []),
+            "nested_tables": getattr(self, "_docx_nested_tables", []),
             "sections": getattr(self, "_docx_sections", []),
             "bookmarks": getattr(self, "_docx_bookmarks", []),
             "paragraph_styles": getattr(self, "_docx_paragraph_styles", []),

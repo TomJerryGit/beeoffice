@@ -354,6 +354,116 @@ def _read_table_merges(doc):
     return merges
 
 
+def _read_nested_tables(doc):
+    """
+    读出**嵌套表格**（单元格里的表格）——保真度阶段 A 的收尾项。
+
+    为什么必须走 extras：Markdown 表格语法**表达不了嵌套**，
+    导入→导出后内层表格会**整块消失**（实测：表 2→1、内层文字一并丢失）。
+    而合并单元格、书签、分节都已经在用这条路，所以这里沿用同一套做法。
+
+    **保真范围（如实说明）**：只保 **结构 + 文字**（几行几列、每格文字）。
+    内层的**字符格式/边框/底色不保** —— 那需要把整段 OOXML 搬过去，
+    与本项目"用 extras 记语义、导出时重建"的既有取舍一致。
+    只处理**一层**嵌套（更深的层级跳过，避免记录结构无限膨胀）。
+
+    :return: [{"table": i, "row": r, "col": c,
+               "cells": [[文字, ...], ...]}, ...]
+             `table` 是**顶层**表格序号；`row`/`col` 是顶层表格里的 0 起坐标。
+    """
+    from docx.oxml.ns import qn
+
+    records = []
+    for t_idx, table in enumerate(doc.tables):
+        # 用 XML 直接数行/列，避免 `table.rows` 在异常结构上抛错
+        trs = table._tbl.findall(qn("w:tr"))
+        for r_idx, tr in enumerate(trs):
+            col = 0
+            for tc in tr.findall(qn("w:tc")):
+                tcPr = tc.find(qn("w:tcPr"))
+                colspan = 1
+                if tcPr is not None:
+                    gs = tcPr.find(qn("w:gridSpan"))
+                    if gs is not None:
+                        try:
+                            colspan = int(gs.get(qn("w:val")) or 1)
+                        except (TypeError, ValueError):
+                            colspan = 1
+
+                nested = tc.find(qn("w:tbl"))
+                if nested is not None:
+                    cells = []
+                    for nested_tr in nested.findall(qn("w:tr")):
+                        row_cells = []
+                        for nested_tc in nested_tr.findall(qn("w:tc")):
+                            text = "".join(
+                                t.text or ""
+                                for t in nested_tc.iter(qn("w:t"))
+                            ).strip()
+                            row_cells.append(text)
+                        cells.append(row_cells)
+                    if cells:
+                        records.append({
+                            "table": t_idx, "row": r_idx, "col": col,
+                            "cells": cells,
+                        })
+                col += colspan
+    return records
+
+
+def apply_nested_tables(doc, nested_tables):
+    """
+    把嵌套表格还原到导出的文档上（`_read_nested_tables` 的逆操作）。
+
+    做法：找到顶层单元格 → 在它里面 `add_table` → 写入文字。
+    单元格里原有的空段落保留（Word 要求单元格内至少有一个段落）。
+
+    :return: 成功还原的嵌套表格数
+    """
+    if not nested_tables:
+        return 0
+
+    from docx.oxml.ns import qn
+
+    applied = 0
+    for record in nested_tables:
+        try:
+            t_idx = int(record.get("table", 0))
+            if t_idx < 0 or t_idx >= len(doc.tables):
+                continue
+            table = doc.tables[t_idx]
+            row = int(record.get("row", 0))
+            col = int(record.get("col", 0))
+            cells = record.get("cells") or []
+            if not cells:
+                continue
+
+            trs = table._tbl.findall(qn("w:tr"))
+            if row < 0 or row >= len(trs):
+                continue
+            tcs = trs[row].findall(qn("w:tc"))
+            if col < 0 or col >= len(tcs):
+                continue
+
+            target = table.cell(row, col)
+            # 若已存在嵌套表（重复还原），先跳过，避免叠加
+            if target.tables:
+                continue
+
+            n_rows = len(cells)
+            n_cols = max(len(r) for r in cells)
+            nested = target.add_table(rows=n_rows, cols=n_cols)
+            for r, row_cells in enumerate(cells):
+                for c in range(n_cols):
+                    text = row_cells[c] if c < len(row_cells) else ""
+                    if text:
+                        nested.cell(r, c).text = text
+            applied += 1
+        except Exception as e:  # noqa: BLE001 - 单个表失败不该让导出整体失败
+            logging.debug(f"还原嵌套表格失败（已跳过）：{e}")
+    return applied
+
+
 def apply_table_merges(doc, table_merges):
     """
     把合并信息还原到导出的文档上。
@@ -982,6 +1092,7 @@ def read_docx_extras(docx_path):
             "header_xml": header_xml,
             "footer_xml": footer_xml,
             "table_merges": _read_table_merges(doc),
+            "nested_tables": _read_nested_tables(doc),
             "sections": _read_sections(doc),
             "bookmarks": _read_bookmarks(doc),
             "paragraph_styles": _read_paragraph_styles(doc),
@@ -1110,7 +1221,8 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
                    header_text=None, footer_text=None, table_merges=None,
                    sections=None, bookmarks=None,
                    header_xml="", footer_xml="",
-                   paragraph_styles=None, style_definitions=None):
+                   paragraph_styles=None, style_definitions=None,
+                   nested_tables=None):
     """
     Markdown 导出为 DOCX 文件
 
@@ -1176,6 +1288,10 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
         # 表格合并（保真度阶段 A 最后一项）：Markdown 表格语法表达不了合并，
         # 因此由导入时记录的 table_merges 还原。
         apply_table_merges(doc, table_merges)
+
+        # 嵌套表格（阶段 A 收尾）：Markdown 更表达不了"单元格里的表格"，
+        # 不还原就会整块消失（实测 表 2→1、内层文字一并丢）。
+        apply_nested_tables(doc, nested_tables)
 
         # 书签（阶段 A）：Markdown 无书签语法，实测 5/7 份真实文档带书签；
         # 丢失会让指向它的内部跳转变成死链。

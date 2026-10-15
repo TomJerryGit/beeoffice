@@ -78,7 +78,6 @@ def test_plain_docx_without_any_feature_is_clean(tmp_path):
 # ==================== 2. 不能漏报（逐项夹具）====================
 
 @pytest.mark.parametrize("feature,expected_key", [
-    ("nested_table", "nested_table"),
     ("textbox", "textbox"),
     ("equation", "equation"),
     ("footnote", "footnote"),
@@ -102,11 +101,15 @@ def test_content_losing_features_are_detected(tmp_path, feature, expected_key):
     ("toc_field", "toc_field"),
     ("content_control", "content_control"),
     ("tracked_change", "revision"),
+    # R4（2026-10-14）之后嵌套表格**降级为 medium**：结构与文字已能往返保真
+    # （见 test_docx_nested_tables.py），只有内层格式不保 ——
+    # 继续把它说成"整块丢失"就是**误报**，会吓到用户。
+    ("nested_table", "nested_table"),
 ])
 def test_capability_degradations_are_detected_as_medium(
         tmp_path, feature, expected_key):
     """
-    这些**文字会保留**，只是能力丢了（medium）—— 必须检出，但**不该弹窗**。
+    这些**文字/结构会保留**，只是格式或能力丢了（medium）—— 必须检出，但**不该弹窗**。
     """
     path = tmp_path / "f.docx"
     build_feature_docx(path, only=[feature])
@@ -131,6 +134,24 @@ def test_all_features_together_are_all_reported(tmp_path):
 
     assert {"textbox", "equation", "nested_table", "legacy_graphics",
             "toc_field", "content_control", "revision"} <= keys, sorted(keys)
+
+
+def test_nested_table_wording_matches_reality(tmp_path):
+    """
+    R4 之后，嵌套表格的**措辞必须与实现一致**：结构与文字保留、只有格式不保。
+
+    这条是"文档别撒谎"的守卫：如果哪天 R4 的实现回退了，
+    要么改回 HIGH，要么这条测试会提醒"措辞与事实不符"。
+    """
+    path = tmp_path / "f.docx"
+    build_feature_docx(path, only=["nested_table"])
+
+    item = next(i for i in analyze_file(path).items
+                if i.key == "nested_table")
+
+    assert item.severity == MEDIUM, "嵌套表格现在不该再按'内容丢失'报"
+    assert "结构" in item.effect and "文字" in item.effect, item.effect
+    assert "不保" in item.effect or "不保留" in item.effect, item.effect
 
 
 def test_footnote_reference_count_matches_document(tmp_path):
