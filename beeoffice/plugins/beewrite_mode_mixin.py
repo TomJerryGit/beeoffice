@@ -41,8 +41,16 @@ class ModeMixin:
     # ==================================================================
     @property
     def editor(self):
-        """对外暴露的活动编辑器（当前始终指向 Markdown 源码编辑器）"""
-        return self.markdown_editor
+        """
+        对外暴露的**活动**编辑器。
+
+        ⚠️ 原先这里恒返回 `markdown_editor`，于是"编辑→撤销/重做"（`menus._resolve_editor`）
+        与"查找替换"（`app.py:1076`）在**所见即所得模式**下都在操作那个**隐藏的**
+        源码编辑器 —— 用户点撤销"没有任何反应"，而隐藏编辑器的撤销栈还被悄悄改了。
+        现在改为返回真正可见的那个（`_get_active_editor()`），
+        与插件侧一直在用的做法（`beewrite_plugin.py:206`）保持一致。
+        """
+        return self._get_active_editor()
 
     def content(self):
         """获取当前编辑器的内容（Markdown 文本）"""

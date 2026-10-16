@@ -36,7 +36,19 @@ _DEFAULT_LANGUAGES = ["zh_CN", "en_US"]
 def _resolve_editor(widget):
     """
     从标签页控件中解析出可撤销/重做的编辑器。
-    兼容蜜写编辑器的两种属性名（editor / markdown_editor）。
+
+    兼容三种情况：
+      · 蜜写：`widget.editor`（**活动**编辑器，见 `beewrite_mode_mixin.editor`），
+        或旧的 `markdown_editor`；
+      · 蜜算这类"**视图自己就是撤销目标**"的模块：它没有 `editor` 属性，
+        但自己实现了 `undo()`/`redo()`（走它自己的命令栈），直接把视图给它。
+
+    为什么加最后一条：蜜算原先自己在 `_build_shortcuts()` 里注册了
+    Ctrl+Z/Ctrl+Y 的 QShortcut，与这里的菜单 QAction **同键** →
+    Qt 报 `Ambiguous shortcut overload: Ctrl+Z / Ctrl+Y`，
+    **两个都不触发** → 蜜算里按 Ctrl+Z 完全失效。
+    Qt 的上下文只决定"是否匹配"、不做优先级，所以只能**只留一个来源**：
+    统一由菜单动作负责，撤销目标由本函数解析。
     """
     if widget is None:
         return None
@@ -44,6 +56,8 @@ def _resolve_editor(widget):
         return widget.editor
     if hasattr(widget, "markdown_editor"):
         return widget.markdown_editor
+    if hasattr(widget, "undo") and hasattr(widget, "redo"):
+        return widget
     return None
 
 
@@ -416,16 +430,18 @@ def setup_menus(main_window):
 
     help_menu.addSeparator()
 
-    # 移动端下载
-    mobile_action = QAction(
-        tr("menu.help.mobile_download", "📱 移动端下载"), main_window
-    )
-    mobile_action.triggered.connect(main_window._open_mobile_download)
-    help_menu.addAction(mobile_action)
+    # ⚠️ 2026-10-15：原「📱 移动端下载」菜单项已**移除**（审计报告 §1.2）。
+    # 它的实现只是 `webbrowser.open("https://github.com/TomJerryGit/beeoffice/releases")`
+    # —— 没有任何版本比较/下载/校验，而且该仓库**实测 HTTP 404**，
+    # 用户点到的是一条死链。留一个"点了就报错/跳到空页面"的菜单项比没有更伤信任。
+    # 「移动端查看」（下面是真功能：本机 HTTP 服务 + 手机浏览器看文档）保留。
 
     # 移动端查看
     mobile_view_action = QAction(
         tr("menu.help.mobile_view", "📱 移动端查看"), main_window
+    )
+    mobile_view_action.setToolTip(
+        "用手机浏览器查看当前文档（需要电脑与手机在同一局域网）"
     )
     mobile_view_action.triggered.connect(main_window._start_mobile_server)
     help_menu.addAction(mobile_view_action)

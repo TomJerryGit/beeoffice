@@ -209,32 +209,13 @@ class ExportMixin:
             QMessageBox.warning(self, "导出失败", str(e))
 
     # ==================== 导出 PDF（P0-4 + 任务 5.3 + 任务 5.1） ====================
-    def _export_pdf(self):
+    def _build_pdf_html(self) -> str:
         """
-        导出 PDF（P0-4：保持 QWebEngineView 引用，避免被 GC）。
+        拼装"导出 PDF 用"的整份 HTML（视频换封面图、动态数字取终值、逐页分页）。
 
-        任务 5.3：视频替换为封面图。
-        任务 5.1：动态数字替换为最终值。
-
-        流程：
-          1. 拼接所有幻灯片为一份 HTML
-          2. 创建临时 QWebEngineView（加入 self._export_views）
-          3. loadFinished 后调 printToPdf
-          4. 完成后清理引用
-
-        关键：
-          - 先 connect 再 setHtml，避免时序问题
-          - 在 loadFinished 回调里做清理，避免提前 GC
+        抽出来是为了让「导出 PDF」的**全局入口**与蜜演自己的导出用同一套版面，
+        避免两处逻辑漂移。
         """
-        if not self._slides_html:
-            return
-
-        path, _ = QFileDialog.getSaveFileName(
-            self, "导出 PDF", "演示.pdf", "PDF (*.pdf)"
-        )
-        if not path:
-            return
-
         theme = SLIDE_THEMES[self._current_theme]
         bg = self._custom_bg or theme.get("bg", "#FFF")
 
@@ -269,7 +250,7 @@ class ExportMixin:
 
         # 任务 2.1：拼入版式 CSS
         # 优化规划 §3.3：骨架统一走 beeshow_html.render_slide_html()
-        full_html = render_slide_html(
+        return render_slide_html(
             slides_html,
             theme_css=theme['css'],
             layout_css=self._get_layout_css(),
@@ -278,28 +259,93 @@ class ExportMixin:
             wrap_slide=False,      # 每页已在上面单独包好 .slide 并带分页
         )
 
-        # P0-4：保持 QWebEngineView 引用，避免被 GC
+    def export_pdf(self, path: str) -> bool:
+        """
+        导出 PDF 到指定路径（供全局「导出 PDF」入口按模块分流时调用）。
+
+        :return: **是否已开始导出**。QtWebEngine 的 `printToPdf` 是异步的，
+            所以这里接上 `pdfPrintingFinished` 把**真实结果**回报给用户 ——
+            原先的实现是"刚发起就弹『导出成功』"（审计报告指出：没等写完就报成功，
+            失败时用户也会看到成功提示）。
+
+        环境限制：本沙箱里 QtWebEngine 初始化即失败（`platform_channel.cc`），
+        所以这条路径**无法在这里端到端验证**，只能保证结构与信号接线正确。
+        """
+        if not self._slides_html:
+            return False
+
+        full_html = self._build_pdf_html()
         temp = QWebEngineView()
         self._export_views.append(temp)
 
         def on_load(ok):
-            try:
-                if ok:
-                    temp.page().printToPdf(path)
-                    QMessageBox.information(
-                        self, "导出成功", f"已保存: {path}"
-                    )
-                else:
-                    QMessageBox.warning(self, "导出失败", "渲染失败")
-            finally:
-                # 清理引用
-                if temp in self._export_views:
-                    self._export_views.remove(temp)
-                temp.deleteLater()
+            if not ok:
+                QMessageBox.warning(self, "导出失败", "幻灯片渲染失败")
+                self._release_export_view(temp)
+                return
+            page = temp.page()
+            page.pdfPrintingFinished.connect(
+                lambda file_path, success: self._on_pdf_finished(
+                    file_path, success, temp
+                )
+            )
+            page.printToPdf(path)
 
-        # P0-4：先 connect 再 setHtml，避免时序问题
         temp.page().loadFinished.connect(on_load)
         temp.setHtml(full_html)
+        return True
+
+    def _release_export_view(self, view):
+        """清理临时导出视图的引用（避免被 GC 或残留）。"""
+        try:
+            if view in self._export_views:
+                self._export_views.remove(view)
+            view.deleteLater()
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _on_pdf_finished(self, file_path, success, view):
+        """`pdfPrintingFinished` 回调：**按真实结果**提示用户。"""
+        try:
+            if success:
+                QMessageBox.information(
+                    self, "导出成功", f"已保存: {file_path}"
+                )
+            else:
+                QMessageBox.warning(
+                    self, "导出失败", f"PDF 写入失败：{file_path}"
+                )
+        finally:
+            self._release_export_view(view)
+
+    def _export_pdf(self):
+        """
+        导出 PDF（P0-4：保持 QWebEngineView 引用，避免被 GC）。
+
+        任务 5.3：视频替换为封面图。
+        任务 5.1：动态数字替换为最终值。
+
+        流程：
+          1. 拼接所有幻灯片为一份 HTML
+          2. 创建临时 QWebEngineView（加入 self._export_views）
+          3. loadFinished 后调 printToPdf
+          4. 完成后清理引用
+
+        关键：
+          - 先 connect 再 setHtml，避免时序问题
+          - 在 loadFinished 回调里做清理，避免提前 GC
+        """
+        if not self._slides_html:
+            return
+
+        path, _ = QFileDialog.getSaveFileName(
+            self, "导出 PDF", "演示.pdf", "PDF (*.pdf)"
+        )
+        if not path:
+            return
+
+        # P0 修复：复用 `export_pdf` 的唯一实现（含"按真实结果提示"）
+        self.export_pdf(path)
 
     # ==================== 导出 HTML（任务 5.3 + 任务 5.1） ====================
     def _export_html(self):

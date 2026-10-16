@@ -547,8 +547,14 @@ class UIMixin:
     # ==================== 快捷键绑定 ====================
     def _build_shortcuts(self):
         """绑定所有快捷键"""
-        QShortcut(QKeySequence.Undo, self).activated.connect(self.undo)
-        QShortcut(QKeySequence.Redo, self).activated.connect(self.redo)
+        # ⚠️ **这里不再注册 Ctrl+Z / Ctrl+Y**（实测踩过）：
+        # `menus.py:247,252` 已为「撤销/重做」注册了窗口级 QAction，这里再注册一遍
+        # 会同键 → Qt 报 `Ambiguous shortcut overload: Ctrl+Z / Ctrl+Y`，
+        # **两个都不触发** → 蜜算里按 Ctrl+Z 完全失效。
+        # （改成 `WidgetWithChildrenShortcut` 也**不行**：Qt 的上下文只用于匹配、
+        #   不做优先级排序，两个都匹配就判歧义。）
+        # 现在统一由菜单动作负责：`menus._resolve_editor` 认"自己实现了
+        # undo/redo 的视图"，于是对蜜算会直接把视图给它，调用它的命令栈。
         QShortcut(QKeySequence("Ctrl+D"), self).activated.connect(
             self._shortcut_fill_down
         )

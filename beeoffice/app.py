@@ -1017,12 +1017,33 @@ class BeeApp(QMainWindow):
         )
 
     def _export_pdf(self):
+        """
+        导出 PDF（**按模块分流**，P0 修复）。
+
+        ⚠️ 原先这里只认蜜写（要求 `widget.get_rendered_content()`），
+        并且收敛到 `bee_export.export_to_pdf` —— 而它内部依赖 **WeasyPrint**，
+        该依赖在 requirements.txt 里**被注释掉**（Windows 还需 GTK）→
+        默认安装下**必然失败**（我实测：返回 False、不产出文件）。
+        结果是：蜜写里点"导出 PDF"失败；蜜算/蜜演里点它弹"当前文档不支持导出 PDF"。
+        而三个模块**各自都能**产出 PDF（蜜写/蜜算走 Qt `QPrinter`，蜜演走 WebEngine）。
+
+        现在统一走各模块的 `export_pdf(path)`：不新增依赖、行为与"打印预览"一致。
+        没有该方法的控件（例如纯文本框标签）给**明确提示**并顺带指路打印预览。
+        """
         widget = self.tab_manager.currentWidget()
-        if not hasattr(widget, "get_rendered_content"):
-            QMessageBox.warning(
+        if widget is None:
+            return
+
+        if not hasattr(widget, "export_pdf"):
+            QMessageBox.information(
                 self,
                 tr("msg.hint", "提示"),
-                tr("msg.export_pdf_unsupported", "当前文档不支持导出 PDF"),
+                tr(
+                    "msg.export_pdf_unsupported_detail",
+                    "当前文档不支持导出 PDF。\n"
+                    "如果是文档/表格/演示，请先切到对应标签页；"
+                    "也可以用「🖨️ 打印预览」→ 选择“打印到 PDF”。",
+                ),
             )
             return
 
@@ -1035,19 +1056,30 @@ class BeeApp(QMainWindow):
         if not path:
             return
 
-        from beeoffice.plugins.bee_export import export_to_pdf
-        content = widget.get_rendered_content()
+        self.set_global_status(tr("msg.exporting_pdf", "正在导出 PDF..."), 0)
+        try:
+            ok = bool(widget.export_pdf(path))
+        except Exception as e:  # noqa: BLE001
+            logging.error(f"导出 PDF 失败: {e}")
+            ok = False
 
-        self._run_async_export(
-            export_to_pdf,
-            content,
-            path,
-            success_msg=tr("msg.export_saved", "已导出:\n{path}").format(path=path),
-            failure_msg=tr(
-                "msg.export_need_weasyprint", "导出失败，可能需要 WeasyPrint"
-            ),
-            status_text=tr("msg.exporting_pdf", "正在导出 PDF..."),
-        )
+        if ok:
+            self.set_global_status(
+                tr("msg.export_saved", "已导出:\n{path}").format(path=path),
+                6000,
+            )
+        else:
+            # 不再甩锅给 WeasyPrint —— 那条路径已经不走了
+            QMessageBox.warning(
+                self,
+                tr("msg.export_failed", "导出失败"),
+                tr(
+                    "msg.export_pdf_failed_detail",
+                    "PDF 没能写出来。\n\n"
+                    "常见原因：目标文件被其他程序占用；或当前文档还没有内容。\n"
+                    "也可以改用「🖨️ 打印预览」→ 选择“打印到 PDF”。",
+                ),
+            )
 
     def _export_html(self):
         """
@@ -1474,19 +1506,42 @@ class BeeApp(QMainWindow):
     # ==================================================================
     # 移动端
     # ==================================================================
-    def _open_mobile_download(self):
-        import webbrowser
-        webbrowser.open(
-            "https://github.com/TomJerryGit/beeoffice/releases"
-        )
-
     def _start_mobile_server(self):
+        """
+        启动「移动端查看」的本机服务。
+
+        ⚠️ 修复（审计报告 §1.6）：原先这里用默认参数 `MobileServer(self)` 构造，
+        而它的默认是 `allow_lan=False` → 只监听 `127.0.0.1`，
+        **手机根本连不上**；界面里又**没有任何地方**能打开局域网访问，
+        于是菜单的承诺无法达成。
+        现在这里**显式询问**用户是否允许局域网访问（默认「否」，安全优先），
+        并把结果传进去；提示文案也随选择变化。
+        """
         from beeoffice.mobile import MobileServer
+
+        allow_lan = False
+        if self.mobile_server is None:
+            reply = QMessageBox.question(
+                self, "📱 移动端查看",
+                "是否允许**同一局域网内的手机**访问？\n\n"
+                "· 「是」：手机连同一 Wi-Fi 即可用浏览器查看（会绑定 0.0.0.0）\n"
+                "· 「否」：只允许本机浏览器访问（更安全，手机连不上）\n\n"
+                "服务只在本次运行期间开启，关闭软件即停止；"
+                "且带访问令牌校验，不对外网开放。",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            )
+            allow_lan = (reply == QMessageBox.Yes)
 
         try:
             if self.mobile_server is None:
-                self.mobile_server = MobileServer(self)
+                self.mobile_server = MobileServer(self, allow_lan=allow_lan)
             self.mobile_server.start()
+            # 状态栏说明当前的访问范围（与上面的选择一致，避免用户以为手机一定能连）
+            scope = "局域网内手机可访问" if allow_lan else "仅本机可访问"
+            self.set_global_status(
+                tr("msg.mobile_started", "移动端查看已启动（{scope}）").format(
+                    scope=scope), 8000
+            )
         except Exception as e:
             logging.error(f"启动移动端服务器失败: {e}")
             QMessageBox.warning(

@@ -30,11 +30,15 @@ from beeoffice.resources.templates import TEMPLATES
 
 
 # ==================== 常量 ====================
-# 在线模板仓库 API
-TEMPLATE_REPO_API = (
-    "https://api.github.com/repos/TomJerryGit/beeoffice-templates"
-    "/contents/templates"
-)
+# ⚠️ 2026-10-15：原先这里有一个"在线模板仓库 API"常量
+#   `https://api.github.com/repos/TomJerryGit/beeoffice-templates/contents/templates`
+# 但（1）该仓库**实测返回 HTTP 404**（用 curl/浏览器直接访问同样 404），
+# 所以"在线模板"永远拿不到数据；（2）模板选择器（`beeoffice/templates.py`）
+# 从来**没有**在线入口（按钮只有"+ 新建分类 / 使用此模板 / 取消"），
+# 也就是说抓取代码是**死代码**。两件事合起来 = 一个"看着有、实际没有"的功能。
+# 处理：连同下面那个 `OnlineTemplateFetcher` 线程一起删掉（见审计报告 §1.1）。
+# 若将来真要上在线模板：先把仓库与内容准备好，再把这个能力接进选择器界面。
+ONLINE_TEMPLATES_AVAILABLE = False
 
 # 用户模板目录
 USER_TEMPLATE_DIR = Path.home() / ".beeoffice_templates"
@@ -77,66 +81,19 @@ def _safe_filename(name: str) -> str:
     return cleaned[:_MAX_FILENAME_LEN]
 
 
-# ==================== 在线模板拉取线程 ====================
-class OnlineTemplateFetcher(QThread):
-    """
-    从 GitHub 仓库拉取在线模板列表。
-
-    注意：信号名用 templates_ready，不要叫 finished。
-    QThread 本身有 finished 信号，子类若定义同名信号会覆盖它，
-    在 PySide6 中会导致 Qt 内部 emit 时参数不匹配，行为未定义。
-    """
-
-    templates_ready = Signal(list)
-    error = Signal(str)
-
-    def __init__(self, api_url: str = TEMPLATE_REPO_API, parent=None):
-        super().__init__(parent)
-        self._api_url = api_url
-
-    def run(self):
-        try:
-            req = urllib.request.Request(
-                self._api_url,
-                headers={"Accept": "application/vnd.github.v3+json"},
-            )
-            with urllib.request.urlopen(req, timeout=10) as response:
-                raw = response.read().decode("utf-8")
-            data = json.loads(raw)
-
-            templates = []
-            if isinstance(data, list):
-                for item in data:
-                    if (
-                        isinstance(item, dict)
-                        and item.get("type") == "file"
-                        and str(item.get("name", "")).endswith(".md")
-                    ):
-                        templates.append({
-                            # 去掉末尾 .md
-                            "name": item["name"][:-3],
-                            "download_url": item.get("download_url", ""),
-                            "size": item.get("size", 0),
-                        })
-            self.templates_ready.emit(templates)
-        except Exception as e:
-            logging.error(f"拉取在线模板失败: {e}")
-            self.error.emit(str(e))
-
-
 # ==================== 模板管理器 ====================
 class TemplateManager:
-    """模板管理器：内置 + 用户 + 在线"""
+    """模板管理器：内置 + 用户（**在线模板已移除**，见文件头部的说明与审计报告 §1.1）"""
 
     # 类属性，便于测试时覆盖
-    REPO_API = TEMPLATE_REPO_API
     USER_DIR = USER_TEMPLATE_DIR
     INDEX_FILE = INDEX_FILENAME
 
-    def __init__(self, user_dir: Path = None, repo_api: str = None):
+    def __init__(self, user_dir: Path = None):
         """
         :param user_dir: 用户模板目录（默认 ~/.beeoffice_templates）
-        :param repo_api: 在线模板 API 地址
+
+        （原先还有 `repo_api` 参数用于在线模板；该能力已移除，见文件头部说明。）
         """
         self._user_template_dir = Path(user_dir or self.USER_DIR)
         try:
@@ -147,7 +104,6 @@ class TemplateManager:
             )
 
         self._template_index_path = self._user_template_dir / self.INDEX_FILE
-        self._repo_api = repo_api or self.REPO_API
         self._index = {"user_templates": []}
         self._load_index()
 
@@ -352,39 +308,6 @@ class TemplateManager:
         if renamed:
             self._save_index()
         return renamed
-
-    # ==================== 在线模板 ====================
-    def fetch_online_templates(self) -> OnlineTemplateFetcher:
-        """
-        返回在线模板拉取线程（异步）。
-        调用方需连接 templates_ready / error 信号并 start()。
-
-        用法：
-            fetcher = tm.fetch_online_templates()
-            fetcher.templates_ready.connect(self._on_templates_ready)
-            fetcher.error.connect(self._on_fetch_error)
-            fetcher.start()
-        """
-        return OnlineTemplateFetcher(self._repo_api)
-
-    def download_online_template(self, download_url, name) -> bool:
-        """
-        同步下载在线模板并保存为用户模板。
-        注意：会阻塞当前线程，建议在后台线程调用。
-        """
-        if not download_url:
-            logging.warning("下载地址为空")
-            return False
-
-        try:
-            req = urllib.request.Request(download_url)
-            with urllib.request.urlopen(req, timeout=10) as response:
-                content = response.read().decode("utf-8")
-        except Exception as e:
-            logging.error(f"下载在线模板失败 {download_url}: {e}")
-            return False
-
-        return self.save_as_template(name, content, category="在线")
 
     # ==================== 分类 ====================
     @staticmethod

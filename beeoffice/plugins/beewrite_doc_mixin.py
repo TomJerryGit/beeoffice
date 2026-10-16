@@ -405,6 +405,67 @@ class DocMixin:
         preview.exec()
 
     # ==================================================================
+    # 导出 PDF（P0 修复：改走 Qt 打印路径，不再依赖 WeasyPrint）
+    # ==================================================================
+    def _document_for_print(self):
+        """
+        取"要打印/导出 PDF 的那个 QTextDocument"（与打印预览完全同一套逻辑）。
+
+        富文本模式直接用 `rich_editor.document()`；Markdown 模式则先把
+        Markdown 转 HTML 再建一个临时 QTextDocument。
+        """
+        from PySide6.QtGui import QTextDocument
+
+        if self._edit_mode == "rich_text":
+            return self.rich_editor.document()
+        md = self.content()
+        try:
+            import markdown
+
+            html = markdown.markdown(md, extensions=["tables", "fenced_code"])
+        except Exception:
+            html = f"<pre>{md}</pre>"
+        doc = QTextDocument()
+        doc.setHtml(html)
+        return doc
+
+    def export_pdf(self, path: str) -> bool:
+        """
+        导出为 PDF —— **走 Qt 的 QPrinter（`PdfFormat`）**。
+
+        ⚠️ 为什么改成这条路径（审计报告 §2.2，我实测过）：
+        原先「导出 PDF」收敛到 `bee_export.export_to_pdf`，而它内部是
+        `from weasyprint import HTML`；**weasyprint 在 requirements.txt 里被注释掉**
+        （还注明 Windows 需要 GTK），所以默认安装下这个入口**必然失败**
+        （我实测：返回 False、不产出文件），只弹一句"可能需要 WeasyPrint"。
+        而打印走的是 Qt `QPrinter`，一直是可用的 —— 于是用户想存 PDF
+        只能绕道"打印预览 → 选 Microsoft Print to PDF"。
+
+        现在直接复用打印那条渲染逻辑，把输出设成 PDF 文件即可：
+        不新增依赖、三模块行为一致、和打印预览所见一致。
+        """
+        try:
+            from PySide6.QtPrintSupport import QPrinter
+        except ImportError:
+            QMessageBox.warning(self, "提示", "当前环境不支持导出 PDF")
+            return False
+
+        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+        # ⚠️ 用现代 API 设 A4：`QPrinter.PageSize.A4` 在 PySide6 6.6 里**不存在**
+        #（我第一版这么写，测试当场报 AttributeError）。
+        from PySide6.QtGui import QPageSize
+
+        printer.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
+        printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
+        printer.setOutputFileName(str(path))
+        try:
+            self._document_for_print().print_(printer)
+            return True
+        except Exception as e:  # noqa: BLE001
+            logging.error(f"[蜜写] 导出 PDF 失败: {e}")
+            return False
+
+    # ==================================================================
     # 文档对比
     # ==================================================================
     def _compare_with_original(self):

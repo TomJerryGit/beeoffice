@@ -130,6 +130,24 @@ GATES = [
         "曾经：spike 推断'插 U+2060 即可'，实测 5 种标记全部无效；判据漏剥标记还会给出假的 0",
     ),
     Gate(
+        "p0-shortcuts",
+        "P0：Ctrl+S/Ctrl+Z 不再因同键歧义失效（唯一来源）",
+        "tests/fidelity/test_p0_shortcut_fixes.py",
+        "曾经：菜单 QAction 与模块 QShortcut 同键 → Qt 判歧义 → 两个都不触发（保存/撤销完全失效）",
+    ),
+    Gate(
+        "p0-unsaved-prompt",
+        "P0：蜜算/蜜演关标签会提示未保存",
+        "tests/fidelity/test_p0_unsaved_prompt.py",
+        "曾经：两个视图没有 content() → initial_content 记为 None → 关标签静默丢弃内容",
+    ),
+    Gate(
+        "p0-pdf-export",
+        "P0：导出 PDF 走 Qt 路径并三模块分流（真的产出 PDF）",
+        "tests/fidelity/test_p0_pdf_export.py",
+        "曾经：依赖未打包的 WeasyPrint → 蜜写必失败、蜜算/蜜演弹'不支持'",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",

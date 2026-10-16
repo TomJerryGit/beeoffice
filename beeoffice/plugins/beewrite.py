@@ -288,7 +288,14 @@ class BeeWriteEditor(
         self.markdown_editor.mouseDoubleClickEvent = self._on_md_double_click
 
         # ---------- 快捷键 ----------
-        QShortcut(QKeySequence("Ctrl+S"), self).activated.connect(self.save)
+        # ⚠️ **这里不再注册 Ctrl+S**（实测踩过两次）
+        # `menus.py:188` 已经为「保存」注册了窗口级 QAction。原先这里又注册了一遍，
+        # 两者同键 → Qt 报 `Ambiguous shortcut overload: Ctrl+S`，**两个槽都不执行**
+        # → 在蜜写里按 Ctrl+S 完全没有反应。
+        # 我先后试过把它改成 `WidgetWithChildrenShortcut`，**仍然歧义** ——
+        # Qt 的上下文只用于"是否匹配"，**不做优先级排序**，两个都匹配就判歧义。
+        # 正确做法是**只保留一个来源**：由菜单的窗口级动作负责（它同样会调到
+        # `widget.save()`，见 `app._save_current`）。
         QShortcut(QKeySequence("Ctrl+B"), self).activated.connect(
             self._toggle_bold
         )

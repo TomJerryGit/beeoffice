@@ -60,7 +60,7 @@ from PySide6.QtWidgets import (
     QApplication, QFormLayout, QCheckBox, QMenu,
 )
 from PySide6.QtCore import (
-    Qt, QTimer, QItemSelectionModel, QItemSelection,
+    Qt, QTimer, QItemSelectionModel, QItemSelection, Signal,
 )
 from PySide6.QtGui import QColor
 
@@ -104,7 +104,50 @@ class BeeSheetView(
 ):
     """蜜算主视图（组装层）"""
 
+    #: 内容变化信号（供标签页的"● 未保存"标记 —— `tab_manager.addTab` 会接它）
+    contentChanged = Signal()
+
     FUNCTION_REFERENCE = {}
+
+    # ==================================================================
+    # 内容接口（标签页未保存检查用）
+    # ==================================================================
+    def content(self) -> str:
+        """
+        返回当前表格的**轻量内容签名**（形状 + 内容哈希）。
+
+        用途只有一个：让 `tab_manager` 能判断"内容变没变"，
+        从而在**关标签时提示未保存**（原先蜜算没有这个方法 →
+        关标签一路静默丢弃）。
+
+        ⚠️ 为什么返回签名而不是整表 CSV：粘性检查会在**每次关闭标签**时调用，
+        几十万行的表做 `to_csv` 是几百毫秒到秒级；而
+        `hash_pandas_object` 是向量化的 O(n)，且**对任何单元格改动都敏感**。
+        注意它**不是给人看的文本** —— `mobile.py` 的渲染分支有
+        `not hasattr(widget, "model")` 守卫，所以蜜算不会拿它当文档内容。
+        """
+        df = getattr(self.model, "df", None)
+        if df is None or getattr(df, "empty", True):
+            return ""
+        shape = f"{len(df)}x{len(df.columns)}"
+        try:
+            import hashlib
+
+            import pandas as pd
+
+            digest = hashlib.sha1(
+                pd.util.hash_pandas_object(df, index=True).values.tobytes()
+            ).hexdigest()[:16]
+            return f"{shape}:{digest}"
+        except Exception:            # 极端 dtype 等情况下降级为形状
+            return shape
+
+    def _on_content_changed(self, *_args):
+        """模型有改动 → 通知标签页（点亮"●"未保存标记）。"""
+        try:
+            self.contentChanged.emit()
+        except Exception:            # 控件已销毁时忽略
+            pass
 
     # ==================== 初始化 ====================
     def __init__(self, parent=None):
@@ -121,6 +164,18 @@ class BeeSheetView(
         # ---------- 撤销 / 重做 ----------
         self._undo_stack, self._redo_stack = [], []
         self._dirty = False
+
+        # ---------- 内容接口（供标签页"未保存检查"用）----------
+        # P0 修复：`tab_manager._on_tab_close_request` 靠 `widget.content()`
+        # 判断"内容是否变了"，而蜜算原先**没有** `content()` →
+        # `initial_content` 被记为 None → **关标签时不提示、直接丢弃**
+        # （蜜算自己 5 分钟写一次的会话备份还会在 closeEvent 里被删掉）。
+        # 这里补上：`content()` 返回一个**轻量签名**（形状 + 内容哈希），
+        # 变化即不同；`contentChanged` 让标签页的"●"未保存标记也能亮。
+        self._content_changed_emitted = False
+        self.model.dataChanged.connect(self._on_content_changed)
+        self.model.layoutChanged.connect(self._on_content_changed)
+        self.model.modelReset.connect(self._on_content_changed)
 
         # ---------- 单元格附加数据 ----------
         self._cell_comments = {}

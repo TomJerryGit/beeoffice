@@ -41,7 +41,7 @@ v5.2 B1 新增 Mixin：
 """
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, Signal
 
 # ==================== Mixin 层 ====================
 from beeoffice.plugins.beeshow_toolbar_mixin import ToolbarMixin
@@ -92,12 +92,51 @@ class BeeShowView(
 ):
     """蜜演主视图（组装层）"""
 
+    #: 内容变化信号（供标签页的"● 未保存"标记 —— `tab_manager.addTab` 会接它）
+    contentChanged = Signal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("BeeShow")
         self._init_state()
         self._build_ui()
         self._apply_initial_content()
+        # P0 修复：把编辑器的内容变化接到 contentChanged，
+        # 让标签页能点亮"未保存"标记（原先蜜演没有这个信号）。
+        editor = getattr(self, "_editor", None)
+        if editor is not None and hasattr(editor, "textChanged"):
+            try:
+                editor.textChanged.connect(self._on_content_changed)
+            except Exception:            # 控件不支持时忽略
+                pass
+
+    # ==================================================================
+    # 内容接口（标签页未保存检查用）
+    # ==================================================================
+    def content(self) -> str:
+        """
+        返回当前演示文稿的 Markdown 源（供 `tab_manager` 做未保存检查）。
+
+        P0 修复背景：蜜演原先**既没有 `save` 也没有 `content`** →
+        ① Ctrl+S 毫无反应；② 关标签时 `tab_manager` 拿不到内容、
+        记为 None → **静默关闭、稿子直接丢**（蜜演的"历史版本"只在内存里，
+        导出件又是 PPTX/PDF/HTML，回不到编辑器）。
+        这里先补上"能判断有没有改动"这一半（止损），完整的保存链路见审计报告 §2.7。
+        """
+        editor = getattr(self, "_editor", None)
+        if editor is None:
+            return ""
+        try:
+            return editor.toPlainText()
+        except RuntimeError:             # 控件已销毁
+            return ""
+
+    def _on_content_changed(self, *_args):
+        """编辑器有改动 → 通知标签页（点亮"●"未保存标记）。"""
+        try:
+            self.contentChanged.emit()
+        except Exception:
+            pass
 
     # ==================== 状态初始化 ====================
     def _init_state(self):

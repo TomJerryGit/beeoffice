@@ -272,8 +272,14 @@ class SheetPrintMixin:
         natural_headers = natural[1:]
         total_w = sum(natural) or 1.0
         rows = data["rows"]
-        # 自然高度（含表头、页脚；行数为 0 时按 1 页算）
-        content_h = header_h + footer_h + max(1, len(rows)) * row_h
+        # ⚠️ **第一页还要画标题**（工作表名），高度 ≈ 表头高度。
+        # 必须把它算进"内容总高"——否则 ① 缩放会按偏小的高度算 →
+        # 首页仍放不下（"缩放到 1 页"失效，被 fit 测试抓到）；
+        # ② 排版的每页行数偏多 → Qt 的 PDF 引擎**多开一页**
+        # （导出 200 行的表："计划 5 页、实际 6 页"，被
+        # `tests/fidelity/test_p0_pdf_export.py` 的页数不变量抓到）。
+        title_h = header_h if str(data.get("sheet") or "") else 0.0
+        content_h = header_h + footer_h + title_h + max(1, len(rows)) * row_h
 
         scale, bands = SheetPrintMixin._plan_scale_and_bands(
             natural_headers, usable_w, usable_h, content_h, fit,
@@ -284,6 +290,8 @@ class SheetPrintMixin:
         eff_header_h = header_h * scale
 
         body_h = max(eff_row_h, usable_h - eff_header_h - footer_h * scale)
+        # 首页要额外留出标题的高度（缩放后）
+        body_h = max(eff_row_h, body_h - title_h * scale)
         # ⚠️ 浮点边界：`int(58.9/0.4909) == 119` 会让"刚好一行塞满"的表
         # 多出一页（120 行的表被拆成 2 页，测试抓到）。加个极小容差再取整。
         rows_per_page = max(1, int(body_h / eff_row_h + 1e-9))
@@ -437,6 +445,36 @@ class SheetPrintMixin:
         return [w * factor for w in widths]
 
     # ==================================================================
+    # 导出 PDF（P0 修复：三模块统一走 Qt 打印路径）
+    # ==================================================================
+    def export_pdf(self, path: str) -> bool:
+        """
+        把当前工作表导出为 PDF —— 复用**打印**那套渲染（`_render_sheet_to`）。
+
+        审计报告 §2.2：全局「导出 PDF」原先只认蜜写，蜜算/蜜演点它弹
+        "当前文档不支持导出 PDF"；而蜜算其实**一直**能打印成 PDF。
+        现在补上这个方法，全局入口就能按模块分流了。
+        """
+        try:
+            from PySide6.QtPrintSupport import QPrinter
+        except ImportError:
+            return False
+
+        data = self._collect_print_data()
+        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+        if len(data.get("headers") or []) > 7:
+            printer.setPageOrientation(QPageLayout.Orientation.Landscape)
+        printer.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
+        printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
+        printer.setOutputFileName(str(path))
+        try:
+            self._render_sheet_to(printer)
+            return True
+        except Exception as e:  # noqa: BLE001
+            logging.error(f"[蜜算] 导出 PDF 失败: {e}")
+            return False
+
+    # ==================================================================
     # 绘制
     # ==================================================================
     @staticmethod
@@ -528,7 +566,13 @@ class SheetPrintMixin:
                         painter, [page["repeat_header_row"]], page_widths,
                         margin, y, row_h, highlight=True,
                     )
-                footer_y = rect.height() - margin + 1.0 * px
+                # ⚠️ 页脚必须画在**页面内**（实测踩过）：
+                # 原先是 `rect.height() - margin + 1.0 * px`，而页脚矩形本身还有
+                # 4px 高度 → 整体超出可打印区约 5px → Qt 的 PDF 引擎会因此
+                # **多开一页**（导出 200 行的表时"计划 5 页、实际 6 页"，
+                # 被 `test_p0_pdf_export` 的页数不变量抓到）。
+                # 让页脚底边正好压在下方页边距上即可。
+                footer_y = rect.height() - margin - 4.0 * px
                 self._draw_footer(
                     painter, page["footer_left"], page["footer_right"],
                     margin, footer_y, geom["usable_w"], px,

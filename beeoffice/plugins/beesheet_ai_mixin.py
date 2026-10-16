@@ -466,3 +466,42 @@ class SheetAIMixin:
             "生成表格摘要", build_summary_prompt(context),
             on_ai_text=show, build_local=build_local,
         )
+
+    # ==================================================================
+    # 工具 →「智能数据分析」
+    # ==================================================================
+    def _analyze_data(self):
+        """
+        「工具 → 智能数据分析」的实际实现（R5 P0 修复）。
+
+        **背景**：这个菜单项与命令面板项原先**指向一个不存在的方法**
+        （`app.py:_analyze_current_sheet` 只做 `hasattr(widget, "_analyze_data")`
+        探测，且**没有 else**）→ 用户点它**一点点反应都没有**，连提示都没有。
+        审计报告把它列为"最恶劣的一种空壳"。
+
+        **实现取舍**：这里做成**纯本地**分析（全部规则可解释、不联网、不需要 Key），
+        并把"要看 AI 的解释"明确指向 🤖 菜单 —— 而不是让这个菜单项偷偷依赖 AI。
+        这样即使用户没配 AI，这个菜单项也是**真的有用**的。
+        """
+        df = getattr(self.model, "df", None)
+        if df is None or getattr(df, "empty", True):
+            QMessageBox.information(self, "智能数据分析", "当前工作表没有数据")
+            return
+
+        from beeoffice.plugins.beesheet_ai_mixin import local_sheet_summary
+
+        parts = [
+            "【本地数据分析】（全部由本地规则算出，不联网、可解释）",
+            "",
+            local_sheet_summary(df),
+            "",
+            "【值得注意的地方】",
+            self._collect_local_findings(),
+            "",
+            "提示：想要『这些数据说明什么』式的解读，请用工具栏「🤖 AI ▾ → 解释表格问题」"
+            "（需要配置 AI；未配置时也会先说明并征求同意）。",
+        ]
+        text = "\n".join(parts)
+        self._sheet_ai_show_text("智能数据分析", text,
+                                 note="本地规则结果（不是 AI 生成）")
+        self._set_status("✅ 数据分析完成（本地规则）")
