@@ -51,6 +51,18 @@ if resources_dir.exists():
     datas.append((str(resources_dir), "beeoffice/resources"))
     print(f"   + resources: {resources_dir}")
 
+# 数据目录（beeoffice/data/*，含拼写检查的技术词白名单 tech_words.txt）
+# ⚠️ 这是生产能力评估 R1：原先**漏了这个目录**，而
+# `spellcheck.tech_words_path()` 会加载 `beeoffice/data/tech_words.txt`
+# → 打包版的拼写检查技术词白名单静默失效（技术文档"误报变多"）。
+# 现在既补打包声明，也让 `tech_words_path()` 走冻结感知的路径解析。
+data_dir = PROJECT_ROOT / "beeoffice" / "data"
+if data_dir.exists():
+    datas.append((str(data_dir), "beeoffice/data"))
+    print(f"   + data:      {data_dir}")
+else:
+    print(f"   ⚠ data 不存在: {data_dir}")
+
 # 图标（若有）
 for icon_name in ("icon.ico", "icon.icns", "icon.png"):
     icon_path = resources_dir / icon_name
