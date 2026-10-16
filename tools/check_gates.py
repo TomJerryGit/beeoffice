@@ -160,6 +160,12 @@ GATES = [
         "曾经：.xls 假装支持、插入删除行列不进撤销栈、云同步上传一个永远为空的目录",
     ),
     Gate(
+        "format-persistence",
+        "蜜算格式落盘并读回（且写格式不得丢数据）",
+        "tests/fidelity/test_p1_format_persistence.py",
+        "曾经：加粗/数字格式/合并/批注/条件格式保存后全部消失；合并还会被静默吃掉数据",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",

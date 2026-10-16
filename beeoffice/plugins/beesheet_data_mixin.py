@@ -6,6 +6,7 @@
 import re
 import json
 import logging
+from pathlib import Path
 import pandas as pd
 from datetime import datetime
 from PySide6.QtWidgets import (
@@ -114,9 +115,14 @@ class DataMixin:
 
         保真度阶段 A：若导入时保留了工作簿（`self._workbook`），则把
         **全部工作表与公式**写回；否则退回 `df.to_excel()`。
+
+        P1（本刀）：写完再**贴一遍视图侧格式**（加粗/斜体/下划线/对齐/数字格式、
+        合并、批注、条件格式）。两条写入路径共用同一个后处理函数，
+        避免"改了一个、另一个没改"。
         """
         try:
             df = self._get_export_df()
+            sheet_name = getattr(self, "_active_sheet_name", "") or "Sheet1"
             workbook = getattr(self, "_workbook", None)
             if workbook is not None and workbook.sheets:
                 from beeoffice.plugins.beesheet_workbook import (
@@ -128,12 +134,105 @@ class DataMixin:
                     or workbook.active
                 sync_active_sheet(workbook, name, df)
                 write_workbook(workbook, path)
+                sheet_name = name
             else:
-                df.to_excel(path, index=False)
+                df.to_excel(path, index=False, sheet_name=sheet_name)
+
+            self._apply_view_styles_to(path, sheet_name, len(df))
             return True
         except Exception as e:  # noqa: BLE001
             logging.error(f"[蜜算] 写 xlsx 失败 {path}: {e}")
             return False
+
+    def _apply_view_styles_to(self, path: str, sheet_name: str,
+                              row_count: int):
+        """
+        把视图侧格式贴到刚写好的文件上（失败**不影响数据**）。
+
+        审计报告 §2.9：`_cell_formats`/`_merged_cells`/`_cell_comments`/
+        `_conditional_formats` 在导出链上**零引用** —— 用户自己加的加粗、数字格式、
+        合并、批注、条件格式保存后全部消失。这里补上。
+        """
+        try:
+            from beeoffice.plugins.beesheet_style_export import (
+                apply_view_styles,
+            )
+
+            counts = apply_view_styles(
+                path,
+                sheet_name,
+                formats=getattr(self, "_cell_formats", None),
+                merges=getattr(self, "_merged_cells", None),
+                comments=getattr(self, "_cell_comments", None),
+                conditional=getattr(self, "_conditional_formats", None),
+                row_count=row_count,
+            )
+            if any(counts.values()):
+                logging.info(f"[蜜算] 已写入视图侧格式: {counts}")
+        except Exception as e:  # noqa: BLE001 - 格式写失败不该毁掉数据
+            logging.warning(f"[蜜算] 写入视图侧格式失败（数据已安全写入）: {e}")
+
+    def _load_view_styles_from(self, path: str, sheet_name: str = ""):
+        """
+        从刚打开的文件**读回**视图侧格式（格式/合并/批注）。
+
+        ## 为什么必须有这一半
+        只写不读等于"存了却看不到"：用户设了货币格式、保存、重开 →
+        文件里是对的，界面却是朴素的 —— 看起来就像保存坏了。
+        所以"保存"和"打开"必须成对。
+
+        合并要顺带 `setSpan` 恢复，否则数据在、视觉不在。
+
+        已知未读回：**条件格式**（规则类型多、反向映射容易错；
+        且写盘只新增规则、从不删除，所以读不回来也不会丢）。
+
+        ⚠️ **大文件跳过**：读回要再 `load_workbook()` 打开一次文件，
+        几十 MB 的表上这个代价很实在。所以超过 `_STYLE_READ_MAX_BYTES`
+        就跳过（并在日志里说明）—— 大表通常也不是靠手工格式在用的。
+        """
+        #: 超过这个大小就不读样式（避免为格式让打开变慢）
+        max_bytes = 5 * 1024 * 1024
+        try:
+            size = Path(path).stat().st_size
+        except OSError:
+            size = 0
+        if size > max_bytes:
+            logging.info(
+                f"[蜜算] 文件较大（{size / 1048576:.1f} MB），跳过格式读回"
+                "（数据不受影响）"
+            )
+            return
+        try:
+            from beeoffice.plugins.beesheet_style_export import (
+                read_view_styles,
+            )
+
+            styles = read_view_styles(path, sheet_name or None)
+            formats = styles.get("formats") or {}
+            merges = styles.get("merges") or {}
+            comments = styles.get("comments") or {}
+
+            if formats:
+                self._cell_formats = formats
+            if comments:
+                self._cell_comments = comments
+            if merges:
+                self._merged_cells = merges
+                for (r1, c1), (n_rows, n_cols) in merges.items():
+                    try:
+                        self.table_view.setSpan(
+                            int(r1), int(c1), int(n_rows), int(n_cols)
+                        )
+                    except Exception as e:  # noqa: BLE001
+                        logging.debug(f"[蜜算] 恢复合并显示失败 {r1},{c1}: {e}")
+            if any((formats, merges, comments)):
+                logging.info(
+                    "[蜜算] 已读回格式："
+                    f"格式 {len(formats)} 格 / 合并 {len(merges)} 处 / "
+                    f"批注 {len(comments)} 条"
+                )
+        except Exception as e:  # noqa: BLE001 - 读格式失败不该影响打开文件
+            logging.warning(f"[蜜算] 读回视图侧格式失败（数据已正常打开）: {e}")
 
     def _export_xlsx(self):
         """

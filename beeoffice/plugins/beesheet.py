@@ -713,6 +713,12 @@ class BeeSheetView(
             # 才有目标（原先蜜算从不设路径 → 上述三件事对蜜算全部失效）。
             self.set_current_file_path(path)
 
+            # P1：读回视图侧格式（加粗/数字格式/合并/批注）——
+            # 只写不读会变成"存了却看不到"，用户会以为保存坏了。
+            self._load_view_styles_from(
+                path, getattr(self, "_active_sheet_name", "") or ""
+            )
+
             sheet_count = len(workbook.sheets) if workbook else 1
             formula_count = workbook.formula_count if workbook else 0
             extra = ""

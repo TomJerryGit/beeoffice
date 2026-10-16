@@ -164,7 +164,36 @@ class RowColMixin:
         self.table_view.setSpan(r1, c1, r2 - r1 + 1, c2 - c1 + 1)
         # 记录合并信息，供后续判断（如重复合并、取消合并）
         self._merged_cells[(r1, c1)] = (r2 - r1 + 1, c2 - c1 + 1)
-        self._set_status("已合并", 2000)
+
+        # ⚠️ 文档一直写着"首格保留内容，其余置空"，但**实现从未真的清空** ——
+        # 那些值只是被 setSpan **视觉遮住**，仍留在数据里。后果有两层：
+        #   ① 用户看不见的值会在保存时按 Excel 语义丢掉（见
+        #      `beesheet_style_export._has_data_besides_anchor`）；
+        #   ② 若不丢，则"合并"这个动作在文件里根本存不下来（守卫会跳过）。
+        # 现在与文档/Excel 对齐：**真的清空**，并**明确告知**清掉了几个值
+        #（不静默改用户数据）。
+        cleared = 0
+        df = getattr(self.model, "_loaded_df", None)
+        if df is not None:
+            for r in range(r1, r2 + 1):
+                for c in range(c1, c2 + 1):
+                    if r == r1 and c == c1:
+                        continue
+                    try:
+                        value = df.iat[r, c]
+                    except (IndexError, KeyError):
+                        continue
+                    if value is None or str(value).strip() == "":
+                        continue
+                    df.iat[r, c] = ""
+                    cleared += 1
+            if cleared:
+                self.model.layoutChanged.emit()
+
+        self._set_status(
+            f"已合并（清除了 {cleared} 个被遮住的值）" if cleared else "已合并",
+            3000 if cleared else 2000,
+        )
 
     # ==================== 填充快捷键 ====================
     def _shortcut_fill_down(self):
