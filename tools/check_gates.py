@@ -172,6 +172,12 @@ GATES = [
         "曾经：表格样式与下拉验证只在内存里；且 ws[区域] 返回 Cell 会让验证静默读不回",
     ),
     Gate(
+        "freeze-chart-names-author",
+        "蜜算冻结窗格/图表/命名区域/批注作者落盘（且不覆盖原作者）",
+        "tests/fidelity/test_p1_freeze_chart_names_author.py",
+        "曾经：图表从未进过 xlsx；作者被硬编码成 BeeOffice 会覆盖原作者；命名区域行号错位",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",

@@ -124,6 +124,10 @@ class DataMixin:
             df = self._get_export_df()
             sheet_name = getattr(self, "_active_sheet_name", "") or "Sheet1"
             workbook = getattr(self, "_workbook", None)
+            # 这条路径是不是**重建**文件？重建（`df.to_excel`）意味着文件里
+            # 之前写进去的图表等结构都没了 → 图表规格必须**全部重写**；
+            # 而更新源工作簿时结构天然保留 → 只写还没写过的规格（否则叠加）。
+            fresh_file = True
             if workbook is not None and workbook.sheets:
                 from beeoffice.plugins.beesheet_workbook import (
                     sync_active_sheet,
@@ -135,17 +139,20 @@ class DataMixin:
                 sync_active_sheet(workbook, name, df)
                 write_workbook(workbook, path)
                 sheet_name = name
+                fresh_file = False
             else:
                 df.to_excel(path, index=False, sheet_name=sheet_name)
 
-            self._apply_view_styles_to(path, sheet_name, len(df))
+            self._apply_view_styles_to(
+                path, sheet_name, len(df), fresh_file=fresh_file
+            )
             return True
         except Exception as e:  # noqa: BLE001
             logging.error(f"[蜜算] 写 xlsx 失败 {path}: {e}")
             return False
 
     def _apply_view_styles_to(self, path: str, sheet_name: str,
-                              row_count: int):
+                              row_count: int, fresh_file: bool = False):
         """
         把视图侧格式贴到刚写好的文件上（失败**不影响数据**）。
 
@@ -175,6 +182,13 @@ class DataMixin:
                 conditional=getattr(self, "_conditional_formats", None),
                 table_style=getattr(self, "_table_style", None),
                 validations=getattr(self, "_data_validations", None),
+                comment_authors=getattr(self, "_comment_authors", None),
+                default_comment_author=self._comment_author_name()
+                if hasattr(self, "_comment_author_name") else "",
+                named_ranges=getattr(self, "_named_ranges", None),
+                freeze_panes=getattr(self, "_freeze_panes", None),
+                charts=getattr(self, "_charts", None),
+                charts_fresh_file=fresh_file,
                 row_count=row_count,
                 col_count=col_count,
             )
@@ -237,6 +251,16 @@ class DataMixin:
             if validations:
                 self._data_validations = validations
                 self.model._validations_ref = validations
+            # P1：批注作者 / 命名区域 / 冻结窗格
+            authors = styles.get("comment_authors") or {}
+            if authors:
+                self._comment_authors = authors
+            if styles.get("named_ranges"):
+                self._named_ranges = styles["named_ranges"]
+            if styles.get("freeze_panes"):
+                self._freeze_panes = styles["freeze_panes"]
+                # 状态栏与信息面板沿用既有的"冻结信息"字段
+                self._frozen_top = self._freeze_panes
             if merges:
                 self._merged_cells = merges
                 for (r1, c1), (n_rows, n_cols) in merges.items():

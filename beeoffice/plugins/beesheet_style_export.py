@@ -193,27 +193,6 @@ def _apply_merges(ws, merges: Dict[Any, Any]) -> tuple:
     return applied, skipped_for_data
 
 
-def _apply_comments(ws, comments: Dict[Any, Any]) -> int:
-    """批注（openpyxl 的 Comment）。"""
-    from openpyxl.comments import Comment
-
-    applied = 0
-    for key, text in (comments or {}).items():
-        try:
-            row, col = key
-        except (TypeError, ValueError):
-            continue
-        if not str(text or "").strip():
-            continue
-        try:
-            cell = ws.cell(*view_to_cell(row, col))
-            cell.comment = Comment(str(text), "BeeOffice")
-            applied += 1
-        except Exception as e:  # noqa: BLE001
-            logging.debug(f"[蜜算] 写批注失败 {key}: {e}")
-    return applied
-
-
 def _apply_conditional(ws, conditional: Dict[Any, Any], row_count: int) -> int:
     """
     条件格式（数据条 / 色阶）。
@@ -322,8 +301,8 @@ def read_view_styles(path, sheet_name: Optional[str] = None
               "table_style":…, "validations":…}（没有的部分不出现在结果里）
     """
     empty: Dict[str, Dict[Any, Any]] = {
-        "formats": {}, "merges": {}, "comments": {},
-        "table_style": {}, "validations": {},
+        "formats": {}, "merges": {}, "comments": {}, "comment_authors": {},
+        "table_style": {}, "validations": {}, "named_ranges": {},
     }
     try:
         from openpyxl import load_workbook
@@ -339,7 +318,8 @@ def read_view_styles(path, sheet_name: Optional[str] = None
         logging.debug(f"[蜜算] 读取样式失败（按无样式处理）: {e}")
         return empty
 
-    result = {"formats": {}, "merges": {}, "comments": {}}
+    result = {"formats": {}, "merges": {}, "comments": {},
+              "comment_authors": {}, "named_ranges": {}}
     try:
         ws = (workbook[sheet_name]
               if sheet_name and sheet_name in workbook.sheetnames
@@ -382,7 +362,7 @@ def read_view_styles(path, sheet_name: Optional[str] = None
                 merged_range.max_col - merged_range.min_col + 1,
             )
 
-        # ---------- 批注 ----------
+        # ---------- 批注（文本 + **作者**）----------
         for row in ws.iter_rows():
             for cell in row:
                 if cell.comment is None:
@@ -393,6 +373,31 @@ def read_view_styles(path, sheet_name: Optional[str] = None
                 text = str(cell.comment.text or "").strip()
                 if text:
                     result["comments"][(r, c)] = text
+                    author = str(cell.comment.author or "").strip()
+                    if author:
+                        result["comment_authors"][(r, c)] = author
+
+        # ---------- 冻结窗格 ----------
+        if ws.freeze_panes:
+            result["freeze_panes"] = str(ws.freeze_panes)
+
+        # ---------- 命名区域 ----------
+        # 文件里是 `'数据'!$B$2:$B$4`，视图里存的是能直接填进定位框的
+        # `B2:B4` 形式（`beesheet._show_go_to` 会把它塞进输入框再解析），
+        # 所以这里去掉表名前缀与 `$`。
+        try:
+            for name in list(workbook.defined_names):
+                defined = workbook.defined_names[name]
+                attr_text = str(getattr(defined, "attr_text", "") or "").strip()
+                if not attr_text or attr_text.startswith("#"):
+                    continue
+                ref = attr_text.split("!", 1)[-1].replace("$", "")
+                # 文件行号 → 视图行号（应用里第 1 行 = 第一条数据）
+                ref = _shift_a1_rows(ref, -1)
+                if ref:
+                    result["named_ranges"][str(name)] = ref
+        except Exception as e:  # noqa: BLE001
+            logging.debug(f"[蜜算] 读取命名区域失败: {e}")
 
         # ---------- 表格样式（从填充色反推预设）----------
         # 视图的样式就是"表头色 + 斑马纹色 + 是否斑马纹"，所以能等价重建：
@@ -621,10 +626,233 @@ def _read_data_validations(ws) -> Dict[Any, Any]:
     return result
 
 
+def _apply_comments(ws, comments: Dict[Any, Any],
+                    authors: Optional[Dict[Any, Any]] = None,
+                    default_author: str = "") -> int:
+    """
+    批注（openpyxl 的 Comment），**保留作者**。
+
+    ⚠️ 这里修的是我在第四批引入的一个回归：那时作者**硬编码成 "BeeOffice"**，
+    于是"导入一份带批注的表格 → 保存"会把原作者（比如"张三"）**覆盖掉**。
+    现在：
+      · 视图有该格的作者记录 → 用它；
+      · 没有记录但**文件里已有同内容批注** → **原样不动**（保住原作者）；
+      · 只有确实是新批注才用默认作者（调用方传 `user_name`）。
+    """
+    from openpyxl.comments import Comment
+
+    applied = 0
+    authors = authors or {}
+    for key, text in (comments or {}).items():
+        try:
+            row, col = key
+        except (TypeError, ValueError):
+            continue
+        if not str(text or "").strip():
+            continue
+        try:
+            cell = ws.cell(*view_to_cell(row, col))
+            existing = cell.comment
+            if existing is not None and str(existing.text or "") == str(text):
+                # 内容没变 → 不要碰，免得把原作者改成默认作者
+                continue
+            author = str(authors.get(key) or default_author or "").strip()
+            if not author:
+                author = "BeeOffice"
+            cell.comment = Comment(str(text), author)
+            applied += 1
+        except Exception as e:  # noqa: BLE001
+            logging.debug(f"[蜜算] 写批注失败 {key}: {e}")
+    return applied
+
+
+def _shift_a1_rows(ref: str, delta: int) -> str:
+    """
+    把 A1 风格引用里的**行号**整体偏移（用于"视图行号 ↔ 文件行号"换算）。
+
+    ⚠️ 为什么必须换：应用里 `_named_ranges` 存的是 **A1 风格、行号 = 视图行 + 1**
+    （见 `beesheet_data_mixin` 的"从当前选区填充"：`f"{列名}{r1+1}"`），
+    而**文件第 1 行是表头**、数据从第 2 行开始 →
+    同一块数据在两边相差 1 行。不换算的话，保存后的命名区域会**指错行**。
+    """
+    import re
+
+    def _bump(match):
+        return f"{match.group(1)}{int(match.group(2)) + delta}"
+
+    return re.sub(r"([A-Za-z]{1,3})(\d+)", _bump, str(ref or ""))
+
+
+def _apply_defined_names(workbook, named_ranges: Dict[str, str]) -> int:
+    """
+    命名区域 → 工作簿的 defined names。
+
+    视图的 `_named_ranges` 是 `{名称: 引用串}`（如 `{"销量": "B2:B10"}`），
+    定位对话框就靠它。原先既不读也不写 → 用户定义的名称**保存后消失**，
+    而文件里已有的名称在定位对话框里**也看不到**。
+
+    引用串要带上工作表名（Excel 的 defined name 必须是 `表名!$B$2:$B$10`）——
+    调用方传纯单元格引用时这里补上当前表名。
+    """
+    applied = 0
+    if not named_ranges:
+        return applied
+    try:
+        from openpyxl.workbook.defined_name import DefinedName
+    except ImportError:
+        return applied
+
+    sheet_name = workbook.sheetnames[0] if workbook.sheetnames else ""
+    for name, ref in (named_ranges or {}).items():
+        name = str(name).strip()
+        ref = str(ref or "").strip()
+        if not name or not ref:
+            continue
+        try:
+            # 视图 A1 引用（行号 = 视图行+1）→ 文件引用（数据从第 2 行开始）
+            attr_text = _shift_a1_rows(ref, +1)
+            if "!" not in attr_text:
+                quoted = sheet_name.replace("'", "''")
+                attr_text = f"'{quoted}'!{attr_text}"
+            try:
+                workbook.defined_names.add(DefinedName(name, attr_text=attr_text))
+            except AttributeError:            # openpyxl 3.1 的字典式 API
+                workbook.defined_names[name] = DefinedName(
+                    name, attr_text=attr_text
+                )
+            applied += 1
+        except Exception as e:  # noqa: BLE001
+            logging.debug(f"[蜜算] 写命名区域失败 {name}: {e}")
+    return applied
+
+
+def _apply_freeze_panes(ws, freeze: Optional[str]) -> bool:
+    """
+    冻结窗格（如 `"A2"` = 冻结首行）。
+
+    ⚠️ 说明清楚范围：蜜算**界面上的冻结功能目前是禁用的**
+    （`beesheet.py` 注明"避免表头丢失 bug"），所以这里做的是
+    **状态保留**：文件里原本有的冻结窗格，在应用保存后仍然保持；
+    用户在 Excel 里设的、或用应用打开过的文件都受益。
+    实测：工作簿路径本来就保留它（openpyxl 只改 `.value`），
+    但 `df.to_excel` 的新建路径会丢 —— 所以写这一手是必要的兜底。
+    """
+    if not freeze:
+        return False
+    try:
+        ws.freeze_panes = str(freeze)
+        return True
+    except Exception as e:  # noqa: BLE001
+        logging.debug(f"[蜜算] 写冻结窗格失败 {freeze}: {e}")
+        return False
+
+
+#: 视图图表类型 → openpyxl 图表类
+_CHART_CLASSES = {
+    "bar": "BarChart",
+    "line": "LineChart",
+    "pie": "PieChart",
+    "area": "AreaChart",
+    "scatter": "ScatterChart",
+    "radar": "RadarChart",
+}
+
+
+def _apply_charts(ws, charts, fresh_file: bool = False) -> int:
+    """
+    把**应用内生成的图表**写成原生 Excel 图表。
+
+    ## 为什么需要（审计里的"图表"缺口）
+    蜜算的图表功能是 **matplotlib 预览**（弹窗 + 另存 PNG），
+    **从来没有进过 xlsx** —— 用户在应用里"生成图表"，工作簿里其实什么都没有。
+    这里把生成时的规格（类型 + 数据区域）写成 openpyxl 的原生图表，
+    保存后就真在文件里了（Excel/WPS 打开能看到、能继续编辑）。
+
+    ## 重复与丢失的取舍（踩过坑，写清楚）
+    蜜算有**两条**写盘路径，对图表的处理完全不同：
+      · **工作簿路径**（有源文件）：每次保存都从**源文件**重开，
+        上一次写进去的图表**天然还在** → 只写还没写过的规格，
+        否则保存两次就有两张图；
+      · **`df.to_excel` 路径**（CSV 导入/新建/透视）：每次都**重建文件** →
+        之前写的图表全没了，所以**必须把全部规格再写一遍**。
+    所以这里用 `fresh_file` 区分，并用规格上的 `written` 标记记录是否写过。
+    （我第一版是"写成功就清空规格"，结果 `df.to_excel` 路径第二次保存
+    图表**直接消失** —— 比重复更糟，被测试当场抓到。）
+
+    ## 已知边界
+    openpyxl **读不回**图表，所以规格只存在于本次会话；已写进文件的图表
+    由"源工作簿保留"机制继续存在。
+    """
+    applied = 0
+    if not charts:
+        return applied
+    try:
+        from openpyxl.chart import (
+            AreaChart, BarChart, LineChart, PieChart, RadarChart,
+            Reference, ScatterChart,
+        )
+    except ImportError:
+        return applied
+
+    classes = {
+        "bar": BarChart, "line": LineChart, "pie": PieChart,
+        "area": AreaChart, "scatter": ScatterChart, "radar": RadarChart,
+    }
+
+    for spec in charts or []:
+        if not isinstance(spec, dict):
+            continue
+        # 工作簿路径下，已经写过的规格不要再写（源文件里已经有了）
+        if not fresh_file and spec.get("written"):
+            continue
+        kind = str(spec.get("type", "")).lower()
+        cls = classes.get(kind)
+        if cls is None:
+            logging.info(f"[蜜算] 暂不支持把图表类型 {kind} 写入 Excel，已跳过")
+            continue
+        try:
+            rows = spec.get("rows") or (0, 0)
+            cols = spec.get("cols") or (0, 0)
+            r1, r2 = int(rows[0]), int(rows[1])
+            c1, c2 = int(cols[0]), int(cols[1])
+            data = Reference(
+                ws,
+                min_col=view_to_cell(0, c1)[1],
+                max_col=view_to_cell(0, c2)[1],
+                min_row=view_to_cell(r1, 0)[0],
+                max_row=view_to_cell(r2, 0)[0],
+            )
+            chart = cls()
+            chart.title = str(spec.get("title") or "蜜蜂图表")
+            chart.add_data(data, titles_from_data=True)
+            if kind != "pie" and c2 > c1:
+                # 第一列当分类轴（与应用内的取法一致：labels 取 cols[0]）
+                cats = Reference(
+                    ws,
+                    min_col=view_to_cell(0, c1)[1],
+                    min_row=view_to_cell(r1, 0)[0],
+                    max_row=view_to_cell(r2, 0)[0],
+                )
+                chart.set_categories(cats)
+            anchor = spec.get("anchor")
+            if not anchor:
+                anchor = ws.cell(*view_to_cell(r1, c2 + 1)).coordinate
+            ws.add_chart(chart, str(anchor))
+            spec["written"] = True          # 记下来，供工作簿路径去重
+            applied += 1
+        except Exception as e:  # noqa: BLE001
+            logging.warning(f"[蜜算] 写图表失败（已跳过）: {e}")
+    return applied
+
+
 def apply_view_styles(path, sheet_name: Optional[str] = None, *,
                       formats=None, merges=None, comments=None,
                       conditional=None, table_style=None,
-                      validations=None, row_count: int = 0,
+                      validations=None, comment_authors=None,
+                      default_comment_author: str = "",
+                      named_ranges=None, freeze_panes=None,
+                      charts=None, charts_fresh_file: bool = False,
+                      row_count: int = 0,
                       col_count: int = 0) -> Dict[str, int]:
     """
     把视图侧格式写进已存在的 xlsx（就地更新）。
@@ -637,9 +865,9 @@ def apply_view_styles(path, sheet_name: Optional[str] = None, *,
     """
     result = {"formats": 0, "merges": 0, "merges_skipped": 0,
               "comments": 0, "conditional": 0, "table_style": 0,
-              "validations": 0}
+              "validations": 0, "named_ranges": 0, "freeze": 0, "charts": 0}
     if not any((formats, merges, comments, conditional, table_style,
-                validations)):
+                validations, named_ranges, freeze_panes, charts)):
         return result
     try:
         from openpyxl import load_workbook
@@ -663,12 +891,17 @@ def apply_view_styles(path, sheet_name: Optional[str] = None, *,
               else workbook[workbook.sheetnames[0]])
         result["formats"] = _apply_cell_formats(ws, formats)
         result["merges"], result["merges_skipped"] = _apply_merges(ws, merges)
-        result["comments"] = _apply_comments(ws, comments)
+        result["comments"] = _apply_comments(
+            ws, comments, comment_authors, default_comment_author
+        )
         result["conditional"] = _apply_conditional(ws, conditional, row_count)
         result["table_style"] = _apply_table_style(
             ws, table_style, row_count or ws.max_row - 1, col_count or ws.max_column
         )
         result["validations"] = _apply_data_validations(ws, validations)
+        result["named_ranges"] = _apply_defined_names(workbook, named_ranges)
+        result["freeze"] = 1 if _apply_freeze_panes(ws, freeze_panes) else 0
+        result["charts"] = _apply_charts(ws, charts, charts_fresh_file)
         workbook.save(str(target))
     except Exception as e:  # noqa: BLE001
         logging.warning(f"[蜜算] 写入格式失败（文件仍是有效数据）：{e}")

@@ -135,6 +135,21 @@ class ChartMixin:
         ax.set_title("蜜蜂图表")
         plt.tight_layout()
 
+        # P1：记下图表规格 —— 保存时写成**原生 Excel 图表**。
+        # 原先这个功能只是 matplotlib 预览（+ 存 PNG），**从来没有进过 xlsx**：
+        # 用户在应用里"生成图表"，工作簿里其实什么都没有。
+        if rows and cols:
+            specs = getattr(self, "_charts", None)
+            if specs is None:
+                specs = self._charts = []
+            specs.append({
+                "type": str(chart_type),
+                "rows": (rows[0], rows[-1]),
+                "cols": (cols[0], cols[-1]),
+                "title": "蜜蜂图表",
+            })
+            self._set_status("图表已生成；保存后它会写入工作簿", 4000)
+
         # 弹出图表窗口
         dlg = QDialog(self)
         layout = QVBoxLayout(dlg)

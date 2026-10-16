@@ -211,6 +211,13 @@ class BeeSheetView(
         self._frozen_top = None
         self._frozen_left = None
         self._frozen_corner = None
+        # P1：文件里的冻结窗格状态（**保留**用，不改变界面上"禁用冻结"的现状）
+        self._freeze_panes = None
+        # P1：批注作者（{(行,列): 作者}）—— 与 `_cell_comments`（文本）分开存，
+        # 避免把作者硬编码成假名字覆盖掉文件里的原作者
+        self._comment_authors = {}
+        # P1：本次会话生成的图表规格（保存时写成**原生 Excel 图表**）
+        self._charts = []
 
         # ---------- 参数气泡（来自 UIMixin） ----------
         self._build_param_tip()
@@ -1251,9 +1258,24 @@ class BeeSheetView(
         if ok:
             if text.strip():
                 self._cell_comments[ck] = text.strip()
+                # P1：记下作者（来自设置里的用户名），保存时写进文件。
+                # 没有用户名就留空 —— 保存时会保住文件里原有的作者，
+                # 绝不硬编码一个假名字把原作者覆盖掉。
+                self._comment_authors[ck] = self._comment_author_name()
             elif ck in self._cell_comments:
                 del self._cell_comments[ck]
+                self._comment_authors.pop(ck, None)
             self.model.dataChanged.emit(idx, idx)
+
+    def _comment_author_name(self) -> str:
+        """批注作者名（设置里的用户名；没设就空着）。"""
+        try:
+            from beeoffice.settings import AppSettings
+
+            name = getattr(AppSettings(), "user_name", "") or ""
+        except Exception:  # noqa: BLE001
+            name = ""
+        return str(name).strip()
 
     # ==================== 自动保存 ====================
     def _backup_dir(self):
