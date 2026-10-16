@@ -124,6 +124,12 @@ GATES = [
         "曾经：只说'脚注 2 处'，用户不知道去哪找、也没法判断该不该处理",
     ),
     Gate(
+        "r2-kinsoku-canary",
+        "R2 避尾：Qt 不认禁断标记（金丝雀，Qt 变了会失败）",
+        "tests/fidelity/test_r2_kinsoku_limitation.py",
+        "曾经：spike 推断'插 U+2060 即可'，实测 5 种标记全部无效；判据漏剥标记还会给出假的 0",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",
