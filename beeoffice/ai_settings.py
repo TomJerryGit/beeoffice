@@ -33,7 +33,8 @@ from PySide6.QtWidgets import (
 
 from beeoffice.async_task import AsyncTaskManager
 from beeoffice.plugins.beeshow_ai_service import (
-    AI_PROVIDER_PRESETS, detect_preset, probe_ai_connection,
+    AI_PROVIDER_PRESETS, detect_preset, list_local_models,
+    probe_ai_connection,
 )
 
 #: 各预设推荐的模型（下拉可编辑，仅作建议）
@@ -87,7 +88,17 @@ class AISettingsDialog(QDialog):
 
         self.model_combo = QComboBox()
         self.model_combo.setEditable(True)
-        form.addRow("模型名", self.model_combo)
+        # 模型名行：右侧给一个「刷新」——选到本地 Ollama 时会**自动列出本机已装模型**，
+        # 刚 `ollama pull` 完也能点它立刻刷新，不必重开对话框。
+        model_row = QHBoxLayout()
+        model_row.addWidget(self.model_combo, 1)
+        self.refresh_models_btn = QPushButton("刷新本机模型")
+        self.refresh_models_btn.setToolTip(
+            "列出本机 Ollama 已安装的模型（自动填入模型名）"
+        )
+        self.refresh_models_btn.clicked.connect(self._refresh_model_list)
+        model_row.addWidget(self.refresh_models_btn)
+        form.addRow("模型名", model_row)
 
         layout.addLayout(form)
 
@@ -155,6 +166,10 @@ class AISettingsDialog(QDialog):
         self.model_combo.setCurrentText(model or default["model"])
         self._refresh_models(preset)
         self._refresh_hint(preset)
+        # 打开时若已是"本地 Ollama"，顺手把本机已装模型列出来
+        # （异步，不卡界面；拉完模型再打开就能直接选）
+        if preset == "ollama":
+            self._refresh_model_list()
 
     def _refresh_models(self, preset):
         current = self.model_combo.currentText()
@@ -162,6 +177,69 @@ class AISettingsDialog(QDialog):
         self.model_combo.addItems(MODEL_SUGGESTIONS.get(preset, []))
         if current:
             self.model_combo.setCurrentText(current)
+
+    # ------------------------------------------------------------------
+    # 本机模型清单（真机反馈驱动）
+    # ------------------------------------------------------------------
+    def _is_local_base(self, api_base: str = "") -> bool:
+        """地址是否指向本机（只有本机才值得去问"装了哪些模型"）。"""
+        base = (api_base or self.base_edit.text() or "").lower()
+        return "localhost" in base or "127.0.0.1" in base
+
+    def _refresh_model_list(self):
+        """
+        列出**本机已安装**的模型并填入下拉。
+
+        ⚠️ 修的是真机反馈：预设里的模型建议是**写死的**
+        （`qwen2.5`/`llama3.1`/`gemma2`），而用户机器上通常一个都没装 ——
+        于是第一次点开就撞 `模型不存在（HTTP 404）`。
+        现在直接问 Ollama 要清单：**装了什么就用什么**。
+
+        三条触发路径：切到本地 Ollama / 打开对话框时已是本地 /
+        点「刷新本机模型」（刚 `ollama pull` 完不用重开）。
+        """
+        if not self._is_local_base():
+            return
+        api_base = (self.base_edit.text() or "").strip()
+        self.refresh_models_btn.setEnabled(False)
+        AsyncTaskManager.run(
+            lambda: list_local_models(api_base),
+            on_result=self._on_models_loaded,
+            on_error=lambda err: self._on_models_loaded((False, [], str(err))),
+        )
+
+    def _on_models_loaded(self, result):
+        ok, names, message = result
+        self.refresh_models_btn.setEnabled(True)
+        if not ok or not names:
+            # 拿不到就说清楚怎么做，**不编造模型名**
+            self.hint_label.setText(
+                "⚠️ 没能读到本机模型列表。请确认已运行 `ollama serve`，"
+                "并先拉一个模型，例如 `ollama pull qwen2.5:7b`，"
+                "然后点右侧「刷新本机模型」。"
+            )
+            return
+
+        current = self.model_combo.currentText().strip()
+        self.model_combo.clear()
+        self.model_combo.addItems(names)
+        if current in names:
+            # 用户填的模型本机确实有 → 尊重他的选择
+            self.model_combo.setCurrentText(current)
+        else:
+            # 本机没有他填的那个（常见：预设写死的 qwen2.5）→ **换成第一个可用的**
+            # 并在提示里说明换过，避免"我明明填了 qwen2.5 怎么变了"的困惑
+            chosen = names[0]
+            self.model_combo.setCurrentText(chosen)
+            preset_hint = AI_PROVIDER_PRESETS[
+                self.current_preset_key()
+            ].get("hint", "")
+            self.hint_label.setText(
+                f"✅ 已列出本机已安装的 {len(names)} 个模型，"
+                f"并自动选中「{chosen}」"
+                + (f"（原「{current}」本机没有）" if current else "")
+                + f"\n{preset_hint}"
+            )
 
     def _refresh_hint(self, preset):
         info = AI_PROVIDER_PRESETS[preset]
@@ -195,6 +273,10 @@ class AISettingsDialog(QDialog):
                 self.model_combo.setCurrentText(info["model"])
         self._refresh_models(preset)
         self._refresh_hint(preset)
+        # 切到"本地 Ollama"就自动列出本机已装模型 —— 这正是本批修的核心场景：
+        # 预设里写死的 qwen2.5 在用户机器上通常没装，一测就是 HTTP 404。
+        if preset == "ollama":
+            self._refresh_model_list()
 
     # ------------------------------------------------------------------
     def current_config(self) -> dict:

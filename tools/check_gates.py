@@ -220,6 +220,12 @@ GATES = [
         "曾经：Ollama 说模型不存在(404) 被误报成『接口地址不对』，把用户引向改地址",
     ),
     Gate(
+        "ai-local-models",
+        "AI 设置自动列出本机已装模型（不再推荐没装的模型）",
+        "tests/fidelity/test_ai_local_models.py",
+        "曾经：预设写死 qwen2.5/llama3.1/gemma2，用户机器上通常一个都没装 → 一测就 404",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",

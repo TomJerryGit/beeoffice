@@ -650,6 +650,94 @@ def probe_ai_connection(config: Optional[Dict[str, Any]] = None,
     return True, f"连接成功：{model} 已响应「{str(content).strip()[:20]}」", latency
 
 
+def list_local_models(api_base: str, timeout: int = 6,
+                      getter: Optional[Callable[..., Any]] = None
+                      ) -> tuple:
+    """
+    列出**本机已安装**的模型（用于 AI 设置界面的模型下拉）。
+
+    ## 为什么要这个（真机反馈驱动）
+    设置界面里「本地 Ollama」的模型建议是**写死的**
+    `["qwen2.5", "llama3.1", "gemma2"]`，而用户机器上通常**一个都没装** ——
+    于是每台新机器第一次点开都会撞上 `模型不存在（HTTP 404）`。
+    与其让用户去猜，不如**问 Ollama 要一份本机清单**。
+
+    ## 两种端点形态都支持（各家不一样）
+    * OpenAI 兼容：`GET {api_base}/models` → `{"data": [{"id": "..."}]}`
+    * Ollama 原生：`GET {host}/api/tags` → `{"models": [{"name": "..."}]}`
+      （注意原生 API 在**根**路径上，要把结尾的 `/v1` 去掉）
+
+    先试前者，失败再试后者；两者都拿不到就返回失败信息（**不编造模型名**）。
+
+    :param getter: 可注入的传输层 `getter(url, headers, timeout) -> dict`（测试用）
+    :return: `(ok, [模型名…], 说明)` —— 失败时 ok=False、列表为空、说明可展示
+    """
+    base = (api_base or "").strip().rstrip("/")
+    if not base:
+        return False, [], "没有接口地址"
+
+    headers = {"Content-Type": "application/json"}
+    if getter is None:
+        getter = _default_getter
+
+    attempts = [(f"{base}/models", "openai")]
+    # Ollama 原生 API 在根上：去掉结尾的 /v1 再试一次
+    if base.endswith("/v1"):
+        attempts.append((f"{base[:-3]}/api/tags", "ollama"))
+
+    last_error = ""
+    for url, kind in attempts:
+        try:
+            data = getter(url, headers, timeout) or {}
+        except Exception as e:  # noqa: BLE001 - 逐个端点降级
+            last_error = str(e)
+            continue
+        names = _extract_model_names(data, kind)
+        if names:
+            return True, names, f"本机已安装 {len(names)} 个模型"
+        last_error = f"{url} 没有返回模型列表"
+    return False, [], last_error or "拿不到模型列表"
+
+
+def _extract_model_names(data, kind: str) -> list:
+    """从两种响应形态里取出模型名（去重、排序、保持原名含 tag）。"""
+    names = []
+    if kind == "openai":
+        for item in (data or {}).get("data") or []:
+            if isinstance(item, dict):
+                name = item.get("id") or item.get("name")
+            else:
+                name = item
+            if name:
+                names.append(str(name).strip())
+    else:
+        for item in (data or {}).get("models") or []:
+            if isinstance(item, dict):
+                name = item.get("name") or item.get("model")
+            else:
+                name = item
+            if name:
+                names.append(str(name).strip())
+    return sorted({n for n in names if n})
+
+
+def _default_getter(url, headers, timeout):
+    """默认 GET 传输层：优先 requests，回退 urllib。"""
+    try:
+        import requests
+
+        response = requests.get(url, headers=headers, timeout=timeout)
+        response.raise_for_status()
+        return response.json()
+    except ImportError:
+        import json
+        import urllib.request
+
+        request = urllib.request.Request(url, headers=headers, method="GET")
+        with urllib.request.urlopen(request, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+
+
 def _default_opener(url, headers, payload, timeout):
     """默认传输层：优先 requests，回退 urllib（与 _call_llm 一致）。"""
     try:
