@@ -306,7 +306,7 @@ def _parse_number_format(code: str):
 def read_view_styles(path, sheet_name: Optional[str] = None
                      ) -> Dict[str, Dict[Any, Any]]:
     """
-    从 xlsx **读回**视图侧格式（格式/合并/批注）。
+    从 xlsx **读回**视图侧格式（格式/合并/批注/表格样式/数据验证）。
 
     ## 为什么必须有这一半
     只写不读等于"存了却看不到"：用户给单元格设了货币格式、保存、重开 →
@@ -318,10 +318,13 @@ def read_view_styles(path, sheet_name: Optional[str] = None
     读不回来也不会丢——写盘只**新增**规则、从不删除）。
     需要时按列重新应用一次即可。
 
-    :return: {"formats": {(r,c): {...}}, "merges": {(r1,c1): (n_rows,n_cols)},
-              "comments": {(r,c): 文本}}
+    :return: {"formats":…, "merges":…, "comments":…,
+              "table_style":…, "validations":…}（没有的部分不出现在结果里）
     """
-    empty = {"formats": {}, "merges": {}, "comments": {}}
+    empty: Dict[str, Dict[Any, Any]] = {
+        "formats": {}, "merges": {}, "comments": {},
+        "table_style": {}, "validations": {},
+    }
     try:
         from openpyxl import load_workbook
     except ImportError:
@@ -390,6 +393,19 @@ def read_view_styles(path, sheet_name: Optional[str] = None
                 text = str(cell.comment.text or "").strip()
                 if text:
                     result["comments"][(r, c)] = text
+
+        # ---------- 表格样式（从填充色反推预设）----------
+        # 视图的样式就是"表头色 + 斑马纹色 + 是否斑马纹"，所以能等价重建：
+        # 取第一条数据行的填充当作 header_bg、隔行填充当作 stripe_bg。
+        # （预设的**名字**不在文件里，也无需还原：模型只用这三个键。）
+        table_style = _read_table_style(ws)
+        if table_style:
+            result["table_style"] = table_style
+
+        # ---------- 数据验证（下拉列表）----------
+        validations = _read_data_validations(ws)
+        if validations:
+            result["validations"] = validations
     except Exception as e:  # noqa: BLE001
         logging.warning(f"[蜜算] 读取样式时出错（已尽量读到的部分）: {e}")
     finally:
@@ -400,20 +416,230 @@ def read_view_styles(path, sheet_name: Optional[str] = None
     return result
 
 
+def _qt_color_to_hex(color, *, blend_over_white: bool = False) -> Optional[str]:
+    """
+    Qt 颜色 → `RRGGBB`（Excel 的填充没有 alpha）。
+
+    ⚠️ 取舍写清楚：视图里的预设色带 alpha（例如表头 220、斑马纹 150），
+    而 Excel 的填充是**实色**。直接丢掉 alpha 会让导出的颜色比屏幕上**更深**，
+    所以斑马纹这类半透明色按 alpha **与白底混合**，让导出更接近肉眼所见；
+    表头色（alpha 220）同样按混合处理，保持一致。
+
+    取不到颜色时返回 None（调用方跳过，不猜）。
+    """
+    if color is None:
+        return None
+    try:
+        alpha = color.alpha() if hasattr(color, "alpha") else 255
+        rgb = (color.red(), color.green(), color.blue())
+    except Exception:  # noqa: BLE001
+        return None
+    if blend_over_white and alpha < 255:
+        ratio = max(0.0, min(1.0, alpha / 255.0))
+        rgb = tuple(int(round(c * ratio + 255 * (1 - ratio))) for c in rgb)
+    return "%02X%02X%02X" % rgb
+
+
+def _apply_table_style(ws, style, row_count: int, col_count: int) -> int:
+    """
+    表格整体样式（预设）→ 表头行/斑马纹填充。
+
+    :return: 应用的单元格数
+
+    ⚠️ **重要且反直觉的一点（实测发现，如实标注）**：
+    视图的 `_table_style_ref` 在 `beesheet_model.data()` 里是
+    `if r == 0: return header_bg` —— 而模型**没有表头行**
+    （`rowCount() == _loaded_df` 行数，`r` 直接索引数据），
+    所以那个"表头色"实际涂在**第一条数据行**上，不是列名表头。
+    本函数**照实复刻屏幕上的样子**（第一条数据行 + 隔行斑马纹），
+    不擅自改渲染行为 —— 这样"导出的文件 == 用户看到的表"。
+    该 off-by-one 已作为发现记录在审计报告里，等确认后再统一修。
+    """
+    applied = 0
+    if not style:
+        return applied
+    from openpyxl.styles import PatternFill
+
+    header_hex = _qt_color_to_hex(style.get("header_bg"), blend_over_white=True)
+    stripe_hex = _qt_color_to_hex(style.get("stripe_bg"), blend_over_white=True)
+    stripe = bool(style.get("stripe"))
+
+    rows = max(0, int(row_count))
+    cols = max(0, int(col_count))
+    if rows and header_hex:
+        fill = PatternFill(fill_type="solid", start_color=header_hex,
+                           end_color=header_hex)
+        for c in range(cols):
+            ws.cell(*view_to_cell(0, c)).fill = fill
+            applied += 1
+    if rows and stripe and stripe_hex:
+        fill = PatternFill(fill_type="solid", start_color=stripe_hex,
+                           end_color=stripe_hex)
+        for r in range(1, rows):
+            if r % 2 == 1:                      # 与模型的 (r % 2 == 1) 一致
+                for c in range(cols):
+                    ws.cell(*view_to_cell(r, c)).fill = fill
+                    applied += 1
+    return applied
+
+
+def _apply_data_validations(ws, validations: Dict[Any, Any]) -> int:
+    """
+    下拉列表验证（视图 `{(row, col): [选项…]}` → openpyxl 的 list 验证）。
+
+    按**单元格**逐个写：视图就是按单元格记的（delegate 在编辑该格时弹下拉），
+    所以不能合并成一个大范围（合并会改变语义：让不该有下拉的格子也有下拉）。
+    """
+    applied = 0
+    if not validations:
+        return applied
+    from openpyxl.worksheet.datavalidation import DataValidation
+
+    for key, options in (validations or {}).items():
+        try:
+            row, col = key
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(options, (list, tuple)):
+            continue
+        cleaned = [str(o).strip() for o in options if str(o).strip()]
+        if not cleaned:
+            continue
+        # 选项里含逗号会破坏 formula1 的引号语法 → 跳过并记录（不写出坏验证）
+        if any("," in o for o in cleaned):
+            logging.warning(
+                f"[蜜算] 单元格({row},{col}) 的下拉选项含逗号，"
+                "Excel 列表语法无法表达，已跳过该验证"
+            )
+            continue
+        try:
+            validation = DataValidation(
+                type="list",
+                formula1='"' + ",".join(cleaned) + '"',
+                allow_blank=True,
+                showDropDown=False,      # False = **显示**下拉箭头（Excel 的反向语义）
+            )
+            ws.add_data_validation(validation)
+            cell = ws.cell(*view_to_cell(row, col))
+            validation.add(cell)
+            applied += 1
+        except Exception as e:  # noqa: BLE001
+            logging.debug(f"[蜜算] 写数据验证失败 {key}: {e}")
+    return applied
+
+
+def _fill_rgb(cell) -> Optional[str]:
+    """取单元格的实色填充（`RRGGBB`）；没有填充返回 None。"""
+    try:
+        fill = cell.fill
+        if fill is None or fill.fill_type != "solid":
+            return None
+        color = fill.start_color
+        value = getattr(color, "rgb", None)
+        if not value or not isinstance(value, str):
+            return None
+        # openpyxl 给的是 ARGB（如 '00FFB300'）；透明或自动填充要排除
+        if value in ("00000000",):
+            return None
+        return value[-6:]
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _read_table_style(ws) -> Dict[str, Any]:
+    """
+    从填充色反推"表格样式"（视图只需要 `header_bg`/`stripe_bg`/`stripe`）。
+
+    预设的**名字**不在文件里，也不需要：`beesheet_model` 只按这三个键渲染，
+    所以等价重建即可（用户看到的样式完全一致）。
+    返回的 QColor 对象供模型直接用（Qt 缺失时返回空 dict，不影响打开文件）。
+    """
+    header_hex = _fill_rgb(ws.cell(*view_to_cell(0, 0)))
+    stripe_hex = _fill_rgb(ws.cell(*view_to_cell(1, 0))) if ws.max_row >= 3 else None
+    if not header_hex and not stripe_hex:
+        return {}
+    try:
+        from PySide6.QtGui import QColor
+    except ImportError:
+        return {}
+
+    result: Dict[str, Any] = {
+        "header_bg": QColor(f"#{header_hex}") if header_hex else None,
+        "stripe_bg": QColor(f"#{stripe_hex}") if stripe_hex else None,
+        "stripe": bool(stripe_hex),
+    }
+    # 只有斑马纹、没有表头色也要如实反映
+    if not header_hex and stripe_hex:
+        result["header_bg"] = None
+    return result
+
+
+def _read_data_validations(ws) -> Dict[Any, Any]:
+    """
+    读回下拉列表验证 → 视图的 `{(row, col): [选项…]}`。
+
+    只认 **list** 类型（本应用就这一种）；其它类型（整数/小数区间等）
+    跳过并记日志 —— 不假装读回来了。
+    """
+    result: Dict[Any, Any] = {}
+    try:
+        validations = list(getattr(ws.data_validations, "dataValidation", []) or [])
+    except Exception:  # noqa: BLE001
+        return result
+
+    for validation in validations:
+        try:
+            if str(getattr(validation, "type", "")).lower() != "list":
+                logging.info(
+                    f"[蜜算] 跳过非列表型数据验证（type={getattr(validation, 'type', '')}）"
+                )
+                continue
+            formula = str(getattr(validation, "formula1", "") or "").strip()
+            if formula.startswith('"') and formula.endswith('"'):
+                options = [o.strip() for o in formula[1:-1].split(",")]
+            else:
+                options = [o.strip() for o in formula.split(",")]
+            options = [o for o in options if o]
+            if not options:
+                continue
+            for area in str(validation.sqref).split():
+                # ⚠️ `ws['A2']` 返回的是 **Cell**（不是元组），直接 for 会抛
+                # `'Cell' object is not iterable` —— 我第一版就是这么写的，
+                # 异常被下面的 except 吞成 debug 日志，表现为"验证写进去了却读不回"。
+                # 所以必须先归一化再迭代。
+                area_cells = ws[area]
+                rows = area_cells if isinstance(area_cells, tuple) else (area_cells,)
+                for row in rows:
+                    cells = row if isinstance(row, tuple) else (row,)
+                    for cell in cells:
+                        r, c = cell.row - 2, cell.column - 1
+                        if r < 0 or c < 0:
+                            continue
+                        result[(r, c)] = list(options)
+        except Exception as e:  # noqa: BLE001
+            logging.debug(f"[蜜算] 读取数据验证失败: {e}")
+    return result
+
+
 def apply_view_styles(path, sheet_name: Optional[str] = None, *,
                       formats=None, merges=None, comments=None,
-                      conditional=None, row_count: int = 0) -> Dict[str, int]:
+                      conditional=None, table_style=None,
+                      validations=None, row_count: int = 0,
+                      col_count: int = 0) -> Dict[str, int]:
     """
     把视图侧格式写进已存在的 xlsx（就地更新）。
 
     :param path: 已写好的 xlsx
     :param sheet_name: 目标工作表（None = 第一张）
-    :param row_count: 数据行数（条件格式需要知道作用范围）
+    :param row_count: 数据行数（条件格式/表格样式需要知道作用范围）
+    :param col_count: 列数（表格样式需要）
     :return: 各类计数（**如实**：失败不抛异常，只记 debug 并继续）
     """
     result = {"formats": 0, "merges": 0, "merges_skipped": 0,
-              "comments": 0, "conditional": 0}
-    if not any((formats, merges, comments, conditional)):
+              "comments": 0, "conditional": 0, "table_style": 0,
+              "validations": 0}
+    if not any((formats, merges, comments, conditional, table_style,
+                validations)):
         return result
     try:
         from openpyxl import load_workbook
@@ -439,6 +665,10 @@ def apply_view_styles(path, sheet_name: Optional[str] = None, *,
         result["merges"], result["merges_skipped"] = _apply_merges(ws, merges)
         result["comments"] = _apply_comments(ws, comments)
         result["conditional"] = _apply_conditional(ws, conditional, row_count)
+        result["table_style"] = _apply_table_style(
+            ws, table_style, row_count or ws.max_row - 1, col_count or ws.max_column
+        )
+        result["validations"] = _apply_data_validations(ws, validations)
         workbook.save(str(target))
     except Exception as e:  # noqa: BLE001
         logging.warning(f"[蜜算] 写入格式失败（文件仍是有效数据）：{e}")

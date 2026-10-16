@@ -215,8 +215,10 @@ def test_apply_view_styles_is_fast_noop_when_nothing_to_write(tmp_path):
 
     result = apply_view_styles(target)        # 全 None → 直接返回，不去动文件
 
-    assert result == {"formats": 0, "merges": 0, "merges_skipped": 0,
-                      "comments": 0, "conditional": 0}
+    # 契约：没有任何要写的东西时，所有计数为 0（键会随功能增加）
+    assert all(value == 0 for value in result.values()), result
+    assert {"formats", "merges", "merges_skipped", "comments",
+            "conditional", "table_style", "validations"} <= set(result)
     assert target.read_bytes() == b"not-a-workbook", "空格式却改了文件"
 
 

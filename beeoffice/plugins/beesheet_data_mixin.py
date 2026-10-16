@@ -158,6 +158,14 @@ class DataMixin:
                 apply_view_styles,
             )
 
+            # ⚠️ 不能写 `getattr(...) or []`：`df.columns` 是 pandas **Index**，
+            # 对非空 Index 做真值判断会抛"The truth value of a Index is ambiguous"
+            # （我第一版就是这么写的，结果整套样式写入被 except 吞掉、只留一行日志）。
+            try:
+                col_count = len(self.model.df.columns)
+            except Exception:  # noqa: BLE001
+                col_count = 0
+
             counts = apply_view_styles(
                 path,
                 sheet_name,
@@ -165,7 +173,10 @@ class DataMixin:
                 merges=getattr(self, "_merged_cells", None),
                 comments=getattr(self, "_cell_comments", None),
                 conditional=getattr(self, "_conditional_formats", None),
+                table_style=getattr(self, "_table_style", None),
+                validations=getattr(self, "_data_validations", None),
                 row_count=row_count,
+                col_count=col_count,
             )
             if any(counts.values()):
                 logging.info(f"[蜜算] 已写入视图侧格式: {counts}")
@@ -211,11 +222,21 @@ class DataMixin:
             formats = styles.get("formats") or {}
             merges = styles.get("merges") or {}
             comments = styles.get("comments") or {}
+            table_style = styles.get("table_style") or {}
+            validations = styles.get("validations") or {}
 
             if formats:
                 self._cell_formats = formats
             if comments:
                 self._cell_comments = comments
+            if table_style:
+                # 表格样式要同时给视图和模型的引用（模型渲染时读它）
+                self._table_style = table_style
+                self.model._table_style_ref = table_style
+                self.model.layoutChanged.emit()
+            if validations:
+                self._data_validations = validations
+                self.model._validations_ref = validations
             if merges:
                 self._merged_cells = merges
                 for (r1, c1), (n_rows, n_cols) in merges.items():
@@ -225,11 +246,13 @@ class DataMixin:
                         )
                     except Exception as e:  # noqa: BLE001
                         logging.debug(f"[蜜算] 恢复合并显示失败 {r1},{c1}: {e}")
-            if any((formats, merges, comments)):
+            if any((formats, merges, comments, table_style, validations)):
                 logging.info(
                     "[蜜算] 已读回格式："
                     f"格式 {len(formats)} 格 / 合并 {len(merges)} 处 / "
-                    f"批注 {len(comments)} 条"
+                    f"批注 {len(comments)} 条 / 表格样式 "
+                    f"{'有' if table_style else '无'} / "
+                    f"数据验证 {len(validations)} 格"
                 )
         except Exception as e:  # noqa: BLE001 - 读格式失败不该影响打开文件
             logging.warning(f"[蜜算] 读回视图侧格式失败（数据已正常打开）: {e}")

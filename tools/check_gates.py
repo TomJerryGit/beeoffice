@@ -166,6 +166,12 @@ GATES = [
         "曾经：加粗/数字格式/合并/批注/条件格式保存后全部消失；合并还会被静默吃掉数据",
     ),
     Gate(
+        "table-style-validations",
+        "蜜算表格样式与数据验证落盘并读回（下拉框仍生效）",
+        "tests/fidelity/test_p1_table_style_validations.py",
+        "曾经：表格样式与下拉验证只在内存里；且 ws[区域] 返回 Cell 会让验证静默读不回",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",
