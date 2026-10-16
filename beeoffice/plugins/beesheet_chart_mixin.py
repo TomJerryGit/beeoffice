@@ -11,7 +11,6 @@
 从 beesheet.py 抽取，降低主文件复杂度。
 
 依赖：
-  - pandas（pd.isna）
   - numpy（np.linspace）
   - matplotlib（延迟 import，未安装时静默返回）
   - PySide6（QDialog / QVBoxLayout / QPushButton / QFileDialog / QMessageBox）
@@ -20,8 +19,9 @@
   - 所有方法依赖 self.model / self.table_view / self._set_status /
     self._find_main_window 等，由 BeeSheetView 主类提供
   - _show_pivot_table 里延迟 import BeeSheetView 以避免循环依赖
+  - 透视表的**计算与落盘**已移到 `beesheet_pivot.py`（纯逻辑，便于测试）；
+    本文件不再直接依赖 pandas
 """
-import pandas as pd
 import numpy as np
 
 from PySide6.QtWidgets import (
@@ -183,12 +183,11 @@ class ChartMixin:
             QMessageBox.information(self, "提示", "当前表格没有数据")
             return
 
-        # 过滤掉全空行
-        df_clean = df[df.apply(
-            lambda row: not all(
-                str(v).strip() == '' or pd.isna(v) for v in row
-            ), axis=1
-        )]
+        # 过滤掉全空行（模型会把数据补齐到默认行数，尾部是空的；
+        # 不过滤的话 sum 会把空值算错。与「刷新透视表」共用同一个函数）
+        from beeoffice.plugins.beesheet_pivot import drop_empty_rows
+
+        df_clean = drop_empty_rows(df)
         if df_clean.empty:
             QMessageBox.information(self, "提示", "当前表格没有有效数据")
             return
@@ -214,6 +213,17 @@ class ChartMixin:
         new_sheet.table_view.setModel(new_sheet.model)
         new_sheet._auto_resize_columns()
 
+        # P1：**记住透视表规格** —— 原先 config 当场丢弃，于是关掉标签页
+        # 就再也重算不了、存成文件后也看不出这是怎么汇总的。
+        # 保存时会写进文件的隐藏表（规格 + 数据快照），之后可以「刷新透视表」。
+        source_sheet = getattr(self, "_active_sheet_name", "") or ""
+        new_sheet._pivot_spec = {
+            "spec": dict(config),
+            "source_sheet": source_sheet,
+            "source_path": getattr(self, "_current_file_path", None),
+        }
+        new_sheet._pivot_source_df = df_clean
+
         agg_cn = {"sum": "求和", "mean": "平均", "count": "计数",
                   "max": "最大", "min": "最小"}.get(
             config["aggfunc"], config["aggfunc"])
@@ -222,5 +232,6 @@ class ChartMixin:
         parent.tab_manager.addTab(new_sheet, title)
         parent.tab_manager.setCurrentWidget(new_sheet)
         self._set_status(
-            f"✅ 已生成透视表：{len(pivot)} 行 × {len(pivot.columns)} 列", 5000
+            f"✅ 已生成透视表：{len(pivot)} 行 × {len(pivot.columns)} 列"
+            "（保存后可直接「刷新透视表」）", 6000
         )

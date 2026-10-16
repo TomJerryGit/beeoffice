@@ -178,6 +178,12 @@ GATES = [
         "曾经：图表从未进过 xlsx；作者被硬编码成 BeeOffice 会覆盖原作者；命名区域行号错位",
     ),
     Gate(
+        "pivot-persistence",
+        "数据透视表落盘且可刷新（行标签不得丢失）",
+        "tests/fidelity/test_p1_pivot_persistence.py",
+        "曾经：透视配置当场丢弃、关掉即无法重算；单行字段时行标签被整个丢掉",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",

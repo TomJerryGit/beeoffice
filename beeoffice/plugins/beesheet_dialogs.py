@@ -138,38 +138,16 @@ class PivotTableDialog(QDialog):
 
     # ==================== 生成透视表 ====================
     def _build_pivot(self, config):
-        """根据配置生成透视表"""
-        try:
-            kwargs = {
-                "index": config["rows"] if config["rows"] else None,
-                "columns": config["cols"] if config["cols"] else None,
-                "values": config["values"],
-                "aggfunc": config["aggfunc"],
-                "margins": config["margins"],
-            }
-            # 如果 index 为 None，pandas 需要至少一个 index
-            if not kwargs["index"] and not kwargs["columns"]:
-                return None, "必须至少指定行字段或列字段"
+        """
+        根据配置生成透视表。
 
-            pivot = pd.pivot_table(self.df, **kwargs)
+        P1：改为调用 `beesheet_pivot.build_pivot()` —— **计算语义只有一份**。
+        原先这里是唯一实现，而"刷新已保存的透视表"需要同一套语义；
+        两处各写一遍必然漂移（本项目的固定教训），所以抽成共享函数。
+        """
+        from beeoffice.plugins.beesheet_pivot import build_pivot
 
-            # 展平多级列索引
-            if isinstance(pivot.columns, pd.MultiIndex):
-                pivot.columns = [
-                    "_".join(str(x) for x in col if x)
-                    for col in pivot.columns
-                ]
-            if isinstance(pivot.index, pd.MultiIndex):
-                pivot = pivot.reset_index()
-
-            # 用默认整数索引
-            pivot = pivot.reset_index(drop=True)
-
-            # 填充空值
-            pivot = pivot.fillna(0)
-            return pivot, None
-        except Exception as e:
-            return None, str(e)
+        return build_pivot(self.df, config)
 
     # ==================== 预览 ====================
     def _preview(self):

@@ -306,6 +306,29 @@ def setup_menus(main_window):
     )
     analyze_action.triggered.connect(main_window._analyze_current_sheet)
 
+    # 刷新透视表：规格存在文件的隐藏表里（P1）
+    refresh_pivot_action = tools_menu.addAction(
+        tr("cmd.refresh_pivot", "刷新透视表")
+    )
+    refresh_pivot_action.setToolTip(
+        "按文件里保存的透视表配置重新汇总（数据取当前表格）"
+    )
+    main_window.refresh_pivot_action = refresh_pivot_action
+
+    def _refresh_pivot_from_menu():
+        from PySide6.QtWidgets import QMessageBox
+
+        widget = main_window.tab_manager.currentWidget()
+        if widget is not None and hasattr(widget, "_refresh_pivot"):
+            widget._refresh_pivot()
+        else:
+            QMessageBox.information(
+                main_window, "刷新透视表",
+                "当前标签页不是表格，无法刷新透视表。",
+            )
+
+    refresh_pivot_action.triggered.connect(_refresh_pivot_from_menu)
+
     nl_formula_action = tools_menu.addAction(
         tr("cmd.nl_formula", "自然语言生成公式")
     )

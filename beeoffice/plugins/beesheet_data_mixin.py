@@ -194,8 +194,83 @@ class DataMixin:
             )
             if any(counts.values()):
                 logging.info(f"[蜜算] 已写入视图侧格式: {counts}")
+
+            # P1：透视表规格 + 数据快照（让文件自洽、可刷新）
+            self._write_pivot_package_to(path, sheet_name)
         except Exception as e:  # noqa: BLE001 - 格式写失败不该毁掉数据
             logging.warning(f"[蜜算] 写入视图侧格式失败（数据已安全写入）: {e}")
+
+    def _write_pivot_package_to(self, path: str, sheet_name: str):
+        """
+        把**透视表规格 + 数据快照**写进文件（若有）。
+
+        审计里的缺口：透视表原先只把结果值放进新标签页，`config` 当场丢弃 →
+        存成文件后只剩死数字，看不出怎么汇总的、也无法刷新。
+        """
+        spec = getattr(self, "_pivot_spec", None)
+        if not spec:
+            return
+        try:
+            from beeoffice.plugins.beesheet_pivot import write_pivot_package
+
+            counts = write_pivot_package(
+                path,
+                pivot_sheet=sheet_name,
+                spec=spec.get("spec") or {},
+                source_df=getattr(self, "_pivot_source_df", None),
+            )
+            if any(counts.values()):
+                logging.info(f"[蜜算] 已写入透视表规格: {counts}")
+        except Exception as e:  # noqa: BLE001 - 元数据写失败不影响数据
+            logging.warning(f"[蜜算] 写入透视表规格失败（数据已安全写入）: {e}")
+
+    def _refresh_pivot(self):
+        """
+        「刷新透视表」：按文件里保存的规格**重算**并写回。
+
+        数据来源优先级：**当前表格 → 文件内快照**，并在状态栏说明用的是哪一份
+        （不让用户猜自己刷的是哪份数据）。
+        """
+        from PySide6.QtWidgets import QMessageBox
+
+        from beeoffice.plugins.beesheet_pivot import (
+            read_pivot_package, refresh_pivot_package,
+        )
+
+        path = getattr(self, "_current_file_path", None)
+        if not path:
+            QMessageBox.information(
+                self, "刷新透视表",
+                "这份表格还没有保存到文件。\n"
+                "请先保存（Ctrl+S），透视表规格才会写进文件、之后才能刷新。",
+            )
+            return
+        package = read_pivot_package(path)
+        if not package and not getattr(self, "_pivot_spec", None):
+            QMessageBox.information(
+                self, "刷新透视表",
+                "这个文件里没有保存过透视表配置，无法刷新。",
+            )
+            return
+
+        if not self._ensure_full_data("刷新透视表"):
+            return
+        from beeoffice.plugins.beesheet_pivot import drop_empty_rows
+
+        # 必须与生成路径一样先过滤空行：模型会把数据补齐到 1000 行，
+        # 尾部空值参与 sum 会把结果算错（实测：本该 1 的求和变成 0）
+        filtered = drop_empty_rows(self.model.df)
+        data = filtered if filtered is not None and not filtered.empty else None
+        ok, message, pivot = refresh_pivot_package(path, data_df=data)
+        self._set_status(("✅ " if ok else "⚠ ") + message, 6000)
+        if not ok:
+            QMessageBox.warning(self, "刷新透视表", message)
+            return
+        # 界面同步显示重算结果（文件已经写好，这里只是把视图刷新一下）
+        if pivot is not None:
+            self.model.set_full_dataframe(pivot)
+            self.table_view.setModel(self.model)
+            self._auto_resize_columns()
 
     def _load_view_styles_from(self, path: str, sheet_name: str = ""):
         """
@@ -261,6 +336,20 @@ class DataMixin:
                 self._freeze_panes = styles["freeze_panes"]
                 # 状态栏与信息面板沿用既有的"冻结信息"字段
                 self._frozen_top = self._freeze_panes
+
+            # P1：文件里若有透视表规格，读进来（供「刷新透视表」用）
+            try:
+                from beeoffice.plugins.beesheet_pivot import (
+                    read_pivot_package,
+                )
+
+                package = read_pivot_package(path)
+                if package:
+                    self._pivot_spec = package
+                    self._pivot_source_df = package.get("snapshot")
+                    logging.info("[蜜算] 读回透视表规格（可刷新）")
+            except Exception as e:  # noqa: BLE001
+                logging.debug(f"[蜜算] 读回透视表规格失败（忽略）: {e}")
             if merges:
                 self._merged_cells = merges
                 for (r1, c1), (n_rows, n_cols) in merges.items():
