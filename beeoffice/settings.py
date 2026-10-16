@@ -69,6 +69,10 @@ class AppSettings:
         self.cloud_config = {}
         self.cloud_enabled = False
         self.cloud_auto_sync = False
+        # 同步目录（P1 修复）：原先"立即同步"上传的是 `~/.beeoffice_data`
+        # —— 那个目录**全仓没有写入方**，所以永远是空的（同步等于没事做）。
+        # 现在改为**可配置**目录，空值表示用默认 `~/BeeOffice云同步`。
+        self.cloud_sync_dir = ""
 
         # AI 服务（任务 1.1）
         self.ai_api_key = ""
@@ -160,6 +164,7 @@ class AppSettings:
                         self.cloud_config[key]
                     )
         self.cloud_enabled = data.get("cloud_enabled", False)
+        self.cloud_sync_dir = data.get("cloud_sync_dir", "") or ""
         self.cloud_auto_sync = data.get("cloud_auto_sync", False)
 
         # AI 服务（任务 1.1）
@@ -271,6 +276,7 @@ class AppSettings:
                 "cloud_config": cloud_config_encoded,
                 "cloud_enabled": self.cloud_enabled,
                 "cloud_auto_sync": self.cloud_auto_sync,
+                "cloud_sync_dir": self.cloud_sync_dir,
                 # AI 服务（任务 1.1）
                 "ai_api_key": self._encode(self.ai_api_key),
                 "ai_api_base": self.ai_api_base,

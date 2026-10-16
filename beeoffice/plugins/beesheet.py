@@ -677,8 +677,15 @@ class BeeSheetView(
                     )
                     workbook = None
                     lazy = False
+                    # ⚠️ 引擎按扩展名选：`.xls` 必须走 xlrd（openpyxl 只认 .xlsx）。
+                    # 原先写死 `engine='openpyxl'` → 对话框里列着的 .xls
+                    # 一选就"导入失败"（审计报告 §2.10 的"假装支持"）。
+                    from beeoffice.plugins.beesheet_workbook import (
+                        pick_excel_engine,
+                    )
+
                     df = pd.read_excel(
-                        path, engine='openpyxl', nrows=200001
+                        path, engine=pick_excel_engine(path), nrows=200001
                     )
             total_rows = len(df)
             if total_rows > 200000:

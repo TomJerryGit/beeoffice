@@ -4,6 +4,50 @@
 每个命令都实现 execute(model) 和 undo(model) 两个方法
 """
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:                      # 仅用于类型标注，避免运行期强依赖
+    import pandas as pd
+
+
+class DataFrameOpCommand:
+    """
+    **结构性操作**命令（插入/删除行列）：保存操作前后的整表状态，可撤销。
+
+    为什么用"整表快照"而不是"按参数重放"：
+    插入/删除行列会牵动**行号、公式引用、批注/格式的行列映射**，
+    按参数重放在复杂边界（合并区、公式引用）上很容易漏掉分支；
+    而这类操作是**用户手动触发的少数动作**，快照换来的确定性更值。
+    代价是大表上会短暂多占一份内存 —— 这是刻意的取舍，写在这里备查。
+
+    ⚠️ 修的是审计报告 §2.11：插入/删除行列原先**只改 `_loaded_df`**
+    （不压撤销栈 → Ctrl+Z 无效；也不过 `_ensure_full_data` 安全门 →
+    流式大表会被分块回填覆盖；`_full_df` 与 `_loaded_df` 从此分叉）。
+    """
+
+    def __init__(self, before, after, label: str = ""):
+        self.before = before
+        self.after = after
+        self.label = label
+
+    # ---- 内部：把一份快照装回模型（两套数据源一起同步）----
+    @staticmethod
+    def _apply_snapshot(model, frame):
+        model._loaded_df = frame
+        # `_full_df` 存在时必须一起更新，否则后台分块回填会用旧表覆盖本次修改
+        if getattr(model, "_full_df", None) is not None:
+            model._full_df = frame
+        model._total_rows = len(frame)
+        if hasattr(model, "_total_cols"):
+            model._total_cols = len(frame.columns)
+        model.layoutChanged.emit()
+
+    def execute(self, m):
+        self._apply_snapshot(m, self.after)
+
+    def undo(self, m):
+        self._apply_snapshot(m, self.before)
+
 
 class EditCellCommand:
     """单元格编辑命令"""

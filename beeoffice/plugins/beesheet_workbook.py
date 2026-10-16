@@ -93,24 +93,55 @@ class WorkbookData:
 
 # ==================== 读 ====================
 
+def pick_excel_engine(path) -> str:
+    """
+    按扩展名选 pandas 的 Excel 读取引擎。
+
+    ⚠️ 这条修的是一个"**假装支持**"（审计报告 §2.10）：
+    打开对话框与 `SHEET_EXTENSIONS` 都列了 `.xls`，但读路径**写死**
+    `engine='openpyxl'` —— 而 openpyxl **只认 `.xlsx`**（二进制 BIFF 的 `.xls`
+    会直接报错）；`requirements.txt` 里声明了 `xlrd` 却**全仓无人调用**。
+    结果：用户按提示选一个 `.xls`，必然拿到"导入失败"。
+
+    `xlrd` 只支持 `.xls`（2.x 起不再支持 `.xlsx`），正好与本函数互补。
+    没有 xlrd 时给**明确可操作**的错误，而不是让 pandas 抛一句难懂的话。
+
+    :return: "xlrd" 或 "openpyxl"
+    """
+    if not str(path).lower().endswith(".xls"):
+        return "openpyxl"
+    try:
+        import xlrd  # noqa: F401
+
+        return "xlrd"
+    except ImportError:
+        raise RuntimeError(
+            "读取旧版 .xls 需要 xlrd：pip install xlrd（.xlsx 不需要它）"
+        )
+
+
 def read_workbook(path, max_rows: Optional[int] = None) -> WorkbookData:
     """
     读**全部**工作表与每格公式。
 
-    :param path: .xlsx 路径
+    :param path: .xlsx / .xlsm / .xls 路径
     :param max_rows: 每张表最多读多少行（None = 不限）
     :return: WorkbookData
     """
     path = Path(path)
     if not HAS_OPENPYXL:
         raise RuntimeError("需要 openpyxl 才能读写 xlsx")
+    # 引擎按扩展名选（.xls → xlrd），见 pick_excel_engine()
+    engine = pick_excel_engine(path)
 
     # 值：pandas 读全部工作表（pandas>=2.0 返回 dict，保序）
     frames: Dict[str, pd.DataFrame] = pd.read_excel(
-        path, sheet_name=None, engine="openpyxl", nrows=max_rows
+        path, sheet_name=None, engine=engine, nrows=max_rows
     )
 
-    formulas_by_sheet = _read_formulas(path)
+    # 公式只对 OOXML 有效：`_read_formulas` 依赖 zip+XML，
+    # 二进制 BIFF 的 .xls 走不通（读不到公式不算错误，静默给空即可）。
+    formulas_by_sheet = {} if engine != "openpyxl" else _read_formulas(path)
 
     sheets: List[SheetData] = []
     for name, df in frames.items():

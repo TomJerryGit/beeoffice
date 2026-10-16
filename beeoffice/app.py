@@ -1430,6 +1430,55 @@ class BeeApp(QMainWindow):
                 5000,
             )
 
+    def _add_current_to_sync_dir(self):
+        """
+        把**当前文档**复制到云同步目录（P1）。
+
+        为什么需要它：同步目录默认是空的，用户即使配好了网盘也不知道
+        "该把文件放哪"。这个动作给出**明确的入口**：一键把当前文件放进
+        同步目录，下次「立即同步」就会把它传上去。
+        """
+        import shutil
+
+        from beeoffice.cloud_sync.engine import default_sync_dir
+
+        widget = self.tab_manager.currentWidget()
+        path = getattr(widget, "_current_file_path", None) if widget else None
+        if not path or not Path(path).is_file():
+            QMessageBox.information(
+                self, "加入同步目录",
+                "当前文档还没有保存到文件。\n"
+                "请先保存（Ctrl+S），再点这个菜单。",
+            )
+            return
+
+        configured = getattr(self.settings, "cloud_sync_dir", "") or ""
+        sync_dir = Path(configured) if configured else default_sync_dir()
+        try:
+            sync_dir.mkdir(parents=True, exist_ok=True)
+            target = sync_dir / Path(path).name
+            if target.exists() and target.samefile(path):
+                self.set_global_status("这个文件已经在同步目录里", 4000)
+                return
+            shutil.copy2(path, target)
+        except Exception as e:  # noqa: BLE001
+            logging.error(f"加入同步目录失败: {e}")
+            QMessageBox.warning(
+                self, "加入同步目录失败",
+                f"{e}\n\n同步目录：{sync_dir}",
+            )
+            return
+
+        self.set_global_status(
+            tr("msg.added_to_sync", "已加入同步目录：{name}").format(
+                name=Path(path).name), 6000
+        )
+        QMessageBox.information(
+            self, "已加入同步目录",
+            f"已复制到：\n{target}\n\n"
+            "现在可以点「帮助 → 立即同步」把它上传到云盘。",
+        )
+
     def _sync_now(self):
         from beeoffice.cloud import get_cloud_storage
 
@@ -1454,22 +1503,25 @@ class BeeApp(QMainWindow):
         self.set_global_status(tr("msg.syncing", "正在同步..."), 0)
 
         def sync_files():
-            local_dir = Path.home() / ".beeoffice_data"
-            remote_dir = "/beeoffice"
-            local_dir.mkdir(parents=True, exist_ok=True)
-
-            # 优化规划 §4.5：改为带**过滤**并**如实计数**。
-            # 原实现是 `for file in rglob("*"): storage.upload(...)`：既没有
-            # 白名单（该目录内任何内容都会明文上传到用户的云盘），也不管结果
-            # 一律报"同步完成"（哪怕一个文件都没传）。
-            from beeoffice.cloud_sync.policy import (
-                upload_tree,
-                describe_result,
+            # P1 修复：同步目录改为**可配置**（默认 `~/BeeOffice云同步`）。
+            # 原先是上传 `~/.beeoffice_data` —— 那个目录**全仓没有写入方**，
+            # 永远是空的，于是"立即同步"永远只会说"没有文件需要上传"
+            # （审计报告 §1.6）。现在这个目录是用户真的会往里放文件的地方。
+            from beeoffice.cloud_sync.engine import (
+                default_sync_dir, describe_sync, sync_folder,
             )
 
-            counts = upload_tree(storage, local_dir, remote_dir)
-            logging.info(f"云同步结果: {counts}")
-            return counts, describe_result(counts)
+            configured = getattr(self.settings, "cloud_sync_dir", "") or ""
+            local_dir = Path(configured) if configured else default_sync_dir()
+            remote_dir = "/beeoffice"
+
+            # 双向同步：上传（带策略白名单与增量判断）+ 下载（补上此前
+            # 三个适配器实现了却**没有任何调用者**的 download()）。
+            counts = sync_folder(storage, local_dir, remote_dir)
+            logging.info(
+                f"云同步结果: {counts}（本地目录 {local_dir}）"
+            )
+            return counts, describe_sync(counts)
 
         def on_result(result):
             self._sync_in_progress = False

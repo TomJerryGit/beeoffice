@@ -414,6 +414,14 @@ def setup_menus(main_window):
     sync_action.triggered.connect(main_window._sync_now)
     help_menu.addAction(sync_action)
 
+    # P1：同步目录默认是空的，用户不知道该把文件放哪 —— 给个明确入口
+    add_sync_action = QAction(
+        tr("cmd.add_to_sync", "把当前文档加入同步目录"), main_window
+    )
+    add_sync_action.setToolTip("复制当前文件到云同步目录，下次同步会上传它")
+    add_sync_action.triggered.connect(main_window._add_current_to_sync_dir)
+    help_menu.addAction(add_sync_action)
+
     # R6：备份与恢复（本地历史版本；WPS 有"备份中心"，我们原先只有自动保存）
     backup_action = QAction(
         tr("menu.help.backup_center", "🗂️ 备份与恢复"), main_window

@@ -37,6 +37,7 @@ from beeoffice.plugins.beesheet_utils import (
     adjust_formula_refs,
 )
 from beeoffice.plugins.beesheet_engine import FormulaEngine
+from beeoffice.plugins.beesheet_commands import DataFrameOpCommand
 
 
 class RowColMixin:
@@ -44,104 +45,108 @@ class RowColMixin:
 
     # ==================== 插入行 ====================
     def _insert_row_above(self):
-        """在当前行上方插入一行空行"""
+        """在当前行上方插入一行空行（可撤销）"""
         idx = self.table_view.currentIndex()
         if not idx.isValid():
             return
+        # 审计报告 §2.11：结构性操作必须过**安全门**（两阶段载入期间数据不完整，
+        # 直接改 `_loaded_df` 会被后台分块回填覆盖），并且要**压撤销栈**。
+        if not self._ensure_full_data("插入行"):
+            return
         r = idx.row()
-        df = self.model._loaded_df
-        # 构造一行空数据（列名与当前 df 一致）
-        nr = pd.DataFrame([['' for _ in range(len(df.columns))]],
-                           columns=df.columns)
-        # 拼接：前 r 行 + 新行 + r 之后的行
-        self.model._loaded_df = pd.concat(
-            [df.iloc[:r], nr, df.iloc[r:]]
+        before = self.model._loaded_df
+        empty = pd.DataFrame([['' for _ in range(len(before.columns))]],
+                             columns=before.columns)
+        after = pd.concat(
+            [before.iloc[:r], empty, before.iloc[r:]]
         ).reset_index(drop=True)
-        self.model._total_rows = len(self.model._loaded_df)
-        self.model.layoutChanged.emit()
-        self._set_status(f"已在第{r+1}行上方插入", 2000)
+        self._push_command(DataFrameOpCommand(before, after, "插入行"))
+        self._set_status(f"已在第{r + 1}行上方插入", 2000)
 
     def _insert_row_below(self):
-        """在当前行下方插入一行空行"""
+        """在当前行下方插入一行空行（可撤销）"""
         idx = self.table_view.currentIndex()
         if not idx.isValid():
             return
+        if not self._ensure_full_data("插入行"):
+            return
         r = idx.row()
-        df = self.model._loaded_df
-        nr = pd.DataFrame([['' for _ in range(len(df.columns))]],
-                           columns=df.columns)
-        # 拼接：前 r+1 行 + 新行 + r+1 之后的行
-        self.model._loaded_df = pd.concat(
-            [df.iloc[:r+1], nr, df.iloc[r+1:]]
+        before = self.model._loaded_df
+        empty = pd.DataFrame([['' for _ in range(len(before.columns))]],
+                             columns=before.columns)
+        after = pd.concat(
+            [before.iloc[:r + 1], empty, before.iloc[r + 1:]]
         ).reset_index(drop=True)
-        self.model._total_rows = len(self.model._loaded_df)
-        self.model.layoutChanged.emit()
-        self._set_status(f"已在第{r+1}行下方插入", 2000)
+        self._push_command(DataFrameOpCommand(before, after, "插入行"))
+        self._set_status(f"已在第{r + 1}行下方插入", 2000)
 
     # ==================== 插入列 ====================
     def _insert_col_left(self):
-        """在当前列左侧插入一列空列"""
+        """在当前列左侧插入一列空列（可撤销）"""
         idx = self.table_view.currentIndex()
         if not idx.isValid():
             return
+        if not self._ensure_full_data("插入列"):
+            return
         c = idx.column()
-        df = self.model._loaded_df
-        # 根据当前列索引生成新列名（如 C → "C"，若已存在则加 _1）
-        nn = col_index_to_name(c)
-        while nn in df.columns:
-            nn += "_1"
-        df.insert(c, nn, '')
-        self.model._loaded_df = df
-        self.model._total_cols = len(df.columns)
-        self.model.layoutChanged.emit()
+        before = self.model._loaded_df
+        name = col_index_to_name(c)
+        while name in before.columns:
+            name += "_1"
+        after = before.copy()
+        after.insert(c, name, '')
+        self._push_command(DataFrameOpCommand(before, after, "插入列"))
         self._set_status("已在左侧插入列", 2000)
 
     def _insert_col_right(self):
-        """在当前列右侧插入一列空列"""
+        """在当前列右侧插入一列空列（可撤销）"""
         idx = self.table_view.currentIndex()
         if not idx.isValid():
             return
+        if not self._ensure_full_data("插入列"):
+            return
         c = idx.column()
-        df = self.model._loaded_df
-        # 根据 c+1 生成新列名（如 C → "D"，若已存在则加 _1）
-        nn = col_index_to_name(c + 1)
-        while nn in df.columns:
-            nn += "_1"
-        df.insert(c + 1, nn, '')
-        self.model._loaded_df = df
-        self.model._total_cols = len(df.columns)
-        self.model.layoutChanged.emit()
+        before = self.model._loaded_df
+        name = col_index_to_name(c + 1)
+        while name in before.columns:
+            name += "_1"
+        after = before.copy()
+        after.insert(c + 1, name, '')
+        self._push_command(DataFrameOpCommand(before, after, "插入列"))
         self._set_status("已在右侧插入列", 2000)
 
     # ==================== 删除行/列 ====================
     def _delete_current_row(self):
-        """删除当前行（至少保留一行）"""
+        """删除当前行（至少保留一行；可撤销）"""
         idx = self.table_view.currentIndex()
         if not idx.isValid():
+            return
+        if not self._ensure_full_data("删除行"):
             return
         r = idx.row()
-        if len(self.model._loaded_df) <= 1:
+        before = self.model._loaded_df
+        if len(before) <= 1:
             self._set_status("至少保留一行", 2000)
             return
-        self.model._loaded_df = self.model._loaded_df.drop(
-            index=r).reset_index(drop=True)
-        self.model._total_rows = len(self.model._loaded_df)
-        self.model.layoutChanged.emit()
+        after = before.drop(index=r).reset_index(drop=True)
+        self._push_command(DataFrameOpCommand(before, after, "删除行"))
+        self._set_status(f"已删除第{r + 1}行（可撤销）", 2000)
 
     def _delete_current_col(self):
-        """删除当前列（至少保留一列）"""
+        """删除当前列（至少保留一列；可撤销）"""
         idx = self.table_view.currentIndex()
         if not idx.isValid():
             return
+        if not self._ensure_full_data("删除列"):
+            return
         c = idx.column()
-        if len(self.model._loaded_df.columns) <= 1:
+        before = self.model._loaded_df
+        if len(before.columns) <= 1:
             self._set_status("至少保留一列", 2000)
             return
-        self.model._loaded_df = self.model._loaded_df.drop(
-            columns=[self.model._loaded_df.columns[c]]
-        )
-        self.model._total_cols = len(self.model._loaded_df.columns)
-        self.model.layoutChanged.emit()
+        after = before.drop(columns=[before.columns[c]])
+        self._push_command(DataFrameOpCommand(before, after, "删除列"))
+        self._set_status(f"已删除第{c + 1}列（可撤销）", 2000)
 
     # ==================== 合并单元格 ====================
     def _merge_cells(self):

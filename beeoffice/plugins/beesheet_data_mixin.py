@@ -170,8 +170,26 @@ class DataMixin:
         ① 平台级 5 分钟自动保存**跳过蜜算**；
         ② 保存前自动备份**不覆盖蜜算**（手动点还弹"还没有保存到文件"）；
         ③ Ctrl+S 每次都要重新选路径（没有"当前文件"这个概念，与 Excel/WPS 不符）。
+
+        ⚠️ 旧版 `.xls` 的**写入**守卫：现在能**读** `.xls` 了（xlrd），
+        但我们**写不了** BIFF（openpyxl 只写 OOXML、xlwt 未随包分发）。
+        若不拦，导入 `.xls` 后按 Ctrl+S 会走到 `df.to_excel('*.xls')` ——
+        轻则报错、重则产出坏文件。所以这里明确告诉用户"另存为 .xlsx"，
+        **绝不在 .xls 上原地写**。
         """
         path = getattr(self, "_current_file_path", None)
+        if path and str(path).lower().endswith(".xls"):
+            from PySide6.QtWidgets import QMessageBox
+
+            QMessageBox.information(
+                self, "另存为 Excel 工作簿",
+                "旧版 .xls 是二进制格式，本软件**只能读、不能写**（写入会损坏文件）。\n\n"
+                "接下来请选择保存位置，文件会以 .xlsx 保存；"
+                "原 .xls 文件保持不变。",
+            )
+            self._current_file_path = None      # 走"另存为"，并让默认名变 .xlsx
+            self._export_xlsx()
+            return bool(getattr(self, "_current_file_path", None))
         if not path:
             self._export_xlsx()          # 退回"另存为"
             return bool(getattr(self, "_current_file_path", None))

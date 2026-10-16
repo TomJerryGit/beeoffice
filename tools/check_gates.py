@@ -154,6 +154,12 @@ GATES = [
         "曾经：蜜演整条保存链路不存在（Ctrl+S 无反应、稿子关掉就丢）；蜜算从不记路径",
     ),
     Gate(
+        "xls-undo-sync",
+        "蜜算 .xls 真支持 / 行列操作可撤销 / 云同步双向",
+        "tests/fidelity/test_p1_xls_undo_sync.py",
+        "曾经：.xls 假装支持、插入删除行列不进撤销栈、云同步上传一个永远为空的目录",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",

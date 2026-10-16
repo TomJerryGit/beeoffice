@@ -21,11 +21,12 @@ from beeoffice.settings import AppSettings
 class CloudSettingsDialog(QDialog):
     """云存储设置对话框"""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, settings=None):
         super().__init__(parent)
         self.setWindowTitle("☁️ 云存储设置")
         self.resize(480, 400)
-        self.settings = AppSettings()
+        # 允许注入 settings（便于测试；默认仍是全局设置）
+        self.settings = settings if settings is not None else AppSettings()
 
         # 主布局
         layout = QVBoxLayout(self)
@@ -88,6 +89,29 @@ class CloudSettingsDialog(QDialog):
         self.auto_sync_check = QCheckBox("启动时自动同步")
         option_layout.addWidget(self.auto_sync_check)
         layout.addLayout(option_layout)
+
+        # ---------- 同步目录（P1 修复）----------
+        # 原先"立即同步"上传的是 `~/.beeoffice_data` —— 那个目录没有任何写入方，
+        # 永远是空的，于是同步永远"没事可做"。现在把目录摆到界面上：
+        # 用户能看到、能改、能把当前文档放进去。
+        sync_row = QHBoxLayout()
+        sync_row.addWidget(QLabel("同步目录："))
+        self.sync_dir_edit = QLineEdit()
+        self.sync_dir_edit.setPlaceholderText("默认：主目录/BeeOffice云同步")
+        self.sync_dir_edit.setText(
+            getattr(self.settings, "cloud_sync_dir", "") or ""
+        )
+        sync_row.addWidget(self.sync_dir_edit, 1)
+        pick_btn = QPushButton("选择…")
+        pick_btn.clicked.connect(self._pick_sync_dir)
+        sync_row.addWidget(pick_btn)
+        layout.addLayout(sync_row)
+        sync_hint = QLabel(
+            "同步是**双向**的：这个目录里的文件会上传，云端有而本地没有的会下载。"
+        )
+        sync_hint.setWordWrap(True)
+        sync_hint.setStyleSheet("color:#666;font-size:12px;")
+        layout.addWidget(sync_hint)
 
         layout.addStretch()
 
@@ -182,6 +206,8 @@ class CloudSettingsDialog(QDialog):
         self.settings.cloud_config = config
         self.settings.cloud_enabled = self.enabled_check.isChecked()
         self.settings.cloud_auto_sync = self.auto_sync_check.isChecked()
+        # P1：同步目录（空值表示用默认目录）
+        self.settings.cloud_sync_dir = self.sync_dir_edit.text().strip()
 
         try:
             self.settings.save()
@@ -199,6 +225,18 @@ class CloudSettingsDialog(QDialog):
 
         QMessageBox.information(self, "已保存", "云存储设置已保存")
         self.accept()
+
+    # ---------- 同步目录 ----------
+    def _pick_sync_dir(self):
+        """选一个同步目录（P1：让"同步"有实际可放文件的地方）。"""
+        from PySide6.QtWidgets import QFileDialog
+
+        current = self.sync_dir_edit.text().strip()
+        chosen = QFileDialog.getExistingDirectory(
+            self, "选择同步目录", current or ""
+        )
+        if chosen:
+            self.sync_dir_edit.setText(chosen)
 
     # ---------- 测试连接 ----------
     def _test_connection(self):
