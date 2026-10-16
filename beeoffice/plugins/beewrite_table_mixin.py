@@ -650,12 +650,43 @@ class TableMixin:
         return detect_md_table_at_cursor(self.markdown_editor)
 
     def _parse_md_table(self, lines):
-        """解析 Markdown 表格行（转发）"""
+        """
+        解析 Markdown 表格行（转发），**并顺手记下列对齐**。
+
+        集中在这里做：只要走解析就一定会留下对齐信息，
+        后续任何一次整表重渲染（双击编辑、增删行列…）都不会把对齐抹掉
+        （审计报告 §2.13：原来分隔行被丢弃 + 渲染硬编码 `---`）。
+        """
+        from beeoffice.plugins.beewrite_utils import parse_md_table_aligns
+
+        aligns = parse_md_table_aligns(lines)
+        if aligns:
+            self._md_table_aligns = aligns
         return parse_md_table(lines)
 
-    def _render_md_table(self, rows):
-        """渲染 Markdown 表格（转发）"""
-        return render_md_table(rows)
+    def _parse_md_table_aligns(self, lines):
+        """
+        解析表格的**列对齐**（P1：审计 §2.13 的"列对齐被抹掉"）。
+
+        解析一次后记在 `self._md_table_aligns` 上，供后续所有渲染沿用
+        （双击编辑、增删行列等都会重新渲染整张表，必须带上对齐）。
+        """
+        from beeoffice.plugins.beewrite_utils import parse_md_table_aligns
+
+        aligns = parse_md_table_aligns(lines)
+        self._md_table_aligns = aligns or []
+        return aligns
+
+    def _render_md_table(self, rows, aligns=None):
+        """
+        渲染 Markdown 表格（转发）。
+
+        :param aligns: 列对齐；不传就沿用**最近一次解析**到的对齐
+            （存在 `self._md_table_aligns`），从而"编辑一次不再抹掉对齐"。
+        """
+        if aligns is None:
+            aligns = getattr(self, "_md_table_aligns", None)
+        return render_md_table(rows, aligns)
 
     def _replace_lines(self, start, end, new_text):
         """替换 Markdown 编辑器中的指定行范围"""

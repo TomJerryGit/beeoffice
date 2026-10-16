@@ -102,6 +102,60 @@ FORMAT_PAINTER = FormatPainterState()
 
 
 # ==================== Markdown 表格：解析 ====================
+def parse_md_table_aligns(lines):
+    """
+    从 Markdown 表格行里解析**列对齐**，返回每列的方向。
+
+    ⚠️ 修的是审计报告 §2.13：`parse_md_table()` 会把分隔行**整个丢弃**，
+    而 `render_md_table()` 又**硬编码** `---` —— 于是
+    `|:---|---:|:---:|` 这种对齐声明，双指编辑一次就被抹成 `|---|---|---|`
+    （用户的分列对齐不明不白地没了）。
+
+    :return: 形如 ["left", "right", "center", None] 的列表（长度按分隔行列数）
+    """
+    for line in lines:
+        s = line.strip()
+        if not (s.startswith("|") and s.endswith("|")):
+            continue
+        cells = [c.strip() for c in s.strip("|").split("|")]
+        if not cells:
+            continue
+        # 分隔行：每格只由 -、: 组成，且至少有一个 -
+        if not all(c and set(c) <= set("-:") and "-" in c for c in cells):
+            continue
+        aligns = []
+        for cell in cells:
+            left = cell.startswith(":")
+            right = cell.endswith(":")
+            if left and right:
+                aligns.append("center")
+            elif right:
+                aligns.append("right")
+            elif left:
+                aligns.append("left")
+            else:
+                aligns.append(None)
+        return aligns
+    return []
+
+
+def _separator_for_aligns(n_cols: int, aligns=None) -> str:
+    """按对齐列表生成分隔行；没有对齐信息时保持原来的 `---`。"""
+    aligns = list(aligns or [])
+    cells = []
+    for i in range(n_cols):
+        align = aligns[i] if i < len(aligns) else None
+        if align == "left":
+            cells.append(":---")
+        elif align == "right":
+            cells.append("---:")
+        elif align == "center":
+            cells.append(":---:")
+        else:
+            cells.append("---")
+    return "|" + "|".join(cells) + "|"
+
+
 def parse_md_table(lines):
     """
     将 Markdown 表格行（含分隔行）解析为二维列表。
@@ -114,6 +168,8 @@ def parse_md_table(lines):
     返回：
         [["A", "B"], ["1", "2"]]
     空行 / 非表格行会被跳过，分隔行会被剔除。
+
+    注：列对齐由 `parse_md_table_aligns()` 单独取（`render_md_table` 可回写）。
     """
     rows = []
     for line in lines:
@@ -130,7 +186,7 @@ def parse_md_table(lines):
 
 
 # ==================== Markdown 表格：渲染 ====================
-def render_md_table(rows):
+def render_md_table(rows, aligns=None):
     """
     将二维列表渲染为 Markdown 表格文本。
     自动补齐每行列数，并在第二行插入分隔行。
@@ -141,6 +197,9 @@ def render_md_table(rows):
         | A | B |
         |---|---|
         | 1 | 2 |
+
+    :param aligns: 可选，列对齐（`parse_md_table_aligns()` 的结果）。
+        传了就会写出 `:---` / `---:` / `:---:`，**保住用户设过的对齐**。
     """
     if not rows:
         return ""
@@ -150,7 +209,7 @@ def render_md_table(rows):
         row = list(row) + [""] * (n_cols - len(row))
         out.append("| " + " | ".join(row) + " |")
         if i == 0:
-            out.append("|" + "|".join(["---"] * n_cols) + "|")
+            out.append(_separator_for_aligns(n_cols, aligns))
     return "\n".join(out)
 
 

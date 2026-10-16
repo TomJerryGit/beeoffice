@@ -1263,6 +1263,55 @@ class ExportMixin:
             pass
         return False
 
+    @staticmethod
+    def _fragment_is_link(char_format) -> bool:
+        """该 fragment 是否是超链接（Qt 把链接存成 anchor）。"""
+        try:
+            return bool(char_format.isAnchor() and char_format.anchorHref())
+        except Exception:  # noqa: BLE001
+            return False
+
+    def _add_hyperlink(self, para, url: str, text: str,
+                       char_format=None) -> bool:
+        """
+        往段落里写一个**真正的 Word 超链接**（可点击、带 URL）。
+
+        python-docx 没有高层 API，需要手工拼 `w:hyperlink` + 外部关系。
+        失败时返回 False，调用方会退回普通文本 run（**不丢文字**）。
+        """
+        try:
+            from docx.opc.constants import RELATIONSHIP_TYPE as RT
+            from docx.oxml import OxmlElement
+            from docx.oxml.ns import qn
+
+            part = para.part
+            r_id = part.relate_to(str(url), RT.HYPERLINK, is_external=True)
+            hyperlink = OxmlElement("w:hyperlink")
+            hyperlink.set(qn("r:id"), r_id)
+
+            run = OxmlElement("w:r")
+            run_props = OxmlElement("w:rPr")
+            # Word 里链接的惯例样式：蓝色 + 下划线
+            color = OxmlElement("w:color")
+            color.set(qn("w:val"), "0563C1")
+            run_props.append(color)
+            underline = OxmlElement("w:u")
+            underline.set(qn("w:val"), "single")
+            run_props.append(underline)
+            run.append(run_props)
+
+            text_element = OxmlElement("w:t")
+            text_element.set(qn("xml:space"), "preserve")
+            text_element.text = str(text)
+            run.append(text_element)
+
+            hyperlink.append(run)
+            para._p.append(hyperlink)
+            return True
+        except Exception as e:  # noqa: BLE001
+            logging.debug(f"[蜜写] 写入超链接失败（退回普通文本）: {e}")
+            return False
+
     def _write_block_runs(self, para, block):
         """
         将 block 内的字符片段（按 run）写入段落，保留粗体 / 斜体 /
@@ -1285,6 +1334,15 @@ class ExportMixin:
 
                 # ---------- 普通文本 fragment ----------
                 frag_text = fragment.text()
+                # 超链接：审计 §2.13 —— 富文本→DOCX 原先只处理图片与文本 run，
+                # 链接的 URL **整条丢掉**（文字还在、点不动）。
+                # 现在写成真正的 Word 超链接（外部关系 + w:hyperlink）。
+                if frag_text and self._fragment_is_link(fmt):
+                    if self._add_hyperlink(para, fmt.anchorHref(),
+                                           frag_text, fmt):
+                        has_content = True
+                        it += 1
+                        continue
                 if frag_text:
                     run = para.add_run(frag_text)
                     self._apply_char_format_to_run(run, fmt)
@@ -1349,10 +1407,33 @@ class ExportMixin:
                 cell = qtable.cellAt(r, c)
                 cell_cursor = cell.firstCursorPosition()
                 cell_block = cell_cursor.block()
-                cell_text = cell_block.text()
 
                 docx_cell = doc_table.cell(r, c)
-                docx_cell.text = cell_text
+                # ⚠️ 审计 §2.13：原先是 `docx_cell.text = cell_block.text()`
+                # —— **只取首段**，单元格里的多段落全被压成一段。
+                # 现在按 QTextDocument 里该单元格的**每个块**写一个段落，
+                # 并复用 `_write_block_runs`（顺带获得超链接/图片支持）。
+                try:
+                    end_block = cell.lastCursorPosition().block()
+                    end_position = end_block.position()
+                    block_iter = cell_block
+                    para_index = 0
+                    while block_iter.isValid() \
+                            and block_iter.position() <= end_position:
+                        if para_index == 0:
+                            docx_para = docx_cell.paragraphs[0]
+                        else:
+                            docx_para = docx_cell.add_paragraph()
+                        self._write_block_runs(docx_para, block_iter)
+                        para_index += 1
+                        if block_iter == end_block:
+                            break
+                        block_iter = block_iter.next()
+                    if para_index == 0:
+                        docx_cell.text = ""      # 空单元格（保持一个空段落）
+                except Exception as e:  # noqa: BLE001
+                    logging.warning(f"[蜜写] 单元格多段落导出失败，退回纯文本: {e}")
+                    docx_cell.text = cell_block.text()
 
                 # ---------- 段落对齐（每个 cell 的段落） ----------
                 try:

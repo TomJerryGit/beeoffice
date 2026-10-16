@@ -196,6 +196,12 @@ GATES = [
         "曾经：取消图表对话框仍画柱状图；缺 matplotlib 静默无反应；目录在所见即所得里是字面源码",
     ),
     Gate(
+        "beewrite-remnants",
+        "蜜写余项：表格列对齐往返 / DOCX 超链接与单元格多段落 / 嵌套列表缩进",
+        "tests/fidelity/test_p1_beewrite_remnants.py",
+        "曾经：表格编辑抹掉列对齐；DOCX 丢链接 URL 且单元格只导出首段；多级列表被压平",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",

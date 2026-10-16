@@ -702,9 +702,14 @@ class RichTextEditor(QTextEdit):
                 continue
             lm = re.match(r'^(\s*)([-*+]|\d+\.)\s+(.*)', line)
             if lm:
+                # 缩进 → 层级：2 个空格（或 1 个制表符）算一级。
+                # 原先 `lm.group(1)` 捕获了却从不用 → 多级列表被压平。
+                indent = lm.group(1).replace("\t", "  ")
+                level = max(0, len(indent) // 2)
                 self._insert_list_item(
                     lm.group(3),
-                    lm.group(2).rstrip('.').isdigit()
+                    lm.group(2).rstrip('.').isdigit(),
+                    level=level,
                 )
                 i += 1
                 continue
@@ -851,14 +856,25 @@ class RichTextEditor(QTextEdit):
             c.insertBlock(bf)
         c.insertText("▎ " + text, f)
 
-    def _insert_list_item(self, text, ordered=False):
-        """插入列表项"""
+    def _insert_list_item(self, text, ordered=False, level: int = 0):
+        """
+        插入列表项。
+
+        :param level: 缩进层级（0 起）。**审计报告 §2.13**：`set_markdown` 的
+            正则一直捕获着缩进 `lm.group(1)`，却**从未使用** →
+            多级列表被压成一级。现在按缩进换算层级并 `setIndent()`。
+        """
         c = self._cursor_at_end()
         lf = QTextListFormat()
         lf.setStyle(
             QTextListFormat.ListDecimal if ordered
             else QTextListFormat.ListDisc
         )
+        try:
+            # Qt 的列表缩进从 1 起（1 = 顶层）
+            lf.setIndent(max(1, int(level) + 1))
+        except Exception as e:  # noqa: BLE001
+            logging.debug(f"[蜜写] 设置列表缩进失败（忽略）: {e}")
         if self._is_empty_doc():
             pass
         else:
