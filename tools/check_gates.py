@@ -214,6 +214,12 @@ GATES = [
         "曾经：spec 漏打包 beeoffice/data（打包版拼写白名单失效）；build_release.py 一跑就报未找到 spec",
     ),
     Gate(
+        "ai-error-messages",
+        "AI 报错归因正确（404 看响应体：模型不存在 ≠ 地址不对）",
+        "tests/fidelity/test_ai_error_messages.py",
+        "曾经：Ollama 说模型不存在(404) 被误报成『接口地址不对』，把用户引向改地址",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",

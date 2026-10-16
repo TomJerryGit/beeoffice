@@ -639,7 +639,8 @@ def probe_ai_connection(config: Optional[Dict[str, Any]] = None,
         data = opener(url, headers, payload, timeout)
     except Exception as e:  # noqa: BLE001 - 全部转成可操作提示
         latency = int((_time.perf_counter() - start) * 1000)
-        return False, _explain_connection_error(e, api_base, is_local), latency
+        return False, _explain_connection_error(e, api_base, is_local,
+                                                model), latency
 
     latency = int((_time.perf_counter() - start) * 1000)
     choices = (data or {}).get("choices") or []
@@ -656,7 +657,16 @@ def _default_opener(url, headers, payload, timeout):
 
         response = requests.post(url, headers=headers, json=payload,
                                  timeout=timeout)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as e:
+            # ⚠️ 关键：`raise_for_status()` 的异常字符串**不含响应体**
+            # （只有 `404 Client Error: Not Found for url: ...`），
+            # 而 404 的真实原因就在 body 里 ——
+            # 例如 Ollama 的 `{"error":"model \"qwen2.5\" not found, try pulling it first"}`
+            # 与"地址打到了非 API 端点"的 `404 page not found` 完全不同。
+            # 不把它带上来，提示就只能瞎猜（真机截图里的误导就是这么来的）。
+            raise RuntimeError(_format_http_error(e, response)) from e
         return response.json()
     except ImportError:
         import json
@@ -671,34 +681,56 @@ def _default_opener(url, headers, payload, timeout):
             with urllib.request.urlopen(request, timeout=timeout) as resp:
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
-            # 统一成带状态码的异常，便于下面映射成提示
+            # urllib 这条路径的 body 也要读出来（同样不能丢）
+            try:
+                body = e.read().decode("utf-8", "replace")
+            except Exception:  # noqa: BLE001
+                body = ""
+            if body:
+                raise RuntimeError(f"HTTP {e.code}: {e.reason}\n{body[:400]}") from e
             raise RuntimeError(f"HTTP {e.code}: {e.reason}") from e
 
 
-def _explain_connection_error(error, api_base: str, is_local: bool) -> str:
-    """把各种失败翻译成**用户能照着修**的一句话。"""
-    text = str(error)
-    lowered = text.lower()
+def _format_http_error(error, response) -> str:
+    """把 HTTP 错误拼成"状态码 + 响应体"的文本，供 `explain_ai_error()` 判断。"""
+    status = getattr(response, "status_code", None)
+    text = ""
+    try:
+        text = (response.text or "")[:400]
+    except Exception:  # noqa: BLE001
+        text = ""
+    head = f"HTTP {status}" if status else str(error)
+    return f"{head}\n{text}" if text else head
 
-    if "401" in text or "403" in text or "unauthorized" in lowered:
-        return "API Key 无效或没有权限（HTTP 401/403）。请检查 Key 是否填对、是否有余额。"
-    if "404" in text:
-        return ("接口地址不对（HTTP 404）。"
-                "地址应指向兼容 OpenAI 的端点，通常以 /v1 结尾，"
-                "例如 https://api.deepseek.com/v1")
-    if "429" in text:
-        return "请求太频繁或额度用尽（HTTP 429）。稍后再试，或检查账户余额。"
-    if is_local and ("connection" in lowered or "refused" in lowered
-                     or "无法连接" in text or "timed out" in lowered):
-        return (f"连不上本地服务 {api_base}。"
-                "若是 Ollama：请先运行 `ollama serve`，"
-                "并确认已 `ollama pull` 过对应模型。")
-    if "timed out" in lowered or "timeout" in lowered:
-        return f"连接超时（{api_base}）。请检查网络，或换用本地 Ollama。"
-    if "name or service not known" in lowered or "getaddrinfo" in lowered \
-            or "nodename" in lowered:
-        return f"域名解析失败（{api_base}）。请检查 API 地址是否写错。"
-    return f"连接失败：{text[:160]}"
+
+def _explain_connection_error(error, api_base: str, is_local: bool,
+                              model: str = "") -> str:
+    """
+    把各种失败翻译成**用户能照着修**的一句话。
+
+    ⚠️ 这里改成调用**共享实现** `ai_errors.explain_ai_error()`：
+    原先本文件与 `ai_client.py` 各有一套 404 文案，且本文件这套
+    **只看状态码、不看响应体** → 真机反馈里"Ollama 说模型不存在"被
+    误报成"接口地址不对"，把用户引向反复改地址。
+    """
+    from beeoffice.plugins.ai_errors import explain_ai_error
+
+    text = str(error)
+    status = None
+    import re
+
+    match = re.search(r"HTTP\s+(\d{3})", text)
+    if match:
+        status = int(match.group(1))
+
+    # 异常文本里已含响应体（见 `_default_opener`），按第一行切出状态、其余当 body
+    parts = text.split("\n", 1)
+    body = parts[1] if len(parts) > 1 else ""
+
+    return explain_ai_error(
+        status=status, body=body, error_text=text,
+        api_base=api_base, model=model, is_local=is_local,
+    )
 
 
 # ==================== 模块级便捷函数 ====================

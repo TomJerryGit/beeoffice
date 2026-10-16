@@ -215,7 +215,17 @@ def _default_opener(url, headers, payload, timeout):
 
         response = requests.post(url, headers=headers, json=payload,
                                  timeout=timeout)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as e:
+            # 响应体是 404 的真正原因（见 ai_errors 模块的说明），必须带上来
+            status = getattr(response, "status_code", None)
+            try:
+                body = (response.text or "")[:400]
+            except Exception:  # noqa: BLE001
+                body = ""
+            head = f"HTTP {status}" if status else str(e)
+            raise RuntimeError(f"{head}\n{body}" if body else head) from e
         return response.json()
     except ImportError:
         import urllib.error
@@ -229,29 +239,39 @@ def _default_opener(url, headers, payload, timeout):
             with urllib.request.urlopen(request, timeout=timeout) as resp:
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
+            try:
+                body = e.read().decode("utf-8", "replace")
+            except Exception:  # noqa: BLE001
+                body = ""
+            if body:
+                raise RuntimeError(f"HTTP {e.code}: {e.reason}\n{body[:400]}") from e
             raise RuntimeError(f"HTTP {e.code}: {e.reason}") from e
 
 
-def _explain_error(error, api_base: str) -> str:
-    """把失败翻译成用户能照着修的一句话（与「测试连接」同一套口径）。"""
+def _explain_error(error, api_base: str, model: str = "") -> str:
+    """
+    把失败翻译成用户能照着修的一句话。
+
+    ⚠️ 改为调用**共享实现** `ai_errors.explain_ai_error()`：原先本文件与
+    `beeshow_ai_service.py` 各有一套 404 文案（口径不同、且都不看响应体），
+    真机反馈里"Ollama 说模型不存在"被误报成"接口地址不对"。
+    现在只有一份实现，且**内容来自响应体**。
+    """
+    from beeoffice.plugins.ai_errors import explain_ai_error
+
     text = str(error)
-    lowered = text.lower()
-    if "401" in text or "403" in text or "unauthorized" in lowered:
-        return "API Key 无效或没有权限（HTTP 401/403），请在『AI 设置』里检查 Key 与余额"
-    if "404" in text:
-        # 404 有两种常见成因：地址不对，**或者模型名在该服务上不存在**。
-        # 只说"地址不对"会把用户误导到错误方向（例如他填的是自定义网关，
-        # 地址没错、只是模型名沿用了 DeepSeek 的默认值）。
-        return ("服务返回 404：请检查『AI 设置』里的**接口地址**"
-                "（应以 /v1 结尾）与**模型名**是否都对")
-    if "429" in text:
-        return "请求太频繁或额度用尽（HTTP 429），稍后重试"
-    if "timed out" in lowered or "timeout" in lowered:
-        return f"连接超时（{api_base}），可改用本地 Ollama"
-    if ("connection" in lowered or "refused" in lowered) and \
-            ("localhost" in api_base or "127.0.0.1" in api_base):
-        return "连不上本地服务，请确认已运行 `ollama serve`"
-    return f"调用失败：{text[:120]}"
+    import re
+
+    match = re.search(r"HTTP\s+(\d{3})", text)
+    status = int(match.group(1)) if match else None
+    parts = text.split("\n", 1)
+    body = parts[1] if len(parts) > 1 else ""
+    lowered_base = (api_base or "").lower()
+    return explain_ai_error(
+        status=status, body=body, error_text=text, api_base=api_base,
+        model=model,
+        is_local=("localhost" in lowered_base or "127.0.0.1" in lowered_base),
+    )
 
 
 # ==================== 提示词构造（独立出来便于测试）====================

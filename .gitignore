@@ -9,8 +9,7 @@ __pycache__/
 build/
 develop-eggs/
 dist/
-downloads/
-eggs/
+downloads/eggs/
 .eggs/
 lib/
 lib64/
@@ -115,6 +114,10 @@ $RECYCLE.BIN/
 # ============================================================
 BeeOffice-v*.zip
 BeeOffice-v*.zip.sha256
+# ⚠️ 解包出来的**目录**也要忽略：2026-10-16 我用 `git add -A` 时，
+# 这个同名的解包目录（532 MB / 2741 个文件：matplotlib 字体、pytz 时区、DLL…）
+# 被整包暂存了 —— 因为原先只写了 `*.zip` 规则。
+BeeOffice-v*/
 
 # ============================================================
 # 测试临时产物

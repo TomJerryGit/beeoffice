@@ -171,6 +171,18 @@ class AISettingsDialog(QDialog):
         self.key_edit.setPlaceholderText(
             "必填：去服务商申请" if needs_key else "本地 Ollama 可留空"
         )
+        # ⚠️ 真机反馈（截图）：服务商选了「本地 Ollama（无需 Key）」，但 Key 框里
+        # 仍留着上一次填的 Key —— 既没用又让人以为"必须填"，还会被误当成鉴权失败的原因。
+        # 这里在切到"无需 Key"的服务商时把框**清空并置灰**（切回需要 Key 的会自动恢复）。
+        if not needs_key:
+            if self.key_edit.text():
+                self.key_edit.clear()
+            self.key_edit.setEnabled(False)
+            self.key_edit.setToolTip(
+                "本地 Ollama 不需要 API Key；Key 不会被发送（数据不出本机）"
+            )
+        else:
+            self.key_edit.setToolTip("")
 
     def _on_provider_changed(self, _index):
         preset = self.current_preset_key()
