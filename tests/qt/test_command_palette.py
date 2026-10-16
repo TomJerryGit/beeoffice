@@ -1,6 +1,5 @@
 # tests/test_command_palette.py
 """命令面板测试"""
-import pytest
 from PySide6.QtCore import Qt, QEvent
 from PySide6.QtGui import QKeyEvent
 

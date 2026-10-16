@@ -4,7 +4,7 @@
 """
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QFormLayout, QComboBox, QSpinBox,
-    QCheckBox, QDialogButtonBox, QMenu, QMessageBox
+    QCheckBox, QDialogButtonBox, QMenu
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor

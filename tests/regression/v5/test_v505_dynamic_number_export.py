@@ -25,7 +25,6 @@ HTML 里根本不存在 `{{number: ...}}`，于是正则匹配不到任何内容
 """
 import pytest
 
-from beeoffice.plugins.beeshow import BeeShowView
 
 
 def _span(prefix="¥", suffix="元", final="¥12,345元", placeholder=None):

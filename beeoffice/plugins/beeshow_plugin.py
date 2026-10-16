@@ -179,8 +179,8 @@ class BeeShowPlugin(Plugin):
                 return
 
             # 使用 python-pptx 导出
+            # （Inches / Pt 在本文件都未使用；真要用到时 F821 门禁会拦下）
             from pptx import Presentation
-            from pptx.util import Inches, Pt
 
             prs = Presentation()
             for slide_data in slides:

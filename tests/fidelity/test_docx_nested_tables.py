@@ -22,7 +22,6 @@ Markdown 表格语法**表达不了**"单元格里还有一张表"。实测（�
 import sys
 from pathlib import Path
 
-import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -190,9 +189,7 @@ def test_nested_table_survives_roundtrip(tmp_path):
 
 def test_nested_preserves_shape(tmp_path):
     """结构要保：内层几行几列应一致。"""
-    import zipfile
 
-    from lxml import etree
     from docx import Document
 
     src = tmp_path / "shape.docx"

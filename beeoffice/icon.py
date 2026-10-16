@@ -1,5 +1,5 @@
 from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import Qt
 
 def create_app_icon():
     pixmap = QPixmap(256, 256)

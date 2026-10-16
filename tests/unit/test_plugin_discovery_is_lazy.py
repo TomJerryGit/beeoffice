@@ -26,7 +26,6 @@ import sys
 import textwrap
 from pathlib import Path
 
-import pytest
 
 from beeoffice.plugin_manager import PluginManager
 

@@ -7,16 +7,14 @@ v5.0.1 修复（P1-11）：
     （原文件名本身就是 beewrite_，仅注释少了一个 e）
 """
 
-import re
 import time
-import logging
 import tempfile
 from pathlib import Path
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
     QPushButton, QDialogButtonBox, QMessageBox, QComboBox,
-    QFormLayout, QListWidget, QListWidgetItem
+    QFormLayout
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap, QImage

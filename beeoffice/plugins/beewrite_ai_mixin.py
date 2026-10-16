@@ -93,7 +93,6 @@ class AIMixin:
 
     def _ai_insert_at(self, position, text):
         """把文本插入到**记录下来的位置**（异步回来后光标可能已变）。"""
-        from PySide6.QtGui import QTextCursor
 
         editor = self._ai_editor()
         cursor = editor.textCursor()

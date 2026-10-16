@@ -31,7 +31,6 @@ v5.0.2 增强（本次）：
 
 import re
 import os
-import io
 import logging
 import difflib
 from pathlib import Path
@@ -49,9 +48,11 @@ except ImportError:
     HAS_MARKDOWN = False
 
 try:
+    # 这段的目的只是**探测 python-docx 是否可用**（HAS_DOCX），
+    # 所以只导入后面真的用到的名字：Inches / WD_ALIGN_PARAGRAPH 全文件未使用
+    # （第十一批 F401 清理核实；若将来用到，F821 门禁会立刻报出来）。
     from docx import Document
-    from docx.shared import Pt, RGBColor, Inches, Cm
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Pt, RGBColor, Cm
     HAS_DOCX = True
 except ImportError:
     HAS_DOCX = False
@@ -1580,7 +1581,6 @@ def _write_inline_image(img_tag, paragraph, base_dir=None):
 
 def _write_table(table_tag, doc):
     """将 HTML 表格写入 docx"""
-    from bs4 import Tag
 
     rows = table_tag.find_all("tr")
     if not rows:

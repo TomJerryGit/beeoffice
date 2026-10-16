@@ -34,7 +34,6 @@
   - CommentPanel 由主文件初始化并通过信号连接到本 Mixin 的槽。
   - 不导入其他 beewrite_* Mixin，避免循环依赖。
 """
-import logging
 
 from PySide6.QtWidgets import (
     QMessageBox,

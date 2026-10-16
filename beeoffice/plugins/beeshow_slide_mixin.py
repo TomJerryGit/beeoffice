@@ -56,7 +56,7 @@ import logging
 from beeoffice.plugins.beeshow_html import render_slide_html
 
 from PySide6.QtWidgets import (
-    QListWidgetItem, QInputDialog, QColorDialog, QMessageBox,
+    QListWidgetItem, QInputDialog, QColorDialog,
 )
 from PySide6.QtCore import QTimer
 

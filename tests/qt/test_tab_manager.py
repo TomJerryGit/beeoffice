@@ -8,8 +8,7 @@ TabManager 测试
   - 未保存标记
   - 文件路径映射
 """
-import pytest
-from PySide6.QtWidgets import QPlainTextEdit, QApplication
+from PySide6.QtWidgets import QPlainTextEdit
 
 
 class TestBasicOperations:

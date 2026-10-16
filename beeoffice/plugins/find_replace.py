@@ -3,13 +3,12 @@
 蜜写查找替换栏：支持普通/正则查找、区分大小写、全字匹配、替换、全部替换
 """
 import re
-import logging
 
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLineEdit, QPushButton,
-    QCheckBox, QLabel, QPlainTextEdit, QTextEdit, QMessageBox
+    QCheckBox, QLabel, QPlainTextEdit, QMessageBox
 )
-from PySide6.QtGui import QTextCursor, QTextDocument, QTextCharFormat, QColor
+from PySide6.QtGui import QTextCursor
 from PySide6.QtCore import Qt
 
 

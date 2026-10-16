@@ -23,7 +23,6 @@ v5.0.5 修复：
     - 用 _FakeModel 提供 get_value(r, c) 接口
     - 通过 FormulaEngine.evaluate(expr, model) classmethod 调用
 """
-import pytest
 from beeoffice.plugins.beesheet_engine import FormulaEngine
 
 

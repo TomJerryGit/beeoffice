@@ -35,18 +35,15 @@ import logging
 from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
-    QHBoxLayout,
     QFormLayout,
     QGroupBox,
     QLabel,
-    QPushButton,
     QComboBox,
     QDoubleSpinBox,
     QDialogButtonBox,
     QMessageBox,
     QTextEdit,
 )
-from PySide6.QtCore import Qt
 
 from beeoffice.plugins.beewrite_page_extras import (
     WatermarkDialog,

@@ -19,12 +19,9 @@
 import re
 import json
 import logging
-import urllib.request
-import urllib.error
 from pathlib import Path
 from datetime import datetime
 
-from PySide6.QtCore import QThread, Signal
 
 from beeoffice.resources.templates import TEMPLATES
 

@@ -10,9 +10,8 @@ v5.0.1 修复（P1-11）：
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QLabel,
     QDialogButtonBox, QPushButton, QComboBox, QSpinBox,
-    QColorDialog, QCheckBox, QMessageBox
+    QColorDialog, QCheckBox
 )
-from PySide6.QtCore import Qt
 from PySide6.QtGui import (
     QColor, QTextCursor, QTextFrameFormat, QTextLength
 )

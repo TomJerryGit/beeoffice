@@ -7,7 +7,6 @@ PDF 导出测试
   - 水印注入
   - 页码注入
 """
-import pytest
 
 
 class TestPageSettingsInjection:

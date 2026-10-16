@@ -47,7 +47,6 @@
   - 「编辑器内部」的表格操作（Tab 跳格 / 右键菜单）由 RichTextEditor 负责
   - 不导入其他 beewrite_* Mixin，避免循环依赖
 """
-import logging
 from pathlib import Path
 
 from PySide6.QtWidgets import (

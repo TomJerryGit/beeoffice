@@ -42,7 +42,6 @@ from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QTextEdit, QCheckBox,
     QSpinBox, QDialogButtonBox, QMessageBox, QHeaderView,
 )
-from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 
 

@@ -28,7 +28,6 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -267,7 +266,7 @@ def test_autosave_skips_widgets_without_current_file(qtbot, app, monkeypatch):
 
 def test_autosave_saves_widgets_with_current_file(qtbot, app, tmp_path):
     """有当前文件时，自动保存应当真的写回。"""
-    from PySide6.QtWidgets import QMessageBox, QWidget
+    from PySide6.QtWidgets import QMessageBox
 
     monkeypatch_dummy = None
     _ = monkeypatch_dummy

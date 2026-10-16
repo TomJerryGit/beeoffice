@@ -1,6 +1,5 @@
 # tests/test_p2_regression/test_p1_09_variable_panel.py
 """P1-9 回归：变量面板刷新保留数据源选择"""
-import pytest
 
 
 def test_source_combo_selection_preserved(qtbot):

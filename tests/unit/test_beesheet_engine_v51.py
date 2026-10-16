@@ -20,7 +20,6 @@ v5.1 B1：公式引擎新增函数单测
     若要支持 TRUE / FALSE 字面量，需在 B3 阶段扩展 _safe_eval。
   - 所有测试用 _FakeModel 提供最小接口 get_value(r, c)。
 """
-import pytest
 
 from beeoffice.plugins.beesheet_engine import FormulaEngine
 

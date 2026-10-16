@@ -1,6 +1,5 @@
 # tests/test_p2_regression/test_p1_18_command_context.py
 """P1-18 回归：命令面板上下文识别"""
-import pytest
 
 
 def test_beeshow_recognized(qtbot):

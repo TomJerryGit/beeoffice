@@ -3,7 +3,7 @@
 插件基类：所有插件应继承此类，实现必要接口
 """
 import logging
-from typing import Optional, List
+from typing import Optional
 
 from PySide6.QtWidgets import QWidget
 from PySide6.QtGui import QIcon

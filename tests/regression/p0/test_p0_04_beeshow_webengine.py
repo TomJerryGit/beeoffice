@@ -18,7 +18,6 @@ P0-4 回归：蜜演导出 PDF / 图片序列时应保持 QWebEngineView 引用�
      （若改回局部变量，这里会是空列表）
   3. closeEvent 清理断言
 """
-import pytest
 
 
 def test_export_views_initialized_as_list(beeshow_view):

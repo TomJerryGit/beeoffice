@@ -35,11 +35,9 @@
 """
 
 import re
-import json
 import logging
 from typing import Dict, Any
 
-from PySide6.QtCore import Qt
 
 
 # ==================== 语法解析 ====================

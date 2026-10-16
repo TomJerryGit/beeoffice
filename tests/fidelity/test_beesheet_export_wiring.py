@@ -13,7 +13,6 @@ HTML 导出入口被删掉却没接线 —— 都属于"单测绿、产品坏"�
 并 monkeypatch 掉文件对话框与消息框。
 """
 import sys
-import types
 from pathlib import Path
 
 import pandas as pd

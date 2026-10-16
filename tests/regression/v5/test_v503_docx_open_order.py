@@ -26,8 +26,6 @@ v5.0.3 回归：打开含图片的 DOCX 时，set_current_file_path 必须先于
 v5.0.5：
   AsyncTaskManager.run 在测试中替换为同步实现，避免线程竞态。
 """
-import pytest
-from pathlib import Path
 
 from PySide6.QtGui import QImage, QColor
 

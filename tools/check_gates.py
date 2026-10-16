@@ -202,6 +202,12 @@ GATES = [
         "曾经：表格编辑抹掉列对齐；DOCX 丢链接 URL 且单元格只导出首段；多级列表被压平",
     ),
     Gate(
+        "lint-clean",
+        "全仓无未用导入（F401）且无空类型检查块（TC005）",
+        "tests/fidelity/test_lint_clean.py",
+        "曾经：全仓 196 处未用导入；--fix 还会删掉刻意导入并留下空块",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",

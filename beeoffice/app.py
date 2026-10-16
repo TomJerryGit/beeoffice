@@ -56,7 +56,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QStatusBar, QLabel, QMessageBox, QFileDialog,
     QDialog, QVBoxLayout, QTextEdit,
 )
-from PySide6.QtGui import QAction, QKeySequence, QShortcut
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtCore import Qt, QTimer, Signal, QFileSystemWatcher
 
 from beeoffice.tab_manager import TabManager

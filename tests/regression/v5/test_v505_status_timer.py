@@ -22,7 +22,6 @@ v5.0.5 回归：set_global_status 的延迟重置必须使用绑定生命周期�
   - closeEvent 会 stop 定时器
   这些断言能防止未来把实现改回 singleShot。
 """
-import pytest
 from PySide6.QtCore import QTimer
 
 

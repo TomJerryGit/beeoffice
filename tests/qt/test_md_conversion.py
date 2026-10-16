@@ -9,8 +9,6 @@ Markdown ↔ 富文本 双向转换测试
   - 数字列右对齐
   - 往返转换内容一致
 """
-import pytest
-from PySide6.QtWidgets import QApplication
 
 from beeoffice.plugins.beewrite_rich_editor import RichTextEditor
 

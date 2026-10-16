@@ -22,10 +22,8 @@
    （只有 `build_release.py` 为发布产物算 sha256）。见规划 §3.5。
 """
 import json
-import re
 from pathlib import Path
 
-import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
 

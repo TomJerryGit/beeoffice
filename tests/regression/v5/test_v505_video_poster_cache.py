@@ -32,7 +32,6 @@ import sys
 import textwrap
 from pathlib import Path
 
-import pytest
 
 from beeoffice.plugins.beeshow_video_mixin import VideoMixin
 

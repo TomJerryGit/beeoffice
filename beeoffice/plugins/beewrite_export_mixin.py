@@ -84,8 +84,6 @@ from PySide6.QtGui import (
     QFont,
     QTextCursor,
     QTextFormat,
-    QTextBlockFormat,
-    QTextImageFormat,
 )
 
 from beeoffice.plugins.beewrite_page_extras import (
@@ -1137,7 +1135,6 @@ class ExportMixin:
         v5.0.4：图片段落特殊处理——居中对齐 + 段前段后 12pt 间距。
         """
         from docx import Document
-        from docx.shared import Mm
 
         doc = Document()
 
@@ -1369,7 +1366,8 @@ class ExportMixin:
           - 单元格内图片（v5.0.2 增强）
         """
         try:
-            from docx.shared import Pt, RGBColor, Cm
+            # 只导入本段用到的名字（Pt / RGBColor 未使用；第十一批 F401 清理核实）
+            from docx.shared import Cm
             from docx.enum.text import WD_ALIGN_PARAGRAPH
             from docx.oxml.ns import qn
             from docx.oxml import OxmlElement

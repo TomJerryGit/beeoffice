@@ -45,8 +45,8 @@ v5.0.2 增强（本次）：
 import logging
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QSplitter, QStackedWidget,
-    QPlainTextEdit, QTextEdit, QLabel,
+    QWidget, QVBoxLayout, QSplitter, QStackedWidget,
+    QPlainTextEdit, QTextEdit,
 )
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QFont, QShortcut, QKeySequence
@@ -57,36 +57,20 @@ from beeoffice.plugins.variable_panel import VariablePanel
 
 # ==================== 底层组件 ====================
 from beeoffice.plugins.beewrite_utils import (
-    FormatPainterState,
     FORMAT_PAINTER,
 )
 from beeoffice.plugins.beewrite_rich_editor import RichTextEditor
-from beeoffice.plugins.beewrite_md_table_dialog import MarkdownTableEditorDialog
 
 # ==================== 协作相关（已有文件） ====================
 from beeoffice.plugins.beewrite_comment import (
     CommentManager,
     CommentPanel,
-    CommentEditDialog,
 )
 from beeoffice.plugins.beewrite_bookmark import BookmarkManager
 from beeoffice.plugins.beewrite_revision import RevisionManager
-from beeoffice.plugins.beewrite_hyperlink import (
-    HyperlinkDialog,
-    HyperlinkManagerDialog,
-)
 from beeoffice.plugins.beewrite_crossref import CrossRefManager
 
 # ==================== 插入对象（已有文件） ====================
-from beeoffice.plugins.beewrite_image import ImageEditorDialog
-from beeoffice.plugins.beewrite_formula import FormulaDialog
-from beeoffice.plugins.beewrite_textbox import TextBoxDialog, insert_textbox
-from beeoffice.plugins.beewrite_page_extras import (
-    WatermarkDialog,
-    PageNumberDialog,
-    build_watermark_html,
-    build_page_number_css,
-)
 
 # ==================== 视图组件（已有文件） ====================
 from beeoffice.plugins.beewrite_outline import OutlinePanel

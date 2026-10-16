@@ -62,7 +62,6 @@ v5.1 增量汇总：
   - 任务 3.2 的字体嵌入失败不影响主流程（PPTX 已生成）
 """
 
-import json
 import logging
 from beeoffice.plugins.beeshow_html import render_slide_html
 from dataclasses import dataclass, field
@@ -516,9 +515,9 @@ class PPTXGenerator:
         """
         try:
             from pptx import Presentation
-            from pptx.util import Inches, Pt, Emu
-            from pptx.dml.color import RGBColor
-            from pptx.enum.text import PP_ALIGN
+            # 只导入本段真的用到的名字（Pt/Emu/RGBColor/PP_ALIGN 全文件未使用；
+            # 第十一批 F401 清理核实，将来用到会被 F821 门禁拦下）
+            from pptx.util import Inches
 
             prs = Presentation()
             prs.slide_width = Inches(self.slide_width)
@@ -580,7 +579,7 @@ class PPTXGenerator:
     # ---------- 文本框 ----------
     def _add_textbox(self, slide, el: MeasuredElement):
         """添加原生文本框（可编辑、可搜索）"""
-        from pptx.util import Emu, Pt
+        from pptx.util import Pt
         from pptx.dml.color import RGBColor
         from pptx.enum.text import PP_ALIGN
 
@@ -688,7 +687,7 @@ class PPTXGenerator:
         这里采用简单策略：按行拆分为单列表格。
         如需完整表格，需测量器额外提供行列数据（后续迭代）。
         """
-        from pptx.util import Emu, Pt
+        from pptx.util import Pt
 
         lines = [l for l in el.text.split("\n") if l.strip()]
         if not lines:
@@ -716,7 +715,6 @@ class PPTXGenerator:
     # ---------- 矩形背景 ----------
     def _add_rect(self, slide, el: MeasuredElement):
         """添加矩形背景（用于容器的背景色）"""
-        from pptx.util import Emu
         from pptx.dml.color import RGBColor
         from pptx.enum.shapes import MSO_SHAPE
 

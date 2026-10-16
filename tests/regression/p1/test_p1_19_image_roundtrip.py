@@ -1,7 +1,6 @@
 # tests/test_p2_regression/test_p1_19_image_roundtrip.py
 """P1-19 回归：图片在富文本 ↔ Markdown 往返中不丢失（v5.0.2）"""
 import pytest
-from pathlib import Path
 from PySide6.QtGui import QImage, QColor, QTextImageFormat
 
 

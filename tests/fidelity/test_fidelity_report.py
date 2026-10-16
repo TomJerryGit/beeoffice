@@ -27,7 +27,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests" / "fidelity"))
 
-from _docx_features import FEATURES, build_feature_docx        # noqa: E402
+from _docx_features import build_feature_docx        # noqa: E402
 
 from beeoffice.plugins.fidelity_report import (                # noqa: E402
     HIGH, MEDIUM, FidelityReport, LossItem, analyze_file,

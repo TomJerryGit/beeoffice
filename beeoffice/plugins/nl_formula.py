@@ -20,7 +20,6 @@ v5.0.8 修复（优化规划 §2.5）：
     （旧测试只断言 `"IF" in result` 与 `'"高"' in result`，因此没被发现）。
 """
 import re
-import logging
 
 
 class NLFormulaParser:

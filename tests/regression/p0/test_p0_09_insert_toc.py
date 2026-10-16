@@ -15,7 +15,6 @@ P0-9 回归：命令面板「插入目录」应调用 _insert_toc，而非 _gene
   1. 断言 BeeWriteEditor 有 _insert_toc（方法存在性）
   2. 断言 plugin.generate_toc 会调用 editor._insert_toc（行为）
 """
-import pytest
 
 
 def test_beewrite_editor_has_insert_toc(qtbot):

@@ -36,7 +36,6 @@ Markdown 要求强调的收尾定界符不能紧跟在空白之后。实测源�
 import sys
 from pathlib import Path
 
-import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -44,7 +43,6 @@ if str(ROOT) not in sys.path:
 
 from docx import Document                                  # noqa: E402
 from docx.enum.style import WD_STYLE_TYPE                  # noqa: E402
-from docx.oxml.ns import qn                                # noqa: E402
 
 from beeoffice.plugins.bee_export import (                 # noqa: E402
     _read_paragraph_styles,

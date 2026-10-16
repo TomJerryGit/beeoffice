@@ -1,7 +1,6 @@
 # diagnose_image.py
 """图片往返问题诊断脚本"""
 import sys
-import os
 import tempfile
 import zipfile
 from pathlib import Path

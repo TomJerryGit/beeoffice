@@ -10,11 +10,10 @@ from pathlib import Path
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QListWidget, QListWidgetItem, QTextEdit, QInputDialog,
-    QMessageBox, QMenu, QDialog, QDialogButtonBox, QFormLayout,
-    QLineEdit
+    QMenu, QDialog, QDialogButtonBox
 )
-from PySide6.QtCore import Qt, Signal, QPoint
-from PySide6.QtGui import QColor, QFont
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor
 
 
 # ==================== 批注数据管理器 ====================

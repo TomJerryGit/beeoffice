@@ -17,7 +17,6 @@
 
 import logging
 import urllib.request
-from io import BytesIO
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,

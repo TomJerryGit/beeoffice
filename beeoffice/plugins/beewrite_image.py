@@ -9,15 +9,13 @@ v5.0.1 修复（P1-11）：
 """
 
 import io
-import os
-import logging
 import tempfile
 import time
 from pathlib import Path
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QLabel,
-    QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QCheckBox,
+    QPushButton, QComboBox, QSpinBox, QCheckBox,
     QDialogButtonBox, QFileDialog, QMessageBox, QSlider,
     QGroupBox
 )

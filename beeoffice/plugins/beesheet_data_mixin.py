@@ -11,9 +11,9 @@ import pandas as pd
 from datetime import datetime
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QLabel,
-    QLineEdit, QComboBox, QCheckBox, QPushButton, QListWidget,
+    QLineEdit, QComboBox, QPushButton, QListWidget,
     QListWidgetItem, QTextEdit, QMenu, QMessageBox, QFileDialog,
-    QApplication, QDialogButtonBox, QAbstractItemView, QInputDialog
+    QApplication, QDialogButtonBox, QInputDialog
 )
 from PySide6.QtCore import Qt, QPoint, QRect
 

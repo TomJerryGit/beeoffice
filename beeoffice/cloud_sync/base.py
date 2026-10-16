@@ -3,7 +3,7 @@
 云存储统一接口抽象基类
 """
 from abc import ABC, abstractmethod
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 
 
 class CloudStorage(ABC):

@@ -1,7 +1,6 @@
 # tests/test_p0_regression/test_p0_13_split_init.py
 """P0-13 回归：分屏容器不触发未保存提示"""
 from PySide6.QtWidgets import QWidget
-import pytest
 
 
 def test_split_tab_marked_none(qtbot):

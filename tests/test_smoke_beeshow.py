@@ -59,7 +59,16 @@ class TestImportSmoke:
         importlib.import_module("beeoffice.plugins.beeshow_constants")
 
     def test_key_classes_importable(self):
-        """关键类必须能 import"""
+        """
+        关键类必须能 import。
+
+        ⚠️ 这里**刻意导入并断言**几个只在别处使用的名字（`ICON_LIBRARY`、
+        `TEMPLATE_LIBRARY`、`LAYOUT_CSS`、`_PlayWindow`）——
+        它们是"拆分模块后旧名字仍可导入"的兼容契约。
+        F401 清理时（第十一批）`ruff --fix` 曾把这 4 个删掉，
+        等于**悄悄削弱了这条冒烟测试**，所以恢复并补上断言：
+        用 `assert` 让它们"被使用"，F401 自然消失，而契约被真正验证。
+        """
         from beeoffice.plugins.beeshow import BeeShowView
         from beeoffice.plugins.beeshow_constants import (
             SLIDE_THEMES, ICON_LIBRARY, TEMPLATE_LIBRARY,
@@ -68,6 +77,11 @@ class TestImportSmoke:
         assert BeeShowView is not None
         assert len(SLIDE_THEMES) >= 7
         assert len(LAYOUTS) >= 10
+        # 兼容契约：这些名字必须仍可导入且非空
+        assert ICON_LIBRARY is not None
+        assert TEMPLATE_LIBRARY is not None
+        assert LAYOUT_CSS is not None
+        assert _PlayWindow is not None
 
 
 # ==================== A2：实例化烟雾测试 ====================

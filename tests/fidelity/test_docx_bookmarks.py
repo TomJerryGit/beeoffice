@@ -26,7 +26,6 @@ Markdown 没有书签语法，所以书签在导入→导出之间必然丢失�
 import sys
 from pathlib import Path
 
-import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:

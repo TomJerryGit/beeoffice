@@ -7,7 +7,6 @@ v5.0.1 修复（P1-11）：
     （原文件名本身就是 beewrite_，仅注释少了一个 e）
 """
 
-import re
 
 from beeoffice.plugins.heading_numbering import HeadingNumberer
 

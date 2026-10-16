@@ -24,7 +24,6 @@ from pathlib import Path
 import pytest
 
 from beeoffice.cloud_sync.policy import (
-    MAX_UPLOAD_BYTES,
     describe_result,
     is_sensitive_settings,
     should_upload,

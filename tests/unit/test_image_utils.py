@@ -13,7 +13,6 @@
 —— 盘符被丢掉，绝对路径被判成相对路径，最终**导出 DOCX 时图片消失**。
 （实现已改为只在 `http(s)://` / `file:` 时才走 urlparse。）
 """
-import os
 from pathlib import Path
 
 import pytest
@@ -186,7 +185,6 @@ def _make_document_with_images(paths):
 
 
 def test_iter_block_images_yields_all_images(qapp):
-    from PySide6.QtGui import QTextImageFormat
 
     doc = _make_document_with_images(["a.png", "b.png"])
 

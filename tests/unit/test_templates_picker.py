@@ -1,6 +1,5 @@
 # tests/unit/test_templates_picker.py
 """templates.py 测试：模板选择器（不弹模态对话框）"""
-import pytest
 
 
 class TestTemplateManagerIntegration:

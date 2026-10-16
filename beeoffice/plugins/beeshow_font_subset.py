@@ -50,7 +50,6 @@
 """
 
 import logging
-import shutil
 from pathlib import Path
 from typing import Set, Optional, Dict, List
 

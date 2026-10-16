@@ -37,7 +37,7 @@ from beeoffice.plugins.beewrite_spellcheck_dialog import (      # noqa: E402
     SpellCheckDialog, user_dictionary_path,
 )
 from beeoffice.plugins.spellcheck import (                      # noqa: E402
-    Misspelling, SpellBackend, SpellCheckerService,
+    SpellBackend, SpellCheckerService,
 )
 
 

@@ -3,7 +3,6 @@
 NLFormulaParser 自然语言公式解析器的单元测试
 覆盖：统计函数、条件判断、筛选、查找、拼接、范围提取、边界情况
 """
-import pytest
 
 from beeoffice.plugins.nl_formula import NLFormulaParser, parse_nl
 

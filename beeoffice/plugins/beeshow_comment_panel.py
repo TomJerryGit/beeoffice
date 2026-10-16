@@ -22,7 +22,6 @@
   - PySide6.QtGui（QColor / QFont）
 """
 
-import logging
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,

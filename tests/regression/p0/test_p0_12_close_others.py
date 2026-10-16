@@ -1,7 +1,6 @@
 # tests/test_p0_regression/test_p0_12_close_others.py
 """P0-12 回归：_close_other_tabs 不误关保留标签"""
 from PySide6.QtWidgets import QPlainTextEdit
-import pytest
 
 
 def test_close_others_keeps_target(qtbot, monkeypatch):

@@ -14,7 +14,7 @@ v5.0.1 修复：
 import logging
 from datetime import datetime
 
-from PySide6.QtWidgets import QWidget, QMessageBox, QFileDialog
+from PySide6.QtWidgets import QWidget, QMessageBox
 
 from beeoffice.plugin_base import Plugin
 

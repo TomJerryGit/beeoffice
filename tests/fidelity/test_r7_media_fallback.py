@@ -27,7 +27,6 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from beeoffice.plugins import bee_export                            # noqa: E402
 from beeoffice.plugins.bee_export import (                          # noqa: E402
     _media_cache_root, _resolve_media_dir, import_from_docx,
 )

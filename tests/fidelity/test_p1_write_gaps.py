@@ -164,7 +164,6 @@ def _select(editor, start, end):
 
 
 def test_markdown_bold_wraps_and_toggles(write_editor):
-    from PySide6.QtGui import QTextCursor
 
     editor = write_editor
     editor._switch_mode("markdown")
@@ -324,7 +323,6 @@ def test_replace_all_survives_list_rebuild():
 
     harness = Harness()
     # 绑定**真实的** replace_all，确保测的是产品代码而不是复刻品
-    import types
 
     SpellCheckDialog.replace_all(harness)
 

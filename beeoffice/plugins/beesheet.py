@@ -42,7 +42,6 @@ v5.0.5 拆分（本次）：
 
 import os
 import re
-import json
 import uuid
 import logging
 from pathlib import Path
@@ -51,25 +50,22 @@ from datetime import datetime
 from beeoffice.utils import atomic_write_text, get_app_data_dir
 
 import pandas as pd
-import numpy as np
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
     QFileDialog, QMessageBox, QDialog, QComboBox, QDialogButtonBox,
-    QListWidget, QListWidgetItem, QTextEdit, QInputDialog,
-    QApplication, QFormLayout, QCheckBox, QMenu,
+    QInputDialog,
+    QFormLayout, QCheckBox,
 )
 from PySide6.QtCore import (
     Qt, QTimer, QItemSelectionModel, QItemSelection, Signal,
 )
-from PySide6.QtGui import QColor
 
 from beeoffice.plugins.beesheet_utils import (
     adjust_formula_refs, col_index_to_name, col_name_to_index,
-    extract_refs_from_formula,
 )
 from beeoffice.plugins.beesheet_commands import (
-    EditCellCommand, SortCommand, TrimCommand,
+    EditCellCommand, SortCommand,
 )
 from beeoffice.plugins.beesheet_loaders import LargeFileLoader
 from beeoffice.plugins.beesheet_engine import FormulaEngine

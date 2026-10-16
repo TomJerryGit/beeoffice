@@ -21,7 +21,7 @@ storage.upload(...)` 循环：
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict
 
 #: 单文件上限（超过不上传，避免把大文件偶然传上去）
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024        # 100 MB

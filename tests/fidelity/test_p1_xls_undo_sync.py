@@ -89,7 +89,6 @@ def test_sheet_import_passes_xlrd_for_xls(qtbot, monkeypatch, tmp_path):
     """蜜算的导入分支同样要走 xlrd（否则用户选 .xls 必失败）。"""
     from PySide6.QtWidgets import QMessageBox
 
-    from beeoffice.plugins import beesheet as bs
     from beeoffice.plugins.beesheet import BeeSheetView
 
     seen = {}
@@ -392,7 +391,6 @@ def test_sync_now_uses_configured_dir_and_reports(qtbot, app, tmp_path,
     """`_sync_now` 要用**配置的目录**，并用双向引擎如实汇报。"""
     from PySide6.QtWidgets import QMessageBox
 
-    from beeoffice.cloud_sync import engine as engine_module
 
     local = tmp_path / "配置的同步目录"
     local.mkdir()

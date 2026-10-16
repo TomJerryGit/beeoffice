@@ -38,7 +38,7 @@ import logging
 import re
 import urllib.parse
 import urllib.request
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 
 # ==================== 停用词 ====================

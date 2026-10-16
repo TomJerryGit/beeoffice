@@ -47,7 +47,7 @@ import time
 from beeoffice.plugins.beeshow_html import render_slide_html
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QSlider, QTextEdit, QMessageBox,
+    QWidget, QVBoxLayout, QLabel, QSlider, QTextEdit,
 )
 from PySide6.QtCore import QTimer, Qt
 

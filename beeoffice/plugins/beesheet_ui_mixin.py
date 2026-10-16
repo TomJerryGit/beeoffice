@@ -36,15 +36,14 @@
       7. self._build_shortcuts()
       8. self._init_loaders_and_timers()
 """
-import pandas as pd
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableView, QHeaderView,
     QLineEdit, QLabel, QPushButton, QComboBox, QSpinBox,
-    QListWidget, QAbstractItemView, QProgressBar, QAbstractButton,
+    QListWidget, QProgressBar, QAbstractButton,
 )
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QFont, QShortcut, QKeySequence
+from PySide6.QtGui import QShortcut, QKeySequence
 
 from beeoffice.plugins.beesheet_delegate import CellEditorDelegate
 from beeoffice.plugins.beesheet_loaders import ChunkLoader

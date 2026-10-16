@@ -1,6 +1,5 @@
 # tests/test_p2_regression/test_p1_04_lightweight_app.py
 """P1-4 回归：app fixture 不触发插件加载"""
-import time
 
 
 def test_app_does_not_load_plugins(app):

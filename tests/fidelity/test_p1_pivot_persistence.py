@@ -161,7 +161,7 @@ def test_read_returns_none_for_foreign_file(tmp_path):
 
 def test_rewriting_package_does_not_duplicate(tmp_path):
     from beeoffice.plugins.beesheet_pivot import (
-        META_SHEET, SNAPSHOT_SHEET, read_pivot_package, write_pivot_package,
+        META_SHEET, read_pivot_package, write_pivot_package,
     )
 
     path, _ = _make_pivot_file(tmp_path)

@@ -13,11 +13,8 @@ BeeApp 主窗口的单元测试
        25 个用例耗时约 190 秒
   删除本地 fixture，改用 conftest.py 的版本即可全部解决。
 """
-import pytest
-from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
 
-from beeoffice.app import BeeApp
 from beeoffice.plugins.beewrite import BeeWriteEditor
 from beeoffice.plugins.beesheet import BeeSheetView
 from beeoffice.plugins.beeshow import BeeShowView

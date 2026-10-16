@@ -27,8 +27,7 @@
       self._merge_cells / self._add_comment  ← RowColMixin / 主文件
   - 冻结行列的实际视觉分隔线通过 QHeaderView 的 StyleSheet 实现
 """
-from PySide6.QtWidgets import QMenu, QMessageBox
-from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QMenu
 
 
 class ContextMenuMixin:

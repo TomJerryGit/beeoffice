@@ -4,11 +4,6 @@
 每个命令都实现 execute(model) 和 undo(model) 两个方法
 """
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:                      # 仅用于类型标注，避免运行期强依赖
-    import pandas as pd
-
 
 class DataFrameOpCommand:
     """

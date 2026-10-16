@@ -8,7 +8,6 @@ BeeWriteEditor 基础功能测试
   - 内容接口
   - 文档类型
 """
-import pytest
 
 
 class TestInit:

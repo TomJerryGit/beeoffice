@@ -18,7 +18,6 @@ bee_export.py 测试
   - 缺依赖（如 python-docx）时用 pytest.skip 跳过
 """
 import pytest
-from pathlib import Path
 
 
 # ==================== 示例 Markdown ====================

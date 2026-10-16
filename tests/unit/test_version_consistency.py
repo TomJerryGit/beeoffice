@@ -15,7 +15,6 @@
 import re
 from pathlib import Path
 
-import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 VERSION_FILE = ROOT / "beeoffice" / "__version__.py"

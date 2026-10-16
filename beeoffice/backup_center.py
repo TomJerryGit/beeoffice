@@ -15,7 +15,7 @@
 import logging
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QAbstractItemView, QDialog, QDialogButtonBox, QFileDialog, QHBoxLayout,
@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
     QTableWidgetItem, QVBoxLayout,
 )
 
-from beeoffice.backup import BackupStore, BackupVersion
+from beeoffice.backup import BackupStore
 
 
 class BackupCenterDialog(QDialog):

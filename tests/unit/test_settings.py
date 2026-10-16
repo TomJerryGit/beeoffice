@@ -8,9 +8,7 @@ AppSettings 测试
   - 敏感信息编码
 """
 import json
-from pathlib import Path
 
-import pytest
 
 
 class TestSettingsBasic:

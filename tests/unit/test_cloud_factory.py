@@ -1,6 +1,5 @@
 # tests/unit/test_cloud_factory.py
 """cloud.py 云存储工厂单例测试"""
-import pytest
 
 
 def _reset():

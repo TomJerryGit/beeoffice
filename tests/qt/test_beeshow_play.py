@@ -1,6 +1,5 @@
 # tests/test_beeshow_play.py
 """蜜演播放功能测试"""
-import pytest
 from PySide6.QtCore import Qt, QEvent
 from PySide6.QtGui import QKeyEvent
 

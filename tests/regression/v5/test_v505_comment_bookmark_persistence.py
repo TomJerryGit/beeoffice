@@ -17,7 +17,6 @@
 修复：新增 `ExportMixin.load_md_sidecars(path)`，并在
 `BeeApp._open_text_file()` 加载内容后调用它。
 """
-import json
 
 import pytest
 

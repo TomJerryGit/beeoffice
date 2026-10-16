@@ -13,7 +13,6 @@ from PySide6.QtWidgets import (
     QCheckBox, QPushButton, QMessageBox, QDialogButtonBox,
     QLabel, QHBoxLayout, QWidget, QStackedWidget
 )
-from PySide6.QtCore import Qt
 
 from beeoffice.settings import AppSettings
 

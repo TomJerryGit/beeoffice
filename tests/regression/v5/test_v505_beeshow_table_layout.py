@@ -17,7 +17,6 @@
 这里用轻量 fake 承载 Mixin，避免实例化 BeeShowView（会拉起 QtWebEngine，
 在 offscreen 下退出时会触发已知的原生崩溃，见优化规划 §4.2）。
 """
-import pytest
 from PySide6.QtWidgets import QMessageBox, QPlainTextEdit, QTableWidget, QTableWidgetItem
 
 from beeoffice.plugins.beeshow_table_mixin import TableEditorDialog, TableMixin

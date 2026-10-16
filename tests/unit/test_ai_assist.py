@@ -3,7 +3,6 @@
 AIAssist AI 辅助功能的单元测试
 覆盖：续写、润色、总结、关键词提取、扩写、翻译占位、示例列表、边界情况
 """
-import pytest
 
 from beeoffice.plugins.ai_assist import AIAssist
 

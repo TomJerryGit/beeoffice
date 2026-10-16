@@ -10,7 +10,7 @@ v5.0.1 修复（P1-11）：
 import re
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTreeWidget,
-    QTreeWidgetItem, QPushButton, QMenu, QLineEdit, QMessageBox
+    QTreeWidgetItem, QPushButton, QMenu, QLineEdit
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QFont

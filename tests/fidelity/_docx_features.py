@@ -16,7 +16,6 @@ from pathlib import Path
 
 from docx import Document
 from docx.oxml import OxmlElement
-from docx.oxml.ns import qn
 
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 M = "http://schemas.openxmlformats.org/officeDocument/2006/math"

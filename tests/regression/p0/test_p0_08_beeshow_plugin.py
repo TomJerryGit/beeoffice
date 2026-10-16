@@ -22,7 +22,6 @@ P0-8 回归：beeshow_plugin 删死代码，直接调用 _start_play
   3. edit_notes fallback 使用正确的属性名
 """
 import ast
-import re
 from pathlib import Path
 
 

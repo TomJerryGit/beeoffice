@@ -5,7 +5,6 @@
 """
 import logging
 import re
-import pandas as pd
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
     QListWidget, QListWidgetItem, QMenu, QMessageBox
