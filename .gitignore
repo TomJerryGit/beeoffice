@@ -209,3 +209,6 @@ tests/fidelity/corpus/*.docx
 tests/fidelity/corpus/*.xlsx
 tests/fidelity/corpus/*.pptx
 
+
+# 历史发行包归档（保留旧版本，不随仓库走）
+release-archive/
