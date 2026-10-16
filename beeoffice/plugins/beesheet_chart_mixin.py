@@ -41,13 +41,25 @@ class ChartMixin:
         # R1 安全门：图表基于整表数据
         if not self._ensure_full_data("插入图表"):
             return
+        # 审计 §2.14：缺 matplotlib 时原先"插入图表"**什么都不发生**。
+        # 在让用户选之前就检查，避免"选完才失败"。
+        if not self._matplotlib_available():
+            QMessageBox.warning(
+                self, "提示",
+                "当前环境没有安装 matplotlib，无法绘制图表。\n\n"
+                "安装方式：pip install matplotlib",
+            )
+            return
         sel = self.table_view.selectionModel().selection()
         if not sel:
             QMessageBox.information(self, "提示", "请先选中数据")
             return
         dlg = QDialog(self)
         layout = QVBoxLayout(dlg)
-        selected = {"value": "bar"}
+        # ⚠️ 初值必须是 None：原先初值就是 "bar"，而下面判断
+        # `if selected["value"]` —— 恒为真 → **取消对话框也会画一张柱状图**
+        # （审计报告 §2.14 的"取消语义不对"）。
+        selected = {"value": None}
         for label, ct in [("柱状图", "bar"), ("折线图", "line"),
                            ("饼图", "pie"), ("散点图", "scatter"),
                            ("面积图", "area"), ("雷达图", "radar")]:
@@ -57,9 +69,19 @@ class ChartMixin:
                     [selected.update({"value": t}), dlg.accept()]
             )
             layout.addWidget(btn)
-        dlg.exec()
-        if selected["value"]:
+        accepted = dlg.exec() == QDialog.DialogCode.Accepted
+        if accepted and selected["value"]:
             self._generate_chart(selected["value"])
+
+    @staticmethod
+    def _matplotlib_available() -> bool:
+        """matplotlib 是否可用（只做导入探测，不初始化后端）。"""
+        try:
+            import importlib.util
+
+            return importlib.util.find_spec("matplotlib") is not None
+        except Exception:  # noqa: BLE001
+            return False
 
     # ==================== 图表生成 ====================
     def _generate_chart(self, chart_type):
@@ -72,6 +94,12 @@ class ChartMixin:
             import matplotlib.pyplot as plt
             from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
         except ImportError:
+            # 兜底提示（正常情况下 `_create_chart` 已经先拦过一次）
+            QMessageBox.warning(
+                self, "提示",
+                "当前环境没有安装 matplotlib，无法绘制图表。\n\n"
+                "安装方式：pip install matplotlib",
+            )
             return
 
         # 收集选中区域的坐标

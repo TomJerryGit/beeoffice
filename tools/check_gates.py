@@ -190,6 +190,12 @@ GATES = [
         "曾经：markdown 下 Ctrl+B 毫无反应；分节符插入可见装饰文字污染导出；导出 Word 与另存为保真度不同；全部替换会抛异常",
     ),
     Gate(
+        "polish-gaps",
+        "图表取消不画图/缺库有提示；目录插渲染结果而非 Markdown 源码",
+        "tests/fidelity/test_p1_polish_gaps.py",
+        "曾经：取消图表对话框仍画柱状图；缺 matplotlib 静默无反应；目录在所见即所得里是字面源码",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",

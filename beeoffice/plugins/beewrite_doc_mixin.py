@@ -61,21 +61,75 @@ class DocMixin:
     # ==================================================================
     # 目录
     # ==================================================================
+    def _toc_html(self, markdown_text: str) -> str:
+        """
+        把 Markdown 里的标题解析成**能看到、能导出**的目录 HTML。
+
+        ⚠️ 修的是审计报告 §2.13：原先 `_insert_toc` 把 `generate_toc(md)` 的
+        **Markdown 源码**（`## 目录` / `- [第一章](#第一章)`）直接
+        `insertText` 进**所见即所得**编辑器 —— 用户看到的是**字面字符**，
+        导出 Word 时还会把它们当普通段落写进正文。
+        """
+        import html as html_module
+        import re
+
+        items = []
+        for line in (markdown_text or "").splitlines():
+            match = re.match(r"^(#{1,6})\s+(.+?)\s*$", line)
+            if match:
+                items.append((len(match.group(1)),
+                              match.group(2).strip()))
+        if not items:
+            return ""
+
+        rows = ["<p><b>目录</b></p>"]
+        for level, title in items:
+            indent = max(0, level - 1) * 18
+            rows.append(
+                f'<p style="margin-left:{indent}px;margin-top:2px;'
+                f'margin-bottom:2px">{html_module.escape(title)}</p>'
+            )
+        return "".join(rows)
+
     def _insert_toc(self):
-        """根据当前文档标题生成目录并插入到光标处"""
+        """
+        根据当前文档标题生成目录并插入到光标处。
+
+        * **所见即所得模式**：插入渲染后的目录（不是 Markdown 源码）；
+        * **Markdown 模式**：插入 Markdown 目录源码 —— 这里源码才是正确形态
+          （原先这个分支**直接 return、什么都不做**，也没提示）。
+        """
+        markdown_text = self.content()
+
         if self._edit_mode != "rich_text":
-            return
-        try:
-            from beeoffice.plugins.bee_export import generate_toc
-        except Exception as e:
-            logging.error(f"导入 generate_toc 失败: {e}")
-            QMessageBox.warning(self, "失败", f"生成目录失败：\n{e}")
+            try:
+                from beeoffice.plugins.bee_export import generate_toc
+
+                toc = generate_toc(markdown_text)
+            except Exception as e:  # noqa: BLE001
+                logging.error(f"生成目录失败: {e}")
+                QMessageBox.warning(self, "失败", f"生成目录失败：\n{e}")
+                return
+            if not toc.strip():
+                QMessageBox.information(
+                    self, "提示", "文档里还没有标题（# 开头），无法生成目录。"
+                )
+                return
+            cursor = self.markdown_editor.textCursor()
+            cursor.insertText("\n" + toc + "\n")
+            self._set_status("目录已生成（Markdown 源码）", 3000)
             return
 
-        md = self.content()
-        toc = generate_toc(md)
-        self.rich_editor.textCursor().insertBlock()
-        self.rich_editor.textCursor().insertText(toc + "\n")
+        html = self._toc_html(markdown_text)
+        if not html:
+            QMessageBox.information(
+                self, "提示", "文档里还没有标题（# 开头），无法生成目录。"
+            )
+            return
+        cursor = self.rich_editor.textCursor()
+        cursor.insertBlock()
+        cursor.insertHtml(html)
+        cursor.insertBlock()
         self._set_status("目录已生成", 3000)
 
     # ==================================================================
