@@ -69,6 +69,9 @@ from beeoffice.async_task import AsyncTaskManager
 
 TEXT_EXTENSIONS = (".md", ".txt")
 SHEET_EXTENSIONS = (".csv", ".xlsx", ".xls")
+#: P0 剩余项：蜜演文稿扩展名（`.beshow`，内容是 Markdown + 一行标记）
+#: —— 在这之前蜜演**没有可保存的文件格式**，做完的稿子关掉就改不了。
+SHOW_EXTENSIONS = (".beshow",)
 AUTOSAVE_INTERVAL_MS = 5 * 60 * 1000
 CTRL_LONG_PRESS_SECONDS = 1.0
 RESTORE_SESSION_DELAY_MS = 100
@@ -462,6 +465,13 @@ class BeeApp(QMainWindow):
             return
         if not (hasattr(widget, "save") and self._has_unsaved_changes(widget)):
             return
+        # ⚠️ **必须**有"当前文件"才自动保存：
+        # 蜜算/蜜演也是这一轮才有 `save()`，而它们的 `save()` 在没有当前文件时
+        # 会退化成"另存为"（弹文件对话框）—— 自动保存每 5 分钟弹一次对话框
+        # 是灾难。守卫放在这里，对所有模块都成立：
+        # **自动保存只写回"已有文件"，绝不替用户决定路径。**
+        if not getattr(widget, "_current_file_path", None):
+            return
 
         try:
             # R6：覆盖保存前先留一份（备份失败会静默，不阻断保存）
@@ -572,7 +582,9 @@ class BeeApp(QMainWindow):
 
         ext = Path(path).suffix.lower()
 
-        if ext in SHEET_EXTENSIONS:
+        if ext in SHOW_EXTENSIONS:
+            self._open_show_file(path)
+        elif ext in SHEET_EXTENSIONS:
             self._open_sheet_file(path)
         elif ext == ".docx":
             self._open_docx_file(path)
@@ -767,6 +779,30 @@ class BeeApp(QMainWindow):
             path,
             on_result=on_result,
             on_error=on_error,
+        )
+
+    def _open_show_file(self, path):
+        """
+        打开 `.beshow` 蜜演文稿（P0 剩余项）。
+
+        在这之前蜜演**没有可保存/可打开的文件格式** —— 做完的演示关掉标签就
+        再也改不了（导出件 PPTX/PDF/HTML 都回不到编辑器）。
+        文稿内容就是编辑器里的 Markdown，格式细节见 `beeshow_doc.py`。
+        """
+        from PySide6.QtWidgets import QMessageBox
+
+        self._new_beeshow()
+        widget = self.tab_manager.currentWidget()
+        if widget is None or not hasattr(widget, "open_deck"):
+            QMessageBox.warning(
+                self, tr("msg.failed", "失败"), "无法创建演示文稿标签页"
+            )
+            return
+        if not widget.open_deck(path):
+            return
+        self.set_global_status(
+            tr("msg.opened", "已打开：{name}").format(
+                name=Path(path).name), 5000
         )
 
     def _open_text_file(self, path):

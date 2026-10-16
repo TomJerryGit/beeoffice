@@ -5,6 +5,7 @@
 """
 import re
 import json
+import logging
 import pandas as pd
 from datetime import datetime
 from PySide6.QtWidgets import (
@@ -104,26 +105,16 @@ class DataMixin:
         """获取用于导出的 DataFrame（去掉末尾空行）"""
         return self._trim_empty_tail(self.model.df.copy())
 
-    def _export_xlsx(self):
+    def _write_xlsx(self, path: str) -> bool:
         """
-        导出为 Excel。
+        把当前表格写进 `path`（**不含对话框**）。
 
-        保真度阶段 A（docs/fidelity.md 根因 1 第一刀）：若导入时保留了工作簿
-        （`self._workbook`），则把**全部工作表与公式**写回；否则退回原来的
-        `df.to_excel()`。原实现永远是 `df.to_excel()` —— 公式、多工作表、
-        合并、条件格式、冻结窗格、图表全部丢失（实测 9 项丢 8 项）。
+        抽出来是为了让「保存 / 另存为 / 导出」共用**同一套写盘逻辑** ——
+        否则三条路会各自漂移（审计报告里"应用内格式不落盘"那类问题就是这么来的）。
+
+        保真度阶段 A：若导入时保留了工作簿（`self._workbook`），则把
+        **全部工作表与公式**写回；否则退回 `df.to_excel()`。
         """
-        path, _ = QFileDialog.getSaveFileName(
-            self, "导出", "表格.xlsx", "Excel (*.xlsx)"
-        )
-        if not path:
-            return
-        # R1 安全门：保存**必须**在数据完整的前提下进行。
-        # 实测（tests/fidelity/test_beesheet_lazy_load.py）：
-        # 拿"只载入了前 N 行"的数据写回源文件，第 1–N 行会被覆盖、
-        # 其余行仍留旧值 —— 文件内容与界面显示不一致（用户重开看到乱序/重复）。
-        if not self._ensure_full_data("保存"):
-            return
         try:
             df = self._get_export_df()
             workbook = getattr(self, "_workbook", None)
@@ -139,9 +130,79 @@ class DataMixin:
                 write_workbook(workbook, path)
             else:
                 df.to_excel(path, index=False)
+            return True
+        except Exception as e:  # noqa: BLE001
+            logging.error(f"[蜜算] 写 xlsx 失败 {path}: {e}")
+            return False
+
+    def _export_xlsx(self):
+        """
+        导出为 Excel（"另存为"语义：总是问路径）。
+        """
+        path, _ = QFileDialog.getSaveFileName(
+            self, "导出", "表格.xlsx", "Excel (*.xlsx)"
+        )
+        if not path:
+            return
+        # R1 安全门：保存**必须**在数据完整的前提下进行。
+        # 实测（tests/fidelity/test_beesheet_lazy_load.py）：
+        # 拿"只载入了前 N 行"的数据写回源文件，第 1–N 行会被覆盖、
+        # 其余行仍留旧值 —— 文件内容与界面显示不一致（用户重开看到乱序/重复）。
+        if not self._ensure_full_data("保存"):
+            return
+        if self._write_xlsx(path):
+            # P1：记住当前文件，让 Ctrl+S / 自动保存 / 保存前备份都能工作
+            self._current_file_path = str(path)
+            if hasattr(self, "_remember_saved_path"):
+                self._remember_saved_path(path)
             QMessageBox.information(self, "成功", f"已保存：\n{path}")
-        except Exception as e:
-            QMessageBox.warning(self, "失败", str(e))
+        else:
+            QMessageBox.warning(self, "失败", f"写入失败：{path}")
+
+    # ==================================================================
+    # P1：当前文件 + 保存（Ctrl+S / 自动保存 / 备份覆盖面）
+    # ==================================================================
+    def save(self) -> bool:
+        """
+        保存到**当前文件**（没有当前文件时退化为"另存为"）。
+
+        审计报告 §2.6：蜜算原先没有 `save()`/`_current_file_path` →
+        ① 平台级 5 分钟自动保存**跳过蜜算**；
+        ② 保存前自动备份**不覆盖蜜算**（手动点还弹"还没有保存到文件"）；
+        ③ Ctrl+S 每次都要重新选路径（没有"当前文件"这个概念，与 Excel/WPS 不符）。
+        """
+        path = getattr(self, "_current_file_path", None)
+        if not path:
+            self._export_xlsx()          # 退回"另存为"
+            return bool(getattr(self, "_current_file_path", None))
+        if not self._ensure_full_data("保存"):
+            return False
+        if self._write_xlsx(path):
+            if hasattr(self, "_remember_saved_path"):
+                self._remember_saved_path(path)
+            return True
+        return False
+
+    def save_as(self) -> bool:
+        """另存为（忽略当前路径，重新选）。"""
+        self._current_file_path = None
+        self._export_xlsx()
+        return bool(getattr(self, "_current_file_path", None))
+
+    def set_current_file_path(self, path):
+        """记录当前文件路径（导入/打开文件后由调用方设置）。"""
+        self._current_file_path = str(path) if path else None
+        if hasattr(self, "_remember_saved_path"):
+            self._remember_saved_path(path)
+
+    def _remember_saved_path(self, path):
+        """同步给主窗口（标签标题 / 最近文件 / 备份都依赖它）。"""
+        try:
+            parent = self.window()
+            if path and hasattr(parent, "sync_tab_title"):
+                parent.sync_tab_title(self, str(path))
+        except Exception as e:  # noqa: BLE001
+            logging.debug(f"[蜜算] 同步标签标题失败（忽略）: {e}")
 
     def _export_csv(self):
         """导出为 CSV（带 UTF-8 BOM）"""

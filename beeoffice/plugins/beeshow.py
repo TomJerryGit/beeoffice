@@ -40,6 +40,8 @@ v5.2 B1 新增 Mixin：
           _stop_play getattr 判空 + 显式置 None（play mixin 里）
 """
 
+import logging
+
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
 from PySide6.QtCore import QTimer, Signal
 
@@ -137,6 +139,100 @@ class BeeShowView(
             self.contentChanged.emit()
         except Exception:
             pass
+
+    # ==================================================================
+    # 保存 / 打开（P0 剩余项：蜜演原先**整条保存链路不存在**）
+    # ==================================================================
+    def _suggested_deck_name(self) -> str:
+        from beeoffice.plugins import beeshow_doc
+
+        text = self.content()
+        first = ""
+        for line in text.splitlines():
+            if line.strip():
+                first = line
+                break
+        return beeshow_doc.suggested_filename(first)
+
+    def _write_deck(self, path: str) -> bool:
+        """把当前文稿写盘并记住路径（失败**如实提示**，不假装成功）。"""
+        from beeoffice.plugins import beeshow_doc
+
+        if not beeshow_doc.save_deck(path, self.content()):
+            from PySide6.QtWidgets import QMessageBox
+
+            QMessageBox.warning(
+                self, "保存失败",
+                f"没能写入：\n{path}\n\n请检查目录是否可写、文件是否被占用。",
+            )
+            return False
+        self._current_file_path = str(path)
+        self._sync_tab_title(str(path))
+        return True
+
+    def _sync_tab_title(self, path: str):
+        """同步标签标题（主窗口通常有 `sync_tab_title`）。"""
+        try:
+            parent = self.window()
+            if path and hasattr(parent, "sync_tab_title"):
+                parent.sync_tab_title(self, path)
+        except Exception as e:  # noqa: BLE001
+            logging.debug(f"[蜜演] 同步标签标题失败（忽略）: {e}")
+
+    def save(self) -> bool:
+        """
+        保存到**当前文件**；没有当前文件时退化为"另存为"。
+
+        这一条是审计报告里最严重的缺口（§2.7）：蜜演原先没有 `save()`，
+        `app._save_current` 的两个分支都不命中 → **Ctrl+S 毫无反应、也没有提示**，
+        而导出件（PPTX/PDF/HTML）**回不到编辑器** → 做好的稿子关掉就改不了。
+        """
+        path = getattr(self, "_current_file_path", None)
+        if not path:
+            return self.save_as()
+        return self._write_deck(path)
+
+    def save_as(self) -> bool:
+        """另存为（重新选择路径）。"""
+        from PySide6.QtWidgets import QFileDialog
+
+        path, _ = QFileDialog.getSaveFileName(
+            self, "保存演示文稿", self._suggested_deck_name(),
+            "蜜演演示文稿 (*.beshow);;所有文件 (*)",
+        )
+        if not path:
+            return False
+        return self._write_deck(path)
+
+    def open_deck(self, path) -> bool:
+        """
+        打开一份 `.beshow` 文稿（读入编辑器 → 刷新预览 → 记住路径）。
+
+        :return: 成功 True；读失败 False（**不静默变成空文稿**）
+        """
+        from PySide6.QtWidgets import QMessageBox
+
+        from beeoffice.plugins import beeshow_doc
+
+        text = beeshow_doc.load_deck(path)
+        if text is None:
+            QMessageBox.warning(
+                self, "打开失败", f"无法读取：\n{path}\n\n可能是编码或权限问题。"
+            )
+            return False
+        self._editor.setPlainText(text)
+        try:
+            self._update_preview()
+        except Exception as e:  # noqa: BLE001
+            logging.warning(f"[蜜演] 刷新预览失败（已忽略）: {e}")
+        self._current_file_path = str(path)
+        self._sync_tab_title(str(path))
+        return True
+
+    def set_current_file_path(self, path):
+        """记录当前文件路径（打开/导入路径调用）。"""
+        self._current_file_path = str(path) if path else None
+        self._sync_tab_title(str(path)) if path else None
 
     # ==================== 状态初始化 ====================
     def _init_state(self):

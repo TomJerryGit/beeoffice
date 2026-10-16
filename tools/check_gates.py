@@ -148,6 +148,12 @@ GATES = [
         "曾经：依赖未打包的 WeasyPrint → 蜜写必失败、蜜算/蜜演弹'不支持'",
     ),
     Gate(
+        "save-coverage",
+        "蜜算/蜜演都有当前文件与保存（备份/自动保存才覆盖得到）",
+        "tests/fidelity/test_p1_save_coverage.py",
+        "曾经：蜜演整条保存链路不存在（Ctrl+S 无反应、稿子关掉就丢）；蜜算从不记路径",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",

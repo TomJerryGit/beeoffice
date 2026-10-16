@@ -702,6 +702,10 @@ class BeeSheetView(
             self._workbook = workbook
             self._active_sheet_name = workbook.active if workbook else ""
 
+            # P1：记住"当前文件"，这样 Ctrl+S / 自动保存 / 保存前备份
+            # 才有目标（原先蜜算从不设路径 → 上述三件事对蜜算全部失效）。
+            self.set_current_file_path(path)
+
             sheet_count = len(workbook.sheets) if workbook else 1
             formula_count = workbook.formula_count if workbook else 0
             extra = ""

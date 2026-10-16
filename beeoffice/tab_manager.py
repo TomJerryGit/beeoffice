@@ -72,14 +72,14 @@ class TabManager(QTabWidget):
         """弹出文件对话框打开文件"""
         path, _ = QFileDialog.getOpenFileName(
             self, "打开文件", "",
-            "所有支持格式 (*.md *.docx *.csv *.xlsx *.txt);;"
+            "所有支持格式 (*.md *.docx *.beshow *.csv *.xlsx *.txt);;"
             "Excel (*.xlsx *.xls);;CSV (*.csv);;Word (*.docx);;"
-            "Markdown (*.md);;文本 (*.txt)"
+            "演示文稿 (*.beshow);;Markdown (*.md);;文本 (*.txt)"
         )
         if not path:
             return
         ext = path.split('.')[-1].lower() if '.' in path else ''
-        if ext in ('xlsx', 'xls', 'csv', 'docx'):
+        if ext in ('xlsx', 'xls', 'csv', 'docx', 'beshow'):
             parent = self.parent()
             if parent and hasattr(parent, '_open_recent'):
                 parent._open_recent(path)
