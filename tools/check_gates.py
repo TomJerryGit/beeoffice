@@ -208,6 +208,12 @@ GATES = [
         "曾经：全仓 196 处未用导入；--fix 还会删掉刻意导入并留下空块",
     ),
     Gate(
+        "packaging",
+        "打包链：数据文件进包且冻结路径解析正确；发布脚本路径正确",
+        "tests/fidelity/test_packaging.py",
+        "曾经：spec 漏打包 beeoffice/data（打包版拼写白名单失效）；build_release.py 一跑就报未找到 spec",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",

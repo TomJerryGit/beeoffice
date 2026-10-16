@@ -819,7 +819,31 @@ _TECH_WORDS_CACHE: set[str] | None = None
 
 
 def tech_words_path() -> Path:
-    """内置技术词表的绝对路径（``beeoffice/data/tech_words.txt``）。"""
+    """
+    内置技术词表的绝对路径（``beeoffice/data/tech_words.txt``）。
+
+    ⚠️ 修的是**打包后失效**这个真问题（生产能力评估 R1）：
+
+    原先写的是 `Path(__file__).resolve().parents[1] / "data" / ...` ——
+    **完全没走仓库里已有的冻结感知助手** `utils.get_resource_path()`
+    （它会用 `sys._MEIPASS`）。后果有两层：
+      ① `beeoffice.spec` 的 `datas` 里**根本没有 `beeoffice/data`**
+         → 打包版里这个文件压根不存在；
+      ② 就算补进包，源码相对路径在 `sys._MEIPASS` 布局下也不一定指对。
+    两层叠加 = **打包版拼写检查的技术词白名单静默失效**
+    （表现为技术文档"误报变多"，用户不会知道是打包漏了数据）。
+
+    现在统一走 `get_resource_path()`：源码运行 = 仓库根，打包运行 = `sys._MEIPASS`，
+    两种情况都指向 `beeoffice/data/tech_words.txt`。
+    """
+    try:
+        from beeoffice.utils import get_resource_path
+
+        resolved = Path(get_resource_path(f"beeoffice/data/{TECH_WORDS_FILE}"))
+        if resolved.exists():
+            return resolved
+    except Exception as e:  # noqa: BLE001 - 解析失败退回下面的老路径
+        logging.debug(f"[拼写检查] 资源路径解析失败（退回相对路径）: {e}")
     return Path(__file__).resolve().parents[1] / "data" / TECH_WORDS_FILE
 
 

@@ -16,10 +16,22 @@ from pathlib import Path
 from datetime import datetime
 
 
+#: 仓库根目录。
+#: ⚠️ 修的是生产能力评估 R5：本脚本位于 `beeoffice/` 下，而 `beeoffice.spec`、
+#: `dist/`、`build/` 都在**仓库根**。原先 `main()` 用的是
+#: `Path(__file__).parent`（= `beeoffice/`）→ 去找 `beeoffice/beeoffice.spec`
+#: 必然找不到，脚本一跑就报"未找到 spec 文件"（发布链从未真正跑通）。
+#: 同理 `get_version()` 找的是 `beeoffice/beeoffice/__version__.py`。
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
 # ---------- 版本信息读取 ----------
 def get_version() -> str:
     """从 beeoffice/__version__.py 读取版本号"""
-    version_file = Path(__file__).parent / "beeoffice" / "__version__.py"
+    version_file = REPO_ROOT / "beeoffice" / "__version__.py"
+    if not version_file.exists():
+        # 兼容"脚本被复制到别处执行"的情况
+        version_file = Path(__file__).parent / "__version__.py"
     if not version_file.exists():
         return "0.0.0"
     try:
@@ -198,7 +210,8 @@ def main():
     print()
 
     # 基本信息
-    root = Path(__file__).parent.resolve()
+    # ⚠️ R5：用**仓库根**（spec/dist/build 都在那里），不是脚本所在目录
+    root = REPO_ROOT
     version = get_version()
 
     print(f"📁 项目目录:   {root}")
