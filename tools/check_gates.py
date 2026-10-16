@@ -184,6 +184,12 @@ GATES = [
         "曾经：透视配置当场丢弃、关掉即无法重算；单行字段时行标签被整个丢掉",
     ),
     Gate(
+        "write-gaps",
+        "条件格式读回；蜜写 markdown 格式化/分节符/导出 Word 一致性/全部替换",
+        "tests/fidelity/test_p1_write_gaps.py",
+        "曾经：markdown 下 Ctrl+B 毫无反应；分节符插入可见装饰文字污染导出；导出 Word 与另存为保真度不同；全部替换会抛异常",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",

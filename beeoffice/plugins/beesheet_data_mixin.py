@@ -326,6 +326,11 @@ class DataMixin:
             if validations:
                 self._data_validations = validations
                 self.model._validations_ref = validations
+            # 条件格式（数据条/色阶）—— 模型渲染时读 `_conditional_formats_ref`
+            conditional = styles.get("conditional") or {}
+            if conditional:
+                self._conditional_formats = conditional
+                self.model._conditional_formats_ref = conditional
             # P1：批注作者 / 命名区域 / 冻结窗格
             authors = styles.get("comment_authors") or {}
             if authors:

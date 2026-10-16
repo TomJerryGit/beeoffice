@@ -89,6 +89,7 @@ from PySide6.QtGui import (
     QTextCursor,
     QTextCharFormat,
     QTextBlockFormat,
+    QTextFormat,
     QTextListFormat,
     QColor,
     QTextTableFormat,
@@ -109,6 +110,11 @@ from beeoffice.plugins.image_utils import (
 # 默认正文字体色（避免继承标题的橙色）
 _DEFAULT_TEXT_COLOR = "#333333"
 _DEFAULT_FONT_SIZE = 14
+
+#: "分节符"的块属性标记（**不产生任何可见文字**）。
+#: 导出 DOCX 时据此生成真正的 Word"节"；这样"分节符"不再是一行装饰文字
+#: 混进正文里（审计报告 §2.13），用户之后才能只改某一节的页面设置。
+SECTION_MARK_PROPERTY = int(QTextFormat.UserProperty) + 1001
 
 # 表头底纹色（淡橙）
 _TABLE_HEADER_BG = "#FFF3E0"
@@ -1001,29 +1007,34 @@ class RichTextEditor(QTextEdit):
 
     def insert_page_break(self):
         c = self._cursor_at_end()
+        # 分页符：只设"块前分页"属性 —— 导出器读的就是这个属性
+        # （`_rich_to_docx` 里 `PageBreak_AlwaysBefore → doc.add_page_break()`），
+        # 所以**不需要**也不该插入 `──── 分页符 ────` 那样的可见文字：
+        # 那行字会原样进入 DOCX/PDF（与分节符同一个毛病，一并修掉）。
         c.insertBlock()
         fmt = QTextBlockFormat()
         fmt.setPageBreakPolicy(QTextBlockFormat.PageBreak_AlwaysBefore)
         c.setBlockFormat(fmt)
-        char_fmt = QTextCharFormat()
-        char_fmt.setForeground(QColor("#BBB"))
-        c.insertText("──── 分页符 ────", char_fmt)
         c.insertBlock()
-        fmt2 = QTextBlockFormat()
-        fmt2.setPageBreakPolicy(QTextBlockFormat.PageBreak_AlwaysBefore)
-        c.setBlockFormat(fmt2)
 
     def insert_section_break(self):
+        """
+        插入**分节符**（Word 里真正的"节"）。
+
+        ⚠️ 修的是审计报告 §2.13：原先只插入一行可见装饰文字
+        `════ 分节符（新节开始） ════` —— 那行字会**原样进入 DOCX/PDF**，
+        而 Word 里**根本没有"节"**，tooltip 却承诺"用于改变页面设置"。
+
+        现在：在块上打一个**用户属性**（不显示任何文字），
+        导出 DOCX 时据此 `add_section()` 生成真正的节；导出 PDF/打印时
+        仍然表现为"新的一页"（沿用块格式的分页策略）。
+        """
         c = self._cursor_at_end()
-        c.insertBlock()
-        char_fmt = QTextCharFormat()
-        char_fmt.setForeground(QColor("#FF8F00"))
-        char_fmt.setFontPointSize(10)
-        c.insertText("════ 分节符（新节开始） ════", char_fmt)
-        c.insertBlock()
         fmt = QTextBlockFormat()
+        fmt.setProperty(SECTION_MARK_PROPERTY, "section")
         fmt.setPageBreakPolicy(QTextBlockFormat.PageBreak_AlwaysBefore)
-        c.setBlockFormat(fmt)
+        c.insertBlock(fmt)
+        # 不留任何可见文字：节的语义只在块属性里（导出时翻译成 Word 的节）
 
     def insert_current_date(self):
         self.textCursor().insertText(

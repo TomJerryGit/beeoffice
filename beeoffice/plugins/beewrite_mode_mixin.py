@@ -460,9 +460,85 @@ class ModeMixin:
     # ==================================================================
     # 粗体 / 斜体 / 下划线 / 删除线
     # ==================================================================
+    #: Markdown 模式下各格式的"包裹标记"。
+    #: 下划线在 Markdown 里没有原生语法，用内联 HTML（`<u>`）—— 这是通行做法，
+    #: 而且我们的导出器按 HTML 处理，往返不会变成字面字符。
+    _MD_MARKERS = {
+        "bold": "**",
+        "italic": "*",
+        "underline": "<u>|</u>",
+        "strike": "~~",
+    }
+
+    def _apply_markdown_format(self, kind: str) -> bool:
+        """
+        **Markdown 模式**下的加粗/斜体/下划线/删除线：给选中文字套上标记。
+
+        ⚠️ 修的是审计报告 §2.13 的第一条：默认模式就是 markdown
+        （`beewrite.py:133`），而这三个方法**第一句**是
+        `if self._edit_mode != "rich_text": return` —— 按下去**没有任何反应、
+        也没有任何提示**，而 `shortcuts.py` 的帮助里明确写着"Ctrl+B 加粗"。
+
+        行为约定：
+        * 有选中文字 → 用标记包起来（再按一次**去掉**标记，即"切换"）；
+        * 没选中 → 插入一对空标记并把光标放中间，**同时给一句提示**
+          （不让用户以为按钮坏了）。
+        """
+        editor = getattr(self, "markdown_editor", None)
+        if editor is None:
+            return False
+        wrapper = self._MD_MARKERS.get(kind, "")
+        if not wrapper:
+            return False
+        open_marker, close_marker = (
+            wrapper.split("|", 1) if "|" in wrapper else (wrapper, wrapper)
+        )
+
+        cursor = editor.textCursor()
+        selected = cursor.selectedText()
+        if not selected:
+            # 没选中：插入空标记并把光标放中间（提示一下，别让人以为没反应）
+            cursor.insertText(open_marker + close_marker)
+            cursor.movePosition(QTextCursor.PreviousCharacter,
+                                QTextCursor.MoveMode.MoveAnchor,
+                                len(close_marker))
+            editor.setTextCursor(cursor)
+            try:
+                self._set_status(
+                    f"已插入{kind}标记，请在中间输入文字（Markdown 模式）", 4000
+                )
+            except Exception:  # noqa: BLE001
+                pass
+            return True
+
+        # 已经套了同样的标记 → 去掉（切换语义）
+        start, end = cursor.selectionStart(), cursor.selectionEnd()
+        document = editor.toPlainText()
+        already = (
+            document[max(0, start - len(open_marker)):start] == open_marker
+            and document[end:end + len(close_marker)] == close_marker
+        )
+        cursor.beginEditBlock()
+        if already:
+            cursor.setPosition(start - len(open_marker))
+            cursor.setPosition(end + len(close_marker),
+                               QTextCursor.KeepAnchor)
+            cursor.insertText(selected)
+            inner_start = start - len(open_marker)
+        else:
+            cursor.insertText(open_marker + selected + close_marker)
+            inner_start = start + len(open_marker)
+        cursor.endEditBlock()
+        cursor.setPosition(inner_start)
+        cursor.setPosition(inner_start + len(selected),
+                           QTextCursor.KeepAnchor)
+        editor.setTextCursor(cursor)
+        return True
+
     def _toggle_bold(self):
-        """切换粗体"""
+        """切换粗体（rich_text 用字符格式；markdown 用 `**` 包裹）"""
         if self._edit_mode != "rich_text":
+            self._apply_markdown_format("bold")
             return
         c = self.rich_editor.textCursor()
         f = QTextCharFormat()
@@ -475,8 +551,9 @@ class ModeMixin:
         self._update_format_state()
 
     def _toggle_italic(self):
-        """切换斜体"""
+        """切换斜体（rich_text 用字符格式；markdown 用 `*` 包裹）"""
         if self._edit_mode != "rich_text":
+            self._apply_markdown_format("italic")
             return
         c = self.rich_editor.textCursor()
         f = QTextCharFormat()
@@ -485,8 +562,9 @@ class ModeMixin:
         self._update_format_state()
 
     def _toggle_underline(self):
-        """切换下划线"""
+        """切换下划线（rich_text 用字符格式；markdown 用 `<u>` 包裹）"""
         if self._edit_mode != "rich_text":
+            self._apply_markdown_format("underline")
             return
         c = self.rich_editor.textCursor()
         f = QTextCharFormat()

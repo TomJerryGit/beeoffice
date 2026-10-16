@@ -292,12 +292,16 @@ def test_formats_merges_comments_are_read_back_on_import(qtbot, tmp_path):
         reader.close()
 
 
-def test_read_back_does_not_fabricate_conditional_formats(tmp_path):
+def test_read_back_conditional_formats_only_when_supported(tmp_path):
     """
-    条件格式**不读回**（如实说明）：也不许凭空造出视图状态。
+    条件格式读回：**支持的（数据条/色阶）要读回来，不支持的绝不编造**。
+
+    ⚠️ 这条测试在第八批改过：原先断言"条件格式一概不读回"
+    （那时只写不读）；现在数据条/色阶能读回，所以契约变成
+    "**能读的读、不能读的不编造**"。
     """
     from openpyxl import Workbook
-    from openpyxl.formatting.rule import DataBarRule
+    from openpyxl.formatting.rule import DataBarRule, FormulaRule
 
     from beeoffice.plugins.beesheet_style_export import read_view_styles
 
@@ -306,16 +310,25 @@ def test_read_back_does_not_fabricate_conditional_formats(tmp_path):
     sheet = workbook.active
     sheet.append(["金额"])
     sheet.append([100])
+    sheet.append([200])
     sheet.conditional_formatting.add(
-        "A2:A2",
-        DataBarRule(start_type="num", start_value=0, end_type="num",
-                    end_value=100, color="638EC6"),
+        "A2:A3",
+        DataBarRule(start_type="num", start_value=100, end_type="num",
+                    end_value=200, color="638EC6"),
+    )
+    sheet.conditional_formatting.add(
+        "B2:B3", FormulaRule(formula=["B2>0"])
     )
     workbook.save(path)
 
     styles = read_view_styles(path)
 
-    assert "conditional" not in styles, "读回结果里不该有编造的条件格式"
+    # 数据条：读回来（端点就是我们写进去的数字）
+    assert styles["conditional"][0]["type"] == "data_bars"
+    assert styles["conditional"][0]["min"] == 100
+    assert styles["conditional"][0]["max"] == 200
+    # 公式型规则：视图渲染不了 → 不许出现在结果里（不编造）
+    assert 1 not in styles["conditional"]
     assert styles["formats"] == {}
 
 

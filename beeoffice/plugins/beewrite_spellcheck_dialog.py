@@ -217,17 +217,64 @@ class SpellCheckDialog(QDialog):
         self._replace_item(item, replacement)
 
     def replace_all(self):
-        """把所有有建议的词一次性替换。"""
-        replaced = 0
-        for item in list(self.items):
-            row = self.items.index(item)
-            replacement = self._selected_replacement(row)
+        """
+        把所有有建议的词一次性替换。
+
+        ⚠️ 修的是审计报告 §2.13 的一条：原先是
+
+            for item in list(self.items):
+                row = self.items.index(item)          # ← 下标从"当前列表"反查
+                ... self._replace_item(item, ...)     # ← 这一步会 refresh()
+
+        `_replace_item()` 里会重新取文本并 `refresh()` **重建列表**，
+        于是下一次 `self.items.index(item)` 要么拿到**错行**（建议张冠李戴）、
+        要么直接抛 `ValueError` 中断整个"全部替换"。
+        而当时的测试用**常量文本桩**且替换词等长，所以永远测不出来。
+
+        现在：**先把"哪些词换成什么"一次性定下来**（此时列表还没被动过），
+        再逐个替换；每个替换都放在 try 里，失败**如实计数**而不是中断。
+        """
+        # 第一步：只读地收集"**词** → 替换词"（**不收集对象/偏移**！）
+        #
+        # ⚠️ 这里踩过一次：我最初收集的是 `(item, replacement)` —— 而 item 里带着
+        # 替换前的 start/end，第一处替换后文本长度变了，后面的 item 偏移**已经过期**
+        # → 会替换到错误的位置（我的回归测试当场抓到）。
+        # 所以只记"词"，每轮再从 `self.items`（每次 replacement 后都会 refresh）
+        # 里取**最新**的那个对象来用。
+        planned = []
+        for row, item in enumerate(list(self.items)):
+            try:
+                replacement = self._selected_replacement(row)
+            except Exception as e:  # noqa: BLE001
+                logging.debug(f"[拼写检查] 取建议失败（跳过）: {e}")
+                continue
             if not replacement or replacement == "（无建议）":
                 continue
-            self._replace_item(item, replacement)
-            replaced += 1
+            planned.append((item.word, replacement))
+
+        # 第二步：逐个替换；每轮用当前列表里的最新对象（偏移是新的）
+        replaced = 0
+        failed = 0
+        for word, replacement in planned:
+            item = next((i for i in self.items if i.word == word), None)
+            if item is None:
+                continue          # 已经被前面的替换处理掉了
+            try:
+                self._replace_item(item, replacement)
+                replaced += 1
+            except Exception as e:  # noqa: BLE001
+                failed += 1
+                logging.warning(
+                    f"[拼写检查] 替换「{word}」失败（继续处理其余）: {e}"
+                )
+
         if replaced == 0:
             QMessageBox.information(self, "提示", "没有可替换的建议。")
+        elif failed:
+            QMessageBox.information(
+                self, "部分完成",
+                f"已替换 {replaced} 处，{failed} 处失败（可手动处理）。",
+            )
 
     def _replace_item(self, item, replacement):
         self.apply_replace(item.start, item.end, replacement)

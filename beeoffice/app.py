@@ -1040,6 +1040,34 @@ class BeeApp(QMainWindow):
         if not path:
             return
 
+        # P1：与「另存为 Word」**走同一条富文本导出路径**。
+        # 审计报告 §2.13：另存为会传全套 extras（页面设置/页眉页脚/合并单元格/
+        # 书签/相对路径图片），而工具栏与菜单的"导出 Word"只传 content+path，
+        # 于是**同一个文档、两个入口、保真度不同** —— 用户会莫名其妙丢页边距、
+        # 页眉页脚，相对路径的图片还变成"[图片未导出: …]"。
+        rich_writer = getattr(widget, "_write_docx", None)
+        if callable(rich_writer):
+            self.set_global_status(
+                tr("msg.exporting_docx", "正在导出 Word 文档..."), 0
+            )
+            try:
+                ok = bool(rich_writer(path))
+            except Exception as e:  # noqa: BLE001
+                logging.error(f"导出 Word 失败: {e}")
+                ok = False
+            if ok:
+                self.set_global_status(
+                    tr("msg.export_saved", "已导出:\n{path}").format(path=path),
+                    6000,
+                )
+            else:
+                QMessageBox.warning(
+                    self, tr("msg.export_failed", "导出失败"),
+                    "没能写出 Word 文件。\n"
+                    "请检查目标文件是否被占用，或换一个位置再试。",
+                )
+            return
+
         from beeoffice.plugins.bee_export import export_to_docx
         content = widget.get_rendered_content()
 

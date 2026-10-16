@@ -89,7 +89,7 @@ def _apply_cell_formats(ws, formats: Dict[Any, Dict[str, Any]]) -> int:
     """加粗/斜体/下划线/对齐/数字格式。"""
     import copy
 
-    from openpyxl.styles import Alignment, Font
+    from openpyxl.styles import Alignment
 
     applied = 0
     for key, fmt in (formats or {}).items():
@@ -411,6 +411,11 @@ def read_view_styles(path, sheet_name: Optional[str] = None
         validations = _read_data_validations(ws)
         if validations:
             result["validations"] = validations
+
+        # ---------- 条件格式（数据条 / 色阶）----------
+        conditional = _read_conditional_formats(ws)
+        if conditional:
+            result["conditional"] = conditional
     except Exception as e:  # noqa: BLE001
         logging.warning(f"[蜜算] 读取样式时出错（已尽量读到的部分）: {e}")
     finally:
@@ -843,6 +848,123 @@ def _apply_charts(ws, charts, fresh_file: bool = False) -> int:
         except Exception as e:  # noqa: BLE001
             logging.warning(f"[蜜算] 写图表失败（已跳过）: {e}")
     return applied
+
+
+def _column_numbers(ws, col_index: int) -> list:
+    """取某列（视图列号）数据区里的数值，用于推算条件格式的 min/max。"""
+    values = []
+    try:
+        for row in range(2, ws.max_row + 1):
+            value = ws.cell(row=row, column=col_index + 1).value
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                values.append(float(value))
+    except Exception:  # noqa: BLE001
+        return []
+    return values
+
+
+def _rule_endpoints(rule, kind: str):
+    """
+    从**读回**的规则里取 `(min, max)`；取不到返回 (None, None)。
+
+    ⚠️ 关键实测（我第一版栽在这里）：openpyxl **写**的时候用
+    `DataBarRule`/`ColorScaleRule`，但**读**回来是**通用 `Rule` 对象**，
+    真正的信息在 `rule.dataBar` / `rule.colorScale` 里，端点是
+    `cfvo` 列表中的 `FormatObject(type=..., val=...)`：
+
+        dataBar     : cfvo = [FormatObject(type='num', val=3.25),
+                             FormatObject(type='num', val=1234.5)]
+        colorScale  : cfvo = [type='min', type='percentile', type='max']  ← 无数值
+
+    所以不能按"类名 == DataBarRule"判断（读回来永远是 `Rule`），
+    必须按 `rule.type`（'dataBar' / 'colorScale'）分支。
+    色阶若端点没有数值（Excel 里很常见：自动最小/最大），
+    返回 (None, None) 让调用方按列数据推算。
+    """
+    container = getattr(rule, "dataBar", None) if kind == "data_bars" \
+        else getattr(rule, "colorScale", None)
+    if container is None:
+        return None, None
+    endpoints = []
+    for item in list(getattr(container, "cfvo", []) or []):
+        if str(getattr(item, "type", "") or "") == "num":
+            value = getattr(item, "val", None)
+            if value is not None:
+                endpoints.append(float(value))
+    if len(endpoints) >= 2:
+        return min(endpoints), max(endpoints)
+    return None, None
+
+
+def _read_conditional_formats(ws) -> Dict[Any, Any]:
+    """
+    读回条件格式（数据条 / 色阶）→ 视图的 `{列: {"type","min","max"}}`。
+
+    ## 只读回**视图画得出来的**两种
+    模型只有 `data_bars` 与 `color_scale` 两个分支（都依赖 `min`/`max`），
+    所以其它规则类型（公式、单元格值比较、图标集）**跳过并记日志** ——
+    读回一个视图渲染不了的东西等于编造状态。
+
+    ## min/max 的来源
+    优先用规则里的数字端点（我们自己写出去的数据条就是这种，往返稳定）；
+    若端点是"自动最小/最大"（色阶常见），就**从该列数据算**一个，
+    这样读回来的色阶范围与 Excel 里看到的接近，而不是凭空 0/1。
+    """
+    result: Dict[Any, Any] = {}
+    try:
+        groups = list(ws.conditional_formatting)
+    except Exception as e:  # noqa: BLE001
+        logging.debug(f"[蜜算] 读取条件格式失败: {e}")
+        return result
+
+    for group in groups:
+        try:
+            rules = list(getattr(group, "rules", []) or [])
+            areas = str(getattr(group, "sqref", "") or "").split()
+        except Exception:  # noqa: BLE001
+            continue
+        for rule in rules:
+            rule_type = str(getattr(rule, "type", "") or "")
+            if rule_type == "dataBar":
+                kind = "data_bars"
+            elif rule_type == "colorScale":
+                kind = "color_scale"
+            else:
+                logging.info(
+                    f"[蜜算] 跳过读回不支持的条件格式类型：{rule_type or type(rule).__name__}"
+                )
+                continue
+
+            low, high = _rule_endpoints(rule, kind)
+
+            for area in areas:
+                try:
+                    area_cells = ws[area]
+                except Exception:  # noqa: BLE001
+                    continue
+                rows = area_cells if isinstance(area_cells, tuple) else (area_cells,)
+                for row in rows:
+                    cells = row if isinstance(row, tuple) else (row,)
+                    for cell in cells:
+                        col = cell.column - 1
+                        if col < 0 or cell.row - 2 < 0:
+                            continue
+                        col_low, col_high = low, high
+                        if col_low is None or col_high is None:
+                            numbers = _column_numbers(ws, col)
+                            if not numbers:
+                                continue
+                            col_low, col_high = min(numbers), max(numbers)
+                            logging.info(
+                                f"[蜜算] 条件格式（列{col}）端点是自动范围，"
+                                "已按该列数据推算 min/max"
+                            )
+                        if col_high == col_low:
+                            col_high = col_low + 1.0   # 视图里 mx>mn 才画
+                        result[col] = {
+                            "type": kind, "min": col_low, "max": col_high,
+                        }
+    return result
 
 
 def apply_view_styles(path, sheet_name: Optional[str] = None, *,

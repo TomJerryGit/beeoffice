@@ -1103,6 +1103,26 @@ class ExportMixin:
     # ==================================================================
     # 富文本 → DOCX（核心转换）
     # ==================================================================
+    def _add_docx_section(self, doc) -> bool:
+        """
+        在 DOCX 里开启**新的节**（真正的分节符）。
+
+        Word 里的"节"可以各自设置页面大小/方向/页眉页脚 —— 这正是
+        「§ 分节符」按钮承诺的能力（原先只插入一行装饰文字，Word 里没有节）。
+        python-docx 不可用时**如实返回 False**（调用方跳过即可，不影响其余导出）。
+        """
+        try:
+            from docx.enum.section import WD_SECTION
+
+            doc.add_section(WD_SECTION.NEW_PAGE)
+            return True
+        except ImportError:
+            logging.warning("[蜜写] 没有 python-docx，分节符降级为分页")
+            return False
+        except Exception as e:  # noqa: BLE001
+            logging.warning(f"[蜜写] 插入分节失败（已跳过）: {e}")
+            return False
+
     def _rich_to_docx(self, path):
         """
         把 QTextDocument 内容写到 DOCX。
@@ -1155,8 +1175,23 @@ class ExportMixin:
                 block = last_cursor.block().next()
                 continue
 
-            # ---------- 分页符 ----------
+            # ---------- 分节符（真正的 Word "节"）----------
+            # P1：以前"§ 分节符"只插入可见装饰文字 `════ 分节符（新节开始） ════`，
+            # 那行字会**原样进入 DOCX/PDF**，而 Word 里根本没有"节"。
+            # 现在编辑器在块上打一个**用户属性**（不显示任何文字），
+            # 导出时据此生成真正的 Word 节 —— 用户之后才能"只改这一节的页面设置"。
             bf = block.blockFormat()
+            try:
+                from beeoffice.plugins.beewrite_rich_editor import (
+                    SECTION_MARK_PROPERTY,
+                )
+
+                if bf.property(SECTION_MARK_PROPERTY):
+                    self._add_docx_section(doc)
+            except Exception as e:  # noqa: BLE001
+                logging.debug(f"分节符处理失败（跳过）: {e}")
+
+            # ---------- 分页符 ----------
             try:
                 if bf.pageBreakPolicy() & QTextFormat.PageBreak_AlwaysBefore:
                     doc.add_page_break()
