@@ -20,29 +20,8 @@ import json
 from pathlib import Path
 
 
-def _patch_init(self, path):
-    """替换 AppSettings.__init__（与 test_p1_05_settings_migrate 同款）"""
-    self.path = Path(path)
-    self.window_size = (1024, 680)
-    self.recent_files = []
-    self.open_tabs = []
-    self.theme = "light"
-    self.accent_color = "amber"
-    self.language = "zh_CN"
-    self.has_completed_onboarding = True
-    self.recent_commands = []
-    self.webdav_url = ""
-    self.webdav_user = ""
-    self.webdav_pass = ""
-    self.webdav_enabled = False
-    self.webdav_auto_sync = False
-    self.git_repo_path = ""
-    self.git_enabled = False
-    self.cloud_type = "webdav"
-    self.cloud_config = {}
-    self.cloud_enabled = False
-    self.cloud_auto_sync = False
-    self.load()
+# 用 Path.home() 重定向来隔离设置文件，而不是复制一份默认值。
+# 复制默认值会随 settings.py 新增字段而失效（历史上已发生两次）。
 
 
 def test_decoded_marker_not_written_to_disk(tmp_path, monkeypatch):
@@ -50,10 +29,7 @@ def test_decoded_marker_not_written_to_disk(tmp_path, monkeypatch):
     from beeoffice.settings import AppSettings
 
     settings_path = tmp_path / ".beeoffice_settings.json"
-    monkeypatch.setattr(
-        "beeoffice.settings.AppSettings.__init__",
-        lambda self: _patch_init(self, settings_path),
-    )
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
 
     s = AppSettings()
     # 模拟迁移后的状态：cloud_config 含 __decoded__ 标记
@@ -89,10 +65,7 @@ def test_load_after_save_roundtrip(tmp_path, monkeypatch):
     from beeoffice.settings import AppSettings
 
     settings_path = tmp_path / ".beeoffice_settings.json"
-    monkeypatch.setattr(
-        "beeoffice.settings.AppSettings.__init__",
-        lambda self: _patch_init(self, settings_path),
-    )
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
 
     s1 = AppSettings()
     s1.cloud_config = {

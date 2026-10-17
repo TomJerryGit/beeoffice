@@ -81,12 +81,29 @@ def mobile_server(qapp):
 
 class TestDocsAPI:
     def test_docs_returns_json(self, mobile_server):
+        """带令牌时返回文档列表。"""
         status, body = _http_get(
             f"http://127.0.0.1:{mobile_server.port}/api/docs"
+            f"?t={mobile_server.token}"
         )
         assert status == 200
         data = json.loads(body.decode("utf-8"))
         assert isinstance(data, list)
+
+    def test_docs_requires_token(self, mobile_server):
+        """安全回归：缺少令牌必须 403，且不泄露任何文档信息。"""
+        status, body = _http_get(
+            f"http://127.0.0.1:{mobile_server.port}/api/docs"
+        )
+        assert status == 403
+        assert b"tab-0" not in body
+
+    def test_wrong_token_rejected(self, mobile_server):
+        """错误令牌同样 403。"""
+        status, _ = _http_get(
+            f"http://127.0.0.1:{mobile_server.port}/api/docs?t=wrong"
+        )
+        assert status == 403
 
 
 class TestNoCwdHijack:

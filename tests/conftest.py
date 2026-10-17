@@ -50,48 +50,19 @@ def temp_workspace(tmp_path):
 @pytest.fixture
 def temp_settings(tmp_path, monkeypatch):
     """
-    隔离设置文件：把 AppSettings 的默认路径重定向到临时文件。
+    隔离设置文件：把 Path.home() 指向 tmp_path。
+
+    这样 AppSettings() 会自然使用 tmp_path/.beeoffice_settings.json，
+    且**所有默认值都来自 settings.py 本身**。
+
+    历史教训：旧实现复制了一份默认值（_patched_settings_init），
+    settings.py 新增 ai_api_key 等字段后 fixture 没跟上，
+    save() 抛 AttributeError 被宽泛 except 吞掉，把配置写成空文件——
+    表现为 4 个"莫名其妙"的测试失败。
     """
     settings_path = tmp_path / ".beeoffice_settings.json"
-    monkeypatch.setattr(
-        "beeoffice.settings.AppSettings.__init__",
-        lambda self: _patched_settings_init(self, settings_path),
-    )
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
     yield settings_path
-
-
-def _patched_settings_init(self, path):
-    """替换后的 AppSettings.__init__"""
-    import logging
-    self.path = Path(path)
-    self.window_size = (1024, 680)
-    self.recent_files = []
-    self.open_tabs = []
-    self.theme = "light"
-    self.accent_color = "amber"
-    self.language = "zh_CN"
-    self.has_completed_onboarding = True  # 测试时跳过引导
-    self.recent_commands = []
-    self.webdav_url = ""
-    self.webdav_user = ""
-    self.webdav_pass = ""
-    self.webdav_enabled = False
-    self.webdav_auto_sync = False
-    self.git_repo_path = ""
-    self.git_enabled = False
-    self.cloud_type = "webdav"
-    self.cloud_config = {}
-    self.cloud_enabled = False
-    self.cloud_auto_sync = False
-    # v5.1 新增字段：漏掉它们会让 save() 抛 AttributeError，
-    # 进而把设置文件写成空文件（已由 test_settings 暴露）
-    self.ai_api_key = ""
-    self.ai_api_base = "https://api.deepseek.com/v1"
-    self.ai_model = "deepseek-chat"
-    self.user_name = ""
-    self.unsplash_api_key = ""
-    self.pexels_api_key = ""
-    self.load()
 
 
 # ==================== 数据 fixture ====================

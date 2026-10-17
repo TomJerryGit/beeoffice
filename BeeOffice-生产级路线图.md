@@ -407,11 +407,31 @@ P4                                                                       ██�
 - `tools/check_syntax.py` —— 30 秒内发现"整包 import 不了"，可进 CI；
 - `tools/smoke_formula.py` —— 用 Excel 写法做 9 条冒烟，修复前 4 条失败。
 
+### 同日续：环境搭建与安全收尾
+
+| WP | 内容 | 状态 | 验证方式 |
+|---|---|---|---|
+| WP-03 | **Python 3.11.9 + `.venv`**（PySide6 6.12、pandas 3.0、PyMuPDF 1.28） | ✅ | `pip install -r requirements-dev.txt` 成功 |
+| WP-04 | **全量测试基线** | ✅ | **739 passed / 0 failed**（157s） |
+| WP-15c | `SyncServer` 加一次性令牌；移除 3 处 CORS 通配 | ✅ | 需实机验证局域网访问 |
+| — | 修复 `_running` 竞态（WS 线程可能启动即退出） | ✅ | 代码审查 |
+| WP-10b | `ChunkLoader` 不再在 worker 线程改 model | ✅ | 代码审查 + 全量测试 |
+| — | 测试基建：`temp_settings` 改用 `Path.home` 隔离，删除复制的默认值 | ✅ | 739 全绿 |
+| WP-01 | 远程仓库 `origin` 已配置 | 🟡 待你授权后推送 | 仓库返回 404，需先创建/确认权限 |
+
 ### 下一步（按依赖顺序）
 
-1. **安装 git** → 立刻 `git init` + 首次提交（当前只有 tar 快照，粒度太粗）；
-2. `pip install -r requirements-dev.txt`（需 Python 3.11 + PySide6）→ 跑全量 pytest 拿真实基线；
-3. 修第二处线程违规（`ChunkLoader` 在 worker 线程改 model）；
-4. `beeshow_sync_server` 加令牌（当前仍默认 `0.0.0.0` 无鉴权）；
-5. 准备 10 个真实样例文档，建 `tests/fixtures/real/`。
+1. **推送远程**（需要你在前台完成一次 GitHub 登录）：
+   ```bat
+   cd /d D:\beeofficeV
+   git push -u origin main
+   ```
+   系统已装 Git Credential Manager 2.9.1，会弹出浏览器授权。
+   注意：`github.com/TomJerryGit/beeoffice` 目前匿名访问返回 **404**——
+   若仓库尚未创建请先创建（空仓库即可）；若已存在且是私有仓库，登录后即可推送。
+2. 准备 10 个真实样例文档，建 `tests/fixtures/real/`（WP-06）；
+3. 依赖锁定：把当前可用组合写进 `requirements.lock`（WP-03 收尾）——
+   注意本次装到的是 pandas 3.0 / PySide6 6.12，比代码目标版本新，需回归验证；
+4. 修 `_import_file_from_path` 的线程违规（与 ChunkLoader 同类，仍未改）；
+5. 补 `.github/workflows/test.yml` 的 full 任务为阻塞（现在有 739 全绿的基线了）。
 

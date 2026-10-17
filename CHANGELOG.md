@@ -32,6 +32,15 @@
 - **打包**：`beeoffice.spec` 不再排除代码正在使用的 matplotlib Qt 后端；
   图表改用 `backend_qtagg`（PySide6/Qt6 正确选择，保留 qt5agg 回退）。
 - **版本**：`main.py` 启动横幅改为读取 `__version__`，不再硬编码 "v5.0"。
+- **安全（演示同步）**：`SyncServer` 增加一次性令牌（`?t=`），
+  HTTP 三个端点与 WebSocket 握手均校验；移除 3 处
+  `Access-Control-Allow-Origin: *`。此前同网段任何人或任意网页
+  都能拉走整份讲稿。
+- **蜜演（竞态）**：`SyncServer._running` 原在 WS 线程启动之后才置位，
+  accept 循环可能启动即退出，表现为"服务启动成功但 WS 从不监听"。
+- **蜜算（线程）**：`ChunkLoader` 原在 worker 线程直接调用
+  `model.load_chunk()` 并 emit `layoutChanged`，属于跨线程修改
+  `QAbstractTableModel`。现改为线程只派发请求，由 GUI 线程执行。
 
 ### 测试
 
@@ -45,6 +54,12 @@
 - 新增 `tools/check_syntax.py`（211 个文件语法编译检查）。
 - 新增 `tools/smoke_formula.py`（9 条 Excel 写法冒烟）。
 - 新增 `.github/workflows/test.yml`：fast 任务阻塞、full 任务先观察。
+- 新增 `tests/unit/test_mobile_api.py` 的 403 安全回归（无令牌/错令牌）。
+- `tests/conftest.py` 的 `temp_settings` 改为 patch `Path.home`，
+  **删除复制的默认值清单**——该清单在 settings.py 新增字段后会失效，
+  导致 `save()` 抛 `AttributeError` 被宽泛 `except` 吞掉、配置写成空文件。
+- 全量测试基线：**739 passed / 0 failed**（Python 3.11.9 + PySide6 6.12，
+  157 秒）。此前项目从未有过可复现的全绿基线。
 
 ### 变更
 
