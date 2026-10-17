@@ -482,14 +482,26 @@ class BeeApp(QMainWindow):
     def _open_sheet_file(self, path):
         self._new_beesheet()
         widget = self.tab_manager.currentWidget()
-        if not hasattr(widget, "_import_file_from_path"):
+        if not hasattr(widget, "_read_sheet_file"):
             return
 
         self.set_global_status(
             tr("msg.loading_sheet", "正在加载表格..."), 0
         )
 
-        def on_result(_):
+        def on_result(df):
+            # 线程安全（P0）：文件在后台线程读取（_read_sheet_file 不含 Qt 调用），
+            # 模型修改/弹框必须回到 GUI 线程（on_result 是队列连接，跑在主线程）。
+            try:
+                applied = widget._apply_imported_dataframe(df, path)
+            except Exception as e:
+                logging.error(f"应用表格数据失败: {e}")
+                on_error(e)
+                return
+            if not applied:
+                # 用户在"是否截断"里选了否，保留空表即可
+                self.set_global_status(tr("app.ready", "就绪"), 3000)
+                return
             self.tab_manager.set_tab_file_path(widget, path)
             self._add_file_watch(path)
             self.set_global_status(
@@ -506,7 +518,7 @@ class BeeApp(QMainWindow):
             self.set_global_status(tr("msg.open_failed", "打开失败"), 3000)
 
         AsyncTaskManager.run(
-            widget._import_file_from_path,
+            widget._read_sheet_file,
             path,
             on_result=on_result,
             on_error=on_error,

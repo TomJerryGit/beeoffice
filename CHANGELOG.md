@@ -41,6 +41,13 @@
 - **蜜算（线程）**：`ChunkLoader` 原在 worker 线程直接调用
   `model.load_chunk()` 并 emit `layoutChanged`，属于跨线程修改
   `QAbstractTableModel`。现改为线程只派发请求，由 GUI 线程执行。
+- **蜜算（线程）**：导入路径同样存在跨线程操作。`_import_file_from_path`
+  把"读文件"和"改模型 + 弹 QMessageBox"揉在一起，`app.py` 又把它丢进
+  `AsyncTaskManager`，等于在 worker 线程里 `setModel` 和开模态框。
+  现拆为 `_read_sheet_file`（纯 IO，可后台）与
+  `_apply_imported_dataframe`（必须 GUI 线程）。
+- **蜜算（状态污染）**：导入新文件时未清空 `_formula_cells`，
+  旧坐标上的公式会在重算时覆盖新数据。现随导入一并清空。
 
 ### 测试
 

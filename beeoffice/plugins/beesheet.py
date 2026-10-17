@@ -503,36 +503,80 @@ class BeeSheetView(
         except Exception as e:
             QMessageBox.warning(self, "导入失败", str(e))
 
+    # ==================== 导入（IO 与 UI 分离） ====================
+    def _read_sheet_file(self, path, nrows=200001):
+        """
+        读取 CSV / Excel 为 DataFrame（**纯 IO，可在后台线程执行**）。
+
+        线程安全（P0）：
+            原 _import_file_from_path 同时做 IO 与 UI，被 app.py 丢进
+            AsyncTaskManager 后，在 worker 线程里 setModel 并弹 QMessageBox，
+            属于跨线程操作 Qt 对象（随机崩溃/界面错乱的来源）。
+
+            现在拆成两半：
+              - _read_sheet_file       纯读取，不含任何 Qt 调用 → 后台线程
+              - _apply_imported_dataframe  改模型/弹框 → 必须 GUI 线程
+
+        默认只读 200001 行，用于判断是否需要提示截断；
+        真正的截断决定在 _apply_imported_dataframe 里做。
+
+        :param nrows: 最多读取的行数（默认 200001）
+        :return: DataFrame
+        """
+        ext = os.path.splitext(path)[1].lower()
+        if ext == '.csv':
+            import chardet
+            with open(path, 'rb') as f:
+                raw = f.read(10000)
+            return pd.read_csv(
+                path,
+                encoding=chardet.detect(raw).get('encoding', 'utf-8'),
+                nrows=nrows,
+            )
+        return pd.read_excel(path, engine='openpyxl', nrows=nrows)
+
+    def _apply_imported_dataframe(self, df, path):
+        """
+        把已读取的 DataFrame 应用到界面（**必须在 GUI 线程执行**）。
+
+        :return: 是否应用成功（用户在"是否截断"对话框里选否时返回 False）
+        """
+        if len(df) > 200000:
+            reply = QMessageBox.question(
+                self, "提示", f"文件有{len(df)}行，仅加载前20万行？",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
+            )
+            if reply != QMessageBox.Yes:
+                return False
+            df = df.head(200000)
+
+        self.model.set_full_dataframe(df)
+        self.table_view.setModel(self.model)
+        self._undo_stack.clear()
+        self._redo_stack.clear()
+        # P0-7：新文件不应继承上一个文件的公式缓存，
+        # 否则旧坐标上的公式会在重算时覆盖新数据。
+        self._formula_cells.clear()
+        self._auto_resize_columns()
+        self._set_status(f"已加载：{len(df)} 行 × {len(df.columns)} 列")
+        return True
+
     def _import_file_from_path(self, path):
-        """从路径导入 CSV / Excel（自动检测编码，限制 20 万行）"""
+        """
+        同步导入（仅供 GUI 线程调用；拖拽、插件菜单等入口使用）。
+
+        后台导入请改用 _read_sheet_file + _apply_imported_dataframe。
+        """
         try:
-            ext = os.path.splitext(path)[1].lower()
-            if ext == '.csv':
-                import chardet
-                with open(path, 'rb') as f:
-                    raw = f.read(10000)
-                df = pd.read_csv(
-                    path,
-                    encoding=chardet.detect(raw).get('encoding', 'utf-8'),
-                    nrows=200001
-                )
-            else:
-                df = pd.read_excel(path, engine='openpyxl', nrows=200001)
-            total_rows = len(df)
-            if total_rows > 200000:
-                if QMessageBox.question(
-                    self, "提示", f"文件有{total_rows}行，仅加载前20万行？",
-                    QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
-                ) == QMessageBox.Yes:
-                    df = df.head(200000)
-            self.model.set_full_dataframe(df)
-            self.table_view.setModel(self.model)
-            self._undo_stack.clear()
-            self._redo_stack.clear()
-            self._auto_resize_columns()
-            self._set_status(f"已加载：{len(df)} 行 × {len(df.columns)} 列")
+            df = self._read_sheet_file(path)
         except Exception as e:
             QMessageBox.warning(self, "导入失败", str(e))
+            return False
+        try:
+            return self._apply_imported_dataframe(df, path)
+        except Exception as e:
+            QMessageBox.warning(self, "导入失败", str(e))
+            return False
 
     def _auto_resize_columns(self):
         """自动调整列宽（在 60~300 之间）"""
