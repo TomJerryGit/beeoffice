@@ -68,6 +68,9 @@
 - **蜜算（性能）**：Excel 读取改用 `python-calamine`（Rust 实现）。
   实测同一份 50000 行 × 16 列 xlsx：**4.4s vs openpyxl 50.9s（11.6 倍）**；
   未安装时自动回退 openpyxl。
+- **蜜算（性能）**：`LargeFileLoader` 的 xlsx 路径同样改用 calamine；
+  单块返回时不再 `pd.concat`，峰值内存从约 2× 降到 1×
+  （openpyxl 分块路径保留为回退，取消逻辑不变）。
 - **蜜写（往返一致性）**：
   - 引用块：重建用 `leftMargin(20)` 而回写判断 `>30`，引用永远识别不回来；
     现在阈值改为 `>=10` 并剥掉 `▎ ` 前缀，多次往返不再累积。
