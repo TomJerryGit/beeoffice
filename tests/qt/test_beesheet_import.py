@@ -87,13 +87,22 @@ def test_formula_cells_cleared_on_new_import(sheet_view, small_xlsx):
 @pytest.mark.skipif(not BIG_SAMPLE.exists(), reason="缺少 50000 行样例文件")
 def test_full_large_file_read(sheet_view):
     """
-    完整读取 50000 行（实测约 64 秒）。
+    完整读取 50000 行，并锁定性能预算。
 
-    这条用例既验证大文件路径可用，也是性能基线：
-    耗时显著变长说明导入链路退化。
+    实测（本机）：calamine 4.4s / openpyxl 50.9s。
+    预算设为 30s——超过说明引擎退化（例如 python-calamine 没装上）。
     """
+    import time
+
+    t0 = time.time()
     df = sheet_view._read_sheet_file(str(BIG_SAMPLE))
+    elapsed = time.time() - t0
 
     assert len(df) == 50000, f"应读到 50000 行，实际 {len(df)}"
+    assert elapsed < 30, (
+        f"读取 50000 行耗时 {elapsed:.1f}s，超出 30s 预算。"
+        f"当前引擎={sheet_view._excel_engine()}；"
+        f"请安装 python-calamine（openpyxl 实测约 51s）"
+    )
     assert sheet_view._apply_imported_dataframe(df, str(BIG_SAMPLE)) is True
     assert sheet_view.model.rowCount() >= 50000

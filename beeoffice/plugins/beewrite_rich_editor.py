@@ -524,8 +524,15 @@ class RichTextEditor(QTextEdit):
                 continue
 
             # 引用
-            if bf.leftMargin() > 30:
-                md.append("> " + text)
+            # 修复：重建引用时用的是 setLeftMargin(20)，回写却判断 >30，
+            # 于是引用永远识别不回来；同时正文带 "▎ " 前缀，需要剥掉。
+            if bf.leftMargin() >= 10:
+                quote_text = text
+                if quote_text.startswith("▎ "):
+                    quote_text = quote_text[2:]
+                elif quote_text.startswith("▎"):
+                    quote_text = quote_text[1:]
+                md.append("> " + quote_text)
                 block = block.next()
                 continue
 
@@ -543,6 +550,13 @@ class RichTextEditor(QTextEdit):
                 continue
 
             # 普通段落
+            # 修复：含超链接的段落按 fragment 序列化，保留 [文本](URL)
+            link_md = self._block_with_links_to_md(block)
+            if link_md is not None:
+                md.append(link_md)
+                block = block.next()
+                continue
+
             prefix = suffix = ""
             if cf.fontWeight() == QFont.Bold:
                 prefix += "**"
@@ -575,6 +589,48 @@ class RichTextEditor(QTextEdit):
         )
         return cursor.charFormat()
 
+    def _block_with_links_to_md(self, block):
+        """
+        若段落含超链接，按 fragment 拼成 `[文本](URL)`；否则返回 None。
+
+        修复：md→富文本时只给链接文字染色、不保存 URL，回写时无 `[]()`，
+        任何超链接都会在模式切换中永久丢失。
+        """
+        try:
+            it = block.begin()
+            parts = []
+            has_link = False
+            while not it.atEnd():
+                frag = it.fragment()
+                if frag.isValid():
+                    t = frag.text()
+                    href = frag.charFormat().anchorHref()
+                    if href:
+                        has_link = True
+                        parts.append(f"[{t}]({href})")
+                    else:
+                        parts.append(t)
+                it += 1
+        except Exception as e:
+            logging.error(f"解析段落超链接失败: {e}")
+            return None
+        return "".join(parts) if has_link else None
+
+    @staticmethod
+    def _split_md_row(line):
+        """
+        把 Markdown 表格行拆成单元格（**保留空单元格**）。
+
+        修复：原实现 `split('|')` 后用 `if c.strip()` 过滤，
+        会把 `| a |  | c |` 的中间空列吞掉，导致数据整体左移。
+        """
+        s = line.strip()
+        if s.startswith('|'):
+            s = s[1:]
+        if s.endswith('|'):
+            s = s[:-1]
+        return [c.strip() for c in s.split('|')]
+
     def _table_to_md(self, table) -> str:
         """将 QTextTable 转为 Markdown 表格文本"""
         rows, cols = table.rows(), table.columns()
@@ -591,18 +647,9 @@ class RichTextEditor(QTextEdit):
         if not grid:
             return ""
 
-        keep_cols = []
-        for c in range(cols):
-            col_has_content = False
-            for r in range(rows):
-                if grid[r][c]:
-                    col_has_content = True
-                    break
-            if col_has_content:
-                keep_cols.append(c)
-
-        if not keep_cols:
-            keep_cols = list(range(cols))
+        # 修复：不再丢弃"整列为空"的列——那会让表格在往返中悄悄少一列。
+        # 列对齐由 _split_md_row 保证（解析时已保留空单元格）。
+        keep_cols = list(range(cols))
 
         lines = []
         for r in range(rows):
@@ -716,7 +763,9 @@ class RichTextEditor(QTextEdit):
         """将 Markdown 表格行渲染为 QTextTable（白底 + 表头淡橙底纹）"""
         if len(lines) < 2:
             return
-        hc = [c.strip() for c in lines[0].split('|') if c.strip()]
+        hc = self._split_md_row(lines[0])
+        if not hc:
+            return
         ds = 2 if re.match(r'^[\|\s\-:]+$', lines[1]) else 1
         dl = lines[ds:]
         rows, cols = len(dl) + 1, len(hc)
@@ -745,7 +794,7 @@ class RichTextEditor(QTextEdit):
             fmt.setForeground(QColor(_DEFAULT_TEXT_COLOR))
             cc.mergeCharFormat(fmt)
         for ri, line in enumerate(dl):
-            cells = [c.strip() for c in line.split('|') if c.strip()]
+            cells = self._split_md_row(line)
             for ci, cv in enumerate(cells):
                 if ci < cols:
                     table.cellAt(ri + 1, ci).firstCursorPosition().insertText(cv)
@@ -868,6 +917,10 @@ class RichTextEditor(QTextEdit):
                 m = re.match(r'\[(.*?)\]\((.*?)\)', seg)
                 if m:
                     content = m.group(1)
+                    # 修复：把 URL 真正存进字符格式的锚点，
+                    # 否则回写时无从恢复，超链接在模式切换后会永久丢失。
+                    f.setAnchor(True)
+                    f.setAnchorHref(m.group(2))
                     f.setForeground(QColor("#1565C0"))
                     f.setFontUnderline(True)
             c.insertText(content, f)

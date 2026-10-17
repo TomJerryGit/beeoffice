@@ -26,6 +26,12 @@ xlrd>=2.0.1
 chardet>=5.0.0
 python-dateutil>=2.8.0
 
+# python-calamine：Excel 读取加速（Rust 实现）
+#   实测 50000 行 × 16 列的 xlsx：calamine 4.4s vs openpyxl 50.9s（11.6 倍）
+#   未安装时 beesheet._excel_engine() 会回退到 openpyxl，功能不受影响；
+#   但强烈建议安装——"打开表格要等一分钟"是最劝退的体验问题。
+python-calamine>=0.2.0
+
 # ---------- 文档处理 ----------
 # markdown：蜜写 MD → HTML
 # Pygments：代码块语法高亮（markdown 的 codehilite 扩展使用）

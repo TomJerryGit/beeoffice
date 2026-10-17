@@ -35,6 +35,7 @@
   - 不导入其他 beewrite_* Mixin，避免循环依赖。
 """
 import logging
+from pathlib import Path
 
 from PySide6.QtWidgets import (
     QMessageBox,
@@ -147,6 +148,67 @@ class CommentMixin:
     def _refresh_comment_panel(self):
         """把最新批注列表刷新到面板"""
         self._comment_panel.refresh(self._comment_manager.get_all())
+
+    # ==================================================================
+    # 批注 / 书签：旁挂文件读写
+    # ==================================================================
+    @staticmethod
+    def _annotation_paths(doc_path):
+        """
+        返回 (批注侧车, 书签侧车) 路径。
+
+        约定必须与 beewrite_export_mixin._write_md 保持一致：
+            <文档名（去扩展名）>.comments.json
+            <文档名（去扩展名）>.bookmarks.json
+        """
+        base = Path(doc_path).with_suffix('')
+        return (Path(str(base) + ".comments.json"),
+                Path(str(base) + ".bookmarks.json"))
+
+    def load_annotations(self, path):
+        """
+        从旁挂 JSON 加载批注与书签（打开文档时调用）。
+
+        修复（P0）：`CommentManager` / `BookmarkManager` 一直有
+        `load_from_file`，但全仓没有任何调用点——保存后重开文档，
+        批注和书签全部消失。
+
+        注意：**先 clear 再加载**。否则打开 A（有批注）后再打开 B（无侧车），
+        B 会继承 A 的批注。
+        """
+        result = {"comments": False, "bookmarks": False}
+        if not path:
+            return result
+
+        cpath, bpath = self._annotation_paths(path)
+
+        manager = getattr(self, "_comment_manager", None)
+        bookmark_manager = getattr(self, "_bookmark_manager", None)
+
+        # 关键：先清空旧状态，避免跨文档串味
+        if manager is not None:
+            manager.clear()
+        if bookmark_manager is not None:
+            bookmark_manager.clear()
+
+        if manager is not None and cpath.exists():
+            result["comments"] = bool(manager.load_from_file(str(cpath)))
+        if bookmark_manager is not None and bpath.exists():
+            result["bookmarks"] = bool(bookmark_manager.load_from_file(str(bpath)))
+
+        # 刷新面板（若已创建）
+        if result["comments"] and hasattr(self, "_refresh_comment_panel"):
+            try:
+                self._comment_panel.refresh(manager.get_all())
+            except Exception as e:
+                logging.error(f"刷新批注面板失败: {e}")
+
+        if result["comments"] or result["bookmarks"]:
+            logging.info(
+                f"已恢复批注 {manager.count() if manager else 0} 条 / "
+                f"书签 {bookmark_manager.count() if bookmark_manager else 0} 个"
+            )
+        return result
 
     # ==================================================================
     # 批注：跳转 / 删除 / 解决 / 编辑

@@ -575,6 +575,10 @@ class BeeApp(QMainWindow):
                 except Exception as e:
                     logging.error(f"切换到富文本模式失败: {e}")
 
+            # 3.5 恢复旁挂的批注 / 书签（P0：此前只写不读，重开即丢）
+            if hasattr(widget, "load_annotations"):
+                widget.load_annotations(path)
+
             # 4. 收尾
             if hasattr(widget, "_update_save_btn_text"):
                 widget._update_save_btn_text()
@@ -648,6 +652,10 @@ class BeeApp(QMainWindow):
 
         # 3. 加载内容
         widget.set_content(content)
+
+        # 3.5 恢复旁挂的批注 / 书签（P0：此前只写不读，重开即丢）
+        if hasattr(widget, "load_annotations"):
+            widget.load_annotations(path)
 
         # 4. 收尾
         if hasattr(widget, "_update_save_btn_text"):
