@@ -105,7 +105,7 @@ def test_export_images_are_not_blank(qtbot, tmp_path, silent_dialogs, show_view)
     ok = _wait_until(
         qtbot,
         lambda: len(list(tmp_path.glob("slide_*.png"))) >= len(SLIDES),
-        timeout=40,
+        timeout=60,
     )
     files = sorted(tmp_path.glob("slide_*.png"))
     assert ok, f"只导出 {len(files)} 张。提示={captured['info']} 警告={captured['warning']}"

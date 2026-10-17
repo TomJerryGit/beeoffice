@@ -19,6 +19,7 @@ v5.1 增量整合：
   - 任务 5.2：平滑动画 CSS（[data-morph-id]）
 """
 
+from PySide6.QtCore import Qt
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
 
@@ -469,6 +470,10 @@ class _PlayWindow(QWebEngineView):
     def __init__(self, owner):
         super().__init__(owner)
         self._owner = owner
+        # 必须是顶层窗口，showFullScreen() 才生效。
+        # 原实现以 owner 为 parent 却没有 Qt.Window 标志，属于子控件，
+        # showFullScreen() 只是改了个无人理会的窗口状态——"全屏播放"并不全屏。
+        self.setWindowFlags(Qt.Window)
 
     def keyPressEvent(self, event):
         # P0-2：转发给主视图，由其处理翻页 / ESC / 激光笔等

@@ -466,9 +466,10 @@ class ExportMixin:
                 if not ok:
                     capture(view, idx)
                     return
-                # loadFinished 只表示文档加载完，首帧可能还没绘制，
-                # 等 300ms 再截图，否则容易得到空白图。
-                QTimer.singleShot(300, lambda: capture(view, idx))
+                # loadFinished 只表示文档加载完，首帧可能还没绘制。
+                # 300ms 在满负载（或慢机器）上会截到空白帧，
+                # 实测全量测试压力下就会偶发，因此放宽到 800ms。
+                QTimer.singleShot(800, lambda: capture(view, idx))
 
             temp.page().loadFinished.connect(
                 lambda ok, t=temp, idx=i: on_loaded(ok, t, idx)
