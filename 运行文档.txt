@@ -1,0 +1,941 @@
+一、原始文件（修改过）
+文件路径	主要改动
+beeoffice/main.py	添加高DPI适配、中文路径兼容、macOS字体回退、延迟加载重型模块、启动时清理日志
+beeoffice/app.py	修复命令面板关闭问题、Ctrl+F崩溃、移动端端口占用、未保存标记、自动保存、文件监视、异步化耗时操作、模块拆分（菜单/命令/WebDAV/移动端等移出）
+beeoffice/command_palette.py	修复焦点丢失意外关闭（使用事件过滤器和WindowDeactivate）、支持上下文推荐、命令注册
+beeoffice/crash_handler.py	增强崩溃处理（检查QApplication实例）、日志清理独立化
+beeoffice/settings.py	增加版本字段和迁移机制、加密存储WebDAV密码（Base64）、增加云存储配置
+beeoffice/i18n.py	加载语言文件、支持动态切换语言（需重启）
+beeoffice/theme.py	增加强调色切换、暗色模式样式表
+beeoffice/tab_manager.py	添加标签拖拽合并、未保存标记、文件路径映射、拖放文件处理
+beeoffice/shortcuts.py	补充快捷键帮助内容
+beeoffice/utils.py	增加内存监控工具函数
+beeoffice/plugins/beewrite.py	支持Markdown表格/代码高亮渲染、目录生成、AI辅助（续写/润色/总结）、防抖预览刷新
+beeoffice/plugins/beesheet.py	集成公式引擎、自然语言生成公式、图表生成、大文件分块加载、虚拟滚动（部分）
+beeoffice/plugins/beeshow.py	添加动画效果、演讲者备注、排练计时
+beeoffice/plugins/webdav_sync.py	添加进度信号、重试机制（建议）
+beeoffice/resources/template_manager.py（推测）	模板管理逻辑（可能已有）
+requirements.txt	添加pygments（代码高亮）、keyring（密码存储）等（需更新）
+run.bat	无需修改（启动脚本）
+二、新建文件（优化过程中创建）
+文件路径	用途
+beeoffice/plugin_base.py	定义插件基类，支持创建控件、注册命令、注册菜单等
+beeoffice/plugin_manager.py	插件管理器，扫描加载插件、管理插件信息
+beeoffice/commands.py	集中注册命令面板的所有命令（包括内置和插件命令）
+beeoffice/menus.py	菜单构建模块，从app.py中拆出
+beeoffice/webdav.py	WebDAV设置与同步封装（从app.py移出）
+beeoffice/cloud_settings.py	云存储设置对话框（支持WebDAV/OneDrive/Google Drive）
+beeoffice/mobile.py	移动端HTTP服务器封装（从app.py移出）
+beeoffice/templates.py	模板选择、创建功能（从app.py移出）
+beeoffice/async_task.py	异步任务调度器（QThreadPool封装）
+beeoffice/cloud_sync/base.py	云存储统一接口抽象基类
+beeoffice/cloud_sync/webdav.py	WebDAV云存储适配器
+beeoffice/cloud_sync/onedrive.py	OneDrive云存储适配器
+beeoffice/cloud_sync/googledrive.py	Google Drive云存储适配器
+beeoffice/plugins/formula_engine.py	蜜算公式引擎（支持SUM/AVERAGE/IF等）
+beeoffice/plugins/nl_formula.py	自然语言生成公式解析器
+beeoffice/plugins/ai_assist.py	AI辅助功能（续写/润色/总结，基于规则）
+beeoffice/plugins/beewrite_plugin.py	蜜写插件包装（继承Plugin）
+beeoffice/plugins/beesheet_plugin.py	蜜算插件包装
+beeoffice/plugins/beeshow_plugin.py	蜜演插件包装
+beeoffice/plugins/pdf_annotator_plugin.py	PDF批注插件包装
+beeoffice/plugins/plugin_market.py	插件市场界面（简单版）
+beeoffice/locales/zh_CN.json	中文语言包
+beeoffice/locales/en_US.json	英文语言包
+tests/test_bee_export.py	导出功能单元测试
+tests/test_settings.py	设置读写测试
+tests/test_app.py	主窗口UI集成测试
+tests/test_formula_engine.py	公式引擎测试
+tests/test_nl_formula.py	自然语言解析器测试
+tests/test_ai_assist.py	AI辅助功能测试
+pytest.ini	pytest配置（指定Qt API等）
+requirements-dev.txt	测试依赖（pytest、pytest-qt）
+beeoffice.spec	PyInstaller打包配置
+build.py	一键打包脚本
+build_release.py	发布包构建脚本
+README.md	项目说明文档
+CHANGELOG.md	更新日志
+三、可能间接涉及的文件
+beeoffice/__init__.py（可能存在，需添加日志配置等）
+beeoffice/plugins/__init__.py（确保plugins为包）
+beeoffice/cloud_sync/__init__.py
+beeoffice/resources/ 下的资源文件（如图标、模板）可能需要更新
+总结
+优化过程涉及 约30个原始文件修改 和 约25个新建文件，覆盖了架构重构、性能优化、功能增强、测试与打包等各方面。代码规模从单一主文件扩展到模块化结构，维护性和可扩展性显著提升。
+
+===================================update==================================
+一、原始文件
+beeoffice/main.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/app.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/command_palette.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/crash_handler.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/settings.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/i18n.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/theme.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/tab_manager.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/shortcuts.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/utils.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/beewrite.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/beesheet.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/beeshow.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/webdav_sync.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/resources/template_manager.py  请给出最新版源代码，一行代码都不用遗漏
+requirements.txt	请给出最新版源代码，一行代码都不用遗漏
+run.bat	请给出最新版源代码，一行代码都不用遗漏
+二、新建文件
+beeoffice/plugin_base.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugin_manager.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/commands.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/menus.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/webdav.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/cloud_settings.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/mobile.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/templates.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/async_task.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/cloud_sync/base.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/cloud_sync/webdav.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/cloud_sync/onedrive.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/cloud_sync/googledrive.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/formula_engine.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/nl_formula.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/ai_assist.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/beewrite_plugin.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/beesheet_plugin.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/beeshow_plugin.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/pdf_annotator_plugin.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/plugin_market.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/locales/zh_CN.json	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/locales/en_US.json	请给出最新版源代码，一行代码都不用遗漏
+tests/test_bee_export.py	请给出最新版源代码，一行代码都不用遗漏
+tests/test_settings.py	请给出最新版源代码，一行代码都不用遗漏
+tests/test_app.py	请给出最新版源代码，一行代码都不用遗漏
+tests/test_formula_engine.py	请给出最新版源代码，一行代码都不用遗漏
+tests/test_nl_formula.py	请给出最新版源代码，一行代码都不用遗漏
+tests/test_ai_assist.py	请给出最新版源代码，一行代码都不用遗漏
+pytest.ini	请给出最新版源代码，一行代码都不用遗漏
+requirements-dev.txt	请给出最新版源代码，一行代码都不用遗漏
+beeoffice.spec	请给出最新版源代码，一行代码都不用遗漏
+build.py	请给出最新版源代码，一行代码都不用遗漏
+build_release.py	请给出最新版源代码，一行代码都不用遗漏
+README.md	请给出最新版源代码，一行代码都不用遗漏
+CHANGELOG.md	请给出最新版源代码，一行代码都不用遗漏
+三、可能间接涉及的文件
+beeoffice/__init__.py  请给出最新版源代码，一行代码都不用遗漏  
+beeoffice/plugins/__init__.py  请给出最新版源代码，一行代码都不用遗漏
+beeoffice/cloud_sync/__init__.py 请给出最新版源代码，一行代码都不用遗漏
+beeoffice/resources/ 请给出最新版源代码，一行代码都不用遗漏
+
+
+beewrite.py	请给出最新版源代码，一行代码都不用遗漏  
+beesheet.py	请给出最新版源代码，一行代码都不用遗漏  
+beeshow.py	请给出最新版源代码，一行代码都不用遗漏  
+
+==========================================运行测试==========================================
+日志目录
+C:\Users\Administrator\.beeoffice_logs
+
+beesheet.py 拆解
+
+beeoffice/plugins/
+├── beesheet.py                    (~700行，主视图)
+├── beesheet_utils.py              (工具函数)
+├── beesheet_commands.py           (命令类)
+├── beesheet_delegate.py           (编辑器委托)
+├── beesheet_loaders.py            (后台加载)
+├── beesheet_engine.py             (公式引擎)
+├── beesheet_model.py              (数据模型)
+├── beesheet_dialogs.py            (透视表对话框)
+├── beesheet_formula_mixin.py      (公式 Mixin)
+├── beesheet_style_mixin.py        (样式 Mixin)
+├── beesheet_audit_mixin.py        (审计 Mixin)
+└── beesheet_data_mixin.py         (数据操作 Mixin)
+
+beeoffice/plugins/
+├── beesheet.py                    请给出最新版源代码，一行代码都不用遗漏
+├── beesheet_utils.py              请给出最新版源代码，一行代码都不用遗漏
+├── beesheet_commands.py           请给出最新版源代码，一行代码都不用遗漏
+├── beesheet_delegate.py           请给出最新版源代码，一行代码都不用遗漏
+├── beesheet_loaders.py            请给出最新版源代码，一行代码都不用遗漏
+├── beesheet_engine.py             请给出最新版源代码，一行代码都不用遗漏
+├── beesheet_model.py              请给出最新版源代码，一行代码都不用遗漏
+├── beesheet_dialogs.py            请给出最新版源代码，一行代码都不用遗漏
+├── beesheet_formula_mixin.py      请给出最新版源代码，一行代码都不用遗漏
+├── beesheet_style_mixin.py        请给出最新版源代码，一行代码都不用遗漏
+├── beesheet_audit_mixin.py        请给出最新版源代码，一行代码都不用遗漏
+└── beesheet_data_mixin.py         请给出最新版源代码，一行代码都不用遗漏
+
+=================================beewrite.py 优化=====================================
+
+
+beoffice/plugins/beewrite.py 请给出最新版源代码，一行代码都不用遗漏
+
+
+beeoffice/plugins/
+├── beewrite.py                  ← 主编辑器（核心，最大，改动最多）
+├── find_replace.py              ← 查找替换栏
+├── beewrite_comment.py          ← 批注系统
+├── beewrite_bookmark.py         ← 书签
+├── beewrite_revision.py         ← 修订模式
+├── beewrite_hyperlink.py        ← 超链接管理
+├── beewrite_crossref.py         ← 交叉引用
+├── beewrite_image.py            ← 图片编辑
+├── beewrite_formula.py          ← 数学公式
+├── beewrite_textbox.py          ← 文本框
+├── beewrite_page_extras.py      ← 水印 + 页码
+├── beewrite_outline.py          ← 大纲导航
+├── bee_export.py                ← 导出（被调用，未改）
+├── ai_assist.py                 ← AI 辅助（被调用，未改）
+├── data_binding.py              ← 数据绑定（被调用，未改）
+├── variable_panel.py            ← 变量面板（被调用，未改）
+└── ...
+-
+beeoffice/
+├── menus.py                     ← 菜单（撤销/重做绑定改动）
+├── app.py                       ← 主窗口（未改）
+
+beeoffice/resources/
+└── template_manager.py          ← 模板管理（被调用，未改）
+
+requirements.txt                 ← 新增 Pillow
+----------------------------------------------- 更新程序 -------------------------------------------
+beeoffice/plugins/
+├── beewrite.py                  请给出最新版源代码，一行代码都不用遗漏
+├── find_replace.py              请给出最新版源代码，一行代码都不用遗漏
+├── beewrite_comment.py          请给出最新版源代码，一行代码都不用遗漏
+├── beewrite_bookmark.py         请给出最新版源代码，一行代码都不用遗漏
+├── beewrite_revision.py         请给出最新版源代码，一行代码都不用遗漏
+├── beewrite_hyperlink.py        请给出最新版源代码，一行代码都不用遗漏
+├── beewrite_crossref.py         请给出最新版源代码，一行代码都不用遗漏
+├── beewrite_image.py            请给出最新版源代码，一行代码都不用遗漏
+├── beewrite_formula.py          请给出最新版源代码，一行代码都不用遗漏
+├── beewrite_textbox.py          请给出最新版源代码，一行代码都不用遗漏
+├── beewrite_page_extras.py      请给出最新版源代码，一行代码都不用遗漏
+├── beewrite_outline.py          请给出最新版源代码，一行代码都不用遗漏
+├── bee_export.py                请给出最新版源代码，一行代码都不用遗漏
+├── ai_assist.py                 请给出最新版源代码，一行代码都不用遗漏
+├── data_binding.py              请给出最新版源代码，一行代码都不用遗漏
+├── variable_panel.py            请给出最新版源代码，一行代码都不用遗漏
+└── ...
+
+beeoffice/
+├── menus.py                     请给出最新版源代码，一行代码都不用遗漏
+├── app.py                       请给出最新版源代码，一行代码都不用遗漏
+
+beeoffice/resources/
+└── template_manager.py          请给出最新版源代码，一行代码都不用遗漏
+
+requirements.txt                 请给出最新版源代码，一行代码都不用遗漏
+C:\Users\Administrator>D:
+D:\>cd D:\beeofficeV\beeoffice
+D:\beeofficeV\beeoffice>pip install -r requirements.txt
+Requirement already satisfied: PySide6>=6.5.0 in D:\Program Files\Python311\Lib\site-packages (from -r requirements.txt (line 12)) (6.6.0)
+
+=================================beewrite.py 拆分=====================================
+beeoffice/plugins/
+│
+├── beewrite.py                              # ★ 主入口：BeeWriteEditor（组装层，约 500 行）
+│
+├── ──────────── 底层组件（新增） ────────────
+├── beewrite_utils.py                        # ★ 工具函数 + FORMAT_PAINTER（约 150 行）
+├── beewrite_rich_editor.py                  # ★ RichTextEditor(QTextEdit)（约 500 行）
+├── beewrite_md_table_dialog.py              # ★ MarkdownTableEditorDialog（约 150 行）
+│
+├── ──────────── Mixin 层（新增） ────────────
+├── beewrite_toolbar_mixin.py                # ★ 工具栏构建（约 400 行）
+├── beewrite_mode_mixin.py                   # ★ 模式切换 + 基础格式 + 内容接口（约 250 行）
+├── beewrite_paragraph_mixin.py              # ★ 段落格式 + 字符底纹 + 多级列表（约 350 行）
+├── beewrite_table_mixin.py                  # ★ 表格 + Markdown 表格 + Excel 数据（约 600 行）
+├── beewrite_doc_mixin.py                    # ★ 页眉页脚 + 目录 + 水印 + 页码 + 页面设置 + 打印（约 300 行）
+├── beewrite_export_mixin.py                 # ★ 导出 PDF/DOCX + 保存 + 模板（约 250 行）
+├── beewrite_comment_mixin.py                # ★ 批注 + 书签 + 修订（约 300 行）
+├── beewrite_link_mixin.py                   # ★ 超链接 + 交叉引用 + 图片 / 公式 / 文本框（约 200 行）
+├── beewrite_ai_mixin.py                     # ★ AI 辅助（约 120 行）
+├── beewrite_view_mixin.py                   # ★ 视图 + 查找替换 + 粘贴 + 撤销重做 + 状态栏（约 400 行）
+│
+├── ──────────── 协作相关（已有，保持不变） ────────────
+├── beewrite_comment.py                      # CommentManager / CommentPanel / CommentEditDialog
+├── beewrite_bookmark.py                     # BookmarkManager
+├── beewrite_revision.py                     # RevisionManager
+├── beewrite_hyperlink.py                    # HyperlinkDialog / HyperlinkManagerDialog
+├── beewrite_crossref.py                     # CrossRefManager
+│
+├── ──────────── 插入对象（已有，保持不变） ────────────
+├── beewrite_image.py                        # ImageEditorDialog
+├── beewrite_formula.py                      # FormulaDialog
+├── beewrite_textbox.py                      # TextBoxDialog / insert_textbox
+├── beewrite_page_extras.py                  # WatermarkDialog / PageNumberDialog / build_*
+│
+├── ──────────── 视图组件（已有，保持不变） ────────────
+├── beewrite_outline.py                      # OutlinePanel
+│
+├── ──────────── 插件包装（已有，保持不变） ────────────
+└── beewrite_plugin.py                       # BeeWritePlugin
+
+
+beewrite.py                        请给出最新版源代码，一行代码都不用遗漏
+beewrite_utils.py                  请给出最新版源代码，一行代码都不用遗漏
+beewrite_rich_editor.py            请给出最新版源代码，一行代码都不用遗漏
+beewrite_md_table_dialog.py        请给出最新版源代码，一行代码都不用遗漏
+beewrite_toolbar_mixin.py          请给出最新版源代码，一行代码都不用遗漏
+beewrite_mode_mixin.py             请给出最新版源代码，一行代码都不用遗漏
+beewrite_paragraph_mixin.py        请给出最新版源代码，一行代码都不用遗漏
+beewrite_table_mixin.py            请给出最新版源代码，一行代码都不用遗漏
+beewrite_doc_mixin.py              请给出最新版源代码，一行代码都不用遗漏
+beewrite_export_mixin.py           请给出最新版源代码，一行代码都不用遗漏
+beewrite_comment_mixin.py          请给出最新版源代码，一行代码都不用遗漏
+beewrite_link_mixin.py             请给出最新版源代码，一行代码都不用遗漏
+beewrite_ai_mixin.py               请给出最新版源代码，一行代码都不用遗漏
+beewrite_view_mixin.py             请给出最新版源代码，一行代码都不用遗漏
+
+
+
+
+beewrite.py	请给出最新版源代码，一行代码都不用遗漏
+beewrite_comment_mixin.py	请给出最新版源代码，一行代码都不用遗漏
+beewrite_doc_mixin.py	请给出最新版源代码，一行代码都不用遗漏
+beewrite_export_mixin.py	请给出最新版源代码，一行代码都不用遗漏
+beewrite_link_mixin.py	请给出最新版源代码，一行代码都不用遗漏
+
+
+app.py 请给出最新版源代码，一行代码都不用遗漏
+beewrite_toolbar_mixin.py 请给出最新版源代码，一行代码都不用遗漏
+beewrite_mode_mixin.py 请给出最新版源代码，一行代码都不用遗漏
+beewrite.py 请给出最新版源代码，一行代码都不用遗漏
+beewrite_rich_editor.py 请给出最新版源代码，一行代码都不用遗漏
+
+beeoffice/plugins/beewrite_rich_editor.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/beewrite_export_mixin.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/beewrite_toolbar_mixin.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/beewrite.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/app.py 请给出最新版源代码，一行代码都不用遗漏
+
+
+beeoffice/plugins/beewrite_mode_mixin.py 请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/beewrite_export_mixin.py 请给出最新版源代码，一行代码都不用遗漏
+
+
+这次修复涉及的文件清单
+文件路径	修改内容
+beeoffice/plugins/ai_assist.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/formula_engine.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/beewrite_rich_editor.py	请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/nl_formula.py	请给出最新版源代码，一行代码都不用遗漏
+----测试语句----
+D:\beeofficeV>python -m pytest tests/ -v
+
+C:\Users\Administrator>D:
+D:\>cd /d D:\beeofficeV
+D:\beeofficeV>python -m pytest tests/test_formula_engine.py -v
+beewrite_rich_editor.py 请给出最新版源代码，一行代码都不用遗漏
+
+
+D:\beeofficeV>python -m beeoffice.main
+🐝 蜜蜂办公 v5.0 启动成功！耗时: 690ms
+
+📞 需要你确认的 3 件事
+beewrite_outline.py 文件名到底是beewrite_outline.py
+测试环境：现在只有Windows测试机
+发布节奏：v5.0.1 是累积发布（P0+P1）
+=================================================== 测试目录及创建=====================================
+
+tests/
+├── __init__.py                                [0 KB, 可选]
+├── conftest.py                                [~3 KB]
+├── pytest.log                                 [动态，不提交]
+│
+├── test_ai_assist.py                          [~10 KB]
+├── test_app.py                                [~8 KB]
+├── test_bee_export.py                         [~12 KB]
+├── test_beewrite_basic.py                     [~3 KB]
+├── test_beeshow_play.py                       [~8 KB]
+├── test_command_palette.py                    [~6 KB]
+├── test_export_pdf.py                         [~3 KB]
+├── test_formula_engine.py                     [~15 KB]
+├── test_md_conversion.py                      [~8 KB]
+├── test_mobile_api.py                         [~10 KB]
+├── test_nl_formula.py                         [~12 KB]
+├── test_settings.py                           [~4 KB]
+├── test_tab_manager.py                        [~3 KB]
+│
+├── test_p0_regression/
+│   ├── __init__.py                            [0 KB]
+│   ├── test_p0_05_formula_safe.py             [~3 KB]
+│   ├── test_p0_06_self_save.py                [~2 KB]
+│   ├── test_p0_07_shortcuts.py                [~3 KB]
+│   ├── test_p0_11_sumifs.py                   [~3 KB]
+│   ├── test_p0_12_close_others.py             [~3 KB]
+│   └── test_p0_13_split_init.py               [~3 KB]
+│
+└── test_p2_regression/
+    ├── __init__.py                            [0 KB]
+    ├── test_p1_01_column_names.py             [~2 KB]
+    ├── test_p1_03_close_event.py              [~3 KB]
+    ├── test_p1_04_lightweight_app.py          [~4 KB]
+    ├── test_p1_05_settings_migrate.py         [~5 KB]
+    ├── test_p1_06_plugin_market_state.py      [~2 KB]
+    ├── test_p1_07_binding_render.py           [~3 KB]
+    ├── test_p1_08_friendly_errors.py          [~3 KB]
+    ├── test_p1_09_variable_panel.py           [~3 KB]
+    ├── test_p1_13_reorder.py                  [~4 KB]
+    ├── test_p1_14_pdf_undo.py                 [~4 KB]
+    ├── test_p1_17_mobile_temp.py              [~3 KB]
+    ├── test_p1_18_command_context.py          [~4 KB]
+    └── test_p1_19_image_roundtrip.py          [~5 KB, 待创建]
+
+
+使用步骤
+步骤 1：保存脚本
+把上面的代码保存为项目根目录下的 create_tests.py：
+
+text
+D:\beeofficeV\
+├── create_tests.py          ← 新建这个文件
+├── beeoffice\
+├── requirements.txt
+└── ...
+步骤 2：运行脚本
+cmd
+cd /d D:\beeofficeV
+python create_tests.py
+步骤 3：观察输出
+期望输出：
+
+text
+============================================================
+  🐝 BeeOffice 测试目录创建工具
+============================================================
+
+📁 项目根目录: D:\beeofficeV
+📁 测试目录:   D:\beeofficeV\tests
+
+【1】创建目录
+     ✅ tests
+     ✅ tests\test_p0_regression
+     ✅ tests\test_p2_regression
+
+【2】写入文件
+     ✅ tests/__init__.py
+     ✅ tests/conftest.py
+     ✅ tests/test_ai_assist.py
+     ... （约 40 个文件）
+
+============================================================
+  📊 结果: 创建 40 个, 跳过 0 个, 失败 0 个
+============================================================
+
+【3】目录树
+tests
+├── __init__.py
+├── conftest.py
+├── test_ai_assist.py
+├── ...
+├── test_p0_regression
+│   ├── __init__.py
+│   ├── test_p0_05_formula_safe.py
+│   └── ...
+└── test_p2_regression
+    ├── __init__.py
+    ├── test_p1_01_column_names.py
+    └── ...
+
+
+【4】下一步
+
+     1. 安装开发依赖:
+        pip install -r requirements-dev.txt
+     2. 运行全部测试:    
+
+C:\Users\Administrator>D:
+D:\>cd /d D:\beeofficeV
+D:\beeofficeV>pytest tests/ -v
+
+        
+     3. 只跑 P0 回归:
+        pytest tests/test_p0_regression/ -v
+     4. 只跑 P1 回归:
+        pytest tests/test_p2_regression/ -v
+     5. 生成覆盖率报告:
+        pytest tests/ --cov=beeoffice --cov-report=html
+		
+		
+		
+-----------------------------------------------测试后优化-------------------------------------
+D:\beeofficeV\
+├── beeoffice\
+│   ├── app.py                                              ← 改（QTimer + 新增 _reset_status_text）
+│   ├── command_palette.py                                  ← 改（parent 类型判断）
+│   └── plugins\
+│       ├── data_binding.py                                 ← 改（-1 行号支持）
+│       └── beeshow.py                                      ← 改（_play_window 初始化）
+├── tests\
+│   ├── conftest.py                                         ← 追加（3 个 fixture）
+│   └── test_p0_regression\
+│       ├── test_p0_05_formula_safe.py                      ← 整个替换
+│       └── test_p0_11_sumifs.py                            ← 整个替换
+└── pytest.ini                                              ← 改数值（40 → 25）		
+
+D:\beeofficeV\
+├── beeoffice\
+│   ├── app.py                                              请给出最新版源代码，一行代码都不用遗漏
+│   ├── command_palette.py                                  请给出最新版源代码，一行代码都不用遗漏
+│   └── plugins\
+│       ├── data_binding.py                                 请给出最新版源代码，一行代码都不用遗漏
+│       └── beeshow.py                                      请给出最新版源代码，一行代码都不用遗漏
+├── tests\
+│   ├── conftest.py                                         请给出最新版源代码，一行代码都不用遗漏
+│   └── test_p0_regression\
+│       ├── test_p0_05_formula_safe.py                      请给出最新版源代码，一行代码都不用遗漏
+│       └── test_p0_11_sumifs.py                            请给出最新版源代码，一行代码都不用遗漏
+└── pytest.ini                                              请给出最新版源代码，一行代码都不用遗漏
+
+
+beeoffice/plugins/formula_engine.py	  请给出最新版源代码，一行代码都不用遗漏
+beeoffice/plugins/beesheet_engine.py  请给出最新版源代码，一行代码都不用遗漏
+tests/test_formula_engine.py	      请给出最新版源代码，一行代码都不用遗漏
+
+cd D:\beeofficeV
+pytest tests/test_formula_engine.py -v
+pytest tests/ -v                       --全量测试
+pytest tests/test_smoke_imports.py -v  --冒烟测试
+
+==================================beesheet.py 拆分==================================
+拆分方案（5 个文件）
+#	文件	                        类型	     职责
+1	beesheet_chart_mixin.py	        新建	图表 + 透视表
+2	beesheet_context_menu_mixin.py	新建	右键菜单
+3	beesheet_rowcol_mixin.py	    新建	行列插入/删除 + 合并 + 填充
+4	beesheet_ui_mixin.py	        新建	5行工具栏 + 表格 + 填充柄 + 信息面板
+5	beesheet.py		                大改    主类只保留组装逻辑 + 导入导出 + 撤销重做
+
+
+beesheet_chart_mixin.py	        请给出最新版源代码，一行代码都不用遗漏
+beesheet_context_menu_mixin.py	请给出最新版源代码，一行代码都不用遗漏
+beesheet_rowcol_mixin.py	    请给出最新版源代码，一行代码都不用遗漏
+beesheet_ui_mixin.py	        请给出最新版源代码，一行代码都不用遗漏
+beesheet.py	      	            请给出最新版源代码，一行代码都不用遗漏
+-----------------------------------测试--------------------------------------
+cd D:\beeofficeV
+pytest tests/test_p2_regression/test_v503_docx_open_order.py -v
+pytest tests/test_p2_regression/test_v505_status_timer.py -v
+pytest tests/test_p0_regression/test_p0_09_insert_toc.py -v
+pytest tests/test_p2_regression/test_p1_12_presenter_no_notes.py -v
+
+
+
+REM 1) 修改 3 个基础文件
+REM    - pytest.ini（替换）
+REM    - run_tests.bat（新建）
+REM    - beeoffice/plugins/beesheet_model.py（改 r"""）
+REM    - tests/conftest.py（末尾追加 beeshow_view fixture）
+REM    - tests/test_p2_regression/test_p1_12_presenter_no_notes.py（替换）
+
+REM 2) 新建 4 个测试文件
+REM    - tests/test_p0_regression/test_p0_01_beesheet_imports.py
+REM    - tests/test_p0_regression/test_p0_04_beeshow_webengine.py
+REM    - tests/test_p0_regression/test_p0_02_play_window.py
+REM    - tests/test_p2_regression/test_v502_docx_image_extract.py
+REM    - tests/test_p0_regression/test_p0_02_play_window.py
+REM 3) 批量修复其余 docstring 转义
+python fix_docstring_escape.py
+
+REM 4) 逐个新测试文件验证（应无覆盖率失败、无警告）
+pytest tests/test_p0_regression/test_p0_01_beesheet_imports.py -v
+pytest tests/test_p0_regression/test_p0_04_beeshow_webengine.py -v
+pytest tests/test_p0_regression/test_p0_02_play_window.py -v
+pytest tests/test_p2_regression/test_v502_docx_image_extract.py -v
+pytest tests/test_p2_regression/test_p1_12_presenter_no_notes.py -v
+
+REM 5) 全量测试
+run_tests.bat
+
+
+
+
+cd D:\beeofficeV
+REM 单独验证之前报错的 3 个测试文件
+pytest tests/test_p0_regression/test_p0_04_beeshow_webengine.py -v
+pytest tests/test_p2_regression/test_p1_12_presenter_no_notes.py -v
+pytest tests/test_p0_regression/test_p0_02_play_window.py -v
+
+REM 全量
+run_tests.bat
+
+
+
+--------------------------测试--------------------------------------
+1.0 创建 3 个测试文件：
+tests/test_p2_regression/test_v505_permission_error.py
+tests/test_p0_regression/test_p0_10_webdav_conflict.py
+tests/test_p2_regression/test_p1_14_pdf_undo_real.py
+
+2.0 逐个验证：
+Microsoft Windows [版本 10.0.19041.264]
+(c) 2020 Microsoft Corporation. 保留所有权利。
+C:\Users\Administrator>D:
+D:\>cd D:\beeofficeV
+D:\beeofficeV>pytest tests/test_p2_regression/test_v505_permission_error.py -v
+D:\beeofficeV>pytest tests/test_p0_regression/test_p0_10_webdav_conflict.py -v
+D:\beeofficeV>pytest tests/test_p2_regression/test_p1_14_pdf_undo_real.py -v
+
+3.0 全量跑：
+Microsoft Windows [版本 10.0.19041.264]
+(c) 2020 Microsoft Corporation. 保留所有权利。
+C:\Users\Administrator>D:
+D:\>cd D:\beeofficeV
+D:\beeofficeV>run_tests.bat
+
+
+------------------------------测试--------------------------------------
+1.0 创建 3 个测试文件：
+tests/test_p2_regression/test_v504_image_paragraph_docx.py
+tests/test_p2_regression/test_p1_15_ai_fallback.py
+tests/test_p0_regression/test_p0_15_large_file_cancel.py
+
+2.0 逐个验证：
+Microsoft Windows [版本 10.0.19041.264]
+(c) 2020 Microsoft Corporation. 保留所有权利。
+C:\Users\Administrator>D:
+D:\>cd D:\beeofficeV
+pytest tests/test_p2_regression/test_v504_image_paragraph_docx.py -v
+pytest tests/test_p2_regression/test_p1_15_ai_fallback.py -v
+pytest tests/test_p0_regression/test_p0_15_large_file_cancel.py -v
+
+3.0 全量跑：
+Microsoft Windows [版本 10.0.19041.264]
+(c) 2020 Microsoft Corporation. 保留所有权利。
+C:\Users\Administrator>D:
+D:\>cd D:\beeofficeV
+run_tests.bat
+
+-----------------------------测试--------------------------------------
+1.0 创建 3 个测试文件：
+tests/test_p0_regression/test_p0_05_safe_eval_boundary.py
+tests/test_p2_regression/test_v502_document_has_images.py
+tests/test_p2_regression/test_p1_05_decoded_marker.py
+
+2.0 逐个验证：
+Microsoft Windows [版本 10.0.19041.264]
+(c) 2020 Microsoft Corporation. 保留所有权利。
+C:\Users\Administrator>D:
+D:\>cd D:\beeofficeV
+pytest tests/test_p0_regression/test_p0_05_safe_eval_boundary.py -v
+pytest tests/test_p2_regression/test_v502_document_has_images.py -v
+pytest tests/test_p2_regression/test_p1_05_decoded_marker.py -v
+pytest tests/test_formula_engine.py -v
+3.0 全量跑：
+Microsoft Windows [版本 10.0.19041.264]
+(c) 2020 Microsoft Corporation. 保留所有权利。
+C:\Users\Administrator>D:
+D:\>cd D:\beeofficeV
+run_tests.bat
+
+=============================调整 新增 测试文档或位置===========================
+D:
+cd D:\beeofficeV
+REM 先干跑，看看会做什么
+python migrate_tests.py --dry-run
+REM 确认无误后真正执行
+python migrate_tests.py
+
+D:
+cd D:\beeofficeV
+python post_migrate.py --dry-run
+python post_migrate.py
+
+C:\Users\Administrator>D:
+
+D:\>cd D:\beeofficeV
+
+D:\beeofficeV>python post_migrate.py --dry-run
+============================================================
+  BeeOffice 迁移收尾  [DRY-RUN]
+============================================================
+
+【1】清理旧目录残留
+  [RMDIR] tests\test_p0_regression
+  [RMDIR] tests\test_p2_regression
+
+【2】创建 tests/helpers/ 辅助模块
+  [SKIP (已存在)] tests\helpers\__init__.py
+  [CREATE] tests\helpers\fake_models.py
+  [CREATE] tests\helpers\fake_widgets.py
+  [CREATE] tests\helpers\qt_helpers.py
+
+【3】检查 pytest.ini
+  [MANUAL] pytest.ini
+           需要手动在 norecursedirs 末尾加一行:
+               tests/helpers
+
+============================================================
+  DRY-RUN 完成，未做任何改动
+============================================================
+
+D:\beeofficeV>python post_migrate.py
+============================================================
+  BeeOffice 迁移收尾
+============================================================
+
+【1】清理旧目录残留
+  [RMDIR] tests\test_p0_regression
+  [RMDIR] tests\test_p2_regression
+
+【2】创建 tests/helpers/ 辅助模块
+  [SKIP (已存在)] tests\helpers\__init__.py
+  [CREATE] tests\helpers\fake_models.py
+  [CREATE] tests\helpers\fake_widgets.py
+  [CREATE] tests\helpers\qt_helpers.py
+
+【3】检查 pytest.ini
+  [MANUAL] pytest.ini
+           需要手动在 norecursedirs 末尾加一行:
+               tests/helpers
+
+============================================================
+  ✅ 收尾完成
+
+  下一步：
+    1. 手动编辑 pytest.ini（若第 3 步提示 MANUAL）
+    2. 运行: pytest tests/ --collect-only -q
+    3. 运行: run_tests.bat
+============================================================
+
+D:\beeofficeV>python fix_pytest_ini.py
+✅ 已修改 pytest.ini，在 norecursedirs 加了 tests/helpers
+
+迁移后的目录树（确认版）
+tests/
+├── __init__.py
+├── conftest.py
+├── pytest.log
+├── helpers/                    ← 非测试文件（已排除收集）
+│   ├── __init__.py
+│   ├── fake_models.py
+│   ├── fake_widgets.py
+│   └── qt_helpers.py
+├── qt/                         ← 8 个 UI 测试文件
+│   ├── test_app.py
+│   ├── test_beeshow_play.py
+│   ├── test_beewrite_basic.py
+│   ├── test_command_palette.py
+│   ├── test_export_pdf.py
+│   ├── test_md_conversion.py
+│   └── test_tab_manager.py
+├── regression/
+│   ├── p0/                     ← 13 个 P0 回归
+│   ├── p1/                     ← 17 个 P1 回归
+│   └── v5/                     ← 6 个 v5 回归
+├── smoke/                      ← 1 个冒烟（92 个 import 检查）
+└── unit/                       ← 6 个单元测试
+    ├── test_ai_assist.py
+    ├── test_bee_export.py
+    ├── test_formula_engine.py
+    ├── test_mobile_api.py
+    ├── test_nl_formula.py
+    └── test_settings.py
+	
+==============================整理 增加的一次性脚本==============================
+D:
+cd D:\beeofficeV
+
+REM 创建归档目录
+mkdir tools\migration
+
+REM 移入归档
+move migrate_tests.py        tools\migration\
+move post_migrate.py         tools\migration\
+move fix_pytest_ini.py       tools\migration\
+move fix_beesheet_engine.py  tools\migration\
+
+REM 删除一次性产物
+del beeoffice\plugins\beesheet_engine.py.bak
+REM （确认测试仍通过后再删）
+---------------------------------测试--------------------------------------
+D:
+cd D:\beeofficeV
+REM 先看会做什么
+python optimize_tests.py --dry-run
+--创建新的测试文件
+python optimize_tests.py
+
+--进行测试
+pytest tests/regression/p0/test_p0_08_beeshow_plugin.py -v
+pytest tests/regression/p1/test_p1_11_spelling.py -v
+pytest tests/qt/test_tab_manager_extra.py -v
+pytest tests/unit/test_plugin_manager.py -v
+pytest tests/unit/test_cloud_factory.py -v
+run_tests.bat
+
+D:
+cd D:\beeofficeV
+python fix_remaining.py --dry-run
+python fix_remaining.py
+--进行测试
+pytest tests/regression/p0/test_p0_08_beeshow_plugin.py -v
+pytest tests/regression/p1/test_p1_11_spelling.py -v
+run_tests.bat
+
+
+
+D:
+cd D:\beeofficeV
+python fix_p0_08_ast.py
+--进行测试
+pytest tests\regression\p0\test_p0_08_beeshow_plugin.py -v
+run_tests.bat
+==============================整理 增加的一次性脚本==============================
+D:
+cd D:\beeofficeV
+move optimize_tests.py       tools\migration\
+move fix_remaining.py        tools\migration\
+move fix_p0_08_ast.py        tools\migration\
+
+==============清理归档 + 更新 CHANGELOG + 覆盖率提升===============
+D:
+cd D:\beeofficeV
+REM 1. 会话收尾（30 秒）
+python finalize_session.py
+
+REM 2. 覆盖率提升（1 分钟）
+python boost_coverage.py --dry-run
+python boost_coverage.py
+
+REM 3. 逐个验证（每步几秒）
+pytest tests\qt\test_cloud_settings.py -v
+pytest tests\qt\test_memory_monitor.py -v
+pytest tests\unit\test_onboarding.py -v
+pytest tests\unit\test_empty_state.py -v
+pytest tests\unit\test_templates_picker.py -v
+pytest tests\qt\test_beewrite_ai_mixin.py -v
+
+REM 4. 全量
+run_tests.bat
+
+---------------------------------测试--------------------------------------
+D:
+cd D:\beeofficeV
+python fix_3_failures.py --dry-run   # 先看会改什么
+python fix_3_failures.py              # 实际执行
+
+
+pytest tests/qt/test_beewrite_ai_mixin.py -v
+pytest tests/qt/test_memory_monitor.py -v
+pytest tests/unit/test_empty_state.py -v
+pytest tests/unit/test_templates_picker_extra.py -v
+run_tests.bat
+
+
+python fix_import_again.py --dry-run   # 看会插到哪一行
+python fix_import_again.py              # 执行
+
+pytest tests/qt/test_beewrite_ai_mixin.py -v
+run_tests.bat
+
+===============================新的功能开发============================
+
+需要你决策的 5 个问题
+1. CRDT 方案（C1）
+A) 自实现 WebSocket + OT（我推荐）
+2. 动态数组范围（B3）
+A) 完整支持 FILTER/UNIQUE/SORT/SORTBY/SEQUENCE/TRANSPOSE
+3. 协同编辑的传输（C1）
+A) 局域网 WebSocket（推荐）
+4. 用户身份（C1）
+A) 启动协同窗口时输名字
+5. 从哪开始？
+A) 先做完整的 B（1.5 周），再做 C
+
+
+
+📋 操作步骤
+1. 保存脚本
+把上面代码保存为 D:\beeofficeV\apply_b1.py。
+
+2. 先试跑（dry-run）
+
+cd /d D:\beeofficeV
+python apply_b1.py --dry-run
+python apply_b1.py
+
+3. 新建测试文件
+把之前给的 tests/unit/test_beesheet_engine_v51.py 内容保存到：
+
+text
+D:\beeofficeV\tests\unit\test_beesheet_engine_v51.py
+4. 验证
+cd /d D:\beeofficeV
+pytest tests/unit/test_beesheet_engine_v51.py -v
+pytest tests/unit/test_formula_engine.py -v
+pytest tests/regression/p0/ -v
+pytest tests/regression/p0/test_p0_05_safe_eval_boundary.py -v
+pytest tests/regression/p0/test_p0_11_sumifs.py -v
+
+run_tests.bat
+
+
+
+cd /d D:\beeofficeV
+python apply_b1_fix.py --dry-run
+python apply_b1_fix.py
+
+
+pytest tests/unit/test_beesheet_engine_v51.py -v
+pytest tests/unit/test_formula_engine.py -v
+pytest tests/regression/p0/ -v
+
+run_tests.bat
+
+
+============================beeshow 拆分===========================
+beeshow.py	             请给出最新版源代码，一行代码都不用遗漏
+beeshow_constants.py	 请给出最新版源代码，一行代码都不用遗漏
+beeshow_toolbar_mixin.py 请给出最新版源代码，一行代码都不用遗漏
+beeshow_slide_mixin.py	 请给出最新版源代码，一行代码都不用遗漏
+beeshow_play_mixin.py	 请给出最新版源代码，一行代码都不用遗漏
+beeshow_export_mixin.py  请给出最新版源代码，一行代码都不用遗漏
+beeshow_notes_mixin.py	 请给出最新版源代码，一行代码都不用遗漏
+beeshow_ai_mixin.py	     请给出最新版源代码，一行代码都不用遗漏
+
+cd /d D:\beeofficeV
+pytest tests/test_beeshow_play.py  -v
+pytest tests/test_p2_regression/test_p1_13_reorder.py  -v
+pytest tests/test_p2_regression/test_p1_18_command_context.py -v
+
+
+给了全量最新代码的文件（新建或一次性完整给出）：
+拆分批次（8 个）：
+beeshow.py                请给出最新版源代码，一行代码都不用遗漏
+beeshow_constants.py      请给出最新版源代码，一行代码都不用遗漏
+beeshow_toolbar_mixin.py  请给出最新版源代码，一行代码都不用遗漏
+beeshow_slide_mixin.py    请给出最新版源代码，一行代码都不用遗漏
+beeshow_play_mixin.py     请给出最新版源代码，一行代码都不用遗漏
+beeshow_export_mixin.py   请给出最新版源代码，一行代码都不用遗漏
+beeshow_notes_mixin.py    请给出最新版源代码，一行代码都不用遗漏
+beeshow_ai_mixin.py       请给出最新版源代码，一行代码都不用遗漏
+
+beeshow_pptx_engine.py    请给出最新版源代码，一行代码都不用遗漏
+beeshow_sync_server.py    请给出最新版源代码，一行代码都不用遗漏
+beeshow_element_editor.py 请给出最新版源代码，一行代码都不用遗漏
+
+--beeshow_image_editor.py（新建时全量，未被增量修改过）✅ 全量最新
+--beeshow_image_suggest.py（新建时全量，未被增量修改过）✅ 全量最新
+--beeshow_image_suggester_dialog.py（新建时全量，未被增量修改过）✅ 全量最新
+--beeshow_morph_mixin.py（新建时全量，未被增量修改过）✅ 全量最新
+--beeshow_layout_mixin.py（新建时全量，未被增量修改过）✅ 全量最新
+--beeshow_ai_service.py（新建时全量，未被增量修改过）✅ 全量最新
+--beeshow_history_mixin.py（新建时全量，未被增量修改过）✅ 全量最新
+--beeshow_font_subset.py（新建时全量，未被增量修改过）✅ 全量最新
+--beeshow_dynamic_mixin.py（新建时全量，未被增量修改过）✅ 全量最新
+--beeshow_video_mixin.py（新建时全量，未被增量修改过）✅ 全量最新
+--beeshow_comment_mixin.py（新建时全量，未被增量修改过）✅ 全量最新
+--beeshow_comment_panel.py（新建时全量，未被增量修改过）✅ 全量最新
+--beeshow_sync_viewer.py（新建时全量，未被增量修改过）✅ 全量最新
+--beeshow_sync_mixin.py（新建时全量，未被增量修改过）✅ 全量最新
+
+settings.py        请给出最新版源代码，一行代码都不用遗漏
+requirements.txt   请给出最新版源代码，一行代码都不用遗漏
+
+cd /d D:\beeofficeV
+REM 1. 跑烟雾测试
+pytest tests/test_smoke_beeshow.py -v
+REM 2. 打开蜜演，手动测试
+python -m beeoffice.main

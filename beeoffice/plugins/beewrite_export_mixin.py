@@ -1,0 +1,1161 @@
+# beeoffice/plugins/beewrite_export_mixin.py
+"""
+蜜写导出 / 保存 / 模板 Mixin
+
+本次更新（P1-W5）：
+  - 新增图片导出：_write_block_runs 检测 QTextImageFormat 并插入图片
+  - 新增 _insert_picture_to_para 方法：px → Inches 换算
+  - 新增表格列宽导出：_qtexttable_to_docx 应用 QTextTableFormat 列宽
+
+P1-W4 已有：
+  - docx 导出补齐段落对齐 / 行距 / 缩进 / 段前后
+  - 字符级格式（粗体 / 斜体 / 字号 / 颜色）保留
+  - 表格单元格对齐 / 表头加粗 / 背景色
+
+v5.0.2 图片修复：
+  - _write_md / _write_docx 保存成功后调用 self.set_current_file_path(path)
+    使后续插入/粘贴的图片存到文档同目录的 media/ 而非 ~/media/
+  - _insert_picture_to_para 遇到相对路径时，基于 _current_file_path 解析
+  - _write_docx 保存前若富文本含相对路径图片，能正确定位
+
+v5.0.2 增强：
+  - _insert_picture_to_para 多基准目录兜底解析：
+      1. 从 self._current_file_path 的父目录
+      2. 从 self.get_current_file_dir() 方法（若存在）
+      3. 从 self.rich_editor._current_file_dir
+      4. 用户主目录
+  - 图片找不到时记录所有尝试过的路径到日志
+  - _rich_to_docx 在开始时打印文档图片统计（便于调试）
+
+v5.0.4 优化：
+  - _rich_to_docx 图片段落特殊处理：
+      · 图片所在段落居中对齐（WD_ALIGN_PARAGRAPH.CENTER）
+      · 段前段后各留 12pt 间距（space_before / space_after）
+    目的：使图片与相邻表格有明显间隔，避免"贴着表格"的观感
+  - 图片段落不再叠加 rich editor 的 block format，
+    避免被覆盖为左对齐
+
+v5.0.5 修复（本次）：
+  - _write_docx / _write_md 增加 PermissionError 友好提示：
+      当目标文件被 WPS / Word / 其他程序占用时，
+      Windows 会拒绝写入并抛 PermissionError，
+      此时弹出提示框，引导用户：
+        · 关闭占用程序后重试
+        · 另存为新文件
+    避免用户看到底层 errno 13 错误而困惑
+  - 保存失败时不再更新 _current_file_path / 标签标题：
+      原实现在 _rich_to_docx 之后立即更新路径，
+      若 _rich_to_docx 抛异常，路径已被更新为失败的文件，
+      导致后续 Ctrl+S 行为异常（把状态污染）。
+      修复后：只有文件真正写入成功才更新内部状态
+
+已有功能保留：
+  - save() 根据 _doc_kind 分派：word → .docx，markdown → .md
+  - 保存成功后同步标签标题 / 窗口标题
+  - 保存成功后通知主窗口"本次是自己保存的"，避免 fileChanged 误触发
+  - _rich_to_docx 应用页面设置（纸张 / 方向 / 页边距）
+  - _rich_to_docx 识别分页符（PageBreak_AlwaysBefore）
+  - 首次保存记录路径，后续 Ctrl+S 直接写回同一文件
+  - 「导出 Word」/「导出 PDF」作为独立的导出入口
+
+依赖：
+  - PySide6（QFileDialog / QMessageBox / QInputDialog / QTextCursor /
+             QTextFormat / QTextBlockFormat / QTextImageFormat / QFont / Qt）
+  - python-docx（延迟 import）
+  - beeoffice.plugins.bee_export（延迟 import：export_to_pdf / export_to_docx）
+  - beeoffice.plugins.beewrite_page_extras
+        （build_watermark_html / build_page_number_css）
+  - beeoffice.resources.template_manager.TemplateManager（延迟 import）
+"""
+import os
+import sys
+import logging
+import subprocess
+from pathlib import Path
+
+from PySide6.QtWidgets import (
+    QFileDialog,
+    QMessageBox,
+    QInputDialog,
+)
+from PySide6.QtCore import Qt
+from PySide6.QtGui import (
+    QFont,
+    QTextCursor,
+    QTextFormat,
+    QTextBlockFormat,
+    QTextImageFormat,
+)
+
+from beeoffice.plugins.beewrite_page_extras import (
+    build_watermark_html,
+    build_page_number_css,
+)
+
+
+# ==================== 常量 ====================
+# 像素 → pt 换算（96 DPI 下，1px = 0.75pt）
+_PX_TO_PT = 0.75
+
+# QTextBlockFormat.LineHeightTypes 的 C++ 枚举值
+_LINE_HEIGHT_SINGLE = 0
+_LINE_HEIGHT_PROPORTIONAL = 1
+_LINE_HEIGHT_FIXED = 2
+_LINE_HEIGHT_MINIMUM = 3
+_LINE_HEIGHT_LINE_DISTANCE = 4
+
+# 像素 → 英寸（96 DPI）
+_PX_TO_INCH = 1.0 / 96.0
+
+
+# ==================== ExportMixin ====================
+class ExportMixin:
+    """蜜写导出 / 保存 / 模板 Mixin"""
+
+    # ==================================================================
+    # 统一保存入口（根据文档类型分派）
+    # ==================================================================
+    def save(self) -> bool:
+        """
+        保存当前文档：
+          - _doc_kind == "word"     → 保存为 .docx
+          - _doc_kind == "markdown" → 保存为 .md
+        """
+        doc_kind = getattr(self, "_doc_kind", "markdown")
+        if doc_kind == "word":
+            return self._save_as_docx()
+        return self._save_as_md()
+
+    def save_as(self):
+        """另存为（忽略当前路径，重新选择）"""
+        self._current_file_path = None
+        self.save()
+
+    # ==================================================================
+    # 保存后同步标签标题 / 通知主窗口
+    # ==================================================================
+    def _update_tab_title(self, path: str):
+        """保存成功后，把标签标题改为文件名，并同步窗口标题"""
+        try:
+            parent = self._find_main_window()
+            if parent and hasattr(parent, "sync_tab_title"):
+                parent.sync_tab_title(self, path)
+        except Exception as e:
+            logging.error(f"同步标签标题失败: {e}")
+
+    def _notify_self_save(self, path: str):
+        """通知主窗口：本次保存是自己触发的"""
+        try:
+            parent = self._find_main_window()
+            if parent and hasattr(parent, "notify_self_save"):
+                parent.notify_self_save(path)
+        except Exception as e:
+            logging.error(f"通知主窗口自己保存失败: {e}")
+
+    # ==================================================================
+    # 保存为 Markdown
+    # ==================================================================
+    def _save_as_md(self) -> bool:
+        """保存为 .md（Markdown 源码）"""
+        current = getattr(self, "_current_file_path", None)
+        if current and current.lower().endswith(".md"):
+            return self._write_md(current)
+
+        default_name = "未命名.md"
+        try:
+            text = self.content().strip()
+            if text:
+                first_line = text.split('\n')[0]
+                if first_line.startswith('#'):
+                    t = first_line.lstrip('#').strip()[:50]
+                    for c in '<>:"/\\|?*':
+                        t = t.replace(c, '')
+                    if t:
+                        default_name = f"{t}.md"
+        except Exception:
+            pass
+
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "保存为 Markdown",
+            default_name,
+            "Markdown 文件 (*.md);;所有文件 (*)",
+        )
+        if not path:
+            return False
+
+        if not path.lower().endswith(".md"):
+            path = path + ".md"
+
+        return self._write_md(path)
+
+    def _write_md(self, path: str) -> bool:
+        """
+        实际写入 .md 文件（含批注 / 书签旁挂数据）
+
+        v5.0.5 修复：
+          - 增加 PermissionError 友好提示（文件被其他程序占用）
+          - 保存失败时不更新 _current_file_path（避免状态污染）
+        """
+        try:
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(self.content())
+
+            # 保存批注
+            base = Path(path).with_suffix('')
+            if (getattr(self, "_comment_manager", None)
+                    and self._comment_manager.count() > 0):
+                self._comment_manager.save_to_file(
+                    str(base) + ".comments.json"
+                )
+
+            # 保存书签
+            if (getattr(self, "_bookmark_manager", None)
+                    and self._bookmark_manager._bookmarks):
+                self._bookmark_manager.save_to_file(
+                    str(base) + ".bookmarks.json"
+                )
+
+            # ---------- v5.0.2：同步文件路径到 rich_editor ----------
+            # ★ v5.0.5：只有到这里才说明文件已写入成功，
+            #          才更新内部状态（避免失败污染 _current_file_path）
+            if hasattr(self, "set_current_file_path"):
+                self.set_current_file_path(path)
+
+            self._current_file_path = path
+            self._update_tab_title(path)
+            self._notify_self_save(path)
+
+            self._set_status(
+                f"✅ 已保存为 Markdown：{Path(path).name}", 3000
+            )
+            return True
+
+        except PermissionError:
+            # ---------- v5.0.5：文件被占用的友好提示 ----------
+            logging.error(
+                f"保存 Markdown 失败（文件被占用）: {path}"
+            )
+            QMessageBox.warning(
+                self,
+                "⚠️ 文件被占用",
+                f"无法写入文件：\n{path}\n\n"
+                f"该文件正在被其他程序打开。\n\n"
+                f"请关闭占用该文件的程序（如 WPS、Word、记事本）后重试。",
+            )
+            return False
+
+        except Exception as e:
+            logging.error(f"保存 Markdown 失败: {e}")
+            QMessageBox.warning(
+                self, "保存失败", f"无法保存文件：\n{e}"
+            )
+            return False
+
+    # ==================================================================
+    # 保存为 DOCX
+    # ==================================================================
+    def _save_as_docx(self) -> bool:
+        """保存为 .docx"""
+        current = getattr(self, "_current_file_path", None)
+        if current and current.lower().endswith(".docx"):
+            return self._write_docx(current)
+
+        default_name = "未命名.docx"
+        try:
+            text = self.content().strip()
+            if text:
+                first_line = text.split('\n')[0].lstrip('#').strip()[:50]
+                for c in '<>:"/\\|?*':
+                    first_line = first_line.replace(c, '')
+                if first_line:
+                    default_name = f"{first_line}.docx"
+        except Exception:
+            pass
+
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "保存为 Word 文档",
+            default_name,
+            "Word (*.docx);;所有文件 (*)",
+        )
+        if not path:
+            return False
+
+        if not path.lower().endswith(".docx"):
+            path = path + ".docx"
+
+        return self._write_docx(path)
+
+    def _write_docx(self, path: str) -> bool:
+        """
+        实际写入 .docx 文件（根据当前编辑模式选择转换方式）
+
+        v5.0.5 修复：
+          - 增加 PermissionError 友好提示（文件被 WPS/Word 占用）
+          - 保存失败时不更新 _current_file_path（避免状态污染）
+        """
+        try:
+            if self._edit_mode == "rich_text":
+                self._rich_to_docx(path)
+            else:
+                from beeoffice.plugins.bee_export import export_to_docx
+                content = self.get_rendered_content()
+                if not export_to_docx(content, path):
+                    QMessageBox.warning(self, "失败", "无法生成 Word 文档")
+                    return False
+
+            # ---------- v5.0.2：同步文件路径到 rich_editor ----------
+            # ★ v5.0.5：只有到这里才说明文件已写入成功，
+            #          才更新内部状态（避免失败污染 _current_file_path）
+            if hasattr(self, "set_current_file_path"):
+                self.set_current_file_path(path)
+
+            self._current_file_path = path
+            self._update_tab_title(path)
+            self._notify_self_save(path)
+
+            self._set_status(
+                f"✅ 已保存为 Word 文档：{Path(path).name}", 3000
+            )
+            return True
+
+        except PermissionError:
+            # ---------- v5.0.5：文件被占用的友好提示 ----------
+            logging.error(
+                f"保存 DOCX 失败（文件被占用）: {path}"
+            )
+            reply = QMessageBox.question(
+                self,
+                "⚠️ 文件被占用",
+                f"无法写入文件：\n{path}\n\n"
+                f"该文件正在被其他程序（如 WPS、Word）打开。\n\n"
+                f"请选择操作：\n"
+                f"• 「是」 → 关闭占用程序后重试\n"
+                f"• 「否」 → 另存为新文件",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes,
+            )
+            if reply == QMessageBox.No:
+                # 引导用户另存为新文件
+                try:
+                    default_new = str(
+                        Path(path).with_name(
+                            Path(path).stem + "_副本" + Path(path).suffix
+                        )
+                    )
+                except Exception:
+                    default_new = "未命名_副本.docx"
+                new_path, _ = QFileDialog.getSaveFileName(
+                    self, "另存为", default_new,
+                    "Word (*.docx);;所有文件 (*)",
+                )
+                if new_path:
+                    if not new_path.lower().endswith(".docx"):
+                        new_path += ".docx"
+                    return self._write_docx(new_path)
+            return False
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            logging.error(f"保存 DOCX 失败: {e}")
+            QMessageBox.warning(
+                self, "保存失败", f"无法保存 Word 文档：\n{e}"
+            )
+            return False
+
+    # ==================================================================
+    # 导出 PDF
+    # ==================================================================
+    def export_pdf(self):
+        """导出当前文档为 PDF"""
+        path, _ = QFileDialog.getSaveFileName(
+            self, "导出 PDF", "文档.pdf", "PDF (*.pdf)"
+        )
+        if not path:
+            return
+
+        page_settings = self.get_page_settings()
+
+        try:
+            from beeoffice.plugins.bee_export import export_to_pdf
+            content = self.get_rendered_content()
+
+            if page_settings:
+                content = self._apply_page_settings_to_content(
+                    content, page_settings
+                )
+
+            if export_to_pdf(content, path):
+                QMessageBox.information(
+                    self, "成功", f"已保存:\n{path}"
+                )
+            else:
+                QMessageBox.warning(self, "失败", "需要 WeasyPrint")
+        except Exception as e:
+            logging.error(f"导出 PDF 失败: {e}")
+            QMessageBox.warning(self, "导出失败", str(e))
+
+    def _apply_page_settings_to_content(self, content, page_settings):
+        """把页面设置 + 水印 + 页码注入到 HTML 内容"""
+        paper_sizes = {
+            "A4": (210, 297),
+            "A3": (297, 420),
+            "A5": (148, 210),
+            "Letter": (216, 279),
+            "Legal": (216, 356),
+        }
+        w, h = paper_sizes.get(
+            page_settings.get("paper", "A4"), (210, 297)
+        )
+        if page_settings.get("orientation") == "landscape":
+            w, h = h, w
+
+        margin_top = page_settings.get("margin_top", 25.4)
+        margin_bottom = page_settings.get("margin_bottom", 25.4)
+        margin_left = page_settings.get("margin_left", 31.7)
+        margin_right = page_settings.get("margin_right", 31.7)
+
+        mt = margin_top * 0.264583
+        mb = margin_bottom * 0.264583
+        ml = margin_left * 0.264583
+        mr = margin_right * 0.264583
+
+        page_css = f"""
+        @page {{
+            size: {w}mm {h}mm;
+            margin: {mt:.1f}mm {mr:.1f}mm {mb:.1f}mm {ml:.1f}mm;
+        }}
+        """
+
+        extras = self._build_export_extras()
+
+        if "<head>" in content:
+            return content.replace(
+                "</head>",
+                f"<style>{page_css}</style>{extras}</head>",
+            )
+        else:
+            return f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<style>{page_css}</style>{extras}</head>
+<body>{content}</body></html>"""
+
+    def _build_export_extras(self):
+        """构造水印 + 页码的 HTML / CSS 片段"""
+        extras = ""
+        if getattr(self, "_watermark_config", None):
+            extras += build_watermark_html(self._watermark_config)
+        if getattr(self, "_page_number_config", None):
+            extras += build_page_number_css(self._page_number_config)
+        return extras
+
+    # ==================================================================
+    # 导出 DOCX（独立入口，用户主动导出）
+    # ==================================================================
+    def export_docx(self):
+        """导出当前文档为 DOCX（不改变 _current_file_path）"""
+        if self._edit_mode == "rich_text":
+            return self.export_rich_docx()
+
+        dn = "文档.docx"
+        content_text = self.content().strip()
+        fl = content_text.split('\n')[0] if content_text else ""
+        if fl.startswith('#'):
+            t = fl.lstrip('#').strip()[:50]
+            for c in '<>:"/\\|?*':
+                t = t.replace(c, '')
+            if t:
+                dn = f"{t}.docx"
+
+        path, _ = QFileDialog.getSaveFileName(
+            self, "导出 DOCX", dn,
+            "Word (*.docx);;所有文件 (*)",
+        )
+        if not path:
+            return
+
+        try:
+            from beeoffice.plugins.bee_export import export_to_docx
+            if export_to_docx(self.get_rendered_content(), path):
+                r = QMessageBox.information(
+                    self, "成功",
+                    f"已保存:\n{path}\n\n是否打开？",
+                    QMessageBox.Yes | QMessageBox.No,
+                )
+                if r == QMessageBox.Yes:
+                    self._open_file_externally(path)
+            else:
+                QMessageBox.warning(self, "失败", "无法生成")
+        except PermissionError:
+            logging.error(f"导出 DOCX 失败（文件被占用）: {path}")
+            QMessageBox.warning(
+                self,
+                "⚠️ 文件被占用",
+                f"无法写入文件：\n{path}\n\n"
+                f"该文件正在被其他程序打开，请关闭后重试。",
+            )
+        except Exception as e:
+            logging.error(f"导出 DOCX 失败: {e}")
+            QMessageBox.warning(self, "导出失败", str(e))
+
+    def export_rich_docx(self):
+        """富文本模式导出 DOCX（保留表格结构 + 页面设置 + 分页符）"""
+        if self._edit_mode != "rich_text":
+            QMessageBox.information(
+                self, "提示", "请先切换到所见即所得模式"
+            )
+            return
+
+        dn = "文档.docx"
+        content = self.rich_editor.toPlainText().strip()
+        if content:
+            first_line = content.split('\n')[0]
+            if first_line.startswith('#'):
+                t = first_line.lstrip('#').strip()[:50]
+                for c in '<>:"/\\|?*':
+                    t = t.replace(c, '')
+                if t:
+                    dn = f"{t}.docx"
+
+        path, _ = QFileDialog.getSaveFileName(
+            self, "导出 DOCX（保留表格）", dn,
+            "Word (*.docx);;所有文件 (*)",
+        )
+        if not path:
+            return
+
+        try:
+            self._rich_to_docx(path)
+            r = QMessageBox.information(
+                self, "成功",
+                f"已保存：\n{path}\n\n是否打开？",
+                QMessageBox.Yes | QMessageBox.No,
+            )
+            if r == QMessageBox.Yes:
+                self._open_file_externally(path)
+        except PermissionError:
+            logging.error(f"导出富文本 DOCX 失败（文件被占用）: {path}")
+            QMessageBox.warning(
+                self,
+                "⚠️ 文件被占用",
+                f"无法写入文件：\n{path}\n\n"
+                f"该文件正在被其他程序打开，请关闭后重试。",
+            )
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            logging.error(f"导出富文本 DOCX 失败: {e}")
+            QMessageBox.warning(self, "导出失败", str(e))
+
+    # ==================================================================
+    # 段落格式辅助：QTextBlockFormat → python-docx
+    # ==================================================================
+    def _apply_block_format_to_para(self, para, block_format):
+        """
+        从 QTextBlockFormat 提取段落格式并应用到 python-docx 段落。
+        """
+        try:
+            from docx.shared import Pt
+            from docx.enum.text import WD_ALIGN_PARAGRAPH
+        except ImportError:
+            return
+
+        pf = para.paragraph_format
+
+        # ---------- 对齐 ----------
+        try:
+            align = block_format.alignment()
+            align_map = {
+                Qt.AlignLeft: WD_ALIGN_PARAGRAPH.LEFT,
+                Qt.AlignCenter: WD_ALIGN_PARAGRAPH.CENTER,
+                Qt.AlignRight: WD_ALIGN_PARAGRAPH.RIGHT,
+                Qt.AlignJustify: WD_ALIGN_PARAGRAPH.JUSTIFY,
+            }
+            if align in align_map:
+                pf.alignment = align_map[align]
+        except Exception as e:
+            logging.debug(f"应用对齐失败: {e}")
+
+        # ---------- 行距 ----------
+        try:
+            line_height = block_format.lineHeight()
+            line_type = block_format.lineHeightType()
+            if line_height > 0:
+                if line_type == _LINE_HEIGHT_PROPORTIONAL:
+                    pf.line_spacing = float(line_height) / 100.0
+                elif line_type == _LINE_HEIGHT_FIXED:
+                    pf.line_spacing = Pt(float(line_height))
+        except Exception as e:
+            logging.debug(f"应用行距失败: {e}")
+
+        # ---------- 段前 / 段后 ----------
+        try:
+            top_margin = block_format.topMargin()
+            if top_margin > 0:
+                pf.space_before = Pt(top_margin * _PX_TO_PT)
+            bottom_margin = block_format.bottomMargin()
+            if bottom_margin > 0:
+                pf.space_after = Pt(bottom_margin * _PX_TO_PT)
+        except Exception as e:
+            logging.debug(f"应用段前后失败: {e}")
+
+        # ---------- 左右缩进 ----------
+        try:
+            left_margin = block_format.leftMargin()
+            if left_margin > 0:
+                pf.left_indent = Pt(left_margin * _PX_TO_PT)
+            right_margin = block_format.rightMargin()
+            if right_margin > 0:
+                pf.right_indent = Pt(right_margin * _PX_TO_PT)
+        except Exception as e:
+            logging.debug(f"应用左右缩进失败: {e}")
+
+        # ---------- 首行 / 悬挂缩进 ----------
+        try:
+            indent = block_format.textIndent()
+            if indent != 0:
+                pf.first_line_indent = Pt(indent * _PX_TO_PT)
+        except Exception as e:
+            logging.debug(f"应用首行缩进失败: {e}")
+
+    def _apply_char_format_to_run(self, run, char_format):
+        """从 QTextCharFormat 提取字符格式并应用到 python-docx Run"""
+        try:
+            from docx.shared import Pt, RGBColor
+        except ImportError:
+            return
+
+        try:
+            if char_format.fontWeight() == QFont.Bold:
+                run.bold = True
+            if char_format.fontItalic():
+                run.italic = True
+            if char_format.fontUnderline():
+                run.underline = True
+            if char_format.fontStrikeOut():
+                run.font.strike = True
+            size = char_format.fontPointSize()
+            if size > 0:
+                run.font.size = Pt(float(size))
+            families = char_format.fontFamilies()
+            if families:
+                family = families[0] if isinstance(families, list) else families
+                if family:
+                    run.font.name = str(family)
+            color = char_format.foreground()
+            if color.style() != Qt.NoBrush:
+                rgb = color.color()
+                run.font.color.rgb = RGBColor(
+                    rgb.red(), rgb.green(), rgb.blue()
+                )
+        except Exception as e:
+            logging.debug(f"应用字符格式失败: {e}")
+
+    # ==================================================================
+    # 图片导出辅助
+    # ==================================================================
+    def _resolve_image_path_for_export(self, name: str):
+        """
+        v5.0.2 增强：解析图片路径（多基准目录兜底）。
+
+        按优先级：
+          1. 绝对路径：直接使用
+          2. self._current_file_path 的父目录（最可靠）
+          3. self.get_current_file_dir()（若存在）
+          4. self.rich_editor._current_file_dir
+          5. 用户主目录
+
+        :param name: 图片路径（来自 QTextImageFormat.name()）
+        :return: (resolved_path_or_None, tried_paths_list)
+        """
+        tried_paths = []
+
+        # 1. 绝对路径
+        p = Path(name)
+        if p.is_absolute():
+            tried_paths.append(str(p))
+            if p.exists():
+                return p, tried_paths
+            return None, tried_paths
+
+        # 收集候选基准目录
+        candidates = []
+
+        # 候选 1：self._current_file_path 的父目录
+        try:
+            current_file = getattr(self, "_current_file_path", None)
+            if current_file:
+                candidates.append(str(Path(current_file).parent))
+        except Exception:
+            pass
+
+        # 候选 2：self.get_current_file_dir()（若实现）
+        try:
+            if hasattr(self, "get_current_file_dir"):
+                d = self.get_current_file_dir()
+                if d:
+                    candidates.append(str(d))
+        except Exception:
+            pass
+
+        # 候选 3：self.rich_editor._current_file_dir
+        try:
+            if hasattr(self, "rich_editor"):
+                d = getattr(self.rich_editor, "_current_file_dir", None)
+                if d:
+                    candidates.append(str(d))
+        except Exception:
+            pass
+
+        # 候选 4：用户主目录
+        candidates.append(str(Path.home()))
+
+        # 去重（保持顺序）
+        seen = set()
+        unique_candidates = []
+        for c in candidates:
+            if c and c not in seen:
+                seen.add(c)
+                unique_candidates.append(c)
+
+        # 依次尝试
+        for base in unique_candidates:
+            try:
+                candidate = Path(base) / name
+            except Exception:
+                continue
+            tried_paths.append(str(candidate))
+            if candidate.exists():
+                return candidate, tried_paths
+
+        return None, tried_paths
+
+    def _insert_picture_to_para(self, para, img_format):
+        """
+        把 QTextImageFormat 表示的图片插入到 python-docx 段落。
+
+        QTextImageFormat.name() 返回图片的路径或资源名：
+          - 绝对路径（粘贴图片 / 插入图片常见）
+          - 相对路径（相对于当前文档）
+          - 资源 URL（qrc:// 少见）
+
+        width/height 单位是 px（96 DPI），若为 0 表示使用原图尺寸。
+
+        v5.0.2：相对路径解析失败时，基于 _current_file_path 的目录再尝试。
+        v5.0.2 增强：多基准目录兜底解析 + 记录所有尝试过的路径。
+        """
+        try:
+            from docx.shared import Inches
+        except ImportError:
+            return
+
+        try:
+            name = img_format.name()
+            if not name:
+                return
+
+            # 处理 qrc 资源路径（跳过）
+            if name.startswith("qrc:") or name.startswith(":/"):
+                logging.debug(f"跳过 qrc 资源图片: {name}")
+                return
+
+            # v5.0.2 增强：多基准目录兜底解析
+            img_path, tried = self._resolve_image_path_for_export(name)
+
+            if img_path is None:
+                logging.warning(
+                    f"图片文件不存在，跳过: {name}\n"
+                    f"尝试过的路径:\n  "
+                    + "\n  ".join(tried)
+                )
+                return
+
+            # 尺寸换算（px → Inches）
+            width = img_format.width()
+            height = img_format.height()
+
+            run = para.add_run()
+            if width > 0 and height > 0:
+                run.add_picture(
+                    str(img_path),
+                    width=Inches(width * _PX_TO_INCH),
+                    height=Inches(height * _PX_TO_INCH),
+                )
+            elif width > 0:
+                run.add_picture(
+                    str(img_path),
+                    width=Inches(width * _PX_TO_INCH),
+                )
+            else:
+                # 使用原图尺寸
+                run.add_picture(str(img_path))
+
+            logging.debug(
+                f"[_insert_picture_to_para] 已插入图片: {img_path}"
+            )
+        except Exception as e:
+            logging.error(f"插入图片失败: {e}")
+
+    # ==================================================================
+    # 富文本 → DOCX（核心转换）
+    # ==================================================================
+    def _rich_to_docx(self, path):
+        """
+        把 QTextDocument 内容写到 DOCX。
+
+        处理：
+          - 页面设置（纸张 / 方向 / 页边距）
+          - 分页符（PageBreak_AlwaysBefore）
+          - 段落：标题 / 正文 + 对齐 / 行距 / 缩进 / 段前后
+          - 段落内图片
+          - 表格：单元格对齐 / 表头加粗 / 背景色 / 列宽
+
+        v5.0.4：图片段落特殊处理——居中对齐 + 段前段后 12pt 间距。
+        """
+        from docx import Document
+        from docx.shared import Mm
+        from docx.enum.section import WD_ORIENT
+
+        doc = Document()
+
+        # ========== 应用页面设置 ==========
+        try:
+            page_settings = self.get_page_settings()
+            paper_sizes = {
+                "A4": (210, 297),
+                "A3": (297, 420),
+                "A5": (148, 210),
+                "Letter": (216, 279),
+                "Legal": (216, 356),
+            }
+            w, h = paper_sizes.get(
+                page_settings.get("paper", "A4"), (210, 297)
+            )
+            orientation = page_settings.get("orientation", "portrait")
+            if orientation == "landscape":
+                w, h = h, w
+
+            section = doc.sections[0]
+            section.page_width = Mm(w)
+            section.page_height = Mm(h)
+            section.top_margin = Mm(page_settings.get("margin_top", 25.4))
+            section.bottom_margin = Mm(
+                page_settings.get("margin_bottom", 25.4)
+            )
+            section.left_margin = Mm(page_settings.get("margin_left", 31.7))
+            section.right_margin = Mm(
+                page_settings.get("margin_right", 31.7)
+            )
+            if orientation == "landscape":
+                section.orientation = WD_ORIENT.LANDSCAPE
+            else:
+                section.orientation = WD_ORIENT.PORTRAIT
+        except Exception as e:
+            logging.warning(f"应用页面设置失败（使用默认值）: {e}")
+
+        # ========== 统计文档图片 ==========
+        try:
+            doc_has_img = self._count_document_images()
+            logging.info(
+                f"[_rich_to_docx] 开始导出，文档含 {doc_has_img} 张图片, "
+                f"目标文件: {path}"
+            )
+        except Exception:
+            pass
+
+        # ========== 遍历文档 block ==========
+        document = self.rich_editor.document()
+        block = document.begin()
+        while block.isValid():
+            cursor = QTextCursor(block)
+            table = cursor.currentTable()
+
+            # ---------- 表格 ----------
+            if table:
+                self._qtexttable_to_docx(doc, table)
+                last_cell = table.cellAt(
+                    table.rows() - 1, table.columns() - 1
+                )
+                last_cursor = last_cell.lastCursorPosition()
+                last_cursor.movePosition(QTextCursor.EndOfBlock)
+                block = last_cursor.block().next()
+                continue
+
+            # ---------- 分页符 ----------
+            bf = block.blockFormat()
+            try:
+                if bf.pageBreakPolicy() & QTextFormat.PageBreak_AlwaysBefore:
+                    doc.add_page_break()
+            except Exception as e:
+                logging.debug(f"分页符判断失败（跳过）: {e}")
+
+            # ---------- 普通段落 / 标题（含图片） ----------
+            has_text = bool(block.text().strip())
+            has_image = self._block_has_image(block)
+
+            if has_text or has_image:
+                heading_level = bf.headingLevel()
+                if heading_level > 0 and has_text and not has_image:
+                    para = doc.add_heading(
+                        block.text(), level=min(heading_level, 9)
+                    )
+                else:
+                    para = doc.add_paragraph()
+                    # 遍历 runs（保留字内格式 + 图片）
+                    self._write_block_runs(para, block)
+
+                # ---------- v5.0.4：图片段落特殊处理 ----------
+                if has_image:
+                    # 图片段落：居中 + 段前段后间距
+                    # 目的：使图片与相邻表格有明显间隔，避免"贴着表格"的观感
+                    try:
+                        from docx.enum.text import WD_ALIGN_PARAGRAPH
+                        from docx.shared import Pt
+                        para.paragraph_format.alignment = (
+                            WD_ALIGN_PARAGRAPH.CENTER
+                        )
+                        para.paragraph_format.space_before = Pt(12)
+                        para.paragraph_format.space_after = Pt(12)
+                    except Exception as e:
+                        logging.debug(
+                            f"应用图片段落格式失败: {e}"
+                        )
+                else:
+                    # 普通段落：应用原 block format
+                    self._apply_block_format_to_para(para, bf)
+
+            block = block.next()
+
+        # 保存（若文件被占用，会在此处抛 PermissionError）
+        doc.save(path)
+
+    def _count_document_images(self) -> int:
+        """
+        v5.0.2 增强：统计富文本文档中的图片数量。
+
+        :return: 图片 fragment 总数
+        """
+        count = 0
+        try:
+            doc = self.rich_editor.document()
+            block = doc.begin()
+            while block.isValid():
+                it = block.begin()
+                while not it.atEnd():
+                    fragment = it.fragment()
+                    if fragment.isValid():
+                        if fragment.charFormat().isImageFormat():
+                            count += 1
+                    it += 1
+                block = block.next()
+        except Exception:
+            pass
+        return count
+
+    def _block_has_image(self, block):
+        """判断 block 内是否包含图片 fragment"""
+        try:
+            it = block.begin()
+            while not it.atEnd():
+                fragment = it.fragment()
+                if fragment.isValid():
+                    fmt = fragment.charFormat()
+                    if fmt.isImageFormat():
+                        return True
+                it += 1
+        except Exception:
+            pass
+        return False
+
+    def _write_block_runs(self, para, block):
+        """
+        将 block 内的字符片段（按 run）写入段落，保留粗体 / 斜体 /
+        字号 / 颜色等字符格式，并处理图片 fragment。
+        """
+        it = block.begin()
+        has_content = False
+        while not it.atEnd():
+            fragment = it.fragment()
+            if fragment.isValid():
+                fmt = fragment.charFormat()
+
+                # ---------- 图片 fragment ----------
+                if fmt.isImageFormat():
+                    img_fmt = fmt.toImageFormat()
+                    self._insert_picture_to_para(para, img_fmt)
+                    has_content = True
+                    it += 1
+                    continue
+
+                # ---------- 普通文本 fragment ----------
+                frag_text = fragment.text()
+                if frag_text:
+                    run = para.add_run(frag_text)
+                    self._apply_char_format_to_run(run, fmt)
+                    has_content = True
+            it += 1
+
+        # 若没有 fragment（罕见），退回到纯文本
+        if not has_content:
+            para.add_run(block.text())
+
+    # ==================================================================
+    # 表格 → DOCX
+    # ==================================================================
+    def _qtexttable_to_docx(self, doc, qtable):
+        """
+        将 QTextTable 转换为 python-docx 表格。
+
+        处理：
+          - 表头加粗
+          - 单元格背景色
+          - 单元格段落对齐（来自 cell 的 blockFormat）
+          - 单元格字符格式（来自 fragment 的 charFormat）
+          - 列宽（来自 QTextTableFormat 的 columnWidthConstraints）
+          - 单元格内图片（v5.0.2 增强）
+        """
+        try:
+            from docx.shared import Pt, RGBColor, Cm
+            from docx.enum.text import WD_ALIGN_PARAGRAPH
+            from docx.oxml.ns import qn
+            from docx.oxml import OxmlElement
+            from PySide6.QtGui import QTextLength
+        except ImportError:
+            return
+
+        rows = qtable.rows()
+        cols = qtable.columns()
+
+        doc_table = doc.add_table(rows=rows, cols=cols)
+        doc_table.style = 'Table Grid'
+
+        # ---------- 应用列宽 ----------
+        try:
+            table_fmt = qtable.format()
+            constraints = table_fmt.columnWidthConstraints()
+            if constraints and len(constraints) == cols:
+                for ci, length in enumerate(constraints):
+                    try:
+                        if length.type() == QTextLength.FixedLength:
+                            # 像素 → 厘米：1 px = 0.026458 cm（96 DPI）
+                            width_px = length.rawValue()
+                            width_cm = width_px * 2.54 / 96.0
+                            if width_cm > 0:
+                                doc_table.columns[ci].width = Cm(width_cm)
+                    except Exception as e:
+                        logging.debug(f"列 {ci} 宽度设置失败: {e}")
+        except Exception as e:
+            logging.debug(f"应用列宽失败: {e}")
+
+        # ---------- 逐单元格处理 ----------
+        for r in range(rows):
+            for c in range(cols):
+                cell = qtable.cellAt(r, c)
+                cell_cursor = cell.firstCursorPosition()
+                cell_block = cell_cursor.block()
+                cell_text = cell_block.text()
+
+                docx_cell = doc_table.cell(r, c)
+                docx_cell.text = cell_text
+
+                # ---------- 段落对齐（每个 cell 的段落） ----------
+                try:
+                    cell_bf = cell_block.blockFormat()
+                    cell_align = cell_bf.alignment()
+                    align_map = {
+                        Qt.AlignLeft: WD_ALIGN_PARAGRAPH.LEFT,
+                        Qt.AlignCenter: WD_ALIGN_PARAGRAPH.CENTER,
+                        Qt.AlignRight: WD_ALIGN_PARAGRAPH.RIGHT,
+                        Qt.AlignJustify: WD_ALIGN_PARAGRAPH.JUSTIFY,
+                    }
+                    if cell_align in align_map:
+                        for paragraph in docx_cell.paragraphs:
+                            paragraph.alignment = align_map[cell_align]
+                except Exception as e:
+                    logging.debug(f"单元格对齐失败: {e}")
+
+                # ---------- 字符格式（粗体等） ----------
+                try:
+                    char_fmt = cell_block.charFormat()
+                    if char_fmt.fontWeight() == QFont.Bold:
+                        for paragraph in docx_cell.paragraphs:
+                            for run in paragraph.runs:
+                                run.bold = True
+                except Exception:
+                    pass
+
+                # ---------- 表头加粗 ----------
+                if r == 0:
+                    for paragraph in docx_cell.paragraphs:
+                        for run in paragraph.runs:
+                            run.bold = True
+
+                # ---------- 单元格背景色 ----------
+                char_fmt = cell_block.charFormat()
+                bg = char_fmt.background()
+                if bg.style() != Qt.NoBrush:
+                    try:
+                        shd = OxmlElement('w:shd')
+                        shd.set(
+                            qn('w:fill'),
+                            bg.color().name().lstrip('#'),
+                        )
+                        docx_cell._tc.get_or_add_tcPr().append(shd)
+                    except Exception as e:
+                        logging.warning(f"设置单元格背景色失败: {e}")
+
+                # ---------- v5.0.2 增强：单元格内图片 ----------
+                try:
+                    cell_has_img = self._block_has_image(cell_block)
+                    if cell_has_img:
+                        target_para = (
+                            docx_cell.paragraphs[0]
+                            if docx_cell.paragraphs
+                            else docx_cell.add_paragraph()
+                        )
+                        it = cell_block.begin()
+                        while not it.atEnd():
+                            fragment = it.fragment()
+                            if fragment.isValid():
+                                fmt = fragment.charFormat()
+                                if fmt.isImageFormat():
+                                    img_fmt = fmt.toImageFormat()
+                                    self._insert_picture_to_para(
+                                        target_para, img_fmt
+                                    )
+                            it += 1
+                except Exception as e:
+                    logging.warning(f"处理单元格图片失败: {e}")
+
+    def _open_file_externally(self, path):
+        """用系统默认程序打开导出的文件"""
+        try:
+            if sys.platform == 'win32':
+                os.startfile(path)
+            elif sys.platform == 'darwin':
+                subprocess.run(['open', path])
+            else:
+                subprocess.run(['xdg-open', path])
+        except Exception as e:
+            logging.error(f"打开文件失败 {path}: {e}")
+
+    # ==================================================================
+    # 保存为模板
+    # ==================================================================
+    def save_as_template(self):
+        """把当前文档内容保存为模板"""
+        n, ok = QInputDialog.getText(self, "保存为模板", "模板名称:")
+        if not ok or not n.strip():
+            return
+        try:
+            from beeoffice.resources.template_manager import TemplateManager
+            tm = TemplateManager()
+            if tm.save_as_template(n.strip(), self.content()):
+                self._set_status("模板已保存", 3000)
+            else:
+                QMessageBox.warning(self, "失败", "保存模板失败")
+        except Exception as e:
+            logging.error(f"保存模板失败: {e}")
+            QMessageBox.warning(self, "失败", f"保存模板失败：\n{e}")

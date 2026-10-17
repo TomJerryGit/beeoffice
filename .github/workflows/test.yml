@@ -1,0 +1,70 @@
+name: tests
+
+# 路线图 WP-04：第一道 CI。
+# 目标不是"全绿"，而是"挡住已知类型的错误"：
+#   1. 整包无法编译（beesheet_engine.py 曾因一个孤立反斜杠整模块失效）
+#   2. 公式引擎的 Excel 语义回归
+#   3. 导出产物不完整（DOCX 丢图）
+# full 任务暂时允许失败，用于观察真实基线，稳定后再转为阻塞。
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast:
+    name: 快速回归（无 GUI 依赖）
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: 安装最小依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy pandas python-docx beautifulsoup4 markdown lxml pillow pytest
+
+      - name: 语法编译检查
+        run: python tools/check_syntax.py
+
+      - name: 公式引擎 Excel 语义冒烟
+        run: python tools/smoke_formula.py
+
+      - name: 纯逻辑单测
+        run: >
+          python -m pytest
+          tests/unit/test_formula_excel_semantics.py
+          tests/unit/test_docx_image_export.py
+          tests/unit/test_nl_formula.py
+          tests/unit/test_settings.py
+          -q
+
+  full:
+    name: 全量测试（含 GUI，暂不阻塞）
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: 安装全部依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: 全量 pytest
+        run: python -m pytest tests -q --timeout=120

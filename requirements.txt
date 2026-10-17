@@ -1,0 +1,83 @@
+# ============================================================
+# 蜜蜂办公 BeeOffice 运行依赖
+# ------------------------------------------------------------
+# Python 版本要求：>= 3.9
+# 安装：pip install -r requirements.txt
+# 开发依赖（测试 / 打包 / 静态检查）：pip install -r requirements-dev.txt
+# ============================================================
+
+# ---------- 核心框架 ----------
+# PySide6 提供 Qt6 绑定；Addons 提供 QtWebEngine 等附加模块
+# （蜜演 beeshow.py 使用 QWebEngineView，必须安装 Addons）
+PySide6>=6.5.0
+PySide6-Addons>=6.5.0
+
+# ---------- 数据处理 ----------
+# pandas：蜜算表格核心
+# numpy：beesheet_engine.py 直接导入（np.busday_count / np.random 等）
+# openpyxl：读写 .xlsx
+# xlrd：读取旧版 .xls（openpyxl 不支持 .xls）
+# chardet：检测 CSV / TXT 编码
+# python-dateutil：pandas 时间解析依赖（显式声明）
+pandas>=2.0.0
+numpy>=1.24.0
+openpyxl>=3.1.0
+xlrd>=2.0.1
+chardet>=5.0.0
+python-dateutil>=2.8.0
+
+# ---------- 文档处理 ----------
+# markdown：蜜写 MD → HTML
+# Pygments：代码块语法高亮（markdown 的 codehilite 扩展使用）
+# python-docx：DOCX 导入 / 导出
+# python-pptx：蜜演导出 PPTX
+# beautifulsoup4：HTML 解析（bee_export.py 的 DOCX 导出中间层）
+# lxml：bs4 / weasyprint 的推荐解析后端，性能优于 html.parser
+markdown>=3.4.0
+Pygments>=2.15.0
+python-docx>=1.1.0
+python-pptx>=0.6.21
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# ---------- 图表 / 图像 ----------
+# matplotlib：蜜算图表生成 + 蜜写数学公式渲染
+# Pillow：bee_export.py 的 GIF 导出 / 图片编辑
+matplotlib>=3.7.0
+Pillow>=10.0.0
+
+# ---------- PDF ----------
+# PyMuPDF：PDF 批注（读取 / 编辑 PDF）
+#           v5.0.1 起由可选升级为必需：
+#           - pdf_annotator.py 是内置插件，无此依赖 PDF 批注功能不可用
+#           - tests/test_p2_regression/test_p1_14_pdf_undo.py 使用 fitz
+#           - tests/test_p2_regression/test_p1_17_mobile_temp.py 不依赖
+PyMuPDF>=1.23.0
+
+# weasyprint：可选，导出 PDF 时需要；未安装时 bee_export 会优雅降级
+#             安装前请确保系统已具备 GTK 运行库（Linux 需 libgtk-3-0 等）
+#             若不安装，导出 PDF 会返回 False 并提示用户
+# weasyprint>=60.0
+
+# ---------- 云同步 ----------
+# webdavclient3：WebDAV 适配器
+# requests：OneDrive（Microsoft Graph）/ Google Drive API
+webdavclient3>=3.14.0
+requests>=2.31.0
+
+# ---------- 系统工具 ----------
+# psutil：内存监控（memory_monitor.py、utils.get_memory_usage）
+psutil>=5.9.0
+
+# ---------- v5.1 新增（蜜演优化） ----------
+# fonttools：PPTX 中文字体子集化（任务 3.2）
+#            不装也能导出 PPTX，只是目标机器可能缺字体
+#            纯 Python 库，无系统依赖，约 2MB，建议作为必需依赖
+fonttools>=4.45.0
+
+# playwright：无头浏览器，用于 PPTX 原生元素精确测量（任务 3.1）
+#             不安装时降级为"仅文本"模式（可编辑但不保真）
+#             安装后需执行：playwright install chromium
+#             因体积较大（~150MB Chromium），默认注释掉，
+#             需要精确版式的用户手动安装
+# playwright>=1.40.0
