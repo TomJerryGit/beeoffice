@@ -20,9 +20,30 @@ class OnboardingOverlay(QWidget):
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setGeometry(parent.rect() if parent else QRect(0, 0, 800, 600))
+        # 浮层必须能接收键盘事件，否则 Esc 无效
+        self.setFocusPolicy(Qt.StrongFocus)
         self._steps = []
         self._current_step = 0
         self._tip_widget = None
+
+    # ==================== 退出通道（P0：曾把用户卡死） ====================
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.setFocus(Qt.OtherFocusReason)
+        self.raise_()
+        self.activateWindow()
+
+    def keyPressEvent(self, event):
+        """Esc / 回车直接退出引导。"""
+        if event.key() in (Qt.Key_Escape, Qt.Key_Return, Qt.Key_Enter):
+            self._skip_all()
+            return
+        super().keyPressEvent(event)
+
+    def mousePressEvent(self, event):
+        """点击遮罩任意位置 = 下一步（最后一步即结束），始终有出路。"""
+        self._next_step()
+        event.accept()
 
     def set_steps(self, steps):
         self._steps = steps
@@ -72,7 +93,13 @@ class OnboardingOverlay(QWidget):
         btn_layout.addWidget(next_btn)
         layout.addLayout(btn_layout)
         target = step.target_rect
-        tip_w, tip_h = 320, self._tip_widget.sizeHint().height()
+        tip_w = 320
+        # 关键：布局尚未激活时 sizeHint() 可能为 0，
+        # 导致卡片被设成 0 高而完全看不见（曾表现为"只有黑框、点不动"）。
+        self._tip_widget.ensurePolished()
+        if self._tip_widget.layout() is not None:
+            self._tip_widget.layout().activate()
+        tip_h = max(140, self._tip_widget.sizeHint().height())
         if step.position == "bottom":
             x, y = target.center().x() - tip_w // 2, target.bottom() + 12
         elif step.position == "top":
@@ -84,6 +111,8 @@ class OnboardingOverlay(QWidget):
         x = max(10, min(x, self.width() - tip_w - 10))
         y = max(10, min(y, self.height() - tip_h - 10))
         self._tip_widget.setGeometry(x, y, tip_w, tip_h)
+        self._tip_widget.show()
+        self._tip_widget.raise_()
 
     def _next_step(self):
         self._current_step += 1
@@ -99,9 +128,9 @@ class OnboardingOverlay(QWidget):
         painter.fillRect(self.rect(), QColor(0, 0, 0, 120))
         if self._current_step < len(self._steps):
             target = self._steps[self._current_step].target_rect
-            painter.setCompositionMode(QPainter.CompositionMode_Clear)
-            painter.fillRect(target.adjusted(-4, -4, 4, 4), Qt.transparent)
-            painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+            # 不再用 CompositionMode_Clear "挖洞"：
+            # 在半透明子窗口上挖洞，某些平台会渲染成实心黑块
+            # （用户看到的就是一个黑底橙框）。改为只描边。
             pen = QPen(QColor("#FFB300"), 3)
             painter.setPen(pen)
             painter.setBrush(Qt.NoBrush)
