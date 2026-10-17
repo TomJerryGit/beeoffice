@@ -379,7 +379,7 @@ P4                                                                       ██�
 
 ### 第 1 天（2026-10-17）
 
-受本机环境限制：**未安装 git**、未安装 PySide6（仅 Python 3.8.9 + pandas/numpy/python-docx/bs4/Pillow）。
+环境：git **2.56.0 已安装**（2026-10-17，本次会话完成，位于 `C:\Program Files\Git`，已写入系统 PATH）；仍缺 PySide6（当前仅 Python 3.8.9 + pandas/numpy/python-docx/bs4/markdown/Pillow）。
 
 | WP | 内容 | 状态 | 验证方式 |
 |---|---|---|---|
@@ -399,8 +399,8 @@ P4                                                                       ██�
 | WP-06 | 真实样例库 | ⏳ 未开始（需用户提供 10 个真实文档） | — |
 | WP-07 | 产物级验收骨架 | 🟡 已建首个样本（DOCX 图片） | — |
 | WP-03 | 依赖锁定 | ⏳ 未开始（需 pip-tools/uv） | — |
-| WP-01 | git 初始化 | ⛔ 阻塞（本机无 git） | — |
-| WP-02 | 工作区清理 | ⏳ 未开始（需 git 先落地，否则不可回滚） | — |
+| WP-01 | **git 初始化** | ✅ | 245 文件入库，commit `210ec5e`，tag `baseline-2026-10-17`，工作区 clean |
+| WP-02 | 工作区清理 | 🟡 部分完成：`backup/` 已加入 `.gitignore`（文件保留在磁盘，未删除） | — |
 
 ### 新增工具
 
