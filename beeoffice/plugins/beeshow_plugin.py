@@ -15,6 +15,7 @@ from datetime import datetime
 from PySide6.QtWidgets import QWidget, QMessageBox, QFileDialog
 
 from beeoffice.plugin_base import Plugin
+from beeoffice.i18n import tr
 
 
 class BeeShowPlugin(Plugin):
@@ -38,43 +39,43 @@ class BeeShowPlugin(Plugin):
     def register_commands(self, palette):
         """注册蜜演相关命令到命令面板"""
         palette.register_command(
-            "蜜演：新建幻灯片",
-            "创建一个新的蜜演演示文稿",
+            tr("auto.beeshow_plugin.e5f4b4df", "蜜演：新建幻灯片"),
+            tr("auto.beeshow_plugin.a784509f", "创建一个新的蜜演演示文稿"),
             self.new_show
         )
         palette.register_command(
-            "蜜演：播放幻灯片",
-            "全屏播放当前演示文稿 (F5)",
+            tr("auto.beeshow_plugin.2c8a2df1", "蜜演：播放幻灯片"),
+            tr("auto.beeshow_plugin.ed530832", "全屏播放当前演示文稿 (F5)"),
             self.play_show
         )
         palette.register_command(
-            "蜜演：从当前页播放",
-            "从当前幻灯片开始播放",
+            tr("auto.beeshow_plugin.072289f3", "蜜演：从当前页播放"),
+            tr("auto.beeshow_plugin.e851cfd5", "从当前幻灯片开始播放"),
             self.play_from_current
         )
         palette.register_command(
-            "蜜演：导出 PPTX",
-            "将当前演示文稿导出为 PowerPoint",
+            tr("auto.beeshow_plugin.15288e8c", "蜜演：导出 PPTX"),
+            tr("auto.beeshow_plugin.2c140e9d", "将当前演示文稿导出为 PowerPoint"),
             self.export_pptx
         )
         palette.register_command(
-            "蜜演：演讲备注",
-            "编辑当前幻灯片的演讲备注",
+            tr("auto.beeshow_plugin.dc5edc23", "蜜演：演讲备注"),
+            tr("auto.beeshow_plugin.5782f9cb", "编辑当前幻灯片的演讲备注"),
             self.edit_notes
         )
         palette.register_command(
-            "蜜演：排练计时",
-            "开始/停止排练计时",
+            tr("auto.beeshow_plugin.92abfd47", "蜜演：排练计时"),
+            tr("auto.beeshow_plugin.096f97ef", "开始/停止排练计时"),
             self.toggle_rehearsal
         )
         palette.register_command(
-            "蜜演：添加幻灯片",
-            "在当前演示文稿中新增一张幻灯片",
+            tr("auto.beeshow_plugin.dba150dc", "蜜演：添加幻灯片"),
+            tr("auto.beeshow_plugin.b42ec474", "在当前演示文稿中新增一张幻灯片"),
             self.add_slide
         )
         palette.register_command(
-            "蜜演：删除幻灯片",
-            "删除当前幻灯片",
+            tr("auto.beeshow_plugin.cde3a05d", "蜜演：删除幻灯片"),
+            tr("auto.beeshow_plugin.e5ab8f31", "删除当前幻灯片"),
             self.delete_slide
         )
 
@@ -122,7 +123,7 @@ class BeeShowPlugin(Plugin):
                 view._start_play()
             except Exception as e:
                 logging.error(f"播放失败: {e}")
-                QMessageBox.warning(self.parent, "播放失败", str(e))
+                QMessageBox.warning(self.parent, tr("auto.beeshow_plugin.891441b4", "播放失败"), str(e))
         else:
             self._warn("当前视图不支持播放功能")
 
@@ -137,7 +138,7 @@ class BeeShowPlugin(Plugin):
                 view._start_play()
             except Exception as e:
                 logging.error(f"播放失败: {e}")
-                QMessageBox.warning(self.parent, "播放失败", str(e))
+                QMessageBox.warning(self.parent, tr("auto.beeshow_plugin.891441b4", "播放失败"), str(e))
         else:
             self._warn("当前视图不支持播放功能")
 
@@ -156,7 +157,7 @@ class BeeShowPlugin(Plugin):
                 return
             except Exception as e:
                 logging.error(f"导出 PPTX 失败: {e}")
-                QMessageBox.warning(self.parent, "导出失败", str(e))
+                QMessageBox.warning(self.parent, tr("auto.beeshow_plugin.67533812", "导出失败"), str(e))
                 return
 
         # 回退实现：通过文件对话框询问保存路径
@@ -166,7 +167,7 @@ class BeeShowPlugin(Plugin):
         """回退的 PPTX 导出实现"""
         try:
             path, _ = QFileDialog.getSaveFileName(
-                self.parent, "导出 PPTX", "presentation.pptx",
+                self.parent, tr("auto.beeshow_plugin.851f94c5", "导出 PPTX"), "presentation.pptx",
                 "PowerPoint (*.pptx)"
             )
             if not path:
@@ -207,14 +208,14 @@ class BeeShowPlugin(Plugin):
                         body.text = content[:1000]
 
             prs.save(path)
-            QMessageBox.information(self.parent, "完成", f"已导出:\n{path}")
-            self.parent.set_global_status("PPTX 导出完成", 3000)
+            QMessageBox.information(self.parent, tr("auto.beeshow_plugin.33246f6a", "完成"), f"已导出:\n{path}")
+            self.parent.set_global_status(tr("auto.beeshow_plugin.d2bca342", "PPTX 导出完成"), 3000)
         except ImportError:
-            QMessageBox.warning(self.parent, "缺少依赖",
-                                "导出 PPTX 需要 python-pptx 库")
+            QMessageBox.warning(self.parent, tr("auto.beeshow_plugin.1f393593", "缺少依赖"),
+                                tr("auto.beeshow_plugin.fe09089d", "导出 PPTX 需要 python-pptx 库"))
         except Exception as e:
             logging.error(f"导出 PPTX 失败: {e}")
-            QMessageBox.warning(self.parent, "导出失败", str(e))
+            QMessageBox.warning(self.parent, tr("auto.beeshow_plugin.67533812", "导出失败"), str(e))
 
     # ---------- 演讲备注 ----------
     def edit_notes(self):
@@ -228,7 +229,7 @@ class BeeShowPlugin(Plugin):
                 view.edit_current_notes()
             except Exception as e:
                 logging.error(f"编辑备注失败: {e}")
-                QMessageBox.warning(self.parent, "编辑失败", str(e))
+                QMessageBox.warning(self.parent, tr("auto.beeshow_plugin.43ae5ab1", "编辑失败"), str(e))
         elif hasattr(view, "add_speaker_notes"):
             # 回退实现
             from PySide6.QtWidgets import QInputDialog
@@ -243,10 +244,10 @@ class BeeShowPlugin(Plugin):
                 )
                 if ok:
                     view.add_speaker_notes(text)
-                    self.parent.set_global_status("备注已保存", 2000)
+                    self.parent.set_global_status(tr("auto.beeshow_plugin.bad4a8ff", "备注已保存"), 2000)
             except Exception as e:
                 logging.error(f"编辑备注失败: {e}")
-                QMessageBox.warning(self.parent, "编辑失败", str(e))
+                QMessageBox.warning(self.parent, tr("auto.beeshow_plugin.43ae5ab1", "编辑失败"), str(e))
         else:
             self._warn("当前视图不支持演讲备注")
 
@@ -278,7 +279,7 @@ class BeeShowPlugin(Plugin):
                     self._warn("当前视图不支持排练计时")
         except Exception as e:
             logging.error(f"排练计时切换失败: {e}")
-            QMessageBox.warning(self.parent, "操作失败", str(e))
+            QMessageBox.warning(self.parent, tr("auto.beeshow_plugin.09e424b5", "操作失败"), str(e))
 
     # ---------- 幻灯片管理 ----------
     def add_slide(self):
@@ -290,10 +291,10 @@ class BeeShowPlugin(Plugin):
         if hasattr(view, "add_slide"):
             try:
                 view.add_slide()
-                self.parent.set_global_status("已添加幻灯片", 2000)
+                self.parent.set_global_status(tr("auto.beeshow_plugin.a1c3186b", "已添加幻灯片"), 2000)
             except Exception as e:
                 logging.error(f"添加幻灯片失败: {e}")
-                QMessageBox.warning(self.parent, "添加失败", str(e))
+                QMessageBox.warning(self.parent, tr("auto.beeshow_plugin.9d563ebb", "添加失败"), str(e))
         else:
             self._warn("当前视图不支持添加幻灯片")
 
@@ -306,8 +307,8 @@ class BeeShowPlugin(Plugin):
 
         # 确认删除
         reply = QMessageBox.question(
-            self.parent, "删除幻灯片",
-            "确定要删除当前幻灯片吗？",
+            self.parent, tr("auto.beeshow_plugin.a3b446fe", "删除幻灯片"),
+            tr("auto.beeshow_plugin.780e3a3e", "确定要删除当前幻灯片吗？"),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
         if reply != QMessageBox.Yes:
@@ -316,17 +317,17 @@ class BeeShowPlugin(Plugin):
         if hasattr(view, "delete_slide"):
             try:
                 view.delete_slide()
-                self.parent.set_global_status("已删除幻灯片", 2000)
+                self.parent.set_global_status(tr("auto.beeshow_plugin.5c31c31d", "已删除幻灯片"), 2000)
             except Exception as e:
                 logging.error(f"删除幻灯片失败: {e}")
-                QMessageBox.warning(self.parent, "删除失败", str(e))
+                QMessageBox.warning(self.parent, tr("auto.beeshow_plugin.72250c59", "删除失败"), str(e))
         else:
             self._warn("当前视图不支持删除幻灯片")
 
     # ---------- 辅助 ----------
     def _warn(self, message: str):
         """统一提示"""
-        QMessageBox.information(self.parent, "提示", message)
+        QMessageBox.information(self.parent, tr("auto.beeshow_plugin.ab3656a9", "提示"), message)
 
     # ---------- 生命周期 ----------
     def on_close(self):

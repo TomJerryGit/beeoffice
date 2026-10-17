@@ -91,6 +91,7 @@ from beeoffice.plugins.beewrite_page_extras import (
     build_watermark_html,
     build_page_number_css,
 )
+from beeoffice.i18n import tr
 
 
 # ==================== 常量 ====================
@@ -177,9 +178,9 @@ class ExportMixin:
 
         path, _ = QFileDialog.getSaveFileName(
             self,
-            "保存为 Markdown",
+            tr("auto.beewrite_export_mixin.d26e7068", "保存为 Markdown"),
             default_name,
-            "Markdown 文件 (*.md);;所有文件 (*)",
+            tr("auto.beewrite_export_mixin.7be792c6", "Markdown 文件 (*.md);;所有文件 (*)"),
         )
         if not path:
             return False
@@ -238,7 +239,7 @@ class ExportMixin:
             )
             QMessageBox.warning(
                 self,
-                "⚠️ 文件被占用",
+                tr("auto.beewrite_export_mixin.d7202ab7", "⚠️ 文件被占用"),
                 f"无法写入文件：\n{path}\n\n"
                 f"该文件正在被其他程序打开。\n\n"
                 f"请关闭占用该文件的程序（如 WPS、Word、记事本）后重试。",
@@ -248,7 +249,7 @@ class ExportMixin:
         except Exception as e:
             logging.error(f"保存 Markdown 失败: {e}")
             QMessageBox.warning(
-                self, "保存失败", f"无法保存文件：\n{e}"
+                self, tr("auto.beewrite_export_mixin.40525a73", "保存失败"), f"无法保存文件：\n{e}"
             )
             return False
 
@@ -275,9 +276,9 @@ class ExportMixin:
 
         path, _ = QFileDialog.getSaveFileName(
             self,
-            "保存为 Word 文档",
+            tr("auto.beewrite_export_mixin.6acc2d74", "保存为 Word 文档"),
             default_name,
-            "Word (*.docx);;所有文件 (*)",
+            tr("auto.beewrite_export_mixin.adef7079", "Word (*.docx);;所有文件 (*)"),
         )
         if not path:
             return False
@@ -302,7 +303,7 @@ class ExportMixin:
                 from beeoffice.plugins.bee_export import export_to_docx
                 content = self.get_rendered_content()
                 if not export_to_docx(content, path):
-                    QMessageBox.warning(self, "失败", "无法生成 Word 文档")
+                    QMessageBox.warning(self, tr("auto.beewrite_export_mixin.3e3c8068", "失败"), tr("auto.beewrite_export_mixin.b3368086", "无法生成 Word 文档"))
                     return False
                 # md 路径由独立函数生成并保存，页眉/页脚只能事后补写
                 # （python-docx 没有"从外部注入"的入口）。
@@ -338,7 +339,7 @@ class ExportMixin:
             )
             reply = QMessageBox.question(
                 self,
-                "⚠️ 文件被占用",
+                tr("auto.beewrite_export_mixin.d7202ab7", "⚠️ 文件被占用"),
                 f"无法写入文件：\n{path}\n\n"
                 f"该文件正在被其他程序（如 WPS、Word）打开。\n\n"
                 f"请选择操作：\n"
@@ -358,8 +359,8 @@ class ExportMixin:
                 except Exception:
                     default_new = "未命名_副本.docx"
                 new_path, _ = QFileDialog.getSaveFileName(
-                    self, "另存为", default_new,
-                    "Word (*.docx);;所有文件 (*)",
+                    self, tr("auto.beewrite_export_mixin.a86b5bd5", "另存为"), default_new,
+                    tr("auto.beewrite_export_mixin.adef7079", "Word (*.docx);;所有文件 (*)"),
                 )
                 if new_path:
                     if not new_path.lower().endswith(".docx"):
@@ -372,7 +373,7 @@ class ExportMixin:
             traceback.print_exc()
             logging.error(f"保存 DOCX 失败: {e}")
             QMessageBox.warning(
-                self, "保存失败", f"无法保存 Word 文档：\n{e}"
+                self, tr("auto.beewrite_export_mixin.40525a73", "保存失败"), f"无法保存 Word 文档：\n{e}"
             )
             return False
 
@@ -382,7 +383,7 @@ class ExportMixin:
     def export_pdf(self):
         """导出当前文档为 PDF"""
         path, _ = QFileDialog.getSaveFileName(
-            self, "导出 PDF", "文档.pdf", "PDF (*.pdf)"
+            self, tr("auto.beewrite_export_mixin.d58b0502", "导出 PDF"), tr("auto.beewrite_export_mixin.08799df9", "文档.pdf"), "PDF (*.pdf)"
         )
         if not path:
             return
@@ -400,13 +401,13 @@ class ExportMixin:
 
             if export_to_pdf(content, path):
                 QMessageBox.information(
-                    self, "成功", f"已保存:\n{path}"
+                    self, tr("auto.beewrite_export_mixin.51991a5d", "成功"), f"已保存:\n{path}"
                 )
             else:
-                QMessageBox.warning(self, "失败", "需要 WeasyPrint")
+                QMessageBox.warning(self, tr("auto.beewrite_export_mixin.3e3c8068", "失败"), tr("auto.beewrite_export_mixin.aee44226", "需要 WeasyPrint"))
         except Exception as e:
             logging.error(f"导出 PDF 失败: {e}")
-            QMessageBox.warning(self, "导出失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_export_mixin.67533812", "导出失败"), str(e))
 
     def _apply_page_settings_to_content(self, content, page_settings):
         """把页面设置 + 水印 + 页码注入到 HTML 内容"""
@@ -481,8 +482,8 @@ class ExportMixin:
                 dn = f"{t}.docx"
 
         path, _ = QFileDialog.getSaveFileName(
-            self, "导出 DOCX", dn,
-            "Word (*.docx);;所有文件 (*)",
+            self, tr("auto.beewrite_export_mixin.20e955b8", "导出 DOCX"), dn,
+            tr("auto.beewrite_export_mixin.adef7079", "Word (*.docx);;所有文件 (*)"),
         )
         if not path:
             return
@@ -491,31 +492,31 @@ class ExportMixin:
             from beeoffice.plugins.bee_export import export_to_docx
             if export_to_docx(self.get_rendered_content(), path):
                 r = QMessageBox.information(
-                    self, "成功",
+                    self, tr("auto.beewrite_export_mixin.51991a5d", "成功"),
                     f"已保存:\n{path}\n\n是否打开？",
                     QMessageBox.Yes | QMessageBox.No,
                 )
                 if r == QMessageBox.Yes:
                     self._open_file_externally(path)
             else:
-                QMessageBox.warning(self, "失败", "无法生成")
+                QMessageBox.warning(self, tr("auto.beewrite_export_mixin.3e3c8068", "失败"), tr("auto.beewrite_export_mixin.fbed2dd9", "无法生成"))
         except PermissionError:
             logging.error(f"导出 DOCX 失败（文件被占用）: {path}")
             QMessageBox.warning(
                 self,
-                "⚠️ 文件被占用",
+                tr("auto.beewrite_export_mixin.d7202ab7", "⚠️ 文件被占用"),
                 f"无法写入文件：\n{path}\n\n"
                 f"该文件正在被其他程序打开，请关闭后重试。",
             )
         except Exception as e:
             logging.error(f"导出 DOCX 失败: {e}")
-            QMessageBox.warning(self, "导出失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_export_mixin.67533812", "导出失败"), str(e))
 
     def export_rich_docx(self):
         """富文本模式导出 DOCX（保留表格结构 + 页面设置 + 分页符）"""
         if self._edit_mode != "rich_text":
             QMessageBox.information(
-                self, "提示", "请先切换到所见即所得模式"
+                self, tr("auto.beewrite_export_mixin.ab3656a9", "提示"), tr("auto.beewrite_export_mixin.09b3badd", "请先切换到所见即所得模式")
             )
             return
 
@@ -531,8 +532,8 @@ class ExportMixin:
                     dn = f"{t}.docx"
 
         path, _ = QFileDialog.getSaveFileName(
-            self, "导出 DOCX（保留表格）", dn,
-            "Word (*.docx);;所有文件 (*)",
+            self, tr("auto.beewrite_export_mixin.1a8f9e84", "导出 DOCX（保留表格）"), dn,
+            tr("auto.beewrite_export_mixin.adef7079", "Word (*.docx);;所有文件 (*)"),
         )
         if not path:
             return
@@ -540,7 +541,7 @@ class ExportMixin:
         try:
             self._rich_to_docx(path)
             r = QMessageBox.information(
-                self, "成功",
+                self, tr("auto.beewrite_export_mixin.51991a5d", "成功"),
                 f"已保存：\n{path}\n\n是否打开？",
                 QMessageBox.Yes | QMessageBox.No,
             )
@@ -550,7 +551,7 @@ class ExportMixin:
             logging.error(f"导出富文本 DOCX 失败（文件被占用）: {path}")
             QMessageBox.warning(
                 self,
-                "⚠️ 文件被占用",
+                tr("auto.beewrite_export_mixin.d7202ab7", "⚠️ 文件被占用"),
                 f"无法写入文件：\n{path}\n\n"
                 f"该文件正在被其他程序打开，请关闭后重试。",
             )
@@ -558,7 +559,7 @@ class ExportMixin:
             import traceback
             traceback.print_exc()
             logging.error(f"导出富文本 DOCX 失败: {e}")
-            QMessageBox.warning(self, "导出失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_export_mixin.67533812", "导出失败"), str(e))
 
     # ==================================================================
     # 段落格式辅助：QTextBlockFormat → python-docx
@@ -1164,16 +1165,16 @@ class ExportMixin:
     # ==================================================================
     def save_as_template(self):
         """把当前文档内容保存为模板"""
-        n, ok = QInputDialog.getText(self, "保存为模板", "模板名称:")
+        n, ok = QInputDialog.getText(self, tr("auto.beewrite_export_mixin.827613c8", "保存为模板"), tr("auto.beewrite_export_mixin.b12623db", "模板名称:"))
         if not ok or not n.strip():
             return
         try:
             from beeoffice.resources.template_manager import TemplateManager
             tm = TemplateManager()
             if tm.save_as_template(n.strip(), self.content()):
-                self._set_status("模板已保存", 3000)
+                self._set_status(tr("auto.beewrite_export_mixin.f08f40f0", "模板已保存"), 3000)
             else:
-                QMessageBox.warning(self, "失败", "保存模板失败")
+                QMessageBox.warning(self, tr("auto.beewrite_export_mixin.3e3c8068", "失败"), tr("auto.beewrite_export_mixin.d8fc29f5", "保存模板失败"))
         except Exception as e:
             logging.error(f"保存模板失败: {e}")
-            QMessageBox.warning(self, "失败", f"保存模板失败：\n{e}")
+            QMessageBox.warning(self, tr("auto.beewrite_export_mixin.3e3c8068", "失败"), f"保存模板失败：\n{e}")
