@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap, QImage
+from beeoffice.i18n import tr
 
 try:
     from PIL import Image, ImageEnhance, ImageFilter, ImageOps
@@ -36,7 +37,7 @@ class ImageEditorDialog(QDialog):
 
     def __init__(self, image_path=None, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("🖼️ 图片编辑")
+        self.setWindowTitle(tr("auto.beewrite_image.81f9f77c", "🖼️ 图片编辑"))
         self.resize(760, 620)
         self._image_path = image_path
         self._pil_image = None
@@ -52,7 +53,7 @@ class ImageEditorDialog(QDialog):
 
         if not HAS_PIL:
             QMessageBox.warning(
-                self, "缺少依赖",
+                self, tr("auto.beewrite_image.1f393593", "缺少依赖"),
                 "图片编辑需要 Pillow 库：\n"
                 "pip install Pillow"
             )
@@ -68,7 +69,7 @@ class ImageEditorDialog(QDialog):
         layout = QVBoxLayout(self)
 
         # 预览区
-        self._preview_label = QLabel("（暂无图片）")
+        self._preview_label = QLabel(tr("auto.beewrite_image.f2b6257d", "（暂无图片）"))
         self._preview_label.setAlignment(Qt.AlignCenter)
         self._preview_label.setMinimumHeight(300)
         self._preview_label.setStyleSheet(
@@ -80,11 +81,11 @@ class ImageEditorDialog(QDialog):
         # 操作栏
         op_row = QHBoxLayout()
 
-        btn_open = QPushButton("📂 打开图片")
+        btn_open = QPushButton(tr("auto.beewrite_image.d455f525", "📂 打开图片"))
         btn_open.clicked.connect(self._open_image)
         op_row.addWidget(btn_open)
 
-        btn_reset = QPushButton("🔄 重置")
+        btn_reset = QPushButton(tr("auto.beewrite_image.1b758b77", "🔄 重置"))
         btn_reset.clicked.connect(self._reset)
         op_row.addWidget(btn_reset)
 
@@ -92,7 +93,7 @@ class ImageEditorDialog(QDialog):
         layout.addLayout(op_row)
 
         # 参数区
-        params_group = QGroupBox("调整")
+        params_group = QGroupBox(tr("auto.beewrite_image.0a4d26e4", "调整"))
         params_layout = QFormLayout(params_group)
 
         # 缩放
@@ -110,17 +111,17 @@ class ImageEditorDialog(QDialog):
         self._width_spin.setRange(1, 10000)
         self._width_spin.setSuffix(" px")
         self._width_spin.valueChanged.connect(self._on_size_changed)
-        scale_row.addWidget(QLabel("宽:"))
+        scale_row.addWidget(QLabel(tr("auto.beewrite_image.0091be5a", "宽:")))
         scale_row.addWidget(self._width_spin)
 
         self._height_spin = QSpinBox()
         self._height_spin.setRange(1, 10000)
         self._height_spin.setSuffix(" px")
         self._height_spin.valueChanged.connect(self._on_size_changed)
-        scale_row.addWidget(QLabel("高:"))
+        scale_row.addWidget(QLabel(tr("auto.beewrite_image.592d7fb3", "高:")))
         scale_row.addWidget(self._height_spin)
 
-        self._keep_ratio_check = QCheckBox("保持宽高比")
+        self._keep_ratio_check = QCheckBox(tr("auto.beewrite_image.dd71a7d1", "保持宽高比"))
         self._keep_ratio_check.setChecked(True)
         scale_row.addWidget(self._keep_ratio_check)
 
@@ -139,11 +140,11 @@ class ImageEditorDialog(QDialog):
 
         # 翻转
         flip_row = QHBoxLayout()
-        self._flip_h_check = QCheckBox("水平翻转")
+        self._flip_h_check = QCheckBox(tr("auto.beewrite_image.46ed1934", "水平翻转"))
         self._flip_h_check.stateChanged.connect(self._on_flip_changed)
         flip_row.addWidget(self._flip_h_check)
 
-        self._flip_v_check = QCheckBox("垂直翻转")
+        self._flip_v_check = QCheckBox(tr("auto.beewrite_image.43c98626", "垂直翻转"))
         self._flip_v_check.stateChanged.connect(self._on_flip_changed)
         flip_row.addWidget(self._flip_v_check)
 
@@ -151,13 +152,13 @@ class ImageEditorDialog(QDialog):
 
         # 滤镜
         filter_row = QHBoxLayout()
-        self._grayscale_check = QCheckBox("灰度")
+        self._grayscale_check = QCheckBox(tr("auto.beewrite_image.cb706f24", "灰度"))
         self._grayscale_check.stateChanged.connect(
             self._on_filter_changed
         )
         filter_row.addWidget(self._grayscale_check)
 
-        self._invert_check = QCheckBox("反色")
+        self._invert_check = QCheckBox(tr("auto.beewrite_image.f7ddef87", "反色"))
         self._invert_check.stateChanged.connect(self._on_filter_changed)
         filter_row.addWidget(self._invert_check)
 
@@ -194,11 +195,11 @@ class ImageEditorDialog(QDialog):
         # 底部按钮
         btns = QDialogButtonBox()
 
-        btn_save = QPushButton("💾 保存为新文件")
+        btn_save = QPushButton(tr("auto.beewrite_image.2859bc4b", "💾 保存为新文件"))
         btn_save.clicked.connect(self._save_as_file)
         btns.addButton(btn_save, QDialogButtonBox.ActionRole)
 
-        btn_insert = QPushButton("✅ 插入到文档")
+        btn_insert = QPushButton(tr("auto.beewrite_image.cf0e4ad4", "✅ 插入到文档"))
         btn_insert.setStyleSheet(
             "QPushButton{background:#FFB300;color:#000;"
             "padding:6px 16px;border:none;border-radius:4px;"
@@ -208,7 +209,7 @@ class ImageEditorDialog(QDialog):
         btn_insert.clicked.connect(self._insert_to_document)
         btns.addButton(btn_insert, QDialogButtonBox.AcceptRole)
 
-        btn_cancel = QPushButton("取消")
+        btn_cancel = QPushButton(tr("auto.beewrite_image.4d0b4688", "取消"))
         btn_cancel.clicked.connect(self.reject)
         btns.addButton(btn_cancel, QDialogButtonBox.RejectRole)
 
@@ -217,8 +218,8 @@ class ImageEditorDialog(QDialog):
     # ==================== 图片加载 ====================
     def _open_image(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "选择图片", "",
-            "图片 (*.png *.jpg *.jpeg *.bmp *.gif *.webp);;所有 (*)"
+            self, tr("auto.beewrite_image.18104edf", "选择图片"), "",
+            tr("auto.beewrite_image.250c7d99", "图片 (*.png *.jpg *.jpeg *.bmp *.gif *.webp);;所有 (*)")
         )
         if path:
             self._load_image(path)
@@ -243,7 +244,7 @@ class ImageEditorDialog(QDialog):
 
             self._refresh_preview()
         except Exception as e:
-            QMessageBox.warning(self, "加载失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_image.f6b7a41e", "加载失败"), str(e))
 
     # ==================== 参数变化 ====================
     def _on_scale_changed(self, text):
@@ -409,11 +410,11 @@ class ImageEditorDialog(QDialog):
     def _save_as_file(self):
         """保存处理后的图片为新文件"""
         if not self._original_image:
-            QMessageBox.information(self, "提示", "请先打开图片")
+            QMessageBox.information(self, tr("auto.beewrite_image.ab3656a9", "提示"), tr("auto.beewrite_image.f8ca5da6", "请先打开图片"))
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, "保存图片", "edited.png",
-            "PNG (*.png);;JPEG (*.jpg);;所有 (*)"
+            self, tr("auto.beewrite_image.a927c749", "保存图片"), "edited.png",
+            tr("auto.beewrite_image.8b34bce0", "PNG (*.png);;JPEG (*.jpg);;所有 (*)")
         )
         if not path:
             return
@@ -421,14 +422,14 @@ class ImageEditorDialog(QDialog):
             img = self._process_image()
             img.save(path)
             self._result_path = path
-            QMessageBox.information(self, "成功", f"已保存：\n{path}")
+            QMessageBox.information(self, tr("auto.beewrite_image.51991a5d", "成功"), f"已保存：\n{path}")
         except Exception as e:
-            QMessageBox.warning(self, "失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_image.3e3c8068", "失败"), str(e))
 
     def _insert_to_document(self):
         """将处理后的图片插入到文档"""
         if not self._original_image:
-            QMessageBox.information(self, "提示", "请先打开图片")
+            QMessageBox.information(self, tr("auto.beewrite_image.ab3656a9", "提示"), tr("auto.beewrite_image.f8ca5da6", "请先打开图片"))
             return
         try:
             img = self._process_image()
@@ -440,7 +441,7 @@ class ImageEditorDialog(QDialog):
             self._result_path = str(tmp_path)
             self.accept()
         except Exception as e:
-            QMessageBox.warning(self, "失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_image.3e3c8068", "失败"), str(e))
 
     def get_result_path(self):
         """获取处理后的图片路径"""

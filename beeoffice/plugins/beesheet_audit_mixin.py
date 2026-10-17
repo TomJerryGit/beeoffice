@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from beeoffice.plugins.beesheet_utils import extract_refs_from_formula
+from beeoffice.i18n import tr
 
 
 class AuditMixin:
@@ -24,7 +25,7 @@ class AuditMixin:
             return
         key = (idx.row(), idx.column())
         if key not in self._formula_cells:
-            QMessageBox.information(self, "提示", "当前单元格没有公式")
+            QMessageBox.information(self, tr("auto.beesheet_audit_mixin.ab3656a9", "提示"), tr("auto.beesheet_audit_mixin.deace310", "当前单元格没有公式"))
             return
         formula = self._formula_cells[key]
         refs = extract_refs_from_formula(formula)
@@ -37,7 +38,7 @@ class AuditMixin:
                 5000
             )
         else:
-            self._set_status("该公式没有引用其他单元格", 3000)
+            self._set_status(tr("auto.beesheet_audit_mixin.350c32c6", "该公式没有引用其他单元格"), 3000)
 
     def _trace_dependents(self):
         """追踪从属：找出哪些单元格的公式引用了当前单元格"""
@@ -67,7 +68,7 @@ class AuditMixin:
         if self._audit_cells:
             self._audit_cells.clear()
             self._refresh_all_cells()
-            self._set_status("已清除审计高亮", 2000)
+            self._set_status(tr("auto.beesheet_audit_mixin.a0024ade", "已清除审计高亮"), 2000)
 
     def _refresh_all_cells(self):
         """刷新整个表格（用于审计高亮变化）"""
@@ -94,16 +95,16 @@ class AuditMixin:
             if val.startswith('='):
                 formula = val
             else:
-                QMessageBox.information(self, "提示", "当前单元格没有公式")
+                QMessageBox.information(self, tr("auto.beesheet_audit_mixin.ab3656a9", "提示"), tr("auto.beesheet_audit_mixin.deace310", "当前单元格没有公式"))
                 return
         translation = self._translate_formula_to_chinese(formula)
 
         dlg = QDialog(self)
-        dlg.setWindowTitle("📖 公式翻译器")
+        dlg.setWindowTitle(tr("auto.beesheet_audit_mixin.2c6609ce", "📖 公式翻译器"))
         dlg.resize(520, 360)
         layout = QVBoxLayout(dlg)
 
-        layout.addWidget(QLabel("<b>公式：</b>"))
+        layout.addWidget(QLabel(tr("auto.beesheet_audit_mixin.38d6cd9d", "<b>公式：</b>")))
         f_label = QLabel(formula)
         f_label.setStyleSheet(
             "QLabel{background:#F5F5F5;padding:10px;"
@@ -112,7 +113,7 @@ class AuditMixin:
         f_label.setWordWrap(True)
         layout.addWidget(f_label)
 
-        layout.addWidget(QLabel("<b>中文说明：</b>"))
+        layout.addWidget(QLabel(tr("auto.beesheet_audit_mixin.4024d4fb", "<b>中文说明：</b>")))
         t_label = QLabel(translation)
         t_label.setStyleSheet(
             "QLabel{background:#FFF8E1;padding:12px;font-size:14px;"
@@ -124,13 +125,13 @@ class AuditMixin:
         layout.addStretch()
 
         bl = QHBoxLayout()
-        copy_btn = QPushButton("📋 复制说明")
+        copy_btn = QPushButton(tr("auto.beesheet_audit_mixin.8283a2ed", "📋 复制说明"))
         copy_btn.clicked.connect(
             lambda: QApplication.clipboard().setText(translation)
         )
         bl.addWidget(copy_btn)
         bl.addStretch()
-        close_btn = QPushButton("关闭")
+        close_btn = QPushButton(tr("auto.beesheet_audit_mixin.6c14bd7f", "关闭"))
         close_btn.clicked.connect(dlg.reject)
         bl.addWidget(close_btn)
         layout.addLayout(bl)
@@ -186,14 +187,14 @@ class AuditMixin:
         formula = self._formula_cells.get(key, "")
         if not formula:
             QMessageBox.information(
-                self, "错误详情",
+                self, tr("auto.beesheet_audit_mixin.bb72f34f", "错误详情"),
                 f"该单元格存在错误：\n\n{error_value}\n\n"
                 f"（公式记录已丢失，无法显示详细原因）"
             )
             return
 
         dlg = QDialog(self)
-        dlg.setWindowTitle("⚠ 公式错误助手")
+        dlg.setWindowTitle(tr("auto.beesheet_audit_mixin.b8484cc7", "⚠ 公式错误助手"))
         dlg.resize(520, 380)
         layout = QVBoxLayout(dlg)
 
@@ -210,7 +211,7 @@ class AuditMixin:
         layout.addWidget(err_box)
 
         # 公式原文
-        layout.addWidget(QLabel("📝 原始公式："))
+        layout.addWidget(QLabel(tr("auto.beesheet_audit_mixin.382131ee", "📝 原始公式：")))
         formula_label = QLabel(formula)
         formula_label.setStyleSheet(
             "QLabel{background:#F5F5F5;padding:10px;"
@@ -220,7 +221,7 @@ class AuditMixin:
         layout.addWidget(formula_label)
 
         # 诊断与建议
-        layout.addWidget(QLabel("💡 诊断与建议："))
+        layout.addWidget(QLabel(tr("auto.beesheet_audit_mixin.0ced231e", "💡 诊断与建议：")))
         diag = self._diagnose_error(formula, error_value)
         diag_label = QLabel(diag)
         diag_label.setWordWrap(True)
@@ -233,11 +234,11 @@ class AuditMixin:
 
         # 按钮
         bl = QHBoxLayout()
-        copy_btn = QPushButton("📋 复制公式")
+        copy_btn = QPushButton(tr("auto.beesheet_audit_mixin.824ccbfc", "📋 复制公式"))
         copy_btn.clicked.connect(
             lambda: QApplication.clipboard().setText(formula)
         )
-        edit_btn = QPushButton("✏️ 编辑公式")
+        edit_btn = QPushButton(tr("auto.beesheet_audit_mixin.e13b351f", "✏️ 编辑公式"))
         edit_btn.clicked.connect(
             lambda: [
                 self.table_view.setCurrentIndex(
@@ -252,7 +253,7 @@ class AuditMixin:
         bl.addWidget(copy_btn)
         bl.addWidget(edit_btn)
         bl.addStretch()
-        close_btn = QPushButton("关闭")
+        close_btn = QPushButton(tr("auto.beesheet_audit_mixin.6c14bd7f", "关闭"))
         close_btn.clicked.connect(dlg.reject)
         bl.addWidget(close_btn)
         layout.addLayout(bl)
@@ -328,7 +329,7 @@ class AuditMixin:
 
         # 构建对话框
         dlg = QDialog(self)
-        dlg.setWindowTitle("✓ Excel 兼容性检查")
+        dlg.setWindowTitle(tr("auto.beesheet_audit_mixin.710298d8", "✓ Excel 兼容性检查"))
         dlg.resize(560, 480)
         layout = QVBoxLayout(dlg)
 
@@ -383,7 +384,7 @@ class AuditMixin:
 
         def export_report():
             path, _ = QFileDialog.getSaveFileName(
-                dlg, "保存报告", "兼容性报告.txt", "文本 (*.txt)"
+                dlg, tr("auto.beesheet_audit_mixin.eeb3313e", "保存报告"), tr("auto.beesheet_audit_mixin.0f0beaf0", "兼容性报告.txt"), tr("auto.beesheet_audit_mixin.ae040eac", "文本 (*.txt)")
             )
             if path:
                 try:
@@ -395,16 +396,16 @@ class AuditMixin:
                         f.write(f"检查时间：{datetime.now()}\n\n")
                         f.write("\n".join(lines))
                     QMessageBox.information(
-                        dlg, "成功", f"已保存：\n{path}"
+                        dlg, tr("auto.beesheet_audit_mixin.51991a5d", "成功"), f"已保存：\n{path}"
                     )
                 except Exception as e:
-                    QMessageBox.warning(dlg, "失败", str(e))
+                    QMessageBox.warning(dlg, tr("auto.beesheet_audit_mixin.3e3c8068", "失败"), str(e))
 
-        export_btn = QPushButton("📋 导出报告")
+        export_btn = QPushButton(tr("auto.beesheet_audit_mixin.14a4b99d", "📋 导出报告"))
         export_btn.clicked.connect(export_report)
         bl.addWidget(export_btn)
         bl.addStretch()
-        close_btn = QPushButton("关闭")
+        close_btn = QPushButton(tr("auto.beesheet_audit_mixin.6c14bd7f", "关闭"))
         close_btn.clicked.connect(dlg.reject)
         bl.addWidget(close_btn)
         layout.addLayout(bl)

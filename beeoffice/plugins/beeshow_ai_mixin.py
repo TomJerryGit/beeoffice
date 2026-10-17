@@ -58,6 +58,7 @@ from PySide6.QtWidgets import (
 from beeoffice.plugins.beeshow_constants import (
     ICON_LIBRARY, TEMPLATE_LIBRARY,
 )
+from beeoffice.i18n import tr
 
 
 class AIMixin:
@@ -76,7 +77,7 @@ class AIMixin:
           否则 PySide6 点击时抛 TypeError。
         """
         dlg = QDialog(self)
-        dlg.setWindowTitle("🎭 图标库")
+        dlg.setWindowTitle(tr("auto.beeshow_ai_mixin.04e71a43", "🎭 图标库"))
         layout = QVBoxLayout(dlg)
 
         for cat, icons in ICON_LIBRARY.items():
@@ -152,10 +153,10 @@ class AIMixin:
             # 立即同步解析（不依赖 150ms 防抖）
             self._current_slide = 0
             self._update_preview()
-            self._set_status("✅ 模板已应用", 2000)
+            self._set_status(tr("auto.beeshow_ai_mixin.f2ecb669", "✅ 模板已应用"), 2000)
         except Exception as e:
             logging.error(f"应用模板失败：{e}")
-            QMessageBox.warning(self, "应用失败", str(e))
+            QMessageBox.warning(self, tr("auto.beeshow_ai_mixin.1797e8c2", "应用失败"), str(e))
 
     # ==================== AI 大纲（任务 1.1） ====================
     def _ai_generate_outline(self):
@@ -178,14 +179,14 @@ class AIMixin:
 
         # 1. 询问主题
         topic, ok = QInputDialog.getText(
-            self, "🤖 AI 生成大纲", "请输入演示主题:"
+            self, tr("auto.beeshow_ai_mixin.a0567b07", "🤖 AI 生成大纲"), tr("auto.beeshow_ai_mixin.139a0d9c", "请输入演示主题:")
         )
         if not ok or not topic.strip():
             return
 
         # 2. 询问受众
         audience, ok = QInputDialog.getItem(
-            self, "🤖 AI 生成大纲", "目标受众:",
+            self, tr("auto.beeshow_ai_mixin.a0567b07", "🤖 AI 生成大纲"), tr("auto.beeshow_ai_mixin.9e2e234d", "目标受众:"),
             ["普通听众", "技术团队", "管理层", "客户", "学生"],
             0, False,
         )
@@ -209,7 +210,7 @@ class AIMixin:
             return
 
         # 5. 调用 AI 服务
-        self._set_status("🤖 正在生成大纲...", 0)
+        self._set_status(tr("auto.beeshow_ai_mixin.bf1f3cef", "🤖 正在生成大纲..."), 0)
         try:
             service = create_service_from_settings()
             outlines = service.generate_outline(
@@ -220,13 +221,13 @@ class AIMixin:
             )
         except Exception as e:
             logging.error(f"AI 生成大纲失败：{e}")
-            QMessageBox.warning(self, "生成失败", str(e))
-            self._set_status("❌ 生成失败", 3000)
+            QMessageBox.warning(self, tr("auto.beeshow_ai_mixin.64ba75d9", "生成失败"), str(e))
+            self._set_status(tr("auto.beeshow_ai_mixin.b017c717", "❌ 生成失败"), 3000)
             return
 
         if not outlines:
-            QMessageBox.warning(self, "生成失败", "AI 未返回有效大纲")
-            self._set_status("❌ 生成失败", 3000)
+            QMessageBox.warning(self, tr("auto.beeshow_ai_mixin.64ba75d9", "生成失败"), tr("auto.beeshow_ai_mixin.eeeb70c1", "AI 未返回有效大纲"))
+            self._set_status(tr("auto.beeshow_ai_mixin.b017c717", "❌ 生成失败"), 3000)
             return
 
         # 6. 渲染为 Markdown 幻灯片
@@ -262,7 +263,7 @@ class AIMixin:
 
         if not self._slides_md:
             QMessageBox.information(
-                self, "提示", "请先编写幻灯片内容"
+                self, tr("auto.beeshow_ai_mixin.ab3656a9", "提示"), tr("auto.beeshow_ai_mixin.63565334", "请先编写幻灯片内容")
             )
             return
 
@@ -271,27 +272,27 @@ class AIMixin:
 
         text = self._slides_md[self._current_slide]
         if not text.strip():
-            QMessageBox.information(self, "提示", "当前页内容为空")
+            QMessageBox.information(self, tr("auto.beeshow_ai_mixin.ab3656a9", "提示"), tr("auto.beeshow_ai_mixin.5874e0a0", "当前页内容为空"))
             return
 
-        self._set_status("🖼️ 正在搜索配图...", 0)
+        self._set_status(tr("auto.beeshow_ai_mixin.c426fe77", "🖼️ 正在搜索配图..."), 0)
 
         try:
             suggester = create_suggester_from_settings()
             results = suggester.suggest(text, count=6)
         except Exception as e:
             logging.error(f"搜索配图失败：{e}")
-            QMessageBox.warning(self, "搜索失败", str(e))
-            self._set_status("❌ 搜索失败", 3000)
+            QMessageBox.warning(self, tr("auto.beeshow_ai_mixin.b9786d51", "搜索失败"), str(e))
+            self._set_status(tr("auto.beeshow_ai_mixin.0cb80b7f", "❌ 搜索失败"), 3000)
             return
 
         if not results:
             QMessageBox.information(
-                self, "提示",
+                self, tr("auto.beeshow_ai_mixin.ab3656a9", "提示"),
                 "未找到合适的配图。\n\n"
                 "可在设置中配置 Unsplash / Pexels API Key 以获取更好的结果。"
             )
-            self._set_status("⚠️ 未找到配图", 3000)
+            self._set_status(tr("auto.beeshow_ai_mixin.bc9ce8ad", "⚠️ 未找到配图"), 3000)
             return
 
         # 弹窗展示候选图
@@ -337,10 +338,10 @@ class AIMixin:
             self._editor.setPlainText('\n---\n'.join(parts))
             self._editor.blockSignals(False)
             self._update_preview()
-            self._set_status("✅ 图片已插入", 2000)
+            self._set_status(tr("auto.beeshow_ai_mixin.741b114e", "✅ 图片已插入"), 2000)
         except Exception as e:
             logging.error(f"插入图片失败：{e}")
-            QMessageBox.warning(self, "插入失败", str(e))
+            QMessageBox.warning(self, tr("auto.beeshow_ai_mixin.4620fab0", "插入失败"), str(e))
 
     # ==================== 导入 ====================
     def _import_markdown(self):
@@ -351,7 +352,7 @@ class AIMixin:
         读取失败（编码 / 权限）弹 QMessageBox 提示。
         """
         path, _ = QFileDialog.getOpenFileName(
-            self, "导入 Markdown", "", "Markdown (*.md)"
+            self, tr("auto.beeshow_ai_mixin.75c25bbc", "导入 Markdown"), "", "Markdown (*.md)"
         )
         if path:
             try:
@@ -359,7 +360,7 @@ class AIMixin:
                     self._editor.setPlainText(f.read())
                 self._update_preview()
             except Exception as e:
-                QMessageBox.warning(self, "导入失败", str(e))
+                QMessageBox.warning(self, tr("auto.beeshow_ai_mixin.a01a8d53", "导入失败"), str(e))
 
     # ==================== 二维码（占位） ====================
     def _generate_qrcode(self):
@@ -373,7 +374,7 @@ class AIMixin:
         """
         QMessageBox.information(
             self,
-            "二维码分享",
+            tr("auto.beeshow_ai_mixin.2b65c7a1", "二维码分享"),
             "此功能需要联网生成。\n"
             "可以将导出HTML上传到服务器后生成二维码。"
         )
