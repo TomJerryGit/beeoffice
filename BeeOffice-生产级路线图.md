@@ -418,6 +418,10 @@ P4                                                                       ██�
 | WP-10b | `ChunkLoader` 不再在 worker 线程改 model | ✅ | 代码审查 + 全量测试 |
 | — | 测试基建：`temp_settings` 改用 `Path.home` 隔离，删除复制的默认值 | ✅ | 739 全绿 |
 | WP-01 | 远程仓库 `origin` 已配置 | 🟡 待你授权后推送 | 仓库返回 404，需先创建/确认权限 |
+| WP-15d | 插件市场：内置插件禁止卸载（只允许禁用） | ✅ | 3 条守卫测试 |
+| WP-14a | PDF 导出等 `pdfPrintingFinished` 再报成功 | ✅ 已改 | 需实机验证 |
+| WP-14b | 图片导出 `page.grab()` → `view.grab()` + 离屏渲染 + 如实报数 | ✅ 已改 | 需实机验证 |
+| — | 网络：GitHub 按 SNI 阻断，提供 `tools/push_github.ps1` 绕过 | ✅ | 已把失败点推进到"仓库不存在" |
 
 > **新发现的性能债务（WP-24 首项）**
 > 实测 `pd.read_excel` 打开 `test+files/销售数据_50000条.xlsx`

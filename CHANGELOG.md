@@ -48,6 +48,19 @@
   `_apply_imported_dataframe`（必须 GUI 线程）。
 - **蜜算（状态污染）**：导入新文件时未清空 `_formula_cells`，
   旧坐标上的公式会在重算时覆盖新数据。现随导入一并清空。
+- **安全（插件市场）**：卸载会无条件删除插件文件，而内置插件与用户插件
+  混在同一目录——用户点"卸载 蜜写"，`beewrite_plugin.py` 就从源码目录消失。
+  现在安装时写入 `# BEEOFFICE_USER_PLUGIN` 标记，卸载只删带标记的文件；
+  内置插件只允许"禁用"。
+- **蜜演（假成功）**：PDF 导出调用异步的 `printToPdf` 后立刻弹"导出成功"
+  并 `deleteLater()` 渲染页。现在等 `pdfPrintingFinished` 回调，
+  成功/失败与实际写入结果一致。
+- **蜜演（假成功）**：图片序列导出调用 `page.grab()`——`QWebEnginePage`
+  没有该方法，异常被吞后仍报成功。改为 `QWebEngineView.grab()`，
+  离屏渲染（`WA_DontShowOnScreen`）、等首帧 300ms，
+  并按成功/失败张数如实提示。
+- **蜜演（体验）**：移除导出图片时"3 秒后弹出模态『导出中』"的逻辑，
+  它会抢焦点并阻塞事件循环。
 
 ### 测试
 

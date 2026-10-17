@@ -11,7 +11,6 @@ v5.0.1 修复（P1-6）：
     直接用 int 比较最安全。
 """
 import logging
-import shutil
 import zipfile
 import tempfile
 from pathlib import Path
@@ -283,7 +282,7 @@ class PluginMarketDialog(QDialog):
                         )
                         if reply != QMessageBox.Yes:
                             continue
-                    shutil.copy2(py_file, dest)
+                    self._install_file(py_file, dest)
                     installed += 1
 
                 if installed > 0:
@@ -333,7 +332,7 @@ class PluginMarketDialog(QDialog):
                     )
                     if reply != QMessageBox.Yes:
                         continue
-                shutil.copy2(py_file, dest)
+                self._install_file(py_file, dest)
                 installed += 1
 
             if installed > 0:
@@ -361,9 +360,35 @@ class PluginMarketDialog(QDialog):
         except Exception:
             return False
 
+    # ---------- 用户安装标记 ----------
+    # 安全（P0）：插件市场会把文件直接复制进 beeoffice/plugins/，
+    # 与内置插件混在同一个目录。原实现的"卸载"会无条件 file_path.unlink()，
+    # 于是用户点一次"卸载 蜜写"，beewrite_plugin.py 就从源码目录消失了。
+    # 现在只删除带此标记的文件（由插件市场安装时写入）。
+    _USER_PLUGIN_MARKER = "# BEEOFFICE_USER_PLUGIN: installed by plugin market"
+
+    @classmethod
+    def _is_user_installed(cls, path: Path) -> bool:
+        """判断某个插件文件是否由插件市场安装（可安全删除）。"""
+        try:
+            with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                head = f.read(4096)
+            return head.lstrip("\ufeff").startswith(cls._USER_PLUGIN_MARKER)
+        except Exception:
+            return False
+
+    @classmethod
+    def _install_file(cls, src: Path, dest: Path) -> None:
+        """复制插件文件并写入"用户安装"标记（用于区分内置插件）。"""
+        data = src.read_bytes()
+        marker = cls._USER_PLUGIN_MARKER.encode("utf-8") + b"\n"
+        if not data.startswith(marker):
+            data = marker + data
+        dest.write_bytes(data)
+
     # ---------- 卸载插件 ----------
     def _uninstall_plugin(self):
-        """卸载当前选中的插件"""
+        """卸载当前选中的插件（内置插件只允许禁用，不允许删除源文件）"""
         current = self.list_widget.currentItem()
         if current is None:
             QMessageBox.information(self, "提示", "请先选择一个插件")
@@ -374,10 +399,31 @@ class PluginMarketDialog(QDialog):
             return
 
         name = info.get("name", "未命名")
+
+        # 先判定目标文件能否删除，再决定是否真的卸载
+        instance = info.get("instance")
+        file_path = None
+        if instance is not None:
+            module = instance.__class__.__module__
+            if module.startswith("beeoffice.plugins."):
+                candidate = (
+                    Path(__file__).parent / (module.split(".")[-1] + ".py")
+                )
+                if candidate.exists():
+                    if not self._is_user_installed(candidate):
+                        QMessageBox.information(
+                            self, "无法卸载",
+                            f"「{name}」是内置插件，不能删除源文件。\n\n"
+                            f"如需停用，请使用右侧的「启用此插件」开关；\n"
+                            f"内置插件文件位于：\n{candidate}"
+                        )
+                        return
+                    file_path = candidate
+
         reply = QMessageBox.question(
             self, "卸载插件",
             f"确定要卸载插件「{name}」吗？\n\n"
-            f"注意：此操作会删除插件文件，且不可恢复。",
+            f"这会删除插件文件，且不可恢复。",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
         if reply != QMessageBox.Yes:
@@ -391,20 +437,17 @@ class PluginMarketDialog(QDialog):
             except Exception as e:
                 logging.error(f"从管理器卸载失败: {e}")
 
-        # 尝试删除插件文件
-        instance = info.get("instance")
-        if instance:
-            module = instance.__class__.__module__
-            # 从 module 名推断文件名
-            if module.startswith("beeoffice.plugins."):
-                file_name = module.split(".")[-1] + ".py"
-                file_path = Path(__file__).parent / file_name
-                if file_path.exists():
-                    try:
-                        file_path.unlink()
-                        logging.info(f"已删除插件文件: {file_path}")
-                    except Exception as e:
-                        logging.error(f"删除插件文件失败: {e}")
+        # 删除插件文件（仅用户安装的）
+        if file_path is not None:
+            try:
+                file_path.unlink()
+                logging.info(f"已删除插件文件: {file_path}")
+            except Exception as e:
+                logging.error(f"删除插件文件失败: {e}")
+                QMessageBox.warning(
+                    self, "删除失败",
+                    f"插件已停用，但文件删除失败：\n{e}"
+                )
 
         QMessageBox.information(self, "已卸载", f"插件「{name}」已卸载。")
         self._refresh_list()

@@ -49,7 +49,7 @@ from pathlib import Path
 from PySide6.QtWidgets import (
     QFileDialog, QMessageBox, QInputDialog,
 )
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
 from beeoffice.plugins.beeshow_constants import SLIDE_THEMES
@@ -273,20 +273,39 @@ class ExportMixin:
         temp = QWebEngineView()
         self._export_views.append(temp)
 
-        def on_load(ok):
+        def _cleanup_view():
+            if temp in self._export_views:
+                self._export_views.remove(temp)
+            temp.deleteLater()
+
+        def on_pdf_finished(file_path, success):
+            """
+            printToPdf 是异步的：必须等这个信号才算真的写完。
+
+            原实现在 printToPdf 之后立刻弹"导出成功"并 deleteLater，
+            等于在文件还没落盘时就宣布成功、并把正在打印的页面销毁。
+            """
             try:
-                if ok:
-                    temp.page().printToPdf(path)
+                if success:
                     QMessageBox.information(
-                        self, "导出成功", f"已保存: {path}"
+                        self, "导出成功", f"已保存: {file_path}"
                     )
                 else:
-                    QMessageBox.warning(self, "导出失败", "渲染失败")
+                    QMessageBox.warning(
+                        self, "导出失败",
+                        "PDF 写入失败（磁盘空间不足或无写权限？）"
+                    )
             finally:
-                # 清理引用
-                if temp in self._export_views:
-                    self._export_views.remove(temp)
-                temp.deleteLater()
+                _cleanup_view()
+
+        def on_load(ok):
+            if not ok:
+                QMessageBox.warning(self, "导出失败", "页面渲染失败")
+                _cleanup_view()
+                return
+            # 先接完成信号再发起导出，避免竞态
+            temp.page().pdfPrintingFinished.connect(on_pdf_finished)
+            temp.page().printToPdf(path)
 
         # P0-4：先 connect 再 setHtml，避免时序问题
         temp.page().loadFinished.connect(on_load)
@@ -383,6 +402,24 @@ class ExportMixin:
         bg = self._custom_bg or theme.get("bg", "#FFF")
         total = len(self._slides_html)
 
+        # 统计成功/失败：原来无论截到几张都报"导出成功"
+        results = {"ok": 0, "fail": 0}
+
+        def report():
+            if results["ok"] + results["fail"] < total:
+                return
+            if results["fail"] == 0:
+                QMessageBox.information(
+                    self, "导出成功",
+                    f"已保存 {results['ok']} 张图片到:\n{output_dir}"
+                )
+            else:
+                QMessageBox.warning(
+                    self, "部分失败",
+                    f"成功 {results['ok']} 张，失败 {results['fail']} 张。\n"
+                    f"目录: {output_dir}"
+                )
+
         for i, s in enumerate(self._slides_html):
             # 任务 2.1：拼入版式 CSS
             full_html = (
@@ -395,40 +432,52 @@ class ExportMixin:
 
             # P0-4：保持引用，避免每次循环覆盖导致 GC
             temp = QWebEngineView()
+            # 离屏渲染：不弹窗，但保证首帧确实被绘制，grab() 才有内容
+            temp.setAttribute(Qt.WA_DontShowOnScreen, True)
             self._export_views.append(temp)
             temp.resize(1024, 768)
+            temp.show()
 
-            def capture(page, idx=i, out=output_dir, view=temp):
-                """loadFinished 回调：截图并保存"""
+            def capture(view, idx=i, out=output_dir):
+                """
+                截图并保存。
+
+                修复：原实现调用 page.grab() —— QWebEnginePage 没有这个方法
+                （grab 属于 QWebEngineView），异常被 except 吞掉后仍报"成功"。
+                """
                 try:
-                    page.grab().save(
-                        str(Path(out) / f"slide_{idx+1:03d}.png")
-                    )
+                    pixmap = view.grab()
+                    target = Path(out) / f"slide_{idx+1:03d}.png"
+                    if pixmap.isNull() or not pixmap.save(str(target)):
+                        results["fail"] += 1
+                        logging.error(f"截图失败 slide {idx+1}")
+                    else:
+                        results["ok"] += 1
                 except Exception as e:
-                    logging.error(f"截图失败 slide {idx+1}: {e}")
+                    results["fail"] += 1
+                    logging.error(f"截图异常 slide {idx+1}: {e}")
                 finally:
-                    # 清理引用
                     if view in self._export_views:
                         self._export_views.remove(view)
                     view.deleteLater()
-                    # 最后一张完成时提示
-                    if idx == total - 1:
-                        QMessageBox.information(
-                            self, "导出成功", f"已保存到: {output_dir}"
-                        )
+                    report()
+
+            def on_loaded(ok, view, idx):
+                if not ok:
+                    capture(view, idx)
+                    return
+                # loadFinished 只表示文档加载完，首帧可能还没绘制，
+                # 等 300ms 再截图，否则容易得到空白图。
+                QTimer.singleShot(300, lambda: capture(view, idx))
 
             temp.page().loadFinished.connect(
-                lambda ok, t=temp, idx=i: capture(t.page(), idx)
+                lambda ok, t=temp, idx=i: on_loaded(ok, t, idx)
             )
             temp.setHtml(full_html)
 
-        # 3 秒后提示"导出中"，避免同步阻塞主线程
-        QTimer.singleShot(
-            3000,
-            lambda: QMessageBox.information(
-                self, "导出中", "正在生成图片，请稍候..."
-            )
-        )
+        # 说明：原实现在此处用 QTimer.singleShot(3000) 弹一个模态"导出中"，
+        # 会在导出已经开始后才抢焦点、并阻塞事件循环，反而影响截图。
+        # 已移除——进度应走状态栏，而不是延迟弹出的模态框。
 
     # ==================== 导出 GIF ====================
     def _export_gif(self):
