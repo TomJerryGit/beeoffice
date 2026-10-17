@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from beeoffice.plugin_base import USER_PLUGIN_MARKER
+from beeoffice.i18n import tr
 
 
 class PluginMarketDialog(QDialog):
@@ -31,7 +32,7 @@ class PluginMarketDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent = parent
-        self.setWindowTitle("🔌 插件市场")
+        self.setWindowTitle(tr("auto.plugin_market.9f5ea142", "🔌 插件市场"))
         self.resize(720, 520)
 
         # 主布局
@@ -39,7 +40,7 @@ class PluginMarketDialog(QDialog):
         layout.setSpacing(8)
 
         # 顶部说明
-        tip_label = QLabel("管理已安装的插件。插件目录：beeoffice/plugins/")
+        tip_label = QLabel(tr("auto.plugin_market.744bd296", "管理已安装的插件。插件目录：beeoffice/plugins/"))
         tip_label.setStyleSheet("color: #666; font-size: 12px;")
         layout.addWidget(tip_label)
 
@@ -51,7 +52,7 @@ class PluginMarketDialog(QDialog):
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
 
-        left_layout.addWidget(QLabel("已安装插件："))
+        left_layout.addWidget(QLabel(tr("auto.plugin_market.835de271", "已安装插件：")))
         self.list_widget = QListWidget()
         self.list_widget.setAlternatingRowColors(True)
         self.list_widget.setStyleSheet(
@@ -68,7 +69,7 @@ class PluginMarketDialog(QDialog):
         right_layout = QVBoxLayout(right_widget)
         right_layout.setContentsMargins(0, 0, 0, 0)
 
-        right_layout.addWidget(QLabel("插件详情："))
+        right_layout.addWidget(QLabel(tr("auto.plugin_market.cbfff565", "插件详情：")))
         self.detail_text = QTextEdit()
         self.detail_text.setReadOnly(True)
         self.detail_text.setStyleSheet(
@@ -78,7 +79,7 @@ class PluginMarketDialog(QDialog):
         right_layout.addWidget(self.detail_text)
 
         # 启用/禁用
-        self.enabled_check = QCheckBox("启用此插件")
+        self.enabled_check = QCheckBox(tr("auto.plugin_market.97cdf455", "启用此插件"))
         self.enabled_check.stateChanged.connect(self._on_enabled_changed)
         right_layout.addWidget(self.enabled_check)
 
@@ -89,21 +90,21 @@ class PluginMarketDialog(QDialog):
         # ---- 底部按钮栏 ----
         btn_layout = QHBoxLayout()
 
-        self.install_btn = QPushButton("📦 安装插件")
+        self.install_btn = QPushButton(tr("auto.plugin_market.20e95a6f", "📦 安装插件"))
         self.install_btn.clicked.connect(self._install_plugin)
         btn_layout.addWidget(self.install_btn)
 
-        self.uninstall_btn = QPushButton("🗑 卸载插件")
+        self.uninstall_btn = QPushButton(tr("auto.plugin_market.f2c76bc6", "🗑 卸载插件"))
         self.uninstall_btn.clicked.connect(self._uninstall_plugin)
         btn_layout.addWidget(self.uninstall_btn)
 
-        self.refresh_btn = QPushButton("🔄 刷新")
+        self.refresh_btn = QPushButton(tr("auto.plugin_market.d78fcca1", "🔄 刷新"))
         self.refresh_btn.clicked.connect(self._refresh_list)
         btn_layout.addWidget(self.refresh_btn)
 
         btn_layout.addStretch()
 
-        self.close_btn = QPushButton("关闭")
+        self.close_btn = QPushButton(tr("auto.plugin_market.6c14bd7f", "关闭"))
         self.close_btn.clicked.connect(self.accept)
         btn_layout.addWidget(self.close_btn)
 
@@ -121,13 +122,13 @@ class PluginMarketDialog(QDialog):
 
         plugin_manager = getattr(self.parent, "plugin_manager", None)
         if plugin_manager is None:
-            item = QListWidgetItem("插件管理器未初始化")
+            item = QListWidgetItem(tr("auto.plugin_market.a4323b3d", "插件管理器未初始化"))
             item.setFlags(Qt.NoItemFlags)
             self.list_widget.addItem(item)
             return
 
         if not plugin_manager.plugin_info:
-            item = QListWidgetItem("（暂无已安装插件）")
+            item = QListWidgetItem(tr("auto.plugin_market.9bc7699a", "（暂无已安装插件）"))
             item.setFlags(Qt.NoItemFlags)
             self.list_widget.addItem(item)
             return
@@ -221,14 +222,14 @@ class PluginMarketDialog(QDialog):
                 )
             except Exception as e:
                 logging.error(f"切换插件状态失败: {e}")
-                QMessageBox.warning(self, "失败", f"切换状态失败：{e}")
+                QMessageBox.warning(self, tr("auto.plugin_market.3e3c8068", "失败"), f"切换状态失败：{e}")
 
     # ---------- 安装插件 ----------
     def _install_plugin(self):
         """从 ZIP 文件或目录安装插件"""
         # 选择方式
         reply = QMessageBox.question(
-            self, "安装插件",
+            self, tr("auto.plugin_market.76a38f0a", "安装插件"),
             "选择安装方式：\n\n"
             "是(Y) — 从 ZIP 文件安装\n"
             "否(N) — 从文件夹安装",
@@ -246,8 +247,8 @@ class PluginMarketDialog(QDialog):
     def _install_from_zip(self):
         """从 ZIP 文件安装插件"""
         zip_path, _ = QFileDialog.getOpenFileName(
-            self, "选择插件压缩包", "",
-            "插件包 (*.zip *.beeplugin);;所有文件 (*)"
+            self, tr("auto.plugin_market.48fb4320", "选择插件压缩包"), "",
+            tr("auto.plugin_market.78157f81", "插件包 (*.zip *.beeplugin);;所有文件 (*)")
         )
         if not zip_path:
             return
@@ -262,7 +263,7 @@ class PluginMarketDialog(QDialog):
                 tmp_path = Path(tmp_dir)
                 py_files = list(tmp_path.rglob("*.py"))
                 if not py_files:
-                    QMessageBox.warning(self, "安装失败", "插件包中没有 Python 文件")
+                    QMessageBox.warning(self, tr("auto.plugin_market.31d1bb9b", "安装失败"), tr("auto.plugin_market.135ac5f3", "插件包中没有 Python 文件"))
                     return
 
                 # 复制到 plugins 目录
@@ -278,7 +279,7 @@ class PluginMarketDialog(QDialog):
                     dest = plugins_dir / py_file.name
                     if dest.exists():
                         reply = QMessageBox.question(
-                            self, "文件已存在",
+                            self, tr("auto.plugin_market.ec908942", "文件已存在"),
                             f"插件 {py_file.name} 已存在，是否覆盖？",
                             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
                         )
@@ -289,25 +290,25 @@ class PluginMarketDialog(QDialog):
 
                 if installed > 0:
                     QMessageBox.information(
-                        self, "安装完成",
+                        self, tr("auto.plugin_market.f4235733", "安装完成"),
                         f"已安装 {installed} 个插件文件。\n\n"
                         f"请重启应用以加载新插件。"
                     )
                     self._refresh_list()
                 else:
                     QMessageBox.warning(
-                        self, "未安装",
-                        "插件包中未找到有效的插件（无 Plugin 子类）"
+                        self, tr("auto.plugin_market.6f7dc945", "未安装"),
+                        tr("auto.plugin_market.9c8c16d7", "插件包中未找到有效的插件（无 Plugin 子类）")
                     )
         except zipfile.BadZipFile:
-            QMessageBox.warning(self, "安装失败", "无效的 ZIP 文件")
+            QMessageBox.warning(self, tr("auto.plugin_market.31d1bb9b", "安装失败"), tr("auto.plugin_market.a566fdd8", "无效的 ZIP 文件"))
         except Exception as e:
             logging.error(f"安装插件失败: {e}")
-            QMessageBox.warning(self, "安装失败", str(e))
+            QMessageBox.warning(self, tr("auto.plugin_market.31d1bb9b", "安装失败"), str(e))
 
     def _install_from_dir(self):
         """从目录安装插件"""
-        dir_path = QFileDialog.getExistingDirectory(self, "选择插件目录")
+        dir_path = QFileDialog.getExistingDirectory(self, tr("auto.plugin_market.e9f5525c", "选择插件目录"))
         if not dir_path:
             return
 
@@ -315,7 +316,7 @@ class PluginMarketDialog(QDialog):
             src_dir = Path(dir_path)
             py_files = list(src_dir.rglob("*.py"))
             if not py_files:
-                QMessageBox.warning(self, "安装失败", "目录中没有 Python 文件")
+                QMessageBox.warning(self, tr("auto.plugin_market.31d1bb9b", "安装失败"), tr("auto.plugin_market.da4b37a6", "目录中没有 Python 文件"))
                 return
 
             plugins_dir = Path(__file__).parent
@@ -328,7 +329,7 @@ class PluginMarketDialog(QDialog):
                 dest = plugins_dir / py_file.name
                 if dest.exists():
                     reply = QMessageBox.question(
-                        self, "文件已存在",
+                        self, tr("auto.plugin_market.ec908942", "文件已存在"),
                         f"插件 {py_file.name} 已存在，是否覆盖？",
                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No
                     )
@@ -339,19 +340,19 @@ class PluginMarketDialog(QDialog):
 
             if installed > 0:
                 QMessageBox.information(
-                    self, "安装完成",
+                    self, tr("auto.plugin_market.f4235733", "安装完成"),
                     f"已安装 {installed} 个插件文件。\n\n"
                     f"请重启应用以加载新插件。"
                 )
                 self._refresh_list()
             else:
                 QMessageBox.warning(
-                    self, "未安装",
-                    "目录中未找到有效的插件（无 Plugin 子类）"
+                    self, tr("auto.plugin_market.6f7dc945", "未安装"),
+                    tr("auto.plugin_market.686079ee", "目录中未找到有效的插件（无 Plugin 子类）")
                 )
         except Exception as e:
             logging.error(f"安装插件失败: {e}")
-            QMessageBox.warning(self, "安装失败", str(e))
+            QMessageBox.warning(self, tr("auto.plugin_market.31d1bb9b", "安装失败"), str(e))
 
     @staticmethod
     def _contains_plugin_class(py_file: Path) -> bool:
@@ -393,7 +394,7 @@ class PluginMarketDialog(QDialog):
         """卸载当前选中的插件（内置插件只允许禁用，不允许删除源文件）"""
         current = self.list_widget.currentItem()
         if current is None:
-            QMessageBox.information(self, "提示", "请先选择一个插件")
+            QMessageBox.information(self, tr("auto.plugin_market.ab3656a9", "提示"), tr("auto.plugin_market.08632bca", "请先选择一个插件"))
             return
 
         info = current.data(Qt.UserRole)
@@ -414,7 +415,7 @@ class PluginMarketDialog(QDialog):
                 if candidate.exists():
                     if not self._is_user_installed(candidate):
                         QMessageBox.information(
-                            self, "无法卸载",
+                            self, tr("auto.plugin_market.8e305aee", "无法卸载"),
                             f"「{name}」是内置插件，不能删除源文件。\n\n"
                             f"如需停用，请使用右侧的「启用此插件」开关；\n"
                             f"内置插件文件位于：\n{candidate}"
@@ -423,7 +424,7 @@ class PluginMarketDialog(QDialog):
                     file_path = candidate
 
         reply = QMessageBox.question(
-            self, "卸载插件",
+            self, tr("auto.plugin_market.af91141a", "卸载插件"),
             f"确定要卸载插件「{name}」吗？\n\n"
             f"这会删除插件文件，且不可恢复。",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
@@ -447,11 +448,11 @@ class PluginMarketDialog(QDialog):
             except Exception as e:
                 logging.error(f"删除插件文件失败: {e}")
                 QMessageBox.warning(
-                    self, "删除失败",
+                    self, tr("auto.plugin_market.72250c59", "删除失败"),
                     f"插件已停用，但文件删除失败：\n{e}"
                 )
 
-        QMessageBox.information(self, "已卸载", f"插件「{name}」已卸载。")
+        QMessageBox.information(self, tr("auto.plugin_market.c2ad3378", "已卸载"), f"插件「{name}」已卸载。")
         self._refresh_list()
 
     # ---------- 关闭 ----------
@@ -470,4 +471,4 @@ def show_plugin_market(parent):
         dialog.exec()
     except Exception as e:
         logging.error(f"打开插件市场失败: {e}")
-        QMessageBox.warning(parent, "错误", f"打开插件市场失败：\n{e}")
+        QMessageBox.warning(parent, tr("auto.plugin_market.b859c7be", "错误"), f"打开插件市场失败：\n{e}")

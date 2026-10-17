@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from beeoffice.settings import AppSettings
+from beeoffice.i18n import tr
 
 
 class CloudSettingsDialog(QDialog):
@@ -23,7 +24,7 @@ class CloudSettingsDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("☁️ 云存储设置")
+        self.setWindowTitle(tr("auto.cloud_settings.d9bfe5c4", "☁️ 云存储设置"))
         self.resize(480, 400)
         self.settings = AppSettings()
 
@@ -33,7 +34,7 @@ class CloudSettingsDialog(QDialog):
 
         # 类型选择
         type_layout = QHBoxLayout()
-        type_layout.addWidget(QLabel("存储类型:"))
+        type_layout.addWidget(QLabel(tr("auto.cloud_settings.99e92297", "存储类型:")))
         self.type_combo = QComboBox()
         self.type_combo.addItem("WebDAV", "webdav")
         self.type_combo.addItem("OneDrive", "onedrive")
@@ -67,7 +68,7 @@ class CloudSettingsDialog(QDialog):
         self.onedrive_token_edit = QLineEdit()
         self.onedrive_token_edit.setPlaceholderText("OAuth Access Token")
         onedrive_form.addRow("Access Token:", self.onedrive_token_edit)
-        onedrive_form.addRow(QLabel("提示：需从 Microsoft Graph API 获取"))
+        onedrive_form.addRow(QLabel(tr("auto.cloud_settings.506d9b43", "提示：需从 Microsoft Graph API 获取")))
         self.stack.addWidget(self.onedrive_page)
 
         # ---- Google Drive 字段 ----
@@ -76,16 +77,16 @@ class CloudSettingsDialog(QDialog):
         self.gdrive_token_edit = QLineEdit()
         self.gdrive_token_edit.setPlaceholderText("OAuth Access Token")
         gdrive_form.addRow("Access Token:", self.gdrive_token_edit)
-        gdrive_form.addRow(QLabel("提示：需从 Google Drive API 获取"))
+        gdrive_form.addRow(QLabel(tr("auto.cloud_settings.7ac31a8a", "提示：需从 Google Drive API 获取")))
         self.stack.addWidget(self.gdrive_page)
 
         layout.addWidget(self.stack)
 
         # 通用选项
         option_layout = QVBoxLayout()
-        self.enabled_check = QCheckBox("启用云同步")
+        self.enabled_check = QCheckBox(tr("auto.cloud_settings.fda4091d", "启用云同步"))
         option_layout.addWidget(self.enabled_check)
-        self.auto_sync_check = QCheckBox("启动时自动同步")
+        self.auto_sync_check = QCheckBox(tr("auto.cloud_settings.e4bdc666", "启动时自动同步"))
         option_layout.addWidget(self.auto_sync_check)
         layout.addLayout(option_layout)
 
@@ -93,15 +94,15 @@ class CloudSettingsDialog(QDialog):
 
         # 按钮栏
         btn_layout = QHBoxLayout()
-        self.test_btn = QPushButton("测试连接")
+        self.test_btn = QPushButton(tr("auto.cloud_settings.10b7d8ec", "测试连接"))
         self.test_btn.clicked.connect(self._test_connection)
         btn_layout.addWidget(self.test_btn)
         btn_layout.addStretch()
 
         btns = QDialogButtonBox()
-        save_btn = QPushButton("保存")
+        save_btn = QPushButton(tr("auto.cloud_settings.fadf24db", "保存"))
         save_btn.setDefault(True)
-        cancel_btn = QPushButton("取消")
+        cancel_btn = QPushButton(tr("auto.cloud_settings.4d0b4688", "取消"))
         btns.addButton(save_btn, QDialogButtonBox.AcceptRole)
         btns.addButton(cancel_btn, QDialogButtonBox.RejectRole)
         btn_layout.addWidget(btns)
@@ -157,7 +158,7 @@ class CloudSettingsDialog(QDialog):
         if cloud_type == "webdav":
             url = self.url_edit.text().strip()
             if url and not (url.startswith("http://") or url.startswith("https://")):
-                QMessageBox.warning(self, "错误", "WebDAV 地址必须以 http:// 或 https:// 开头")
+                QMessageBox.warning(self, tr("auto.cloud_settings.b859c7be", "错误"), tr("auto.cloud_settings.958c3e9e", "WebDAV 地址必须以 http:// 或 https:// 开头"))
                 return
             config = {
                 "url": url,
@@ -167,13 +168,13 @@ class CloudSettingsDialog(QDialog):
         elif cloud_type == "onedrive":
             token = self.onedrive_token_edit.text().strip()
             if not token and self.enabled_check.isChecked():
-                QMessageBox.warning(self, "错误", "启用 OneDrive 需要填写 Access Token")
+                QMessageBox.warning(self, tr("auto.cloud_settings.b859c7be", "错误"), tr("auto.cloud_settings.04ff1be7", "启用 OneDrive 需要填写 Access Token"))
                 return
             config = {"access_token": token}
         elif cloud_type == "googledrive":
             token = self.gdrive_token_edit.text().strip()
             if not token and self.enabled_check.isChecked():
-                QMessageBox.warning(self, "错误", "启用 Google Drive 需要填写 Access Token")
+                QMessageBox.warning(self, tr("auto.cloud_settings.b859c7be", "错误"), tr("auto.cloud_settings.30570ad9", "启用 Google Drive 需要填写 Access Token"))
                 return
             config = {"access_token": token}
 
@@ -187,7 +188,7 @@ class CloudSettingsDialog(QDialog):
             self.settings.save()
         except Exception as e:
             logging.error(f"保存云存储设置失败: {e}")
-            QMessageBox.warning(self, "错误", f"保存失败: {e}")
+            QMessageBox.warning(self, tr("auto.cloud_settings.b859c7be", "错误"), f"保存失败: {e}")
             return
 
         # 新增：重置云存储单例，使新配置立即生效
@@ -197,7 +198,7 @@ class CloudSettingsDialog(QDialog):
         except Exception as e:
             logging.error(f"重置云存储单例失败: {e}")
 
-        QMessageBox.information(self, "已保存", "云存储设置已保存")
+        QMessageBox.information(self, tr("auto.cloud_settings.cdfab96f", "已保存"), tr("auto.cloud_settings.cae5d135", "云存储设置已保存"))
         self.accept()
 
     # ---------- 测试连接 ----------
@@ -208,7 +209,7 @@ class CloudSettingsDialog(QDialog):
         if cloud_type == "webdav":
             url = self.url_edit.text().strip()
             if not url:
-                QMessageBox.warning(self, "提示", "请先填写 WebDAV 地址")
+                QMessageBox.warning(self, tr("auto.cloud_settings.ab3656a9", "提示"), tr("auto.cloud_settings.5f916474", "请先填写 WebDAV 地址"))
                 return
             try:
                 from webdav3.client import Client
@@ -218,14 +219,14 @@ class CloudSettingsDialog(QDialog):
                     "webdav_password": self.pwd_edit.text(),
                 })
                 client.check()
-                QMessageBox.information(self, "成功", "WebDAV 连接成功！")
+                QMessageBox.information(self, tr("auto.cloud_settings.51991a5d", "成功"), tr("auto.cloud_settings.195b5ddf", "WebDAV 连接成功！"))
             except Exception as e:
-                QMessageBox.warning(self, "失败", f"WebDAV 连接失败：\n{e}")
+                QMessageBox.warning(self, tr("auto.cloud_settings.3e3c8068", "失败"), f"WebDAV 连接失败：\n{e}")
 
         elif cloud_type == "onedrive":
             token = self.onedrive_token_edit.text().strip()
             if not token:
-                QMessageBox.warning(self, "提示", "请先填写 Access Token")
+                QMessageBox.warning(self, tr("auto.cloud_settings.ab3656a9", "提示"), tr("auto.cloud_settings.fc8293e5", "请先填写 Access Token"))
                 return
             try:
                 import requests
@@ -235,16 +236,16 @@ class CloudSettingsDialog(QDialog):
                     timeout=10
                 )
                 if resp.status_code == 200:
-                    QMessageBox.information(self, "成功", "OneDrive 连接成功！")
+                    QMessageBox.information(self, tr("auto.cloud_settings.51991a5d", "成功"), tr("auto.cloud_settings.40c67fc1", "OneDrive 连接成功！"))
                 else:
-                    QMessageBox.warning(self, "失败", f"OneDrive 返回状态码: {resp.status_code}")
+                    QMessageBox.warning(self, tr("auto.cloud_settings.3e3c8068", "失败"), f"OneDrive 返回状态码: {resp.status_code}")
             except Exception as e:
-                QMessageBox.warning(self, "失败", f"OneDrive 连接失败：\n{e}")
+                QMessageBox.warning(self, tr("auto.cloud_settings.3e3c8068", "失败"), f"OneDrive 连接失败：\n{e}")
 
         elif cloud_type == "googledrive":
             token = self.gdrive_token_edit.text().strip()
             if not token:
-                QMessageBox.warning(self, "提示", "请先填写 Access Token")
+                QMessageBox.warning(self, tr("auto.cloud_settings.ab3656a9", "提示"), tr("auto.cloud_settings.fc8293e5", "请先填写 Access Token"))
                 return
             try:
                 import requests
@@ -255,11 +256,11 @@ class CloudSettingsDialog(QDialog):
                     timeout=10
                 )
                 if resp.status_code == 200:
-                    QMessageBox.information(self, "成功", "Google Drive 连接成功！")
+                    QMessageBox.information(self, tr("auto.cloud_settings.51991a5d", "成功"), tr("auto.cloud_settings.f6d9177d", "Google Drive 连接成功！"))
                 else:
-                    QMessageBox.warning(self, "失败", f"Google Drive 返回状态码: {resp.status_code}")
+                    QMessageBox.warning(self, tr("auto.cloud_settings.3e3c8068", "失败"), f"Google Drive 返回状态码: {resp.status_code}")
             except Exception as e:
-                QMessageBox.warning(self, "失败", f"Google Drive 连接失败：\n{e}")
+                QMessageBox.warning(self, tr("auto.cloud_settings.3e3c8068", "失败"), f"Google Drive 连接失败：\n{e}")
 
 
 def show_cloud_settings(parent=None):
