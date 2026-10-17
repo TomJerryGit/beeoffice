@@ -64,30 +64,75 @@ class DocMixin:
     # 页眉 / 页脚
     # ==================================================================
     def _insert_header(self):
-        """插入页眉（以 HTML 注释形式写入，导出 Word 时生效）"""
+        """
+        设置页眉（导出 Word 时写入 section.header）。
+
+        修复：原实现把 `<!-- header: ... -->` 直接插进正文，在编辑器里
+        就是一行可见的注释文字，而且全仓没有任何地方解析它——
+        既难看又不生效。现在只记在内存里，导出时交给 python-docx。
+        """
         if self._edit_mode != "rich_text":
             return
         from PySide6.QtWidgets import QInputDialog
 
-        text, ok = QInputDialog.getText(self, "页眉", "请输入页眉文字:")
-        if ok and text.strip():
-            self.rich_editor.textCursor().insertText(
-                f"\n<!-- header: {text.strip()} -->\n"
+        text, ok = QInputDialog.getText(
+            self, "页眉", "请输入页眉文字:",
+            text=getattr(self, "_header_text", ""),
+        )
+        if ok:
+            self._header_text = text.strip()
+            self._set_status(
+                f"页眉已设置：{self._header_text or '（空）'}（导出 Word 时生效）",
+                3000,
             )
-            self._set_status("页眉已添加，导出 Word 时生效", 3000)
 
     def _insert_footer(self):
-        """插入页脚（以 HTML 注释形式写入，导出 Word 时生效）"""
+        """设置页脚（导出 Word 时写入 section.footer）。"""
         if self._edit_mode != "rich_text":
             return
         from PySide6.QtWidgets import QInputDialog
 
-        text, ok = QInputDialog.getText(self, "页脚", "请输入页脚文字:")
-        if ok and text.strip():
-            self.rich_editor.textCursor().insertText(
-                f"\n<!-- footer: {text.strip()} -->\n"
+        text, ok = QInputDialog.getText(
+            self, "页脚", "请输入页脚文字:",
+            text=getattr(self, "_footer_text", ""),
+        )
+        if ok:
+            self._footer_text = text.strip()
+            self._set_status(
+                f"页脚已设置：{self._footer_text or '（空）'}（导出 Word 时生效）",
+                3000,
             )
-            self._set_status("页脚已添加，导出 Word 时生效", 3000)
+
+    def _apply_header_footer(self, doc):
+        """
+        把内存里的页眉/页脚写入 python-docx 文档的节。
+
+        :param doc: python-docx Document
+        :return: 是否实际写入
+        """
+        header_text = getattr(self, "_header_text", "") or ""
+        footer_text = getattr(self, "_footer_text", "") or ""
+        if not header_text and not footer_text:
+            return False
+        try:
+            from docx.enum.text import WD_ALIGN_PARAGRAPH
+        except Exception:
+            return False
+
+        try:
+            section = doc.sections[0]
+            if header_text:
+                para = section.header.paragraphs[0]
+                para.text = header_text
+                para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            if footer_text:
+                para = section.footer.paragraphs[0]
+                para.text = footer_text
+                para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            return True
+        except Exception as e:
+            logging.error(f"写入页眉/页脚失败: {e}")
+            return False
 
     # ==================================================================
     # 目录

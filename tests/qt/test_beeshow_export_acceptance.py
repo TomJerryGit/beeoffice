@@ -63,6 +63,8 @@ def silent_dialogs(monkeypatch):
     return m, captured
 
 
+@pytest.mark.slow
+@pytest.mark.timeout(180)
 def test_export_pdf_produces_real_pdf(qtbot, tmp_path, silent_dialogs, show_view):
     m, captured = silent_dialogs
     out = tmp_path / "out.pdf"
@@ -95,6 +97,8 @@ def test_export_pdf_produces_real_pdf(qtbot, tmp_path, silent_dialogs, show_view
     assert not captured["warning"], f"不应有失败提示: {captured['warning']}"
 
 
+@pytest.mark.slow
+@pytest.mark.timeout(240)
 def test_export_images_are_not_blank(qtbot, tmp_path, silent_dialogs, show_view):
     m, captured = silent_dialogs
     m.QFileDialog.getExistingDirectory = staticmethod(lambda *a, **k: str(tmp_path))

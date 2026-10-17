@@ -103,6 +103,12 @@ class SlideMixin:
 
         raw_parts = re.split(r'\n---', text)
 
+        # 只丢弃文件末尾的空段（结尾的 "---"），**保留中间空段**。
+        # 若把所有空段都丢掉，_slides_html 的下标就与 Markdown 的分页号对不上，
+        # 备注/评论写入时会整体错位。
+        while len(raw_parts) > 1 and not raw_parts[-1].strip():
+            raw_parts.pop()
+
         self._slides_html = []
         self._slides_md = []           # P1-13：同步清空
         self._speaker_notes = []
@@ -110,16 +116,13 @@ class SlideMixin:
 
         for part in raw_parts:
             part = part.strip()
-            if not part:
-                continue
+            note = ""
 
             # 提取 <!-- 备注 -->
             nm = re.search(r'<!--\s*(.*?)\s*-->', part, re.DOTALL)
             if nm:
-                self._speaker_notes.append(nm.group(1).strip())
+                note = nm.group(1).strip()
                 part = part.replace(nm.group(0), '').strip()
-            else:
-                self._speaker_notes.append('')
 
             # 任务 4.2：剥离 comments 注释
             part = re.sub(
@@ -137,19 +140,22 @@ class SlideMixin:
                 flags=re.DOTALL,
             ).strip()
 
-            if part:
-                html = self._md_to_html(part)
-                self._slides_html.append(html)
-                self._slides_md.append(part)      # P1-13：保留源文本
+            # 关键：备注与幻灯片必须**一一对应**。
+            # 原实现先 append 备注、再判断 part 是否为空，
+            # 一个"只有注释"的分页会让两者错位，备注从此写到别的页上。
+            self._speaker_notes.append(note)
 
-                # 提取标题
-                title_match = re.search(
-                    r'<h[1-3][^>]*>(.*?)</h[1-3]>', html
-                )
-                self._slide_titles.append(
-                    title_match.group(1) if title_match
-                    else f"幻灯片 {len(self._slides_html)}"
-                )
+            html = self._md_to_html(part) if part else ""
+            self._slides_html.append(html)
+            self._slides_md.append(part)      # P1-13：保留源文本
+
+            title_match = re.search(
+                r'<h[1-3][^>]*>(.*?)</h[1-3]>', html
+            )
+            self._slide_titles.append(
+                title_match.group(1) if title_match
+                else f"幻灯片 {len(self._slides_html)}"
+            )
 
         self._update_thumbnails()
         if self._slides_html:

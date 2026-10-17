@@ -304,6 +304,17 @@ class ExportMixin:
                 if not export_to_docx(content, path):
                     QMessageBox.warning(self, "失败", "无法生成 Word 文档")
                     return False
+                # md 路径由独立函数生成并保存，页眉/页脚只能事后补写
+                # （python-docx 没有"从外部注入"的入口）。
+                if (getattr(self, "_header_text", "")
+                        or getattr(self, "_footer_text", "")):
+                    try:
+                        from docx import Document
+                        _doc = Document(path)
+                        if self._apply_header_footer(_doc):
+                            _doc.save(path)
+                    except Exception as e:
+                        logging.error(f"md 导出后补写页眉页脚失败: {e}")
 
             # ---------- v5.0.2：同步文件路径到 rich_editor ----------
             # ★ v5.0.5：只有到这里才说明文件已写入成功，
@@ -927,6 +938,13 @@ class ExportMixin:
                     self._apply_block_format_to_para(para, bf)
 
             block = block.next()
+
+        # 页眉 / 页脚（真正写进 Word 的节，而不是正文里的一行注释）
+        try:
+            if hasattr(self, "_apply_header_footer"):
+                self._apply_header_footer(doc)
+        except Exception as e:
+            logging.error(f"应用页眉页脚失败: {e}")
 
         # 保存（若文件被占用，会在此处抛 PermissionError）
         doc.save(path)
