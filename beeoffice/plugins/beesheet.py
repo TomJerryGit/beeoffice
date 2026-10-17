@@ -80,6 +80,7 @@ from beeoffice.plugins.beesheet_chart_mixin import ChartMixin
 from beeoffice.plugins.beesheet_context_menu_mixin import ContextMenuMixin
 from beeoffice.plugins.beesheet_rowcol_mixin import RowColMixin
 from beeoffice.plugins.beesheet_ui_mixin import UIMixin
+from beeoffice.i18n import tr
 
 
 # ==================== 主视图 ====================
@@ -408,8 +409,8 @@ class BeeSheetView(
     def _import_file(self):
         """导入文件入口：CSV / Excel / TXT"""
         path, _ = QFileDialog.getOpenFileName(
-            self, "导入", "",
-            "所有支持格式 (*.csv *.xlsx *.xls *.txt);;所有 (*)"
+            self, tr("auto.beesheet.60e2bcad", "导入"), "",
+            tr("auto.beesheet.fa0911fb", "所有支持格式 (*.csv *.xlsx *.xls *.txt);;所有 (*)")
         )
         if path:
             try:
@@ -419,7 +420,7 @@ class BeeSheetView(
             # 大文件提示：>50MB 询问是否分块加载
             if size_mb > 50:
                 reply = QMessageBox.question(
-                    self, "大文件",
+                    self, tr("auto.beesheet.1055b3e1", "大文件"),
                     f"文件大小 {size_mb:.1f} MB，是否使用分块加载？\n"
                     f"（推荐，可避免界面卡顿）",
                     QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
@@ -463,14 +464,14 @@ class BeeSheetView(
         def on_error(err):
             self._progress_bar.setVisible(False)
             self._cancel_load_btn.setVisible(False)
-            QMessageBox.warning(self, "加载失败", err)
-            self._set_status("加载失败", 3000)
+            QMessageBox.warning(self, tr("auto.beesheet.f6b7a41e", "加载失败"), err)
+            self._set_status(tr("auto.beesheet.f6b7a41e", "加载失败"), 3000)
 
         def on_cancelled():
             # P0-15：加载被取消
             self._progress_bar.setVisible(False)
             self._cancel_load_btn.setVisible(False)
-            self._set_status("已取消加载", 3000)
+            self._set_status(tr("auto.beesheet.a4d5fd79", "已取消加载"), 3000)
 
         self._large_file_loader = LargeFileLoader(path, chunk_size, self)
         self._large_file_loader.progress_updated.connect(on_progress)
@@ -484,7 +485,7 @@ class BeeSheetView(
         if (self._large_file_loader is not None
                 and self._large_file_loader.isRunning()):
             self._large_file_loader.requestInterruption()
-            self._set_status("正在取消加载...", 2000)
+            self._set_status(tr("auto.beesheet.9ca31294", "正在取消加载..."), 2000)
 
     def _import_text_file(self, path):
         """导入纯文本文件（按 Tab 分列，否则整行一列）"""
@@ -501,7 +502,7 @@ class BeeSheetView(
             self._auto_resize_columns()
             self._set_status(f"已加载文本: {len(df)} 行")
         except Exception as e:
-            QMessageBox.warning(self, "导入失败", str(e))
+            QMessageBox.warning(self, tr("auto.beesheet.a01a8d53", "导入失败"), str(e))
 
     # ==================== 导入（IO 与 UI 分离） ====================
     @staticmethod
@@ -559,7 +560,7 @@ class BeeSheetView(
         """
         if len(df) > 200000:
             reply = QMessageBox.question(
-                self, "提示", f"文件有{len(df)}行，仅加载前20万行？",
+                self, tr("auto.beesheet.ab3656a9", "提示"), f"文件有{len(df)}行，仅加载前20万行？",
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
             )
             if reply != QMessageBox.Yes:
@@ -586,12 +587,12 @@ class BeeSheetView(
         try:
             df = self._read_sheet_file(path)
         except Exception as e:
-            QMessageBox.warning(self, "导入失败", str(e))
+            QMessageBox.warning(self, tr("auto.beesheet.a01a8d53", "导入失败"), str(e))
             return False
         try:
             return self._apply_imported_dataframe(df, path)
         except Exception as e:
-            QMessageBox.warning(self, "导入失败", str(e))
+            QMessageBox.warning(self, tr("auto.beesheet.a01a8d53", "导入失败"), str(e))
             return False
 
     def _auto_resize_columns(self):
@@ -612,7 +613,7 @@ class BeeSheetView(
     def undo(self):
         """撤销"""
         if not self._undo_stack:
-            self._set_status("无撤销", 2000)
+            self._set_status(tr("auto.beesheet.f7618db5", "无撤销"), 2000)
             return
         cmd = self._undo_stack.pop()
         cmd.undo(self.model)
@@ -622,7 +623,7 @@ class BeeSheetView(
     def redo(self):
         """重做"""
         if not self._redo_stack:
-            self._set_status("无重做", 2000)
+            self._set_status(tr("auto.beesheet.354b8853", "无重做"), 2000)
             return
         cmd = self._redo_stack.pop()
         cmd.execute(self.model)
@@ -638,7 +639,7 @@ class BeeSheetView(
             ignore_index=True
         )
         self._push_command(SortCommand(old, self.model._loaded_df))
-        self._set_status("已排序")
+        self._set_status(tr("auto.beesheet.ad5ae539", "已排序"))
 
     def _show_sort_dialog(self):
         """排序对话框（选择列 + 升/降序）"""
@@ -751,7 +752,7 @@ class BeeSheetView(
         self._info_cell.setText(f"📍 {cell_ref}")
         val = self.model.get_value(r, c)
         if pd.isna(val) or val == '':
-            self._info_value.setText("值：（空）")
+            self._info_value.setText(tr("auto.beesheet.c29a71ac", "值：（空）"))
         else:
             text = str(val)
             if len(text) > 30:
@@ -777,12 +778,12 @@ class BeeSheetView(
     def _show_goto_dialog(self):
         """定位对话框（支持单元格引用 + 命名区域）"""
         dlg = QDialog(self)
-        dlg.setWindowTitle("🔍 定位")
+        dlg.setWindowTitle(tr("auto.beesheet.e7f46cb7", "🔍 定位"))
         dlg.resize(360, 180)
         layout = QVBoxLayout(dlg)
-        layout.addWidget(QLabel("输入单元格引用（如 A1、B10、A1:C20）："))
+        layout.addWidget(QLabel(tr("auto.beesheet.7c4e68b4", "输入单元格引用（如 A1、B10、A1:C20）：")))
         edit = QLineEdit()
-        edit.setPlaceholderText("例如：A1  或  B10:D20")
+        edit.setPlaceholderText(tr("auto.beesheet.4ababec7", "例如：A1  或  B10:D20"))
         cur = self.table_view.currentIndex()
         if cur.isValid():
             edit.setText(
@@ -792,7 +793,7 @@ class BeeSheetView(
 
         # 已定义的命名区域下拉
         if self._named_ranges:
-            layout.addWidget(QLabel("或选择已定义的名称："))
+            layout.addWidget(QLabel(tr("auto.beesheet.cd01145f", "或选择已定义的名称：")))
             name_combo = QComboBox()
             name_combo.addItem("—")
             for name in sorted(self._named_ranges.keys()):
@@ -806,7 +807,7 @@ class BeeSheetView(
 
         bl = QHBoxLayout()
         bl.addStretch()
-        ok_btn = QPushButton("定位")
+        ok_btn = QPushButton(tr("auto.beesheet.84476c81", "定位"))
         ok_btn.setStyleSheet(
             "QPushButton{background:#FFB300;color:#000;padding:6px 16px;"
             "border:none;border-radius:4px;font-weight:bold;}"
@@ -814,7 +815,7 @@ class BeeSheetView(
         ok_btn.clicked.connect(
             lambda: [self._goto_cell(edit.text().strip()), dlg.accept()]
         )
-        cancel_btn = QPushButton("取消")
+        cancel_btn = QPushButton(tr("auto.beesheet.4d0b4688", "取消"))
         cancel_btn.clicked.connect(dlg.reject)
         bl.addWidget(ok_btn)
         bl.addWidget(cancel_btn)
@@ -860,8 +861,8 @@ class BeeSheetView(
             else:
                 self._set_status(f"⚠️ 超出范围：{ref}", 3000)
             return
-        QMessageBox.warning(self, "格式错误",
-                             "请输入有效的引用（如 A1、B10:D20）")
+        QMessageBox.warning(self, tr("auto.beesheet.b8dbd7d3", "格式错误"),
+                             tr("auto.beesheet.c823eb3f", "请输入有效的引用（如 A1、B10:D20）"))
 
     # ==================== 自然语言 ====================
     def _nl_to_formula(self):
@@ -871,7 +872,7 @@ class BeeSheetView(
         default_hint = ("例如：求和A1到A10  /  平均值B列  /  "
                         "筛选大于100的行  /  如果A1大于10就显示'高'")
         text, ok = QInputDialog.getText(
-            self, "💬 自然语言生成公式",
+            self, tr("auto.beesheet.eea62adc", "💬 自然语言生成公式"),
             f"请输入中文指令：\n（{default_hint}）"
         )
         if not ok or not text.strip():
@@ -879,7 +880,7 @@ class BeeSheetView(
         result = NLFormulaParser.parse(text.strip())
         if not result:
             QMessageBox.warning(
-                self, "无法解析",
+                self, tr("auto.beesheet.729fac3e", "无法解析"),
                 "无法理解指令，请尝试：\n\n"
                 "• 求和A1到A10\n"
                 "• 平均值B列\n"
@@ -905,7 +906,7 @@ class BeeSheetView(
             )
             return
         if not idx.isValid():
-            QMessageBox.information(self, "提示", "请先选择一个单元格")
+            QMessageBox.information(self, tr("auto.beesheet.ab3656a9", "提示"), tr("auto.beesheet.1aeffc93", "请先选择一个单元格"))
             return
         old = self.model.get_value(idx.row(), idx.column())
         self._push_command(
@@ -919,10 +920,10 @@ class BeeSheetView(
         """应用自然语言筛选指令"""
         if not hasattr(self.model, 'df') or self.model.df is None \
            or self.model.df.empty:
-            QMessageBox.information(self, "提示", "请先导入数据")
+            QMessageBox.information(self, tr("auto.beesheet.ab3656a9", "提示"), tr("auto.beesheet.ec0ba31f", "请先导入数据"))
             return
         if not op or not value:
-            QMessageBox.information(self, "提示", "筛选条件不完整")
+            QMessageBox.information(self, tr("auto.beesheet.ab3656a9", "提示"), tr("auto.beesheet.baeeef05", "筛选条件不完整"))
             return
         df = self.model.df
         target_col = df.columns[0]
@@ -947,11 +948,11 @@ class BeeSheetView(
             else:
                 mask = df[target_col].astype(str) == value
         except Exception as e:
-            QMessageBox.warning(self, "筛选失败", str(e))
+            QMessageBox.warning(self, tr("auto.beesheet.1d332dce", "筛选失败"), str(e))
             return
         filtered = df[mask].copy()
         if filtered.empty:
-            QMessageBox.information(self, "提示", "筛选结果为空")
+            QMessageBox.information(self, tr("auto.beesheet.ab3656a9", "提示"), tr("auto.beesheet.2be2966d", "筛选结果为空"))
             return
         self.model._loaded_df = filtered
         self.model.layoutChanged.emit()
@@ -961,7 +962,7 @@ class BeeSheetView(
     def _show_find_replace(self):
         """查找替换对话框"""
         dlg = QDialog(self)
-        dlg.setWindowTitle("查找替换")
+        dlg.setWindowTitle(tr("auto.beesheet.65ff74a6", "查找替换"))
         dlg.resize(400, 200)
         layout = QVBoxLayout(dlg)
         form = QFormLayout()
@@ -969,7 +970,7 @@ class BeeSheetView(
         form.addRow("查找:", fi)
         ri = QLineEdit()
         form.addRow("替换:", ri)
-        mc = QCheckBox("区分大小写")
+        mc = QCheckBox(tr("auto.beesheet.e6f5345b", "区分大小写"))
         form.addRow(mc)
         layout.addLayout(form)
         rl = QLabel("")
@@ -991,9 +992,9 @@ class BeeSheetView(
                         self.table_view.setCurrentIndex(
                             self.model.index(ri_idx, ci)
                         )
-                        rl.setText("找到")
+                        rl.setText(tr("auto.beesheet.6912d039", "找到"))
                         return
-            rl.setText("未找到")
+            rl.setText(tr("auto.beesheet.df5ccaf0", "未找到"))
 
         def ra():
             """全部替换"""
@@ -1020,9 +1021,9 @@ class BeeSheetView(
             )
             rl.setText(f"已替换{count}处")
 
-        bl.addWidget(QPushButton("查找", clicked=fn))
-        bl.addWidget(QPushButton("替换", clicked=ra))
-        bl.addWidget(QPushButton("关闭", clicked=dlg.close))
+        bl.addWidget(QPushButton(tr("auto.beesheet.6cb005a6", "查找"), clicked=fn))
+        bl.addWidget(QPushButton(tr("auto.beesheet.855241c2", "替换"), clicked=ra))
+        bl.addWidget(QPushButton(tr("auto.beesheet.6c14bd7f", "关闭"), clicked=dlg.close))
         layout.addLayout(bl)
         dlg.exec()
 

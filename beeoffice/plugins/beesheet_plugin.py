@@ -8,6 +8,7 @@ from datetime import datetime
 from PySide6.QtWidgets import QWidget, QMessageBox, QFileDialog
 
 from beeoffice.plugin_base import Plugin
+from beeoffice.i18n import tr
 
 
 class BeeSheetPlugin(Plugin):
@@ -31,48 +32,48 @@ class BeeSheetPlugin(Plugin):
     def register_commands(self, palette):
         """注册蜜算相关命令到命令面板"""
         palette.register_command(
-            "蜜算：新建表格",
-            "创建一个新的蜜算表格",
+            tr("auto.beesheet_plugin.f3003f97", "蜜算：新建表格"),
+            tr("auto.beesheet_plugin.21edd2b2", "创建一个新的蜜算表格"),
             self.new_sheet
         )
         palette.register_command(
-            "蜜算：导入数据",
-            "从 CSV/Excel 文件导入数据",
+            tr("auto.beesheet_plugin.c3c2ea3b", "蜜算：导入数据"),
+            tr("auto.beesheet_plugin.f7fbf2aa", "从 CSV/Excel 文件导入数据"),
             self.import_data
         )
         palette.register_command(
-            "蜜算：导出表格",
-            "将当前表格导出为 Excel",
+            tr("auto.beesheet_plugin.2f036e6c", "蜜算：导出表格"),
+            tr("auto.beesheet_plugin.da29f1e0", "将当前表格导出为 Excel"),
             self.export_xlsx
         )
         palette.register_command(
-            "蜜算：生成图表",
-            "根据选中数据生成图表",
+            tr("auto.beesheet_plugin.edae9e55", "蜜算：生成图表"),
+            tr("auto.beesheet_plugin.8dd9bff1", "根据选中数据生成图表"),
             self.generate_chart
         )
         palette.register_command(
-            "蜜算：智能数据分析",
-            "对当前数据进行统计分析",
+            tr("auto.beesheet_plugin.020fd23f", "蜜算：智能数据分析"),
+            tr("auto.beesheet_plugin.63f3f164", "对当前数据进行统计分析"),
             self.analyze_data
         )
         palette.register_command(
-            "蜜算：自然语言生成公式",
-            "用中文指令生成公式",
+            tr("auto.beesheet_plugin.6d6f9592", "蜜算：自然语言生成公式"),
+            tr("auto.beesheet_plugin.8d68eb89", "用中文指令生成公式"),
             self.nl_to_formula
         )
         palette.register_command(
-            "蜜算：数据清洗",
-            "去除重复行、空值处理",
+            tr("auto.beesheet_plugin.24d82ac8", "蜜算：数据清洗"),
+            tr("auto.beesheet_plugin.f90f67c4", "去除重复行、空值处理"),
             self.clean_data
         )
         palette.register_command(
-            "蜜算：录制宏",
-            "开始/停止录制宏",
+            tr("auto.beesheet_plugin.a48b5e24", "蜜算：录制宏"),
+            tr("auto.beesheet_plugin.03415f45", "开始/停止录制宏"),
             self.toggle_macro_recording
         )
         palette.register_command(
-            "蜜算：播放宏",
-            "执行已录制的宏",
+            tr("auto.beesheet_plugin.e19603a7", "蜜算：播放宏"),
+            tr("auto.beesheet_plugin.461e7ed0", "执行已录制的宏"),
             self.play_macro
         )
 
@@ -105,15 +106,15 @@ class BeeSheetPlugin(Plugin):
             view = self.new_sheet()
 
         path, _ = QFileDialog.getOpenFileName(
-            self.parent, "导入数据", "",
-            "表格文件 (*.csv *.xlsx *.xls);;CSV (*.csv);;Excel (*.xlsx *.xls);;所有文件 (*)"
+            self.parent, tr("auto.beesheet_plugin.5e1024da", "导入数据"), "",
+            tr("auto.beesheet_plugin.25d2ac67", "表格文件 (*.csv *.xlsx *.xls);;CSV (*.csv);;Excel (*.xlsx *.xls);;所有文件 (*)")
         )
         if not path:
             return
 
         if hasattr(view, "_import_file_from_path"):
             try:
-                self.parent.set_global_status("正在导入数据...", 0)
+                self.parent.set_global_status(tr("auto.beesheet_plugin.c428aa50", "正在导入数据..."), 0)
                 view._import_file_from_path(path)
                 self.parent.tab_manager.set_tab_file_path(view, path)
                 if hasattr(self.parent, "_add_file_watch"):
@@ -121,9 +122,9 @@ class BeeSheetPlugin(Plugin):
                 self.parent.set_global_status(f"已导入: {path}", 3000)
             except Exception as e:
                 logging.error(f"导入数据失败: {e}")
-                QMessageBox.warning(self.parent, "导入失败", str(e))
+                QMessageBox.warning(self.parent, tr("auto.beesheet_plugin.a01a8d53", "导入失败"), str(e))
         else:
-            QMessageBox.information(self.parent, "提示", "当前表格不支持导入功能")
+            QMessageBox.information(self.parent, tr("auto.beesheet_plugin.ab3656a9", "提示"), tr("auto.beesheet_plugin.16d3243c", "当前表格不支持导入功能"))
 
     # ---------- 导出表格 ----------
     def export_xlsx(self):
@@ -137,7 +138,7 @@ class BeeSheetPlugin(Plugin):
                 view._export_xlsx()
             except Exception as e:
                 logging.error(f"导出表格失败: {e}")
-                QMessageBox.warning(self.parent, "导出失败", str(e))
+                QMessageBox.warning(self.parent, tr("auto.beesheet_plugin.67533812", "导出失败"), str(e))
         else:
             self._warn("当前表格不支持导出功能")
 
@@ -156,7 +157,7 @@ class BeeSheetPlugin(Plugin):
                 return
             except Exception as e:
                 logging.error(f"生成图表失败: {e}")
-                QMessageBox.warning(self.parent, "生成图表失败", str(e))
+                QMessageBox.warning(self.parent, tr("auto.beesheet_plugin.069a716a", "生成图表失败"), str(e))
                 return
 
         # 回退实现
@@ -179,7 +180,7 @@ class BeeSheetPlugin(Plugin):
             self._warn("图表功能不可用，请检查 beesheet 模块")
         except Exception as e:
             logging.error(f"生成图表失败: {e}")
-            QMessageBox.warning(self.parent, "生成图表失败", str(e))
+            QMessageBox.warning(self.parent, tr("auto.beesheet_plugin.069a716a", "生成图表失败"), str(e))
 
     # ---------- 数据分析 ----------
     def analyze_data(self):
@@ -193,7 +194,7 @@ class BeeSheetPlugin(Plugin):
                 view._analyze_data()
             except Exception as e:
                 logging.error(f"数据分析失败: {e}")
-                QMessageBox.warning(self.parent, "分析失败", str(e))
+                QMessageBox.warning(self.parent, tr("auto.beesheet_plugin.127db1eb", "分析失败"), str(e))
         else:
             self._warn("当前表格不支持数据分析")
 
@@ -212,7 +213,7 @@ class BeeSheetPlugin(Plugin):
                 return
             except Exception as e:
                 logging.error(f"自然语言生成公式失败: {e}")
-                QMessageBox.warning(self.parent, "生成失败", str(e))
+                QMessageBox.warning(self.parent, tr("auto.beesheet_plugin.64ba75d9", "生成失败"), str(e))
                 return
 
         # 回退实现
@@ -225,16 +226,16 @@ class BeeSheetPlugin(Plugin):
         try:
             text, ok = QInputDialog.getText(
                 self.parent,
-                "自然语言生成公式",
-                "输入指令（如：求和A1到A10）："
+                tr("auto.beesheet_plugin.29e33dfd", "自然语言生成公式"),
+                tr("auto.beesheet_plugin.abbcd967", "输入指令（如：求和A1到A10）：")
             )
             if not ok or not text:
                 return
 
             result = NLFormulaParser.parse(text)
             if not result:
-                QMessageBox.warning(self.parent, "无法解析",
-                                    "无法理解指令，请尝试：求和A1到A10")
+                QMessageBox.warning(self.parent, tr("auto.beesheet_plugin.729fac3e", "无法解析"),
+                                    tr("auto.beesheet_plugin.846a72cd", "无法理解指令，请尝试：求和A1到A10"))
                 return
 
             # 插入到当前选中单元格
@@ -245,10 +246,10 @@ class BeeSheetPlugin(Plugin):
                     view.model.setData(index, result, Qt.EditRole)
                     self.parent.set_global_status(f"已插入公式: {result}", 3000)
                 else:
-                    QMessageBox.warning(self.parent, "提示", "请先选择一个单元格")
+                    QMessageBox.warning(self.parent, tr("auto.beesheet_plugin.ab3656a9", "提示"), tr("auto.beesheet_plugin.1aeffc93", "请先选择一个单元格"))
         except Exception as e:
             logging.error(f"自然语言生成公式失败: {e}")
-            QMessageBox.warning(self.parent, "生成失败", str(e))
+            QMessageBox.warning(self.parent, tr("auto.beesheet_plugin.64ba75d9", "生成失败"), str(e))
 
     # ---------- 数据清洗 ----------
     def clean_data(self):
@@ -273,11 +274,11 @@ class BeeSheetPlugin(Plugin):
         removed = original_count - len(cleaned)
 
         if removed == 0:
-            QMessageBox.information(self.parent, "提示", "未发现重复行")
+            QMessageBox.information(self.parent, tr("auto.beesheet_plugin.ab3656a9", "提示"), tr("auto.beesheet_plugin.27688bd8", "未发现重复行"))
             return
 
         reply = QMessageBox.question(
-            self.parent, "数据清洗",
+            self.parent, tr("auto.beesheet_plugin.15e10f35", "数据清洗"),
             f"发现 {removed} 行重复数据，是否删除？",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
         )
@@ -296,7 +297,7 @@ class BeeSheetPlugin(Plugin):
             self.parent.set_global_status(f"已删除 {removed} 行重复数据", 3000)
         except Exception as e:
             logging.error(f"数据清洗失败: {e}")
-            QMessageBox.warning(self.parent, "清洗失败", str(e))
+            QMessageBox.warning(self.parent, tr("auto.beesheet_plugin.de00c5c2", "清洗失败"), str(e))
 
     # ---------- 宏 ----------
     def toggle_macro_recording(self):
@@ -310,7 +311,7 @@ class BeeSheetPlugin(Plugin):
                 view._toggle_macro_recording()
             except Exception as e:
                 logging.error(f"宏录制失败: {e}")
-                QMessageBox.warning(self.parent, "宏录制失败", str(e))
+                QMessageBox.warning(self.parent, tr("auto.beesheet_plugin.9cee01c6", "宏录制失败"), str(e))
         else:
             self._warn("当前表格不支持宏录制")
 
@@ -325,14 +326,14 @@ class BeeSheetPlugin(Plugin):
                 view._play_macro()
             except Exception as e:
                 logging.error(f"播放宏失败: {e}")
-                QMessageBox.warning(self.parent, "播放宏失败", str(e))
+                QMessageBox.warning(self.parent, tr("auto.beesheet_plugin.24c0eda3", "播放宏失败"), str(e))
         else:
             self._warn("当前表格不支持宏播放")
 
     # ---------- 辅助 ----------
     def _warn(self, message: str):
         """统一提示"""
-        QMessageBox.information(self.parent, "提示", message)
+        QMessageBox.information(self.parent, tr("auto.beesheet_plugin.ab3656a9", "提示"), message)
 
     # ---------- 生命周期 ----------
     def on_close(self):
