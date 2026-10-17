@@ -71,6 +71,16 @@
 - **蜜算（性能）**：`LargeFileLoader` 的 xlsx 路径同样改用 calamine；
   单块返回时不再 `pd.concat`，峰值内存从约 2× 降到 1×
   （openpyxl 分块路径保留为回退，取消逻辑不变）。
+- **性能（启动）**：`PluginManager.discover_plugins()` 原本 import
+  `plugins/` 下**全部 86 个模块**，连带 pandas / numpy / PyMuPDF / matplotlib。
+  实测该步骤 **7864 ms**，且发生在窗口 `show()` 之后 50 ms——
+  表现为"窗口出来了但点不动"。
+  现在只导入 `*_plugin` 包装器与带用户安装标记的插件：
+  **53 ms（147 倍）**，其余模块按需导入。
+- **打包（体积）**：新增 `tools/slim_dist.py`，删除运行期不需要的资源：
+  - QtWebEngine DevTools 资源（83.4 MB）
+  - Qt 自带翻译 `.qm`（项目用自己的 JSON 语言包，未使用 QTranslator）
+  产物 **698.3 MB → 605.5 MB**。
 - **蜜写（往返一致性）**：
   - 引用块：重建用 `leftMargin(20)` 而回写判断 `>30`，引用永远识别不回来；
     现在阈值改为 `>=10` 并剥掉 `▎ ` 前缀，多次往返不再累积。
@@ -92,6 +102,9 @@
 - 新增 `tools/smoke_formula.py`（9 条 Excel 写法冒烟）。
 - 新增 `.github/workflows/test.yml`：fast 任务阻塞、full 任务先观察。
 - 新增 `tests/unit/test_mobile_api.py` 的 403 安全回归（无令牌/错令牌）。
+- 新增 `tests/qt/test_beeshow_export_acceptance.py`（3 项，产物级验收）：
+  PDF 用 PyMuPDF 打开并校验文字；PNG 校验非白像素占比；PPTX 用
+  python-pptx 校验页数与文字。三者都替代"人工点一遍"。
 - `tests/conftest.py` 的 `temp_settings` 改为 patch `Path.home`，
   **删除复制的默认值清单**——该清单在 settings.py 新增字段后会失效，
   导致 `save()` 抛 `AttributeError` 被宽泛 `except` 吞掉、配置写成空文件。

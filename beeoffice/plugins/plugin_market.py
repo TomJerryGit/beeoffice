@@ -22,6 +22,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
+from beeoffice.plugin_base import USER_PLUGIN_MARKER
+
 
 class PluginMarketDialog(QDialog):
     """插件市场对话框"""
@@ -365,7 +367,7 @@ class PluginMarketDialog(QDialog):
     # 与内置插件混在同一个目录。原实现的"卸载"会无条件 file_path.unlink()，
     # 于是用户点一次"卸载 蜜写"，beewrite_plugin.py 就从源码目录消失了。
     # 现在只删除带此标记的文件（由插件市场安装时写入）。
-    _USER_PLUGIN_MARKER = "# BEEOFFICE_USER_PLUGIN: installed by plugin market"
+    _USER_PLUGIN_MARKER = USER_PLUGIN_MARKER + ": installed by plugin market"
 
     @classmethod
     def _is_user_installed(cls, path: Path) -> bool:

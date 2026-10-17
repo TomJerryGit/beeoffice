@@ -9,6 +9,13 @@ from PySide6.QtWidgets import QWidget
 from PySide6.QtGui import QIcon
 
 
+# 插件市场安装的插件，会在文件首行写入这个标记。
+# 用途：启动时区分「内置插件」与「用户安装的插件」——
+#   - 卸载时不许删除内置插件的源文件；
+#   - 懒加载时，用户插件可能是任意文件名，需要靠标记识别。
+USER_PLUGIN_MARKER = "# BEEOFFICE_USER_PLUGIN"
+
+
 class Plugin:
     """插件基类"""
 

@@ -128,6 +128,16 @@ def main():
         print("❌ 打包完成但未找到输出文件")
         sys.exit(1)
 
+    # 产物瘦身：删掉运行期不需要的 Qt 资源（DevTools / 自带翻译）
+    # 失败不影响打包结果，只是包体会大一些。
+    try:
+        sys.path.insert(0, str(Path(__file__).parent / "tools"))
+        from slim_dist import slim as _slim
+        removed = _slim(root / "dist" / "BeeOffice")
+        print(f"🧹 瘦身：已清理 {removed / 1024 / 1024:.1f} MB 无用资源")
+    except Exception as e:
+        print(f"⚠️  瘦身步骤跳过（{e}）")
+
     # 完成
     print()
     print("=" * 50)

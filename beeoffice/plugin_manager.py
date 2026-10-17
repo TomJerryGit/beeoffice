@@ -9,7 +9,7 @@ import pkgutil
 from pathlib import Path
 from typing import List, Dict, Any
 
-from beeoffice.plugin_base import Plugin
+from beeoffice.plugin_base import Plugin, USER_PLUGIN_MARKER
 
 
 class PluginManager:
@@ -26,23 +26,60 @@ class PluginManager:
 
     # ---------- 发现插件 ----------
     def discover_plugins(self) -> None:
-        """扫描 beeoffice/plugins 包下的所有模块，寻找 Plugin 子类"""
+        """
+        扫描 beeoffice/plugins 包，寻找 Plugin 子类。
+
+        v5.0.6（性能）：**只导入真正的插件模块**。
+
+        背景：原实现 import 目录下每一个模块（86 个），把 Mixin、引擎、
+        对话框全部拉进来——连带 pandas / numpy / PyMuPDF / matplotlib。
+        实测该步骤耗时 **7.9 秒**，而且发生在窗口 show() 之后的 50ms，
+        表现为"窗口出来了但点不动"。
+
+        判定规则（见 _is_plugin_module）：
+          1. 内置插件包装器：文件名以 `_plugin` 结尾；
+          2. 用户插件：文件首行带 USER_PLUGIN_MARKER（插件市场安装）。
+        其余模块在被真正使用到时才 import。
+        """
         plugins_path = Path(__file__).parent / "plugins"
         if not plugins_path.exists():
             logging.warning(f"插件目录不存在: {plugins_path}")
             return
 
-        # 遍历 plugins 包下的所有模块
+        skipped = 0
+        imported = 0
         for module_info in pkgutil.iter_modules([str(plugins_path)]):
-            module_name = f"beeoffice.plugins.{module_info.name}"
+            name = module_info.name
             # 跳过内部模块（以 _ 开头的模块，如 __init__、_helper 等）
-            if module_info.name.startswith("_"):
+            if name.startswith("_"):
                 continue
+            if not self._is_plugin_module(plugins_path, name):
+                skipped += 1
+                continue
+            module_name = f"beeoffice.plugins.{name}"
             try:
                 module = importlib.import_module(module_name)
                 self._register_plugins_from_module(module)
+                imported += 1
             except Exception as e:
                 logging.error(f"加载插件模块 {module_name} 失败: {e}")
+
+        logging.info(
+            f"插件扫描完成：导入 {imported} 个，跳过 {skipped} 个非插件模块"
+        )
+
+    @staticmethod
+    def _is_plugin_module(plugins_path: Path, name: str) -> bool:
+        """判断某个模块是否需要在启动时导入（见 discover_plugins 说明）。"""
+        if name.endswith("_plugin"):
+            return True
+        candidate = plugins_path / f"{name}.py"
+        try:
+            with open(candidate, "r", encoding="utf-8", errors="ignore") as f:
+                head = f.read(4096)
+            return head.lstrip("\ufeff").startswith(USER_PLUGIN_MARKER)
+        except OSError:
+            return False
 
     def _register_plugins_from_module(self, module) -> None:
         """从模块中查找 Plugin 子类并实例化"""

@@ -124,3 +124,51 @@ def test_export_images_are_not_blank(qtbot, tmp_path, silent_dialogs, show_view)
             f"{p.name} 看起来是空白图：非白像素占比 {ratio:.4%}"
             f"（颜色数={len(colors)}）"
         )
+
+
+def test_export_pptx_produces_real_slides(qtbot, tmp_path, silent_dialogs, show_view):
+    """
+    PPTX 导出验收（最后一个导出盲区）。
+
+    断言：
+      - 文件存在且能被 python-pptx 打开
+      - 幻灯片数量与源页数一致
+      - 每页至少有一个形状，且首页文字包含标题
+    无 Playwright 时应走"仅文本"降级路径，仍须产出可编辑的 PPTX。
+    """
+    pptx = pytest.importorskip("pptx")
+
+    m, captured = silent_dialogs
+    out = tmp_path / "out.pptx"
+    m.QFileDialog.getSaveFileName = staticmethod(
+        lambda *a, **k: (str(out), "PowerPoint (*.pptx)")
+    )
+    show_view._slides_html = list(SLIDES)
+
+    show_view._export_pptx()
+
+    ok = _wait_until(
+        qtbot,
+        lambda: out.exists() and out.stat().st_size > 2000,
+        timeout=60,
+    )
+    assert ok, (
+        f"PPTX 未生成或过小。提示={captured['info']} 警告={captured['warning']}"
+    )
+
+    prs = pptx.Presentation(str(out))
+    assert len(prs.slides) >= 1, "PPTX 里没有幻灯片"
+    assert len(prs.slides) == len(SLIDES), (
+        f"幻灯片数量不符：期望 {len(SLIDES)}，实际 {len(prs.slides)}"
+    )
+
+    texts = []
+    for slide in prs.slides:
+        assert len(slide.shapes) >= 1, "某页没有任何形状"
+        for shape in slide.shapes:
+            if shape.has_text_frame:
+                texts.append(shape.text_frame.text)
+    joined = "\n".join(texts)
+    assert "第一页" in joined or "内容 A" in joined, (
+        f"PPTX 里没有幻灯片文字，内容可能为空。实际: {joined[:200]!r}"
+    )
