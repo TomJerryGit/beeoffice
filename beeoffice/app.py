@@ -931,7 +931,7 @@ class BeeApp(QMainWindow):
         path, _ = QFileDialog.getSaveFileName(
             self,
             tr("dialog.export_report", "导出报告"),
-            "报告.pdf",
+            tr("auto.app.d6d0f8de", "报告.pdf"),
             "PDF (*.pdf)",
         )
         if not path:

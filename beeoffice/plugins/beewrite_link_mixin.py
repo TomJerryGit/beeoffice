@@ -61,6 +61,7 @@ from beeoffice.plugins.beewrite_hyperlink import (
 from beeoffice.plugins.beewrite_image import ImageEditorDialog
 from beeoffice.plugins.beewrite_formula import FormulaDialog
 from beeoffice.plugins.beewrite_textbox import TextBoxDialog, insert_textbox
+from beeoffice.i18n import tr
 
 
 # ==================== LinkMixin ====================
@@ -108,7 +109,7 @@ class LinkMixin:
         """打开超链接管理对话框（列出 / 跳转 / 编辑 / 移除）"""
         if self._edit_mode != "rich_text":
             QMessageBox.information(
-                self, "提示", "请先切换到所见即所得模式"
+                self, tr("auto.beewrite_link_mixin.ab3656a9", "提示"), tr("auto.beewrite_link_mixin.09b3badd", "请先切换到所见即所得模式")
             )
             return
         dlg = HyperlinkManagerDialog(self.rich_editor, self)
@@ -121,7 +122,7 @@ class LinkMixin:
         """打开交叉引用对话框（引用文档中的标题）"""
         if self._edit_mode != "rich_text":
             QMessageBox.information(
-                self, "提示", "请先切换到所见即所得模式"
+                self, tr("auto.beewrite_link_mixin.ab3656a9", "提示"), tr("auto.beewrite_link_mixin.09b3badd", "请先切换到所见即所得模式")
             )
             return
 
@@ -132,13 +133,13 @@ class LinkMixin:
             )
         except Exception as e:
             logging.error(f"扫描标题失败: {e}")
-            QMessageBox.warning(self, "失败", f"扫描标题失败：\n{e}")
+            QMessageBox.warning(self, tr("auto.beewrite_link_mixin.3e3c8068", "失败"), f"扫描标题失败：\n{e}")
             return
 
         if not headings:
             QMessageBox.information(
                 self,
-                "提示",
+                tr("auto.beewrite_link_mixin.ab3656a9", "提示"),
                 "文档中没有标题。\n"
                 "请先用「样式」下拉框把段落设为标题。",
             )
@@ -146,11 +147,11 @@ class LinkMixin:
 
         # ---------- 对话框 ----------
         dlg = QDialog(self)
-        dlg.setWindowTitle("🔢 交叉引用")
+        dlg.setWindowTitle(tr("auto.beewrite_link_mixin.7d7a59b5", "🔢 交叉引用"))
         dlg.resize(480, 420)
 
         layout = QVBoxLayout(dlg)
-        layout.addWidget(QLabel("选择要引用的标题："))
+        layout.addWidget(QLabel(tr("auto.beewrite_link_mixin.c7dd965f", "选择要引用的标题：")))
 
         # ---------- 标题列表 ----------
         lst = QListWidget()
@@ -180,7 +181,7 @@ class LinkMixin:
 
         # ---------- 按钮栏 ----------
         bl = QHBoxLayout()
-        btn_insert = QPushButton("插入引用")
+        btn_insert = QPushButton(tr("auto.beewrite_link_mixin.7fa8aacd", "插入引用"))
         btn_insert.setStyleSheet(
             "QPushButton{background:#FFB300;color:#000;"
             "padding:6px 16px;border:none;border-radius:4px;"
@@ -192,7 +193,7 @@ class LinkMixin:
             item = lst.currentItem()
             if not item:
                 QMessageBox.information(
-                    dlg, "提示", "请先选择一个标题"
+                    dlg, tr("auto.beewrite_link_mixin.ab3656a9", "提示"), tr("auto.beewrite_link_mixin.25f5613d", "请先选择一个标题")
                 )
                 return
             h = item.data(Qt.UserRole)
@@ -214,7 +215,7 @@ class LinkMixin:
         bl.addWidget(btn_insert)
 
         # ---------- 刷新 ----------
-        btn_refresh = QPushButton("🔄 刷新标题列表")
+        btn_refresh = QPushButton(tr("auto.beewrite_link_mixin.97f2d6e4", "🔄 刷新标题列表"))
 
         def do_refresh():
             new_headings = self._crossref_manager.scan_headings(
@@ -228,14 +229,14 @@ class LinkMixin:
                 )
                 item.setData(Qt.UserRole, h)
                 lst.addItem(item)
-            self._set_status("✅ 已刷新标题列表", 2000)
+            self._set_status(tr("auto.beewrite_link_mixin.f4f7d36a", "✅ 已刷新标题列表"), 2000)
 
         btn_refresh.clicked.connect(do_refresh)
         bl.addWidget(btn_refresh)
 
         bl.addStretch()
 
-        btn_close = QPushButton("关闭")
+        btn_close = QPushButton(tr("auto.beewrite_link_mixin.6c14bd7f", "关闭"))
         btn_close.clicked.connect(dlg.reject)
         bl.addWidget(btn_close)
 
@@ -249,7 +250,7 @@ class LinkMixin:
         """打开图片编辑对话框，将处理后的图片插入文档"""
         if self._edit_mode != "rich_text":
             QMessageBox.information(
-                self, "提示", "请先切换到所见即所得模式"
+                self, tr("auto.beewrite_link_mixin.ab3656a9", "提示"), tr("auto.beewrite_link_mixin.09b3badd", "请先切换到所见即所得模式")
             )
             return
 
@@ -266,7 +267,7 @@ class LinkMixin:
         try:
             img = QImage(result_path)
             if img.isNull():
-                QMessageBox.warning(self, "失败", "无法加载图片")
+                QMessageBox.warning(self, tr("auto.beewrite_link_mixin.3e3c8068", "失败"), tr("auto.beewrite_link_mixin.cf3d2153", "无法加载图片"))
                 return
 
             cursor = self.rich_editor.textCursor()
@@ -288,7 +289,7 @@ class LinkMixin:
             )
         except Exception as e:
             logging.error(f"插入图片失败: {e}")
-            QMessageBox.warning(self, "插入失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_link_mixin.4620fab0", "插入失败"), str(e))
 
     # ==================================================================
     # 插入数学公式
@@ -297,7 +298,7 @@ class LinkMixin:
         """打开公式编辑对话框，将渲染后的公式图片插入文档"""
         if self._edit_mode != "rich_text":
             QMessageBox.information(
-                self, "提示", "请先切换到所见即所得模式"
+                self, tr("auto.beewrite_link_mixin.ab3656a9", "提示"), tr("auto.beewrite_link_mixin.09b3badd", "请先切换到所见即所得模式")
             )
             return
 
@@ -312,7 +313,7 @@ class LinkMixin:
         try:
             img = QImage(result_path)
             if img.isNull():
-                QMessageBox.warning(self, "失败", "无法加载公式图片")
+                QMessageBox.warning(self, tr("auto.beewrite_link_mixin.3e3c8068", "失败"), tr("auto.beewrite_link_mixin.f288af53", "无法加载公式图片"))
                 return
 
             cursor = self.rich_editor.textCursor()
@@ -325,10 +326,10 @@ class LinkMixin:
                 fmt.setHeight(100)
             cursor.insertImage(fmt)
 
-            self._set_status("✅ 已插入公式", 2000)
+            self._set_status(tr("auto.beewrite_link_mixin.40cf58c0", "✅ 已插入公式"), 2000)
         except Exception as e:
             logging.error(f"插入公式失败: {e}")
-            QMessageBox.warning(self, "插入失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_link_mixin.4620fab0", "插入失败"), str(e))
 
     # ==================================================================
     # 插入文本框
@@ -337,7 +338,7 @@ class LinkMixin:
         """插入带背景色的静态文本框（基于 QTextFrame）"""
         if self._edit_mode != "rich_text":
             QMessageBox.information(
-                self, "提示", "请先切换到所见即所得模式"
+                self, tr("auto.beewrite_link_mixin.ab3656a9", "提示"), tr("auto.beewrite_link_mixin.09b3badd", "请先切换到所见即所得模式")
             )
             return
         dlg = TextBoxDialog(self)
@@ -345,7 +346,7 @@ class LinkMixin:
             return
         try:
             insert_textbox(self.rich_editor, dlg.get_config())
-            self._set_status("✅ 已插入文本框", 2000)
+            self._set_status(tr("auto.beewrite_link_mixin.ca378b18", "✅ 已插入文本框"), 2000)
         except Exception as e:
             logging.error(f"插入文本框失败: {e}")
-            QMessageBox.warning(self, "插入失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_link_mixin.4620fab0", "插入失败"), str(e))

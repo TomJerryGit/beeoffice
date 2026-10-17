@@ -58,6 +58,7 @@ from PySide6.QtGui import (
 
 from beeoffice.plugins.beewrite_comment import CommentEditDialog
 from beeoffice.plugins.beewrite_utils import safe_escape_html
+from beeoffice.i18n import tr
 
 
 # ==================== CommentMixin ====================
@@ -71,14 +72,14 @@ class CommentMixin:
         """给当前选中的文字添加批注"""
         if self._edit_mode != "rich_text":
             QMessageBox.information(
-                self, "提示", "请先切换到所见即所得模式"
+                self, tr("auto.beewrite_comment_mixin.ab3656a9", "提示"), tr("auto.beewrite_comment_mixin.09b3badd", "请先切换到所见即所得模式")
             )
             return
 
         cursor = self.rich_editor.textCursor()
         if not cursor.hasSelection():
             QMessageBox.information(
-                self, "提示", "请先选中要加批注的文字"
+                self, tr("auto.beewrite_comment_mixin.ab3656a9", "提示"), tr("auto.beewrite_comment_mixin.3700f8d0", "请先选中要加批注的文字")
             )
             return
 
@@ -109,7 +110,7 @@ class CommentMixin:
         """无锚点新建批注（由批注面板的「+ 新建」按钮触发）"""
         if self._edit_mode != "rich_text":
             QMessageBox.information(
-                self, "提示", "请先切换到所见即所得模式"
+                self, tr("auto.beewrite_comment_mixin.ab3656a9", "提示"), tr("auto.beewrite_comment_mixin.09b3badd", "请先切换到所见即所得模式")
             )
             return
         cursor = self.rich_editor.textCursor()
@@ -236,8 +237,8 @@ class CommentMixin:
         """删除批注（带确认）"""
         reply = QMessageBox.question(
             self,
-            "删除批注",
-            "确定删除这条批注吗？",
+            tr("auto.beewrite_comment_mixin.f4e34b7c", "删除批注"),
+            tr("auto.beewrite_comment_mixin.035a750f", "确定删除这条批注吗？"),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -245,7 +246,7 @@ class CommentMixin:
             return
         self._comment_manager.remove(comment_id)
         self._refresh_comment_panel()
-        self._set_status("✅ 批注已删除", 2000)
+        self._set_status(tr("auto.beewrite_comment_mixin.d3d189ab", "✅ 批注已删除"), 2000)
 
     def _on_comment_resolve(self, comment_id, resolved):
         """标记批注为已解决 / 未解决"""
@@ -268,7 +269,7 @@ class CommentMixin:
         if new_text:
             comment["text"] = new_text
             self._refresh_comment_panel()
-            self._set_status("✅ 批注已更新", 2000)
+            self._set_status(tr("auto.beewrite_comment_mixin.4ce7d34e", "✅ 批注已更新"), 2000)
 
     # ==================================================================
     # 书签
@@ -277,7 +278,7 @@ class CommentMixin:
         """添加书签（记录当前位置）"""
         if self._edit_mode != "rich_text":
             QMessageBox.information(
-                self, "提示", "请先切换到所见即所得模式"
+                self, tr("auto.beewrite_comment_mixin.ab3656a9", "提示"), tr("auto.beewrite_comment_mixin.09b3badd", "请先切换到所见即所得模式")
             )
             return
         cursor = self.rich_editor.textCursor()
@@ -286,8 +287,8 @@ class CommentMixin:
 
         name, ok = QInputDialog.getText(
             self,
-            "添加书签",
-            "书签名称：",
+            tr("auto.beewrite_comment_mixin.9dbbfd02", "添加书签"),
+            tr("auto.beewrite_comment_mixin.400dec00", "书签名称："),
             text=f"书签{len(self._bookmark_manager._bookmarks) + 1}",
         )
         if not ok or not name.strip():
@@ -298,7 +299,7 @@ class CommentMixin:
         if self._bookmark_manager.has(name):
             reply = QMessageBox.question(
                 self,
-                "书签已存在",
+                tr("auto.beewrite_comment_mixin.98931ce0", "书签已存在"),
                 f"书签「{name}」已存在，是否覆盖？",
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
@@ -313,11 +314,11 @@ class CommentMixin:
         """书签管理对话框（跳转 / 删除）"""
         bookmarks = self._bookmark_manager.get_all()
         if not bookmarks:
-            QMessageBox.information(self, "书签", "当前没有书签")
+            QMessageBox.information(self, tr("auto.beewrite_comment_mixin.820f5b64", "书签"), tr("auto.beewrite_comment_mixin.6e9eafef", "当前没有书签"))
             return
 
         dlg = QDialog(self)
-        dlg.setWindowTitle("🔖 书签管理")
+        dlg.setWindowTitle(tr("auto.beewrite_comment_mixin.bca3f29f", "🔖 书签管理"))
         dlg.resize(400, 360)
         layout = QVBoxLayout(dlg)
 
@@ -358,17 +359,17 @@ class CommentMixin:
             list_widget.takeItem(list_widget.row(item))
             self._set_status(f"✅ 已删除书签「{name}」", 2000)
 
-        btn_jump = QPushButton("📍 跳转")
+        btn_jump = QPushButton(tr("auto.beewrite_comment_mixin.c0bd0f2c", "📍 跳转"))
         btn_jump.clicked.connect(jump)
         bl.addWidget(btn_jump)
 
-        btn_del = QPushButton("🗑️ 删除")
+        btn_del = QPushButton(tr("auto.beewrite_comment_mixin.d217371d", "🗑️ 删除"))
         btn_del.clicked.connect(delete)
         bl.addWidget(btn_del)
 
         bl.addStretch()
 
-        btn_close = QPushButton("关闭")
+        btn_close = QPushButton(tr("auto.beewrite_comment_mixin.6c14bd7f", "关闭"))
         btn_close.clicked.connect(dlg.reject)
         bl.addWidget(btn_close)
 
@@ -385,7 +386,7 @@ class CommentMixin:
         """开启 / 关闭修订模式"""
         if self._edit_mode != "rich_text":
             QMessageBox.information(
-                self, "提示", "请先切换到所见即所得模式"
+                self, tr("auto.beewrite_comment_mixin.ab3656a9", "提示"), tr("auto.beewrite_comment_mixin.09b3badd", "请先切换到所见即所得模式")
             )
             self._btn_revision.setChecked(False)
             return
@@ -394,14 +395,14 @@ class CommentMixin:
             # 关闭修订 → 显示对比
             self._revision_manager.stop_revision()
             self._btn_revision.setChecked(False)
-            self._btn_revision.setText("📝 修订")
+            self._btn_revision.setText(tr("auto.beewrite_comment_mixin.9ded60d7", "📝 修订"))
             self._show_revision_diff()
         else:
             # 开启修订 → 保存基线
             current = self.rich_editor.toPlainText()
             self._revision_manager.start_revision(current)
             self._btn_revision.setChecked(True)
-            self._btn_revision.setText("📝 修订中")
+            self._btn_revision.setText(tr("auto.beewrite_comment_mixin.2ce250d6", "📝 修订中"))
             self._set_status(
                 f"✅ 修订模式已开启（基线 {len(current)} 字符）", 3000
             )
@@ -412,14 +413,14 @@ class CommentMixin:
     def _show_revision_diff(self):
         """显示修订对比对话框（摘要 + 高亮 diff + 接受 / 拒绝）"""
         if not self._revision_manager.has_baseline:
-            QMessageBox.information(self, "提示", "当前没有修订基线")
+            QMessageBox.information(self, tr("auto.beewrite_comment_mixin.ab3656a9", "提示"), tr("auto.beewrite_comment_mixin.9eee4dde", "当前没有修订基线"))
             return
 
         current = self.rich_editor.toPlainText()
         result = self._revision_manager.compute_diff(current)
 
         dlg = QDialog(self)
-        dlg.setWindowTitle("📊 修订对比")
+        dlg.setWindowTitle(tr("auto.beewrite_comment_mixin.2ec7817c", "📊 修订对比"))
         dlg.resize(800, 560)
         layout = QVBoxLayout(dlg)
 
@@ -478,7 +479,7 @@ class CommentMixin:
         # ---------- 按钮栏 ----------
         bl = QHBoxLayout()
 
-        btn_accept = QPushButton("✅ 接受所有修改")
+        btn_accept = QPushButton(tr("auto.beewrite_comment_mixin.42544a88", "✅ 接受所有修改"))
         btn_accept.setStyleSheet(
             "QPushButton{background:#E8F5E9;border:1px solid #4CAF50;"
             "color:#1B5E20;padding:6px 12px;border-radius:4px;}"
@@ -488,14 +489,14 @@ class CommentMixin:
         def do_accept():
             self._revision_manager.accept_all()
             self._btn_revision.setChecked(False)
-            self._btn_revision.setText("📝 修订")
-            self._set_status("✅ 已接受所有修改", 2000)
+            self._btn_revision.setText(tr("auto.beewrite_comment_mixin.9ded60d7", "📝 修订"))
+            self._set_status(tr("auto.beewrite_comment_mixin.04d2fce5", "✅ 已接受所有修改"), 2000)
             dlg.accept()
 
         btn_accept.clicked.connect(do_accept)
         bl.addWidget(btn_accept)
 
-        btn_reject = QPushButton("❌ 拒绝所有修改")
+        btn_reject = QPushButton(tr("auto.beewrite_comment_mixin.cc1ce441", "❌ 拒绝所有修改"))
         btn_reject.setStyleSheet(
             "QPushButton{background:#FFEBEE;border:1px solid #F44336;"
             "color:#B71C1C;padding:6px 12px;border-radius:4px;}"
@@ -507,8 +508,8 @@ class CommentMixin:
             if baseline is not None:
                 self.rich_editor.setPlainText(baseline)
             self._btn_revision.setChecked(False)
-            self._btn_revision.setText("📝 修订")
-            self._set_status("✅ 已恢复到基线", 2000)
+            self._btn_revision.setText(tr("auto.beewrite_comment_mixin.9ded60d7", "📝 修订"))
+            self._set_status(tr("auto.beewrite_comment_mixin.1b27e938", "✅ 已恢复到基线"), 2000)
             dlg.accept()
 
         btn_reject.clicked.connect(do_reject)
@@ -516,7 +517,7 @@ class CommentMixin:
 
         bl.addStretch()
 
-        btn_close = QPushButton("关闭")
+        btn_close = QPushButton(tr("auto.beewrite_comment_mixin.6c14bd7f", "关闭"))
         btn_close.clicked.connect(dlg.reject)
         bl.addWidget(btn_close)
 
