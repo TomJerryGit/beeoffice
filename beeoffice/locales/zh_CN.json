@@ -177,5 +177,17 @@
   "button.uninstall_plugin": "🗑 卸载插件",
   "button.refresh": "🔄 刷新",
   "button.use_template": "使用此模板",
-  "button.new_category": "+ 新建分类"
+  "button.new_category": "+ 新建分类",
+
+  "tab.welcome_title": "开始",
+  "tab.welcome_text": "🐝 欢迎使用蜜蜂办公\n\n轻量、快速、实而不华。\n按 Ctrl+Shift+P 打开命令面板。\n新建文件或拖入文档即可开始。",
+  "tab.untitled": "未命名",
+  "tab.split": "分屏",
+  "tab.close": "关闭标签",
+  "tab.close_others": "关闭其他标签",
+  "tab.rename": "重命名标签",
+  "tab.rename_prompt": "输入新名称:",
+  "tab.copy_path": "复制文件路径",
+  "tab.close_title": "关闭标签",
+  "tab.close_confirm": "「{title}」中的内容可能还未保存。\n确定要关闭吗？"
 }

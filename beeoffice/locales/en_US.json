@@ -177,5 +177,17 @@
   "button.uninstall_plugin": "🗑 Uninstall Plugin",
   "button.refresh": "🔄 Refresh",
   "button.use_template": "Use This Template",
-  "button.new_category": "+ New Category"
+  "button.new_category": "+ New Category",
+
+  "tab.welcome_title": "Start",
+  "tab.welcome_text": "🐝 Welcome to BeeOffice\n\nLight, fast, and practical.\nPress Ctrl+Shift+P to open the command palette.\nCreate a file or drop a document here to begin.",
+  "tab.untitled": "Untitled",
+  "tab.split": "Split",
+  "tab.close": "Close Tab",
+  "tab.close_others": "Close Other Tabs",
+  "tab.rename": "Rename Tab",
+  "tab.rename_prompt": "New name:",
+  "tab.copy_path": "Copy File Path",
+  "tab.close_title": "Close Tab",
+  "tab.close_confirm": "\"{title}\" may have unsaved changes.\nClose anyway?"
 }

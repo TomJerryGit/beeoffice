@@ -16,6 +16,8 @@ from PySide6.QtWidgets import (QTabWidget, QPlainTextEdit, QFileDialog,
 from PySide6.QtCore import Qt, QMimeData
 from PySide6.QtGui import QDrag
 
+from beeoffice.i18n import tr
+
 
 class TabManager(QTabWidget):
     """标签管理器"""
@@ -52,18 +54,18 @@ class TabManager(QTabWidget):
     def _add_welcome_tab(self):
         welcome = QPlainTextEdit()
         welcome.setReadOnly(True)
-        welcome.setPlainText(
+        welcome.setPlainText(tr("tab.welcome_text", (
             "🐝 欢迎使用蜜蜂办公\n\n"
             "轻量、快速、实而不华。\n"
             "按 Ctrl+Shift+P 打开命令面板。\n"
             "新建文件或拖入文档即可开始。"
-        )
-        self.addTab(welcome, "开始")
+        )))
+        self.addTab(welcome, tr("tab.welcome_title", "开始"))
 
-    def new_empty_tab(self, title="未命名"):
+    def new_empty_tab(self, title=None):
         """创建空白文本标签"""
         editor = QPlainTextEdit()
-        self.addTab(editor, title)
+        self.addTab(editor, title or tr("tab.untitled", "未命名"))
         self.setCurrentWidget(editor)
         return editor
 
@@ -126,8 +128,10 @@ class TabManager(QTabWidget):
         title = self.tabText(index)
         if current_content.strip() and current_content != initial_content:
             reply = QMessageBox.question(
-                self, "关闭标签",
-                f"「{title}」中的内容可能还未保存。\n确定要关闭吗？",
+                self, tr("tab.close_title", "关闭标签"),
+                tr("tab.close_confirm",
+                   "「{title}」中的内容可能还未保存。\n确定要关闭吗？"
+                   ).format(title=title),
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No
             )
             if reply == QMessageBox.No:
@@ -253,7 +257,7 @@ class TabManager(QTabWidget):
         layout = QVBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(splitter)
-        self.addTab(container, "分屏")
+        self.addTab(container, tr("tab.split", "分屏"))
         self.setCurrentWidget(container)
 
     # ---------- 拖拽：标签合并 ----------
@@ -374,18 +378,22 @@ class TabManager(QTabWidget):
             return
         menu = QMenu(self)
 
-        close_action = menu.addAction("关闭标签")
+        close_action = menu.addAction(tr("tab.close", "关闭标签"))
         close_action.triggered.connect(lambda: self._on_tab_close_request(tab_index))
 
-        close_others_action = menu.addAction("关闭其他标签")
+        close_others_action = menu.addAction(
+            tr("tab.close_others", "关闭其他标签")
+        )
         close_others_action.triggered.connect(lambda: self._close_other_tabs(tab_index))
 
         menu.addSeparator()
 
-        rename_action = menu.addAction("重命名标签")
+        rename_action = menu.addAction(tr("tab.rename", "重命名标签"))
         rename_action.triggered.connect(lambda: self._rename_tab(tab_index))
 
-        copy_path_action = menu.addAction("复制文件路径")
+        copy_path_action = menu.addAction(
+            tr("tab.copy_path", "复制文件路径")
+        )
         copy_path_action.triggered.connect(lambda: self._copy_file_path(tab_index))
 
         menu.exec(self.tabBar().mapToGlobal(pos))
@@ -394,7 +402,10 @@ class TabManager(QTabWidget):
         """重命名标签"""
         current_text = self.tabText(index)
         base_text = current_text[2:] if current_text.startswith("● ") else current_text
-        text, ok = QInputDialog.getText(self, "重命名标签", "输入新名称:", text=base_text)
+        text, ok = QInputDialog.getText(
+            self, tr("tab.rename", "重命名标签"),
+            tr("tab.rename_prompt", "输入新名称:"), text=base_text
+        )
         if ok and text:
             prefix = "● " if current_text.startswith("● ") else ""
             self.setTabText(index, prefix + text)

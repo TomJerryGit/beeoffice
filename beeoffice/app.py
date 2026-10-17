@@ -411,6 +411,18 @@ class BeeApp(QMainWindow):
         self._modules_loaded = True
         self.status_label.setText(tr("app.ready"))
 
+        # 启动计时：main() 里把进程起点记在 _startup_t0 上，
+        # 这里打印"真正可交互"的总耗时（窗口 show 之后的插件加载也计入）。
+        try:
+            t0 = getattr(self, "_startup_t0", None)
+            if t0 is not None:
+                logging.info(
+                    f"启动完成（含插件加载）: "
+                    f"{(time.perf_counter() - t0) * 1000:.0f}ms"
+                )
+        except Exception:
+            pass
+
     def _register_plugin_menus(self):
         if not self.plugin_manager:
             return

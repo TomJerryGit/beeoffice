@@ -19,12 +19,23 @@ def setup_logging():
     log_dir = CrashHandler.LOG_DIR
     log_dir.mkdir(exist_ok=True)
     log_file = log_dir / "app.log"
-    logging.basicConfig(
-        filename=str(log_file),
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        encoding='utf-8'
-    )
+
+    # 注意：logging.basicConfig(encoding=...) 是 Python 3.9 才支持的参数，
+    # 在 3.8 上会直接抛 ValueError: Unrecognised argument(s): encoding，
+    # 表现为"双击 run.bat 闪退"。这里显式构造 FileHandler，
+    # 既兼容 3.8，又能保证中文日志按 UTF-8 写入。
+    root = logging.getLogger()
+    for h in root.handlers:
+        if isinstance(h, logging.FileHandler):
+            return  # 避免重复添加
+
+    handler = logging.FileHandler(str(log_file), encoding="utf-8")
+    handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    ))
+    root.setLevel(logging.INFO)
+    root.addHandler(handler)
+
     logging.info("=" * 50)
     logging.info("🐝 蜜蜂办公启动")
     logging.info("=" * 50)
@@ -76,6 +87,9 @@ def main():
     # 延迟导入主窗口，减少启动时的模块加载量
     from beeoffice.app import BeeApp
     window = BeeApp()
+    # 把进程起点交给主窗口：_lazy_load_modules 完成后会打印总耗时，
+    # 这样打开日志就能看到"真正可交互"的时间，而不是只到 show()。
+    window._startup_t0 = t0
     window.show()
 
     # 处理命令行参数：打开传入的文件

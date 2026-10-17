@@ -22,6 +22,14 @@ import sys
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_submodules
 
+# 控制台编码兜底：spec 里会打印带 emoji 的日志，
+# 在 GBK 控制台（Windows 默认）会抛 UnicodeEncodeError 直接中断打包。
+# 用户从 cmd/PowerShell 直接跑 build.py 时同样会踩到。
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 
 # ==================== 项目根目录 ====================
 # SPECPATH 由 PyInstaller 注入，指向 spec 文件所在目录
