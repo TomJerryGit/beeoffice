@@ -18,6 +18,7 @@ from PySide6.QtCore import Qt, QPoint, QRect
 from beeoffice.plugins.beesheet_commands import (
     EditCellCommand, SortCommand, TrimCommand
 )
+from beeoffice.i18n import tr
 
 
 class DataMixin:
@@ -37,7 +38,7 @@ class DataMixin:
         )
         menu.addAction("📋 JSON (.json)").triggered.connect(self._export_json)
         menu.addSeparator()
-        menu.addAction("🖼️ 图片 (.png)").triggered.connect(
+        menu.addAction(tr("auto.beesheet_data_mixin.91a726a4", "🖼️ 图片 (.png)")).triggered.connect(
             self._export_as_image
         )
         menu.exec(self._export_btn.mapToGlobal(
@@ -51,35 +52,35 @@ class DataMixin:
     def _export_xlsx(self):
         """导出为 Excel"""
         path, _ = QFileDialog.getSaveFileName(
-            self, "导出", "表格.xlsx", "Excel (*.xlsx)"
+            self, tr("auto.beesheet_data_mixin.18889679", "导出"), tr("auto.beesheet_data_mixin.783cb963", "表格.xlsx"), "Excel (*.xlsx)"
         )
         if not path:
             return
         try:
             df = self._get_export_df()
             df.to_excel(path, index=False)
-            QMessageBox.information(self, "成功", f"已保存：\n{path}")
+            QMessageBox.information(self, tr("auto.beesheet_data_mixin.51991a5d", "成功"), f"已保存：\n{path}")
         except Exception as e:
-            QMessageBox.warning(self, "失败", str(e))
+            QMessageBox.warning(self, tr("auto.beesheet_data_mixin.3e3c8068", "失败"), str(e))
 
     def _export_csv(self):
         """导出为 CSV（带 UTF-8 BOM）"""
         path, _ = QFileDialog.getSaveFileName(
-            self, "导出 CSV", "表格.csv", "CSV (*.csv)"
+            self, tr("auto.beesheet_data_mixin.7e9cc863", "导出 CSV"), tr("auto.beesheet_data_mixin.465d8643", "表格.csv"), "CSV (*.csv)"
         )
         if not path:
             return
         try:
             df = self._get_export_df()
             df.to_csv(path, index=False, encoding='utf-8-sig')
-            QMessageBox.information(self, "成功", f"已保存：\n{path}")
+            QMessageBox.information(self, tr("auto.beesheet_data_mixin.51991a5d", "成功"), f"已保存：\n{path}")
         except Exception as e:
-            QMessageBox.warning(self, "失败", str(e))
+            QMessageBox.warning(self, tr("auto.beesheet_data_mixin.3e3c8068", "失败"), str(e))
 
     def _export_html_table(self):
         """导出为 HTML 表格"""
         path, _ = QFileDialog.getSaveFileName(
-            self, "导出 HTML", "表格.html", "HTML (*.html)"
+            self, tr("auto.beesheet_data_mixin.f9dc03e0", "导出 HTML"), tr("auto.beesheet_data_mixin.6fbdeaba", "表格.html"), "HTML (*.html)"
         )
         if not path:
             return
@@ -105,14 +106,14 @@ class DataMixin:
             )
             with open(path, 'w', encoding='utf-8') as f:
                 f.write(full_html)
-            QMessageBox.information(self, "成功", f"已保存：\n{path}")
+            QMessageBox.information(self, tr("auto.beesheet_data_mixin.51991a5d", "成功"), f"已保存：\n{path}")
         except Exception as e:
-            QMessageBox.warning(self, "失败", str(e))
+            QMessageBox.warning(self, tr("auto.beesheet_data_mixin.3e3c8068", "失败"), str(e))
 
     def _export_markdown_file(self):
         """导出为 Markdown 表格"""
         path, _ = QFileDialog.getSaveFileName(
-            self, "导出 Markdown", "表格.md", "Markdown (*.md)"
+            self, tr("auto.beesheet_data_mixin.2ece443b", "导出 Markdown"), tr("auto.beesheet_data_mixin.3c2b2434", "表格.md"), "Markdown (*.md)"
         )
         if not path:
             return
@@ -137,14 +138,14 @@ class DataMixin:
                 lines.append("| " + " | ".join(vals) + " |")
             with open(path, 'w', encoding='utf-8') as f:
                 f.write("\n".join(lines))
-            QMessageBox.information(self, "成功", f"已保存：\n{path}")
+            QMessageBox.information(self, tr("auto.beesheet_data_mixin.51991a5d", "成功"), f"已保存：\n{path}")
         except Exception as e:
-            QMessageBox.warning(self, "失败", str(e))
+            QMessageBox.warning(self, tr("auto.beesheet_data_mixin.3e3c8068", "失败"), str(e))
 
     def _export_json(self):
         """导出为 JSON"""
         path, _ = QFileDialog.getSaveFileName(
-            self, "导出 JSON", "表格.json", "JSON (*.json)"
+            self, tr("auto.beesheet_data_mixin.3b9ec1c4", "导出 JSON"), tr("auto.beesheet_data_mixin.9ba6568b", "表格.json"), "JSON (*.json)"
         )
         if not path:
             return
@@ -162,14 +163,14 @@ class DataMixin:
             data = [{k: clean(v) for k, v in row.items()} for row in data]
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
-            QMessageBox.information(self, "成功", f"已保存：\n{path}")
+            QMessageBox.information(self, tr("auto.beesheet_data_mixin.51991a5d", "成功"), f"已保存：\n{path}")
         except Exception as e:
-            QMessageBox.warning(self, "失败", str(e))
+            QMessageBox.warning(self, tr("auto.beesheet_data_mixin.3e3c8068", "失败"), str(e))
 
     def _export_as_image(self):
         """导出为 PNG 图片（整个视图）"""
         path, _ = QFileDialog.getSaveFileName(
-            self, "导出图片", "表格.png", "PNG (*.png)"
+            self, tr("auto.beesheet_data_mixin.5ff8f74f", "导出图片"), tr("auto.beesheet_data_mixin.a4c71c0c", "表格.png"), "PNG (*.png)"
         )
         if not path:
             return
@@ -177,9 +178,9 @@ class DataMixin:
             viewport = self.table_view.viewport()
             pixmap = viewport.grab()
             pixmap.save(path, "PNG")
-            QMessageBox.information(self, "成功", f"已保存：\n{path}")
+            QMessageBox.information(self, tr("auto.beesheet_data_mixin.51991a5d", "成功"), f"已保存：\n{path}")
         except Exception as e:
-            QMessageBox.warning(self, "失败", str(e))
+            QMessageBox.warning(self, tr("auto.beesheet_data_mixin.3e3c8068", "失败"), str(e))
 
     @staticmethod
     def _trim_empty_tail(df):
@@ -211,16 +212,16 @@ class DataMixin:
         if col < 0:
             return
         menu = QMenu(self)
-        menu.addAction("去除首尾空格").triggered.connect(
+        menu.addAction(tr("auto.beesheet_data_mixin.fa0382fb", "去除首尾空格")).triggered.connect(
             lambda: self._clean_trim(col)
         )
-        menu.addAction("文本转数字").triggered.connect(
+        menu.addAction(tr("auto.beesheet_data_mixin.ddf12c61", "文本转数字")).triggered.connect(
             lambda: self._clean_to_number(col)
         )
-        menu.addAction("删除重复行").triggered.connect(
+        menu.addAction(tr("auto.beesheet_data_mixin.a3f8c999", "删除重复行")).triggered.connect(
             lambda: self._clean_remove_dups()
         )
-        menu.addAction("分列...").triggered.connect(
+        menu.addAction(tr("auto.beesheet_data_mixin.0bd55a92", "分列...")).triggered.connect(
             lambda: self._split_column(col)
         )
         menu.exec(self.table_view.viewport().mapToGlobal(
@@ -233,7 +234,7 @@ class DataMixin:
         old = self.model.df[cn].copy()
         self.model._loaded_df[cn] = self.model.df[cn].astype(str).str.strip()
         self._push_command(TrimCommand(col, old))
-        self._set_status("已去空格", 2000)
+        self._set_status(tr("auto.beesheet_data_mixin.dc3b237e", "已去空格"), 2000)
 
     def _clean_to_number(self, col):
         """列转为数字"""
@@ -243,18 +244,18 @@ class DataMixin:
             self.model.df[cn], errors='coerce'
         )
         self._push_command(TrimCommand(col, old))
-        self._set_status("已转数字", 2000)
+        self._set_status(tr("auto.beesheet_data_mixin.ad4f3cae", "已转数字"), 2000)
 
     def _clean_remove_dups(self):
         """删除完全重复的行"""
         old = self.model.df.copy()
         new = self.model.df.drop_duplicates(ignore_index=True)
         self._push_command(SortCommand(old, new))
-        self._set_status("已删除重复行", 2000)
+        self._set_status(tr("auto.beesheet_data_mixin.3cf47f81", "已删除重复行"), 2000)
 
     def _split_column(self, col):
         """按分隔符分列"""
-        delim, ok = QInputDialog.getText(self, "分列", "分隔符:")
+        delim, ok = QInputDialog.getText(self, tr("auto.beesheet_data_mixin.2491d7c5", "分列"), tr("auto.beesheet_data_mixin.4fbf76bd", "分隔符:"))
         if ok and delim:
             cn = self.model.df.columns[col]
             split_data = self.model.df[cn].astype(str).str.split(
@@ -317,21 +318,21 @@ class DataMixin:
         layout = QVBoxLayout(self._filter_popup)
         layout.addWidget(QLabel(f"筛选: {col_name}"))
         self._filter_search = QLineEdit()
-        self._filter_search.setPlaceholderText("搜索...")
+        self._filter_search.setPlaceholderText(tr("auto.beesheet_data_mixin.16ad6d3c", "搜索..."))
         self._filter_search.textChanged.connect(
             lambda t: self._update_filter_list(column, t)
         )
         layout.addWidget(self._filter_search)
         bl = QHBoxLayout()
         bl.addWidget(QPushButton(
-            "全选", clicked=lambda: self._select_all_filter(True)
+            tr("auto.beesheet_data_mixin.3e44b2a9", "全选"), clicked=lambda: self._select_all_filter(True)
         ))
         bl.addWidget(QPushButton(
-            "清除", clicked=lambda: self._select_all_filter(False)
+            tr("auto.beesheet_data_mixin.7b15e5e8", "清除"), clicked=lambda: self._select_all_filter(False)
         ))
         bl.addStretch()
         bl.addWidget(QPushButton(
-            "确定", clicked=lambda: self._apply_filter(column)
+            tr("auto.beesheet_data_mixin.f526c899", "确定"), clicked=lambda: self._apply_filter(column)
         ))
         layout.addLayout(bl)
         self._filter_list = QListWidget()
@@ -402,81 +403,81 @@ class DataMixin:
         col_name = self.model.df.columns[column]
         menu = QMenu(self)
         menu.addSection(f"列: {col_name}")
-        menu.addAction("🔍 快速筛选").triggered.connect(
+        menu.addAction(tr("auto.beesheet_data_mixin.697655eb", "🔍 快速筛选")).triggered.connect(
             lambda: self._show_filter_popup(column)
         )
-        menu.addAction("⬆️ 升序").triggered.connect(
+        menu.addAction(tr("auto.beesheet_data_mixin.34e4b41d", "⬆️ 升序")).triggered.connect(
             lambda: self.sort_by_column(column, True)
         )
-        menu.addAction("⬇️ 降序").triggered.connect(
+        menu.addAction(tr("auto.beesheet_data_mixin.33083512", "⬇️ 降序")).triggered.connect(
             lambda: self.sort_by_column(column, False)
         )
         menu.addSeparator()
-        menu.addAction("📋 复制此列").triggered.connect(
+        menu.addAction(tr("auto.beesheet_data_mixin.ea9632a1", "📋 复制此列")).triggered.connect(
             lambda: self._copy_column(column)
         )
-        menu.addAction("➕ 在左侧插入列").triggered.connect(
+        menu.addAction(tr("auto.beesheet_data_mixin.2b37f733", "➕ 在左侧插入列")).triggered.connect(
             lambda: self._insert_column_at(column)
         )
-        menu.addAction("➕ 在右侧插入列").triggered.connect(
+        menu.addAction(tr("auto.beesheet_data_mixin.eb785fc7", "➕ 在右侧插入列")).triggered.connect(
             lambda: self._insert_column_at(column + 1)
         )
-        menu.addAction("🗑️ 删除此列").triggered.connect(
+        menu.addAction(tr("auto.beesheet_data_mixin.e2dc9921", "🗑️ 删除此列")).triggered.connect(
             lambda: self._delete_column_at(column)
         )
         menu.addSeparator()
-        batch_menu = menu.addMenu("⚙️ 批量操作")
-        batch_menu.addAction("✏️ 重命名此列").triggered.connect(
+        batch_menu = menu.addMenu(tr("auto.beesheet_data_mixin.e75ed951", "⚙️ 批量操作"))
+        batch_menu.addAction(tr("auto.beesheet_data_mixin.a350071c", "✏️ 重命名此列")).triggered.connect(
             lambda: self._rename_column(column)
         )
-        batch_menu.addAction("🔢 转为数字").triggered.connect(
+        batch_menu.addAction(tr("auto.beesheet_data_mixin.50cacee9", "🔢 转为数字")).triggered.connect(
             lambda: self._batch_convert_column(column, 'number')
         )
-        batch_menu.addAction("📝 转为文本").triggered.connect(
+        batch_menu.addAction(tr("auto.beesheet_data_mixin.2aba4548", "📝 转为文本")).triggered.connect(
             lambda: self._batch_convert_column(column, 'text')
         )
-        batch_menu.addAction("🔤 大写化").triggered.connect(
+        batch_menu.addAction(tr("auto.beesheet_data_mixin.408c4d48", "🔤 大写化")).triggered.connect(
             lambda: self._batch_transform_column(column, 'upper')
         )
-        batch_menu.addAction("🔡 小写化").triggered.connect(
+        batch_menu.addAction(tr("auto.beesheet_data_mixin.d30313b6", "🔡 小写化")).triggered.connect(
             lambda: self._batch_transform_column(column, 'lower')
         )
-        batch_menu.addAction("✂️ 去除空格").triggered.connect(
+        batch_menu.addAction(tr("auto.beesheet_data_mixin.48c15fbc", "✂️ 去除空格")).triggered.connect(
             lambda: self._batch_transform_column(column, 'trim')
         )
-        batch_menu.addAction("🔍 删除重复值").triggered.connect(
+        batch_menu.addAction(tr("auto.beesheet_data_mixin.bd3e25f3", "🔍 删除重复值")).triggered.connect(
             lambda: self._batch_deduplicate_column(column)
         )
         batch_menu.addSeparator()
-        batch_menu.addAction("⬆️ 上移此列").triggered.connect(
+        batch_menu.addAction(tr("auto.beesheet_data_mixin.1f7bc956", "⬆️ 上移此列")).triggered.connect(
             lambda: self._move_column(column, -1)
         )
-        batch_menu.addAction("⬇️ 下移此列").triggered.connect(
+        batch_menu.addAction(tr("auto.beesheet_data_mixin.79e07766", "⬇️ 下移此列")).triggered.connect(
             lambda: self._move_column(column, 1)
         )
         menu.addSeparator()
-        fmt_menu = menu.addMenu("🎨 条件格式")
-        fmt_menu.addAction("数据条").triggered.connect(
+        fmt_menu = menu.addMenu(tr("auto.beesheet_data_mixin.114acce2", "🎨 条件格式"))
+        fmt_menu.addAction(tr("auto.beesheet_data_mixin.45b1488f", "数据条")).triggered.connect(
             lambda: self._add_data_bars(column)
         )
-        fmt_menu.addAction("色阶").triggered.connect(
+        fmt_menu.addAction(tr("auto.beesheet_data_mixin.24a78422", "色阶")).triggered.connect(
             lambda: self._add_color_scale(column)
         )
-        fmt_menu.addAction("图标集").triggered.connect(
+        fmt_menu.addAction(tr("auto.beesheet_data_mixin.1672ef70", "图标集")).triggered.connect(
             lambda: self._add_icon_set(column)
         )
         fmt_menu.addSeparator()
-        fmt_menu.addAction("清除本列条件格式").triggered.connect(
+        fmt_menu.addAction(tr("auto.beesheet_data_mixin.970cc8c3", "清除本列条件格式")).triggered.connect(
             lambda: self._clear_cond_format(column)
         )
-        freeze_menu = menu.addMenu("📌 冻结")
-        freeze_menu.addAction("冻结此列").triggered.connect(
+        freeze_menu = menu.addMenu(tr("auto.beesheet_data_mixin.92566d0d", "📌 冻结"))
+        freeze_menu.addAction(tr("auto.beesheet_data_mixin.a0b5d31c", "冻结此列")).triggered.connect(
             lambda: self._freeze_column(column)
         )
-        freeze_menu.addAction("冻结到此处").triggered.connect(
+        freeze_menu.addAction(tr("auto.beesheet_data_mixin.3b3613cb", "冻结到此处")).triggered.connect(
             self._freeze_cell
         )
-        menu.addAction("💬 批注").triggered.connect(self._add_comment)
+        menu.addAction(tr("auto.beesheet_data_mixin.f93c22f0", "💬 批注")).triggered.connect(self._add_comment)
         menu.exec(self.table_view.horizontalHeader().mapToGlobal(
             QPoint(pos.x(),
                    pos.y() + self.table_view.horizontalHeader().height())
@@ -488,18 +489,18 @@ class DataMixin:
         if row < 0:
             return
         menu = QMenu(self)
-        menu.addAction("📋 复制此行").triggered.connect(
+        menu.addAction(tr("auto.beesheet_data_mixin.bf49a6fd", "📋 复制此行")).triggered.connect(
             lambda: self._copy_row(row)
         )
         menu.addSeparator()
-        menu.addAction("➕ 在上方插入行").triggered.connect(
+        menu.addAction(tr("auto.beesheet_data_mixin.7bebfc62", "➕ 在上方插入行")).triggered.connect(
             lambda: self._insert_row_at(row)
         )
-        menu.addAction("➕ 在下方插入行").triggered.connect(
+        menu.addAction(tr("auto.beesheet_data_mixin.7388eda3", "➕ 在下方插入行")).triggered.connect(
             lambda: self._insert_row_at(row + 1)
         )
         menu.addSeparator()
-        menu.addAction("🗑️ 删除此行").triggered.connect(
+        menu.addAction(tr("auto.beesheet_data_mixin.b3bc2954", "🗑️ 删除此行")).triggered.connect(
             lambda: self._delete_row_at(row)
         )
         menu.exec(self.table_view.verticalHeader().mapToGlobal(pos))
@@ -528,10 +529,10 @@ class DataMixin:
     def _delete_row_at(self, row):
         """删除指定行"""
         if len(self.model._loaded_df) <= 1:
-            self._set_status("至少保留一行", 2000)
+            self._set_status(tr("auto.beesheet_data_mixin.201a8dd2", "至少保留一行"), 2000)
             return
         reply = QMessageBox.question(
-            self, "删除行",
+            self, tr("auto.beesheet_data_mixin.3a7d5b01", "删除行"),
             f"确定删除第 {row+1} 行？",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
@@ -571,11 +572,11 @@ class DataMixin:
     def _delete_column_at(self, col):
         """删除指定列"""
         if len(self.model._loaded_df.columns) <= 1:
-            self._set_status("至少保留一列", 2000)
+            self._set_status(tr("auto.beesheet_data_mixin.95d3a0f0", "至少保留一列"), 2000)
             return
         col_name = self.model.df.columns[col]
         reply = QMessageBox.question(
-            self, "删除列",
+            self, tr("auto.beesheet_data_mixin.16f13478", "删除列"),
             f"确定删除列「{col_name}」？",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
@@ -593,14 +594,14 @@ class DataMixin:
         """重命名列"""
         old_name = self.model.df.columns[col]
         new_name, ok = QInputDialog.getText(
-            self, "重命名列", "新列名：", text=str(old_name)
+            self, tr("auto.beesheet_data_mixin.b00ade07", "重命名列"), tr("auto.beesheet_data_mixin.90715afb", "新列名："), text=str(old_name)
         )
         if ok and new_name.strip():
             new_name = new_name.strip()
             if new_name in self.model._loaded_df.columns \
                and new_name != old_name:
                 QMessageBox.warning(
-                    self, "失败", f"列名「{new_name}」已存在"
+                    self, tr("auto.beesheet_data_mixin.3e3c8068", "失败"), f"列名「{new_name}」已存在"
                 )
                 return
             self.model._loaded_df = self.model._loaded_df.rename(
@@ -626,7 +627,7 @@ class DataMixin:
                 self._set_status(f"✅ 列「{cn}」已转为文本", 2000)
             self.model.layoutChanged.emit()
         except Exception as e:
-            QMessageBox.warning(self, "失败", str(e))
+            QMessageBox.warning(self, tr("auto.beesheet_data_mixin.3e3c8068", "失败"), str(e))
 
     def _batch_transform_column(self, col, op):
         """批量转换列内容"""
@@ -649,7 +650,7 @@ class DataMixin:
                 f"✅ 列「{cn}」已{op_names.get(op, '转换')}", 2000
             )
         except Exception as e:
-            QMessageBox.warning(self, "失败", str(e))
+            QMessageBox.warning(self, tr("auto.beesheet_data_mixin.3e3c8068", "失败"), str(e))
 
     def _batch_deduplicate_column(self, col):
         """删除该列中的重复值（保留首次出现）"""
@@ -664,7 +665,7 @@ class DataMixin:
             removed = before - len(self.model._loaded_df)
             self._set_status(f"✅ 已删除 {removed} 个重复行", 3000)
         except Exception as e:
-            QMessageBox.warning(self, "失败", str(e))
+            QMessageBox.warning(self, tr("auto.beesheet_data_mixin.3e3c8068", "失败"), str(e))
 
     def _move_column(self, col, offset):
         """移动列位置"""
@@ -678,7 +679,7 @@ class DataMixin:
             self.model.layoutChanged.emit()
             self._set_status(f"✅ 列已移动", 2000)
         except Exception as e:
-            QMessageBox.warning(self, "失败", str(e))
+            QMessageBox.warning(self, tr("auto.beesheet_data_mixin.3e3c8068", "失败"), str(e))
 
     # ==================== 条件格式 ====================
     def _add_data_bars(self, col):
@@ -697,7 +698,7 @@ class DataMixin:
             self.model.index(0, col),
             self.model.index(len(self.model.df) - 1, col)
         )
-        self._set_status("已添加数据条", 2000)
+        self._set_status(tr("auto.beesheet_data_mixin.c81984dc", "已添加数据条"), 2000)
 
     def _add_color_scale(self, col):
         """添加色阶"""
@@ -715,7 +716,7 @@ class DataMixin:
             self.model.index(0, col),
             self.model.index(len(self.model.df) - 1, col)
         )
-        self._set_status("已添加色阶", 2000)
+        self._set_status(tr("auto.beesheet_data_mixin.2006772c", "已添加色阶"), 2000)
 
     def _add_icon_set(self, col):
         """添加图标集"""
@@ -733,7 +734,7 @@ class DataMixin:
             self.model.index(0, col),
             self.model.index(len(self.model.df) - 1, col)
         )
-        self._set_status("已添加图标集（🔴🟡🟢）", 2000)
+        self._set_status(tr("auto.beesheet_data_mixin.511ae66d", "已添加图标集（🔴🟡🟢）"), 2000)
 
     def _clear_cond_format(self, col):
         """清除指定列的条件格式"""
@@ -743,7 +744,7 @@ class DataMixin:
                 self.model.index(0, col),
                 self.model.index(len(self.model.df) - 1, col)
             )
-            self._set_status("已清除条件格式", 2000)
+            self._set_status(tr("auto.beesheet_data_mixin.4c348275", "已清除条件格式"), 2000)
 
     # ==================== 复制/粘贴 ====================
     def _copy_as_markdown(self):
@@ -770,13 +771,13 @@ class DataMixin:
                 ) + " |"
             )
         QApplication.clipboard().setText("\n".join(lines))
-        self._set_status("已复制", 2000)
+        self._set_status(tr("auto.beesheet_data_mixin.e381a576", "已复制"), 2000)
 
     def _copy_selection_as_image(self):
         """复制选中区域为图片"""
         sel = self.table_view.selectionModel().selection()
         if not sel or not sel.indexes():
-            QMessageBox.information(self, "提示", "请先选中要复制的区域")
+            QMessageBox.information(self, tr("auto.beesheet_data_mixin.ab3656a9", "提示"), tr("auto.beesheet_data_mixin.3a1f510c", "请先选中要复制的区域"))
             return
         indexes = sel.indexes()
         r1 = min(i.row() for i in indexes)
@@ -800,7 +801,7 @@ class DataMixin:
         height = bottom - top
 
         if width <= 0 or height <= 0:
-            QMessageBox.warning(self, "失败", "选中区域尺寸无效")
+            QMessageBox.warning(self, tr("auto.beesheet_data_mixin.3e3c8068", "失败"), tr("auto.beesheet_data_mixin.af553715", "选中区域尺寸无效"))
             return
 
         viewport = self.table_view.viewport()
@@ -809,7 +810,7 @@ class DataMixin:
                 QRect(int(left), int(top), int(width), int(height))
             )
         except Exception as e:
-            QMessageBox.warning(self, "失败", f"截取失败：{e}")
+            QMessageBox.warning(self, tr("auto.beesheet_data_mixin.3e3c8068", "失败"), f"截取失败：{e}")
             return
 
         QApplication.clipboard().setPixmap(pixmap)
@@ -818,14 +819,14 @@ class DataMixin:
         )
 
         reply = QMessageBox.question(
-            self, "保存图片",
-            "已复制到剪贴板。是否同时保存为 PNG 文件？",
+            self, tr("auto.beesheet_data_mixin.a927c749", "保存图片"),
+            tr("auto.beesheet_data_mixin.663a3bf3", "已复制到剪贴板。是否同时保存为 PNG 文件？"),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
         if reply == QMessageBox.Yes:
             path, _ = QFileDialog.getSaveFileName(
-                self, "保存图片", "选中区域.png", "PNG (*.png)"
+                self, tr("auto.beesheet_data_mixin.a927c749", "保存图片"), tr("auto.beesheet_data_mixin.449ba4a4", "选中区域.png"), "PNG (*.png)"
             )
             if path:
                 pixmap.save(path, "PNG")
@@ -917,32 +918,32 @@ class DataMixin:
         sel = self.table_view.selectionModel().selection()
         if not sel or not sel.indexes():
             QMessageBox.information(
-                self, "提示", "请先选中要添加验证的单元格"
+                self, tr("auto.beesheet_data_mixin.ab3656a9", "提示"), tr("auto.beesheet_data_mixin.3ad9c0ca", "请先选中要添加验证的单元格")
             )
             return
 
         dlg = QDialog(self)
-        dlg.setWindowTitle("📋 数据验证")
+        dlg.setWindowTitle(tr("auto.beesheet_data_mixin.5d70d21b", "📋 数据验证"))
         dlg.resize(420, 280)
         layout = QVBoxLayout(dlg)
-        layout.addWidget(QLabel("选择验证类型："))
+        layout.addWidget(QLabel(tr("auto.beesheet_data_mixin.c3107bc9", "选择验证类型：")))
         type_combo = QComboBox()
         type_combo.addItems(
             ["下拉列表", "数值范围", "文本长度", "清除验证"]
         )
         layout.addWidget(type_combo)
 
-        list_label = QLabel("下拉选项（每行一个）：")
+        list_label = QLabel(tr("auto.beesheet_data_mixin.0d61610b", "下拉选项（每行一个）："))
         list_edit = QTextEdit()
-        list_edit.setPlaceholderText("例如：\n北京\n上海\n广州")
+        list_edit.setPlaceholderText(tr("auto.beesheet_data_mixin.8bf1668d", "例如：\n北京\n上海\n广州"))
         list_edit.setMaximumHeight(120)
 
-        range_label = QLabel("数值范围：")
+        range_label = QLabel(tr("auto.beesheet_data_mixin.11dd4c4a", "数值范围："))
         range_layout = QHBoxLayout()
         min_edit = QLineEdit()
-        min_edit.setPlaceholderText("最小值")
+        min_edit.setPlaceholderText(tr("auto.beesheet_data_mixin.c3d641f1", "最小值"))
         max_edit = QLineEdit()
-        max_edit.setPlaceholderText("最大值")
+        max_edit.setPlaceholderText(tr("auto.beesheet_data_mixin.01821997", "最大值"))
         range_layout.addWidget(min_edit)
         range_layout.addWidget(QLabel("~"))
         range_layout.addWidget(max_edit)
@@ -980,7 +981,7 @@ class DataMixin:
                     )
                 self.model.layoutChanged.emit()
                 dlg.accept()
-                self._set_status("✅ 已清除验证", 2000)
+                self._set_status(tr("auto.beesheet_data_mixin.4e37bcfa", "✅ 已清除验证"), 2000)
                 return
             if vtype == "下拉列表":
                 options = [
@@ -989,7 +990,7 @@ class DataMixin:
                 ]
                 if not options:
                     QMessageBox.warning(
-                        dlg, "提示", "请至少输入一个选项"
+                        dlg, tr("auto.beesheet_data_mixin.ab3656a9", "提示"), tr("auto.beesheet_data_mixin.4d817cee", "请至少输入一个选项")
                     )
                     return
                 for idx in sel.indexes():
@@ -1007,14 +1008,14 @@ class DataMixin:
                     hi = float(max_edit.text()) if max_edit.text() else None
                 except ValueError:
                     QMessageBox.warning(
-                        dlg, "提示", "请输入有效数字"
+                        dlg, tr("auto.beesheet_data_mixin.ab3656a9", "提示"), tr("auto.beesheet_data_mixin.7db3bc0d", "请输入有效数字")
                     )
                     return
                 for idx in sel.indexes():
                     self._data_validations[
                         (idx.row(), idx.column())
                     ] = {"_type": "range", "min": lo, "max": hi}
-                self._set_status("✅ 已添加数值验证", 2000)
+                self._set_status(tr("auto.beesheet_data_mixin.a1900923", "✅ 已添加数值验证"), 2000)
             dlg.accept()
 
         btns.accepted.connect(on_ok)
@@ -1025,10 +1026,10 @@ class DataMixin:
     def _show_name_manager(self):
         """名称管理器"""
         dlg = QDialog(self)
-        dlg.setWindowTitle("🏷️ 名称管理器")
+        dlg.setWindowTitle(tr("auto.beesheet_data_mixin.86953ce9", "🏷️ 名称管理器"))
         dlg.resize(500, 400)
         layout = QVBoxLayout(dlg)
-        layout.addWidget(QLabel("已定义的名称："))
+        layout.addWidget(QLabel(tr("auto.beesheet_data_mixin.bef0ef6c", "已定义的名称：")))
         lst = QListWidget()
         for name, ref in sorted(self._named_ranges.items()):
             item = QListWidgetItem(f"{name}  →  {ref}")
@@ -1038,10 +1039,10 @@ class DataMixin:
 
         form = QFormLayout()
         name_edit = QLineEdit()
-        name_edit.setPlaceholderText("例如：销售额")
+        name_edit.setPlaceholderText(tr("auto.beesheet_data_mixin.b96205b4", "例如：销售额"))
         form.addRow("名称:", name_edit)
         ref_edit = QLineEdit()
-        ref_edit.setPlaceholderText("例如：A1:A10")
+        ref_edit.setPlaceholderText(tr("auto.beesheet_data_mixin.136d455e", "例如：A1:A10"))
         form.addRow("引用:", ref_edit)
 
         def fill_from_selection():
@@ -1059,18 +1060,18 @@ class DataMixin:
                            f"{self._col_index_to_name(c2)}{r2+1}")
                 ref_edit.setText(ref)
 
-        fill_btn = QPushButton("从当前选区填充")
+        fill_btn = QPushButton(tr("auto.beesheet_data_mixin.ef8aa622", "从当前选区填充"))
         fill_btn.clicked.connect(fill_from_selection)
         form.addRow(fill_btn)
         layout.addLayout(form)
 
         bl = QHBoxLayout()
-        add_btn = QPushButton("➕ 添加/更新")
-        del_btn = QPushButton("🗑️ 删除选中")
+        add_btn = QPushButton(tr("auto.beesheet_data_mixin.4a0b8ad2", "➕ 添加/更新"))
+        del_btn = QPushButton(tr("auto.beesheet_data_mixin.fa7f2d97", "🗑️ 删除选中"))
         bl.addWidget(add_btn)
         bl.addWidget(del_btn)
         bl.addStretch()
-        close_btn = QPushButton("关闭")
+        close_btn = QPushButton(tr("auto.beesheet_data_mixin.6c14bd7f", "关闭"))
         bl.addWidget(close_btn)
         layout.addLayout(bl)
 
@@ -1085,24 +1086,24 @@ class DataMixin:
             name = name_edit.text().strip()
             ref = ref_edit.text().strip().upper()
             if not name:
-                QMessageBox.warning(dlg, "提示", "请输入名称")
+                QMessageBox.warning(dlg, tr("auto.beesheet_data_mixin.ab3656a9", "提示"), tr("auto.beesheet_data_mixin.c2afb255", "请输入名称"))
                 return
             if not re.match(
                 r'^[\u4e00-\u9fffA-Za-z_][\u4e00-\u9fffA-Za-z0-9_]*$',
                 name
             ):
                 QMessageBox.warning(
-                    dlg, "提示",
-                    "名称只能包含中文、字母、数字、下划线"
+                    dlg, tr("auto.beesheet_data_mixin.ab3656a9", "提示"),
+                    tr("auto.beesheet_data_mixin.a71a61f9", "名称只能包含中文、字母、数字、下划线")
                 )
                 return
             if name.upper() in ("SUM", "AVERAGE", "IF", "VLOOKUP"):
                 QMessageBox.warning(
-                    dlg, "提示", "名称不能与函数名冲突"
+                    dlg, tr("auto.beesheet_data_mixin.ab3656a9", "提示"), tr("auto.beesheet_data_mixin.77471823", "名称不能与函数名冲突")
                 )
                 return
             if not ref:
-                QMessageBox.warning(dlg, "提示", "请输入引用区域")
+                QMessageBox.warning(dlg, tr("auto.beesheet_data_mixin.ab3656a9", "提示"), tr("auto.beesheet_data_mixin.9cd92e78", "请输入引用区域"))
                 return
             self._named_ranges[name] = ref
             refresh()
@@ -1133,7 +1134,7 @@ class DataMixin:
         """
         idx = self.table_view.currentIndex()
         if not idx.isValid():
-            QMessageBox.information(self, "提示", "请先选中要填充的列")
+            QMessageBox.information(self, tr("auto.beesheet_data_mixin.ab3656a9", "提示"), tr("auto.beesheet_data_mixin.bc8ce03d", "请先选中要填充的列"))
             return
         col = idx.column()
 
@@ -1145,7 +1146,7 @@ class DataMixin:
                 sample_row = r
                 break
         if sample_row < 0:
-            QMessageBox.information(self, "提示", "该列没有示例数据")
+            QMessageBox.information(self, tr("auto.beesheet_data_mixin.ab3656a9", "提示"), tr("auto.beesheet_data_mixin.3600e19f", "该列没有示例数据"))
             return
 
         sample_value = str(self.model.get_value(sample_row, col))
@@ -1154,7 +1155,7 @@ class DataMixin:
         )
         if source_col is None:
             QMessageBox.information(
-                self, "提示",
+                self, tr("auto.beesheet_data_mixin.ab3656a9", "提示"),
                 "无法识别填充模式。\n"
                 "请先手动填写前 1-3 行的示例，再使用智能填充。"
             )
@@ -1166,7 +1167,7 @@ class DataMixin:
         )
         if not pattern:
             QMessageBox.information(
-                self, "提示", "未能识别出填充规则，请检查示例内容"
+                self, tr("auto.beesheet_data_mixin.ab3656a9", "提示"), tr("auto.beesheet_data_mixin.090f6b37", "未能识别出填充规则，请检查示例内容")
             )
             return
 
@@ -1308,7 +1309,7 @@ class DataMixin:
         sel = self.table_view.selectionModel().selection()
         if not sel or not sel.indexes():
             QMessageBox.information(
-                self, "提示", "请先选中要统计的区域"
+                self, tr("auto.beesheet_data_mixin.ab3656a9", "提示"), tr("auto.beesheet_data_mixin.656a16f2", "请先选中要统计的区域")
             )
             return
         indexes = sel.indexes()
@@ -1327,7 +1328,7 @@ class DataMixin:
                 text_count += 1
 
         dlg = QDialog(self)
-        dlg.setWindowTitle("📊 选中统计")
+        dlg.setWindowTitle(tr("auto.beesheet_data_mixin.0c1b4010", "📊 选中统计"))
         dlg.resize(360, 340)
         layout = QVBoxLayout(dlg)
 
@@ -1375,11 +1376,11 @@ class DataMixin:
                 lines.append(f"{label}: {value}")
             QApplication.clipboard().setText("\n".join(lines))
 
-        copy_btn = QPushButton("📋 复制统计")
+        copy_btn = QPushButton(tr("auto.beesheet_data_mixin.e301a0ea", "📋 复制统计"))
         copy_btn.clicked.connect(copy_stats)
         bl.addWidget(copy_btn)
         bl.addStretch()
-        close_btn = QPushButton("关闭")
+        close_btn = QPushButton(tr("auto.beesheet_data_mixin.6c14bd7f", "关闭"))
         close_btn.clicked.connect(dlg.reject)
         bl.addWidget(close_btn)
         layout.addLayout(bl)
