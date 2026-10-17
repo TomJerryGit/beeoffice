@@ -43,6 +43,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QShortcut, QKeySequence
 
 from beeoffice.plugins.beeshow_constants import SLIDE_THEMES
+from beeoffice.i18n import tr
 
 
 class ToolbarMixin:
@@ -58,27 +59,27 @@ class ToolbarMixin:
             "QToolButton:hover{background:#FFF3E0}"
         )
 
-        toolbar.addWidget(QLabel("🎥 蜜演 "))
-        toolbar.addWidget(QLabel("主题:"))
+        toolbar.addWidget(QLabel(tr("auto.beeshow_toolbar_mixin.1b2544cd", "🎥 蜜演 ")))
+        toolbar.addWidget(QLabel(tr("auto.beeshow_toolbar_mixin.2f68fa96", "主题:")))
         self._theme_combo = QComboBox()
         self._theme_combo.addItems(SLIDE_THEMES.keys())
         self._theme_combo.currentTextChanged.connect(self._on_theme_changed)
         toolbar.addWidget(self._theme_combo)
 
-        btn_bg = QPushButton("🎨 背景")
+        btn_bg = QPushButton(tr("auto.beeshow_toolbar_mixin.04b9c057", "🎨 背景"))
         btn_bg.clicked.connect(self._customize_background)
         toolbar.addWidget(btn_bg)
 
         # 任务 2.1：版式选择
-        btn_layout = QPushButton("📐 版式")
-        btn_layout.setToolTip("选择幻灯片版式（12 种预定义）")
+        btn_layout = QPushButton(tr("auto.beeshow_toolbar_mixin.80dfa06f", "📐 版式"))
+        btn_layout.setToolTip(tr("auto.beeshow_toolbar_mixin.6cf3aace", "选择幻灯片版式（12 种预定义）"))
         btn_layout.clicked.connect(self._show_layout_picker)
         toolbar.addWidget(btn_layout)
 
         # v5.2 B1：表格编辑器
-        btn_table = QPushButton("📊 表格")
+        btn_table = QPushButton(tr("auto.beeshow_toolbar_mixin.848b42fc", "📊 表格"))
         btn_table.setToolTip(
-            "打开表格编辑器（右键编辑当前页已有表格）"
+            tr("auto.beeshow_toolbar_mixin.1f4dade2", "打开表格编辑器（右键编辑当前页已有表格）")
         )
         btn_table.clicked.connect(self._show_table_editor)
         btn_table.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -91,14 +92,14 @@ class ToolbarMixin:
 
         toolbar.addSeparator()
 
-        self._play_btn = QPushButton("▶ 播放 (F5)")
+        self._play_btn = QPushButton(tr("auto.beeshow_toolbar_mixin.1238b416", "▶ 播放 (F5)"))
         self._play_btn.setStyleSheet(
             "background:#FFB300;color:#000;font-weight:bold;padding:6px 12px;"
         )
         self._play_btn.clicked.connect(self._start_play)
         toolbar.addWidget(self._play_btn)
 
-        btn_presenter = QPushButton("🎤 演讲者模式")
+        btn_presenter = QPushButton(tr("auto.beeshow_toolbar_mixin.bd0733ba", "🎤 演讲者模式"))
         btn_presenter.clicked.connect(self._start_presenter_mode)
         toolbar.addWidget(btn_presenter)
         toolbar.addSeparator()
@@ -116,42 +117,42 @@ class ToolbarMixin:
             toolbar.addWidget(btn)
         toolbar.addSeparator()
 
-        btn_import = QPushButton("📂 导入MD")
+        btn_import = QPushButton(tr("auto.beeshow_toolbar_mixin.dc8b449a", "📂 导入MD"))
         btn_import.clicked.connect(self._import_markdown)
         toolbar.addWidget(btn_import)
 
-        btn_template = QPushButton("📋 模板")
+        btn_template = QPushButton(tr("auto.beeshow_toolbar_mixin.6317dcd2", "📋 模板"))
         btn_template.clicked.connect(self._show_template_menu)
         toolbar.addWidget(btn_template)
 
-        btn_ai = QPushButton("🤖 AI大纲")
+        btn_ai = QPushButton(tr("auto.beeshow_toolbar_mixin.711811c6", "🤖 AI大纲"))
         btn_ai.clicked.connect(self._ai_generate_outline)
         toolbar.addWidget(btn_ai)
 
-        btn_icon = QPushButton("🎭 图标")
+        btn_icon = QPushButton(tr("auto.beeshow_toolbar_mixin.6aa33923", "🎭 图标"))
         btn_icon.clicked.connect(self._show_icon_picker)
         toolbar.addWidget(btn_icon)
 
-        btn_qr = QPushButton("📱 二维码")
+        btn_qr = QPushButton(tr("auto.beeshow_toolbar_mixin.458f090a", "📱 二维码"))
         btn_qr.clicked.connect(self._generate_qrcode)
         toolbar.addWidget(btn_qr)
 
         toolbar.addSeparator()
 
-        btn_rehearsal = QPushButton("⏱ 排练")
-        btn_rehearsal.setToolTip("开始/停止排练计时")
+        btn_rehearsal = QPushButton(tr("auto.beeshow_toolbar_mixin.d785ae76", "⏱ 排练"))
+        btn_rehearsal.setToolTip(tr("auto.beeshow_toolbar_mixin.096f97ef", "开始/停止排练计时"))
         btn_rehearsal.clicked.connect(self.toggle_rehearsal)
         toolbar.addWidget(btn_rehearsal)
 
-        btn_notes = QPushButton("📝 备注")
-        btn_notes.setToolTip("编辑当前幻灯片备注")
+        btn_notes = QPushButton(tr("auto.beeshow_toolbar_mixin.0c65dc96", "📝 备注"))
+        btn_notes.setToolTip(tr("auto.beeshow_toolbar_mixin.680b2e89", "编辑当前幻灯片备注"))
         btn_notes.clicked.connect(self.edit_current_notes)
         toolbar.addWidget(btn_notes)
 
         # 任务 1.2：AI 演讲稿
-        btn_ai_notes = QPushButton("🤖 讲稿")
+        btn_ai_notes = QPushButton(tr("auto.beeshow_toolbar_mixin.4bb0b15d", "🤖 讲稿"))
         btn_ai_notes.setToolTip(
-            "AI 为当前页生成演讲稿（右键批量生成）"
+            tr("auto.beeshow_toolbar_mixin.907f9939", "AI 为当前页生成演讲稿（右键批量生成）")
         )
         btn_ai_notes.clicked.connect(self._ai_generate_notes)
         btn_ai_notes.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -163,9 +164,9 @@ class ToolbarMixin:
         toolbar.addWidget(btn_ai_notes)
 
         # 任务 4.1：版本历史
-        btn_history = QPushButton("🕐 历史")
+        btn_history = QPushButton(tr("auto.beeshow_toolbar_mixin.7ac5b069", "🕐 历史"))
         btn_history.setToolTip(
-            "查看版本历史（右键快速回滚上一个版本）"
+            tr("auto.beeshow_toolbar_mixin.eed8a97f", "查看版本历史（右键快速回滚上一个版本）")
         )
         btn_history.clicked.connect(self._show_history_panel)
         btn_history.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -177,9 +178,9 @@ class ToolbarMixin:
         toolbar.addWidget(btn_history)
 
         # 任务 4.2：评论
-        btn_comment = QPushButton("💬 评论")
+        btn_comment = QPushButton(tr("auto.beeshow_toolbar_mixin.6ca733e4", "💬 评论"))
         btn_comment.setToolTip(
-            "为当前页添加评论（右键查看评论面板）"
+            tr("auto.beeshow_toolbar_mixin.99e082c6", "为当前页添加评论（右键查看评论面板）")
         )
         btn_comment.clicked.connect(self._add_comment)
         btn_comment.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -191,9 +192,9 @@ class ToolbarMixin:
         toolbar.addWidget(btn_comment)
 
         # 任务 4.3：远程同步演示
-        btn_sync = QPushButton("📱 同步")
+        btn_sync = QPushButton(tr("auto.beeshow_toolbar_mixin.d95191d6", "📱 同步"))
         btn_sync.setToolTip(
-            "开启远程同步演示（观众扫码跟随翻页）"
+            tr("auto.beeshow_toolbar_mixin.42b75349", "开启远程同步演示（观众扫码跟随翻页）")
         )
         btn_sync.setCheckable(True)
         btn_sync.clicked.connect(self._on_sync_btn_clicked)
@@ -201,9 +202,9 @@ class ToolbarMixin:
         toolbar.addWidget(btn_sync)
 
         # 任务 1.3：AI 配图
-        btn_image_suggest = QPushButton("🖼️ 配图")
+        btn_image_suggest = QPushButton(tr("auto.beeshow_toolbar_mixin.31e99bf3", "🖼️ 配图"))
         btn_image_suggest.setToolTip(
-            "根据当前页内容推荐配图"
+            tr("auto.beeshow_toolbar_mixin.26fa9a9b", "根据当前页内容推荐配图")
         )
         btn_image_suggest.clicked.connect(
             self._show_image_suggester
@@ -216,10 +217,10 @@ class ToolbarMixin:
     def _show_ai_notes_menu(self, global_pos):
         """「🤖 讲稿」按钮的右键菜单（任务 1.2）"""
         menu = QMenu(self)
-        menu.addAction("📄 为当前页生成").triggered.connect(
+        menu.addAction(tr("auto.beeshow_toolbar_mixin.356659b2", "📄 为当前页生成")).triggered.connect(
             self._ai_generate_notes
         )
-        menu.addAction("📚 为所有页批量生成").triggered.connect(
+        menu.addAction(tr("auto.beeshow_toolbar_mixin.6c5179f5", "📚 为所有页批量生成")).triggered.connect(
             self._ai_generate_all_notes
         )
         menu.exec(global_pos)
@@ -227,14 +228,14 @@ class ToolbarMixin:
     def _show_history_menu(self, global_pos):
         """「🕐 历史」按钮的右键菜单（任务 4.1）"""
         menu = QMenu(self)
-        menu.addAction("📜 查看版本历史").triggered.connect(
+        menu.addAction(tr("auto.beeshow_toolbar_mixin.fed43f3f", "📜 查看版本历史")).triggered.connect(
             self._show_history_panel
         )
-        menu.addAction("↩ 回滚到上一个版本").triggered.connect(
+        menu.addAction(tr("auto.beeshow_toolbar_mixin.4aaf35a0", "↩ 回滚到上一个版本")).triggered.connect(
             self._restore_last_snapshot
         )
         menu.addSeparator()
-        menu.addAction("🧹 清空历史").triggered.connect(
+        menu.addAction(tr("auto.beeshow_toolbar_mixin.a474364c", "🧹 清空历史")).triggered.connect(
             self._clear_history
         )
         menu.exec(global_pos)
@@ -242,10 +243,10 @@ class ToolbarMixin:
     def _show_comment_menu(self, global_pos):
         """「💬 评论」按钮的右键菜单（任务 4.2）"""
         menu = QMenu(self)
-        menu.addAction("➕ 为当前页添加评论").triggered.connect(
+        menu.addAction(tr("auto.beeshow_toolbar_mixin.63a151ae", "➕ 为当前页添加评论")).triggered.connect(
             self._add_comment
         )
-        menu.addAction("📋 显示 / 隐藏评论面板").triggered.connect(
+        menu.addAction(tr("auto.beeshow_toolbar_mixin.dd9b1fab", "📋 显示 / 隐藏评论面板")).triggered.connect(
             self._show_comment_panel
         )
         menu.exec(global_pos)
@@ -253,10 +254,10 @@ class ToolbarMixin:
     def _show_table_menu(self, global_pos):
         """「📊 表格」按钮的右键菜单（v5.2 B1）"""
         menu = QMenu(self)
-        menu.addAction("🆕 新建表格").triggered.connect(
+        menu.addAction(tr("auto.beeshow_toolbar_mixin.db99dad4", "🆕 新建表格")).triggered.connect(
             self._show_table_editor
         )
-        menu.addAction("✏️ 编辑当前页表格").triggered.connect(
+        menu.addAction(tr("auto.beeshow_toolbar_mixin.75802da6", "✏️ 编辑当前页表格")).triggered.connect(
             self._edit_current_table
         )
         menu.exec(global_pos)
@@ -277,7 +278,7 @@ class ToolbarMixin:
         info_bar = QHBoxLayout()
         info_bar.setContentsMargins(8, 2, 8, 2)
 
-        self._slide_label = QLabel("幻灯片: 0 页")
+        self._slide_label = QLabel(tr("auto.beeshow_toolbar_mixin.189fbf51", "幻灯片: 0 页"))
         info_bar.addWidget(self._slide_label)
 
         self._timer_label = QLabel("")
@@ -287,7 +288,7 @@ class ToolbarMixin:
         info_bar.addWidget(self._rehearsal_label)
         info_bar.addStretch()
 
-        info_bar.addWidget(QLabel("动画:"))
+        info_bar.addWidget(QLabel(tr("auto.beeshow_toolbar_mixin.38bd87a8", "动画:")))
         self._anim_combo = QComboBox()
         # 任务 5.2：加「平滑」选项
         self._anim_combo.addItems(
@@ -321,7 +322,7 @@ class ToolbarMixin:
         left_layout.addWidget(self._editor, 3)
 
         self._notes_editor = QPlainTextEdit()
-        self._notes_editor.setPlaceholderText("演讲者备注...")
+        self._notes_editor.setPlaceholderText(tr("auto.beeshow_toolbar_mixin.4671c7d3", "演讲者备注..."))
         self._notes_editor.setMaximumHeight(60)
         self._notes_editor.textChanged.connect(self._on_notes_changed)
         left_layout.addWidget(self._notes_editor)
@@ -353,7 +354,7 @@ class ToolbarMixin:
         right = QWidget()
         right_layout = QVBoxLayout(right)
         right_layout.setContentsMargins(4, 4, 4, 4)
-        right_layout.addWidget(QLabel("📑 导航 (可拖拽排序)"))
+        right_layout.addWidget(QLabel(tr("auto.beeshow_toolbar_mixin.45bd5ea3", "📑 导航 (可拖拽排序)")))
 
         self._thumb_list = QListWidget()
         self._thumb_list.setMaximumWidth(180)

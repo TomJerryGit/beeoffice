@@ -53,6 +53,7 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
 from beeoffice.plugins.beeshow_constants import SLIDE_THEMES
+from beeoffice.i18n import tr
 
 
 class ExportMixin:
@@ -82,7 +83,7 @@ class ExportMixin:
             return
 
         path, _ = QFileDialog.getSaveFileName(
-            self, "导出 PPTX", "演示.pptx", "PowerPoint (*.pptx)"
+            self, tr("auto.beeshow_export_mixin.851f94c5", "导出 PPTX"), tr("auto.beeshow_export_mixin.09a5be6b", "演示.pptx"), "PowerPoint (*.pptx)"
         )
         if not path:
             return
@@ -99,7 +100,7 @@ class ExportMixin:
         try:
             from beeoffice.plugins.beeshow_pptx_engine import PPTXEngine
 
-            self._set_status("📄 正在导出 PPTX...", 0)
+            self._set_status(tr("auto.beeshow_export_mixin.d62eaf8a", "📄 正在导出 PPTX..."), 0)
 
             # 任务 5.1：导出 PPTX 时把动态数字替换为最终值
             export_slides = []
@@ -120,23 +121,23 @@ class ExportMixin:
 
             if success:
                 QMessageBox.information(
-                    self, "导出成功",
+                    self, tr("auto.beeshow_export_mixin.c893536c", "导出成功"),
                     f"已保存: {path}\n\n"
                     f"✅ 文本可编辑、可搜索\n"
                     f"✅ 保留字号/颜色/对齐"
                 )
-                self._set_status("✅ PPTX 导出完成", 3000)
+                self._set_status(tr("auto.beeshow_export_mixin.029fa78e", "✅ PPTX 导出完成"), 3000)
             else:
                 QMessageBox.warning(
-                    self, "导出失败",
-                    "PPTX 引擎返回失败，尝试旧方案..."
+                    self, tr("auto.beeshow_export_mixin.67533812", "导出失败"),
+                    tr("auto.beeshow_export_mixin.bc67aae1", "PPTX 引擎返回失败，尝试旧方案...")
                 )
                 self._export_pptx_legacy(path)
 
         except ImportError as e:
             logging.error(f"PPTX 引擎导入失败：{e}")
             QMessageBox.warning(
-                self, "缺少依赖",
+                self, tr("auto.beeshow_export_mixin.1f393593", "缺少依赖"),
                 f"PPTX 引擎不可用：\n{e}\n\n"
                 f"请确认 python-pptx 已安装。\n"
                 f"如需精确版式，请安装 playwright：\n"
@@ -147,7 +148,7 @@ class ExportMixin:
         except Exception as e:
             logging.error(f"PPTX 导出失败：{e}")
             QMessageBox.warning(
-                self, "导出失败", f"出错：{e}\n\n尝试旧方案..."
+                self, tr("auto.beeshow_export_mixin.67533812", "导出失败"), f"出错：{e}\n\n尝试旧方案..."
             )
             self._export_pptx_legacy(path)
 
@@ -193,13 +194,13 @@ class ExportMixin:
 
             prs.save(path)
             QMessageBox.information(
-                self, "导出成功（保底方案）",
+                self, tr("auto.beeshow_export_mixin.8af82fcd", "导出成功（保底方案）"),
                 f"已保存: {path}\n\n"
                 f"⚠️ 使用了保底方案，版式可能不精确。"
             )
         except Exception as e:
             logging.error(f"保底方案也失败：{e}")
-            QMessageBox.warning(self, "导出失败", str(e))
+            QMessageBox.warning(self, tr("auto.beeshow_export_mixin.67533812", "导出失败"), str(e))
 
     # ==================== 导出 PDF（P0-4 + 任务 5.3 + 任务 5.1） ====================
     def _export_pdf(self):
@@ -223,7 +224,7 @@ class ExportMixin:
             return
 
         path, _ = QFileDialog.getSaveFileName(
-            self, "导出 PDF", "演示.pdf", "PDF (*.pdf)"
+            self, tr("auto.beeshow_export_mixin.d58b0502", "导出 PDF"), tr("auto.beeshow_export_mixin.174251a5", "演示.pdf"), "PDF (*.pdf)"
         )
         if not path:
             return
@@ -288,19 +289,19 @@ class ExportMixin:
             try:
                 if success:
                     QMessageBox.information(
-                        self, "导出成功", f"已保存: {file_path}"
+                        self, tr("auto.beeshow_export_mixin.c893536c", "导出成功"), f"已保存: {file_path}"
                     )
                 else:
                     QMessageBox.warning(
-                        self, "导出失败",
-                        "PDF 写入失败（磁盘空间不足或无写权限？）"
+                        self, tr("auto.beeshow_export_mixin.67533812", "导出失败"),
+                        tr("auto.beeshow_export_mixin.0d838d37", "PDF 写入失败（磁盘空间不足或无写权限？）")
                     )
             finally:
                 _cleanup_view()
 
         def on_load(ok):
             if not ok:
-                QMessageBox.warning(self, "导出失败", "页面渲染失败")
+                QMessageBox.warning(self, tr("auto.beeshow_export_mixin.67533812", "导出失败"), tr("auto.beeshow_export_mixin.363f3966", "页面渲染失败"))
                 _cleanup_view()
                 return
             # 先接完成信号再发起导出，避免竞态
@@ -326,7 +327,7 @@ class ExportMixin:
             return
 
         path, _ = QFileDialog.getSaveFileName(
-            self, "导出 HTML", "演示.html", "HTML (*.html)"
+            self, tr("auto.beeshow_export_mixin.f9dc03e0", "导出 HTML"), tr("auto.beeshow_export_mixin.0a902a6c", "演示.html"), "HTML (*.html)"
         )
         if not path:
             return
@@ -373,7 +374,7 @@ class ExportMixin:
         with open(path, 'w', encoding='utf-8') as f:
             f.write(full_html)
 
-        QMessageBox.information(self, "导出成功", f"已保存: {path}")
+        QMessageBox.information(self, tr("auto.beeshow_export_mixin.c893536c", "导出成功"), f"已保存: {path}")
 
     # ==================== 导出图片序列（P0-4） ====================
     def _export_images(self):
@@ -393,7 +394,7 @@ class ExportMixin:
             return
 
         output_dir = QFileDialog.getExistingDirectory(
-            self, "选择输出文件夹"
+            self, tr("auto.beeshow_export_mixin.98488765", "选择输出文件夹")
         )
         if not output_dir:
             return
@@ -410,12 +411,12 @@ class ExportMixin:
                 return
             if results["fail"] == 0:
                 QMessageBox.information(
-                    self, "导出成功",
+                    self, tr("auto.beeshow_export_mixin.c893536c", "导出成功"),
                     f"已保存 {results['ok']} 张图片到:\n{output_dir}"
                 )
             else:
                 QMessageBox.warning(
-                    self, "部分失败",
+                    self, tr("auto.beeshow_export_mixin.7912043e", "部分失败"),
                     f"成功 {results['ok']} 张，失败 {results['fail']} 张。\n"
                     f"目录: {output_dir}"
                 )
@@ -489,11 +490,11 @@ class ExportMixin:
         用户可选每帧停留时长（默认 2000ms，范围 500~10000ms）。
         """
         if not self._slides_html:
-            QMessageBox.information(self, "提示", "请先编写幻灯片内容")
+            QMessageBox.information(self, tr("auto.beeshow_export_mixin.ab3656a9", "提示"), tr("auto.beeshow_export_mixin.63565334", "请先编写幻灯片内容"))
             return
 
         path, _ = QFileDialog.getSaveFileName(
-            self, "导出 GIF", "演示.gif", "GIF 动图 (*.gif)"
+            self, tr("auto.beeshow_export_mixin.b545b506", "导出 GIF"), tr("auto.beeshow_export_mixin.b25d8f56", "演示.gif"), tr("auto.beeshow_export_mixin.6d000c73", "GIF 动图 (*.gif)")
         )
         if not path:
             return
@@ -511,10 +512,10 @@ class ExportMixin:
             self._slides_html, path, theme['css'], duration
         ):
             QMessageBox.information(
-                self, "导出成功", f"GIF 已保存至：\n{path}"
+                self, tr("auto.beeshow_export_mixin.c893536c", "导出成功"), f"GIF 已保存至：\n{path}"
             )
         else:
-            QMessageBox.warning(self, "导出失败", "GIF 导出失败")
+            QMessageBox.warning(self, tr("auto.beeshow_export_mixin.67533812", "导出失败"), tr("auto.beeshow_export_mixin.35f4a209", "GIF 导出失败"))
 
     # ==================== 录制（占位） ====================
     def _record_presentation(self):
@@ -529,7 +530,7 @@ class ExportMixin:
         """
         QMessageBox.information(
             self,
-            "录制",
+            tr("auto.beeshow_export_mixin.fe3e8e19", "录制"),
             "录制功能需要在全屏播放时自动记录幻灯片切换时间戳。\n"
             "按 F5 开始播放即可自动记录。"
         )
