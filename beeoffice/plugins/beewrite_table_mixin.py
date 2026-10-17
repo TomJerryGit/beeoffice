@@ -80,6 +80,7 @@ from beeoffice.plugins.beewrite_utils import (
 from beeoffice.plugins.beewrite_md_table_dialog import (
     MarkdownTableEditorDialog,
 )
+from beeoffice.i18n import tr
 
 
 # ==================== TableMixin ====================
@@ -102,28 +103,28 @@ class TableMixin:
         """表格操作下拉菜单"""
         menu = QMenu(self)
 
-        menu.addAction("➕ 插入表格...").triggered.connect(
+        menu.addAction(tr("auto.beewrite_table_mixin.ec7949d6", "➕ 插入表格...")).triggered.connect(
             self._insert_table_dialog
         )
 
         # ---------- 表格样式子菜单 ----------
-        style_menu = menu.addMenu("🎨 表格样式")
-        style_menu.addAction("⚪ 极简（无边框）").triggered.connect(
+        style_menu = menu.addMenu(tr("auto.beewrite_table_mixin.0afdb586", "🎨 表格样式"))
+        style_menu.addAction(tr("auto.beewrite_table_mixin.400c8245", "⚪ 极简（无边框）")).triggered.connect(
             lambda: self._apply_table_style("minimal")
         )
-        style_menu.addAction("📏 三线表").triggered.connect(
+        style_menu.addAction(tr("auto.beewrite_table_mixin.f4dbeb92", "📏 三线表")).triggered.connect(
             lambda: self._apply_table_style("three_line")
         )
-        style_menu.addAction("🦓 斑马纹").triggered.connect(
+        style_menu.addAction(tr("auto.beewrite_table_mixin.76a8f8f8", "🦓 斑马纹")).triggered.connect(
             lambda: self._apply_table_style("zebra")
         )
-        style_menu.addAction("📦 卡片式").triggered.connect(
+        style_menu.addAction(tr("auto.beewrite_table_mixin.0fb7eaf2", "📦 卡片式")).triggered.connect(
             lambda: self._apply_table_style("card")
         )
-        style_menu.addAction("🌙 深色").triggered.connect(
+        style_menu.addAction(tr("auto.beewrite_table_mixin.fab652c6", "🌙 深色")).triggered.connect(
             lambda: self._apply_table_style("dark")
         )
-        style_menu.addAction("🐝 琥珀金").triggered.connect(
+        style_menu.addAction(tr("auto.beewrite_table_mixin.cb72df50", "🐝 琥珀金")).triggered.connect(
             lambda: self._apply_table_style("amber")
         )
 
@@ -135,46 +136,46 @@ class TableMixin:
 
         if table:
             menu.addSeparator()
-            menu.addAction("⬆️ 上方插入行").triggered.connect(
+            menu.addAction(tr("auto.beewrite_table_mixin.c207b67e", "⬆️ 上方插入行")).triggered.connect(
                 lambda: self._table_insert_row(table, -1)
             )
-            menu.addAction("⬇️ 下方插入行").triggered.connect(
+            menu.addAction(tr("auto.beewrite_table_mixin.6d361544", "⬇️ 下方插入行")).triggered.connect(
                 lambda: self._table_insert_row(table, 1)
             )
             menu.addSeparator()
-            menu.addAction("⬅️ 左侧插入列").triggered.connect(
+            menu.addAction(tr("auto.beewrite_table_mixin.fea98cbd", "⬅️ 左侧插入列")).triggered.connect(
                 lambda: self._table_insert_col(table, -1)
             )
-            menu.addAction("➡️ 右侧插入列").triggered.connect(
+            menu.addAction(tr("auto.beewrite_table_mixin.81be7789", "➡️ 右侧插入列")).triggered.connect(
                 lambda: self._table_insert_col(table, 1)
             )
             menu.addSeparator()
-            menu.addAction("🗑️ 删除当前行").triggered.connect(
+            menu.addAction(tr("auto.beewrite_table_mixin.990856ef", "🗑️ 删除当前行")).triggered.connect(
                 lambda: self._table_delete_row(table)
             )
-            menu.addAction("🗑️ 删除当前列").triggered.connect(
+            menu.addAction(tr("auto.beewrite_table_mixin.1c8e90cb", "🗑️ 删除当前列")).triggered.connect(
                 lambda: self._table_delete_col(table)
             )
             menu.addSeparator()
-            menu.addAction("🔗 合并单元格").triggered.connect(
+            menu.addAction(tr("auto.beewrite_table_mixin.09d684c7", "🔗 合并单元格")).triggered.connect(
                 lambda: self._table_merge_cells(table)
             )
-            menu.addAction("🔲 拆分单元格").triggered.connect(
+            menu.addAction(tr("auto.beewrite_table_mixin.14f02f54", "🔲 拆分单元格")).triggered.connect(
                 lambda: self._table_split_cell(table)
             )
             menu.addSeparator()
-            menu.addAction("🎨 单元格背景色").triggered.connect(
+            menu.addAction(tr("auto.beewrite_table_mixin.bedc41e8", "🎨 单元格背景色")).triggered.connect(
                 lambda: self._table_cell_bg()
             )
-            menu.addAction("🖍️ 单元格文字色").triggered.connect(
+            menu.addAction(tr("auto.beewrite_table_mixin.e5d8c347", "🖍️ 单元格文字色")).triggered.connect(
                 lambda: self._table_cell_fg()
             )
             menu.addSeparator()
-            menu.addAction("⚙️ 表格属性").triggered.connect(
+            menu.addAction(tr("auto.beewrite_table_mixin.0ee67089", "⚙️ 表格属性")).triggered.connect(
                 lambda: self._table_properties(table)
             )
             menu.addSeparator()
-            menu.addAction("📋 复制为Markdown").triggered.connect(
+            menu.addAction(tr("auto.beewrite_table_mixin.b64b596f", "📋 复制为Markdown")).triggered.connect(
                 lambda: self._copy_table_as_markdown(table)
             )
 
@@ -217,7 +218,7 @@ class TableMixin:
         cell = table.cellAt(cursor)
         if cell.isValid():
             if table.rows() <= 1:
-                QMessageBox.information(self, "提示", "至少保留一行")
+                QMessageBox.information(self, tr("auto.beewrite_table_mixin.ab3656a9", "提示"), tr("auto.beewrite_table_mixin.201a8dd2", "至少保留一行"))
                 return
             cursor.beginEditBlock()
             try:
@@ -231,7 +232,7 @@ class TableMixin:
         cell = table.cellAt(cursor)
         if cell.isValid():
             if table.columns() <= 1:
-                QMessageBox.information(self, "提示", "至少保留一列")
+                QMessageBox.information(self, tr("auto.beewrite_table_mixin.ab3656a9", "提示"), tr("auto.beewrite_table_mixin.95d3a0f0", "至少保留一列"))
                 return
             cursor.beginEditBlock()
             try:
@@ -247,7 +248,7 @@ class TableMixin:
         cursor = self.rich_editor.textCursor()
         if not cursor.hasSelection():
             QMessageBox.information(
-                self, "提示", "请先按住鼠标选中要合并的单元格"
+                self, tr("auto.beewrite_table_mixin.ab3656a9", "提示"), tr("auto.beewrite_table_mixin.11a4fae4", "请先按住鼠标选中要合并的单元格")
             )
             return
         try:
@@ -274,7 +275,7 @@ class TableMixin:
                 finally:
                     cursor.endEditBlock()
         except Exception as e:
-            QMessageBox.warning(self, "合并失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_table_mixin.1bebfe64", "合并失败"), str(e))
 
     def _table_split_cell(self, table):
         """拆分光标所在的合并单元格"""
@@ -293,14 +294,14 @@ class TableMixin:
                     cursor.endEditBlock()
             else:
                 QMessageBox.information(
-                    self, "提示", "当前单元格没有合并，无需拆分"
+                    self, tr("auto.beewrite_table_mixin.ab3656a9", "提示"), tr("auto.beewrite_table_mixin.df50ccbf", "当前单元格没有合并，无需拆分")
                 )
 
     def _cell_merge_toolbar(self):
         """工具栏「合并」按钮：优先处理光标所在表格"""
         if self._edit_mode != "rich_text":
             QMessageBox.information(
-                self, "提示", "请先切换到所见即所得模式"
+                self, tr("auto.beewrite_table_mixin.ab3656a9", "提示"), tr("auto.beewrite_table_mixin.09b3badd", "请先切换到所见即所得模式")
             )
             return
         cursor = self.rich_editor.textCursor()
@@ -312,7 +313,7 @@ class TableMixin:
         """工具栏「拆分」按钮：优先处理光标所在表格"""
         if self._edit_mode != "rich_text":
             QMessageBox.information(
-                self, "提示", "请先切换到所见即所得模式"
+                self, tr("auto.beewrite_table_mixin.ab3656a9", "提示"), tr("auto.beewrite_table_mixin.09b3badd", "请先切换到所见即所得模式")
             )
             return
         cursor = self.rich_editor.textCursor()
@@ -345,7 +346,7 @@ class TableMixin:
         """工具栏「底色」按钮"""
         if self._edit_mode != "rich_text":
             QMessageBox.information(
-                self, "提示", "请先切换到所见即所得模式"
+                self, tr("auto.beewrite_table_mixin.ab3656a9", "提示"), tr("auto.beewrite_table_mixin.09b3badd", "请先切换到所见即所得模式")
             )
             return
         self._table_cell_bg()
@@ -356,7 +357,7 @@ class TableMixin:
     def _table_properties(self, table):
         """表格属性对话框（对齐 / 边框 / 内边距 / 背景色）"""
         dlg = QDialog(self)
-        dlg.setWindowTitle("⚙️ 表格属性")
+        dlg.setWindowTitle(tr("auto.beewrite_table_mixin.0ee67089", "⚙️ 表格属性"))
         form = QFormLayout(dlg)
 
         # ---------- 对齐 ----------
@@ -377,7 +378,7 @@ class TableMixin:
         form.addRow("单元格内边距:", cellpad_spin)
 
         # ---------- 背景色 ----------
-        bg_btn = QPushButton("选择背景色")
+        bg_btn = QPushButton(tr("auto.beewrite_table_mixin.5bd1333a", "选择背景色"))
         bg_color = {"value": None}
 
         def pick_bg():
@@ -435,9 +436,9 @@ class TableMixin:
                     lines.append("|" + "|".join(["---"] * cols) + "|")
             md = "\n".join(lines)
             QApplication.clipboard().setText(md)
-            self._set_status("✅ 已复制为 Markdown 表格", 3000)
+            self._set_status(tr("auto.beewrite_table_mixin.af58a08b", "✅ 已复制为 Markdown 表格"), 3000)
         except Exception as e:
-            QMessageBox.warning(self, "复制失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_table_mixin.f2c6b516", "复制失败"), str(e))
 
     # ==================================================================
     # 表格样式预设
@@ -446,13 +447,13 @@ class TableMixin:
         """应用表格预设样式"""
         if self._edit_mode != "rich_text":
             QMessageBox.information(
-                self, "提示", "请先切换到所见即所得模式"
+                self, tr("auto.beewrite_table_mixin.ab3656a9", "提示"), tr("auto.beewrite_table_mixin.09b3badd", "请先切换到所见即所得模式")
             )
             return
         cursor = self.rich_editor.textCursor()
         table = cursor.currentTable()
         if not table:
-            QMessageBox.information(self, "提示", "请把光标放在表格内")
+            QMessageBox.information(self, tr("auto.beewrite_table_mixin.ab3656a9", "提示"), tr("auto.beewrite_table_mixin.e0b577f9", "请把光标放在表格内"))
             return
 
         try:
@@ -518,11 +519,11 @@ class TableMixin:
                         self._set_row_color(table, r, QColor(255, 243, 224))
 
             table.setFormat(fmt)
-            self._set_status("✅ 已应用表格样式", 2000)
+            self._set_status(tr("auto.beewrite_table_mixin.74b6868c", "✅ 已应用表格样式"), 2000)
         except Exception as e:
             import traceback
             traceback.print_exc()
-            QMessageBox.warning(self, "样式应用失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_table_mixin.adba6f45", "样式应用失败"), str(e))
 
     def _set_row_color(self, table, row, bg, fg=None):
         """给指定行设置背景 / 前景色"""
@@ -587,7 +588,7 @@ class TableMixin:
         """
         if self._edit_mode != "rich_text":
             QMessageBox.information(
-                self, "提示", "请先切换到所见即所得模式"
+                self, tr("auto.beewrite_table_mixin.ab3656a9", "提示"), tr("auto.beewrite_table_mixin.09b3badd", "请先切换到所见即所得模式")
             )
             return
 
@@ -600,7 +601,7 @@ class TableMixin:
         cursor = self.rich_editor.textCursor()
         table = cursor.currentTable()
         if not table:
-            QMessageBox.information(self, "提示", "请把光标放在表格内")
+            QMessageBox.information(self, tr("auto.beewrite_table_mixin.ab3656a9", "提示"), tr("auto.beewrite_table_mixin.e0b577f9", "请把光标放在表格内"))
             return
 
         # 有选区：应用到选区覆盖的所有单元格
@@ -619,7 +620,7 @@ class TableMixin:
                 for r in range(min(r1, r2), max(r1, r2) + 1):
                     for c in range(min(c1_, c2_), max(c1_, c2_) + 1):
                         self._apply_cell_align(table, r, c, align_const)
-                self._set_status("✅ 已设置对齐", 2000)
+                self._set_status(tr("auto.beewrite_table_mixin.4a5e6bf1", "✅ 已设置对齐"), 2000)
                 return
 
         # 无选区：只处理光标所在单元格
@@ -628,7 +629,7 @@ class TableMixin:
             self._apply_cell_align(
                 table, cell.row(), cell.column(), align_const
             )
-            self._set_status("✅ 已设置对齐", 2000)
+            self._set_status(tr("auto.beewrite_table_mixin.4a5e6bf1", "✅ 已设置对齐"), 2000)
 
     def _apply_cell_align(self, table, row, col, align):
         """给指定单元格应用对齐"""
@@ -704,7 +705,7 @@ class TableMixin:
 
         new_md = self._render_md_table(dlg.rows)
         self._replace_lines(start, end, new_md)
-        self._set_status("✅ 表格已更新", 2000)
+        self._set_status(tr("auto.beewrite_table_mixin.b2153c80", "✅ 表格已更新"), 2000)
 
     # ==================================================================
     # Markdown 表格：快捷操作（Alt+方向键）
@@ -713,7 +714,7 @@ class TableMixin:
         """获取光标所在 Markdown 表格的上下文"""
         table_range = self._detect_md_table_at_cursor()
         if not table_range:
-            self._set_status("⚠️ 光标不在表格内", 2000)
+            self._set_status(tr("auto.beewrite_table_mixin.cfc88e43", "⚠️ 光标不在表格内"), 2000)
             return None
         start, end = table_range
         text = self.markdown_editor.toPlainText()
@@ -756,7 +757,7 @@ class TableMixin:
         rows.insert(insert_at, [''] * n_cols)
         new_md = self._render_md_table(rows)
         self._replace_lines(ctx["start"], ctx["end"], new_md)
-        self._set_status("✅ 已插入一行", 2000)
+        self._set_status(tr("auto.beewrite_table_mixin.c8eb9ba2", "✅ 已插入一行"), 2000)
 
     def _md_add_row_above(self):
         """在光标所在行上方插入一行"""
@@ -769,7 +770,7 @@ class TableMixin:
         rows.insert(rel, [''] * n_cols)
         new_md = self._render_md_table(rows)
         self._replace_lines(ctx["start"], ctx["end"], new_md)
-        self._set_status("✅ 已插入一行", 2000)
+        self._set_status(tr("auto.beewrite_table_mixin.c8eb9ba2", "✅ 已插入一行"), 2000)
 
     def _md_add_col_right(self):
         """在光标所在列右侧插入一列"""
@@ -788,7 +789,7 @@ class TableMixin:
             r.insert(col_idx + 1, '')
         new_md = self._render_md_table(rows)
         self._replace_lines(ctx["start"], ctx["end"], new_md)
-        self._set_status("✅ 已插入一列", 2000)
+        self._set_status(tr("auto.beewrite_table_mixin.0373776e", "✅ 已插入一列"), 2000)
 
     def _md_add_col_left(self):
         """在光标所在列左侧插入一列"""
@@ -807,7 +808,7 @@ class TableMixin:
             r.insert(col_idx, '')
         new_md = self._render_md_table(rows)
         self._replace_lines(ctx["start"], ctx["end"], new_md)
-        self._set_status("✅ 已插入一列", 2000)
+        self._set_status(tr("auto.beewrite_table_mixin.0373776e", "✅ 已插入一列"), 2000)
 
     # ==================================================================
     # 基础插入（代理到 RichTextEditor）
@@ -850,10 +851,10 @@ class TableMixin:
         if self._edit_mode != "rich_text":
             return
         menu = QMenu(self)
-        menu.addAction("📊 从蜜算表格插入数据").triggered.connect(
+        menu.addAction(tr("auto.beewrite_table_mixin.29b4c47a", "📊 从蜜算表格插入数据")).triggered.connect(
             self._insert_from_beesheet
         )
-        menu.addAction("📂 从 CSV/Excel 文件插入数据").triggered.connect(
+        menu.addAction(tr("auto.beewrite_table_mixin.44735909", "📂 从 CSV/Excel 文件插入数据")).triggered.connect(
             self._insert_from_file
         )
         menu.exec(self.sender().mapToGlobal(
@@ -873,7 +874,7 @@ class TableMixin:
                 break
         if not sw:
             QMessageBox.information(
-                self, "提示", "请先打开一个蜜算表格"
+                self, tr("auto.beewrite_table_mixin.ab3656a9", "提示"), tr("auto.beewrite_table_mixin.0c5d45c2", "请先打开一个蜜算表格")
             )
             return
         df = sw.model.df
@@ -888,7 +889,7 @@ class TableMixin:
         from PySide6.QtWidgets import QFileDialog
 
         path, _ = QFileDialog.getOpenFileName(
-            self, "选择数据文件", "", "数据文件 (*.csv *.xlsx *.xls)"
+            self, tr("auto.beewrite_table_mixin.1e399bfe", "选择数据文件"), "", tr("auto.beewrite_table_mixin.21b176af", "数据文件 (*.csv *.xlsx *.xls)")
         )
         if not path:
             return
@@ -908,4 +909,4 @@ class TableMixin:
             self.rich_editor.insert_dataframe_table(df.head(100), title)
             self._set_status(f"已插入文件数据: {title}", 3000)
         except Exception as e:
-            QMessageBox.warning(self, "导入失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_table_mixin.a01a8d53", "导入失败"), str(e))
