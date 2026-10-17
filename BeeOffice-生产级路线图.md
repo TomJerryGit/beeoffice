@@ -429,14 +429,25 @@ P4                                                                       ██�
 
 ### 下一步（按依赖顺序）
 
-1. **推送远程**（需要你在前台完成一次 GitHub 登录）：
-   ```bat
-   cd /d D:\beeofficeV
-   git push -u origin main
-   ```
-   系统已装 Git Credential Manager 2.9.1，会弹出浏览器授权。
-   注意：`github.com/TomJerryGit/beeoffice` 目前匿名访问返回 **404**——
-   若仓库尚未创建请先创建（空仓库即可）；若已存在且是私有仓库，登录后即可推送。
+1. **推送远程（阻塞中，需要你操作）**
+
+   网络现状（2026-10-17 实测）：
+   - `github.com:443` 的 TCP 能连，但 **TLS 握手被按 SNI 重置**；
+   - `api.github.com` / `codeload.github.com` 正常；
+   - 不同边缘 IP 存活情况不一致且随时间变化。
+
+   已提供绕过方案：`tools/push_github.ps1` 会自动探测当前能完成 TLS 的
+   GitHub IP，用 `http.curloptResolve` 强制解析后推送；双击
+   `tools/push_github.bat` 即可（脚本已加 UTF-8 BOM，兼容 PowerShell 5.1）。
+
+   当前卡点已推进到 `remote: Repository not found.`：
+   账号 `TomJerryGit` 存在，但**公开仓库数为 0**，`beeoffice` 尚未创建。
+
+   需要你：
+   1. 在能访问 GitHub 的环境（手机热点 / VPN / 另一台设备）新建**空仓库**
+      `beeoffice`（不要勾选 README / .gitignore / license）；
+   2. 回到本机双击 `tools\push_github.bat`；
+   3. 若弹出 Git Credential Manager 登录窗口，完成浏览器授权即可。
 2. 准备 10 个真实样例文档，建 `tests/fixtures/real/`（WP-06）；
 3. 依赖锁定：把当前可用组合写进 `requirements.lock`（WP-03 收尾）——
    注意本次装到的是 pandas 3.0 / PySide6 6.12，比代码目标版本新，需回归验证；
