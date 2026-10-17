@@ -17,11 +17,21 @@ from PySide6.QtCore import QThread, Signal
 
 
 class ChunkLoader(QThread):
-    """分块加载线程（用于滚动时按需加载）"""
+    """
+    分块加载调度线程。
 
-    chunk_loaded = Signal(int)
+    线程安全修复（P0）：
+        原实现在 run() 里直接调用 self.model.load_chunk()，等于在 worker
+        线程修改 QAbstractTableModel 并触发视图重绘——Qt 明确禁止，
+        属于随机崩溃/界面错乱的来源之一（另一处在 _import_file_from_path）。
+
+        现在线程只负责"决定该加载哪一块"，真正改数据的动作交给 GUI 线程：
+        chunk_loaded(idx) 通过队列连接投递到视图的槽，由槽调用 model.load_chunk()。
+    """
+
+    chunk_loaded = Signal(int)   # 语义：请 GUI 线程加载第 idx 块
     all_loaded = Signal()
-    progress = Signal(float)
+    progress = Signal(float)     # 保留给外部兼容，实际进度由视图计算
 
     def __init__(self, model, parent=None):
         super().__init__(parent)
@@ -33,18 +43,17 @@ class ChunkLoader(QThread):
         """添加待加载的分块索引集合"""
         self._pending_chunks.update(chunks)
         if not self.isRunning():
+            self._running = True
             self.start()
 
     def run(self):
-        """循环处理待加载分块"""
+        """循环派发待加载分块（不直接触碰 model）"""
         while self._running and self._pending_chunks:
             chunk = self._pending_chunks.pop()
-            if self.model.load_chunk(chunk):
-                self.chunk_loaded.emit(chunk)
-            if self.model.loading_progress >= 1.0:
-                self.all_loaded.emit()
-                break
+            self.chunk_loaded.emit(chunk)
             self.msleep(10)
+        if self._running:
+            self.all_loaded.emit()
 
     def stop(self):
         """请求停止线程"""

@@ -60,6 +60,7 @@ import socket
 import struct
 import threading
 import time
+import uuid
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from socketserver import ThreadingMixIn
 from typing import List, Optional, Dict, Any
@@ -176,11 +177,17 @@ class SyncServer:
         ws_port: int = 8766,
         host: str = "0.0.0.0",
         html_template_path: Optional[str] = None,
+        token: str = "",
     ):
         self.http_port = http_port
         self.ws_port = ws_port
         self.host = host
         self.html_template_path = html_template_path
+        # 安全（P0）：一次性访问令牌。
+        # 服务绑定 0.0.0.0 是同步演示的功能需要（观众手机要能连），
+        # 但原实现无任何鉴权，同一网段任何人都能拉走整份讲稿。
+        # 现在所有 HTTP 端点与 WebSocket 握手都必须携带 ?t=<token>。
+        self.token = token or uuid.uuid4().hex[:12]
 
         # 观众连接列表
         self._viewers: List[ViewerConnection] = []
@@ -213,6 +220,12 @@ class SyncServer:
         if self._running:
             return True
 
+        # 竞态修复（P0）：_running 必须在启动任何线程之前置位。
+        # 原实现先 _start_ws_server()（内部立刻起 accept 线程），
+        # 之后才 self._running = True；accept 循环 while self._running
+        # 很可能在置位前就判断为 False 并退出，表现为"启动成功但 WS 从不监听"。
+        self._running = True
+
         try:
             # 1. 启动 HTTP 服务器（提供观众页面）
             self._start_http_server()
@@ -220,7 +233,6 @@ class SyncServer:
             # 2. 启动 WebSocket 服务器（广播通道）
             self._start_ws_server()
 
-            self._running = True
             logging.info(
                 f"同步服务器已启动："
                 f"HTTP :{self.http_port} / WS :{self.ws_port}"
@@ -272,12 +284,38 @@ class SyncServer:
                 # 静默日志
                 pass
 
+            def _path_only(self):
+                """去掉查询串后的路径（?t=... 不能影响路由匹配）。"""
+                from urllib.parse import urlparse
+                return urlparse(self.path).path
+
+            def _token_ok(self):
+                """校验一次性访问令牌（?t=xxx）。"""
+                from urllib.parse import urlparse, parse_qs
+                qs = parse_qs(urlparse(self.path).query)
+                return qs.get("t", [""])[0] == server_self.token
+
+            def _forbidden(self):
+                body = b"403 Forbidden: invalid or missing token"
+                self.send_response(403)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
             def do_GET(self):
-                if self.path in ("/", "/sync", "/index.html"):
+                # 安全（P0）：所有端点都必须带令牌。
+                # 原实现默认绑定 0.0.0.0、无鉴权、且返回 CORS 通配头，
+                # 同一网段或任意网页都能读取整份演示文稿。
+                if not self._token_ok():
+                    self._forbidden()
+                    return
+                path = self._path_only()
+                if path in ("/", "/sync", "/index.html"):
                     self._serve_viewer_page(template_path)
-                elif self.path == "/api/info":
+                elif path == "/api/info":
                     self._serve_info()
-                elif self.path.startswith("/api/slide/"):
+                elif path.startswith("/api/slide/"):
                     # 任务 4.3 增量：幻灯片内容 API
                     self._serve_slide_content()
                 else:
@@ -295,16 +333,15 @@ class SyncServer:
                         from beeoffice.plugins.beeshow_sync_viewer \
                             import get_viewer_html
                         html = get_viewer_html(
-                            server_self.ws_port
+                            server_self.ws_port,
+                            token=server_self.token,
                         )
 
                     self.send_response(200)
                     self.send_header(
                         "Content-Type", "text/html; charset=utf-8"
                     )
-                    self.send_header(
-                        "Access-Control-Allow-Origin", "*"
-                    )
+                    # 安全：不再返回 Access-Control-Allow-Origin: *
                     self.end_headers()
                     self.wfile.write(html.encode("utf-8"))
                 except Exception as e:
@@ -326,9 +363,6 @@ class SyncServer:
                 self.send_header(
                     "Content-Type", "application/json; charset=utf-8"
                 )
-                self.send_header(
-                    "Access-Control-Allow-Origin", "*"
-                )
                 self.end_headers()
                 self.wfile.write(body)
 
@@ -340,7 +374,7 @@ class SyncServer:
                 返回：第 3 页的 HTML 片段（纯 HTML，非 JSON）
                 """
                 try:
-                    idx = int(self.path.rsplit("/", 1)[-1])
+                    idx = int(self._path_only().rsplit("/", 1)[-1])
                     slides = server_self.get_slides_html()
                     if 0 <= idx < len(slides):
                         html = slides[idx]
@@ -349,9 +383,6 @@ class SyncServer:
                     self.send_response(200)
                     self.send_header(
                         "Content-Type", "text/html; charset=utf-8"
-                    )
-                    self.send_header(
-                        "Access-Control-Allow-Origin", "*"
                     )
                     self.end_headers()
                     self.wfile.write(html.encode("utf-8"))
@@ -467,6 +498,19 @@ class SyncServer:
                 pass
             logging.info(f"观众已断开：{addr}")
 
+    def _ws_token_ok(self, headers_text: str) -> bool:
+        """从 WebSocket 握手请求行里取出 ?t= 并校验。"""
+        from urllib.parse import urlparse, parse_qs
+        try:
+            request_line = headers_text.split("\r\n", 1)[0]
+            parts = request_line.split(" ")
+            if len(parts) < 2:
+                return False
+            qs = parse_qs(urlparse(parts[1]).query)
+            return qs.get("t", [""])[0] == self.token
+        except Exception:
+            return False
+
     def _do_handshake(self, client: socket.socket) -> bool:
         """
         执行 WebSocket 握手。
@@ -486,6 +530,18 @@ class SyncServer:
                     return False
 
             headers = data.decode("utf-8", errors="ignore")
+
+            # 安全（P0）：WebSocket 也必须校验令牌，
+            # 否则观众端能连上广播通道收走所有翻页与讲稿内容。
+            if not self._ws_token_ok(headers):
+                try:
+                    client.sendall(
+                        b"HTTP/1.1 403 Forbidden\r\n"
+                        b"Content-Length: 0\r\nConnection: close\r\n\r\n"
+                    )
+                except Exception:
+                    pass
+                return False
 
             # 提取 Sec-WebSocket-Key
             key = None
@@ -652,5 +708,8 @@ class SyncServer:
             return "127.0.0.1"
 
     def get_viewer_url(self) -> str:
-        """返回观众访问 URL"""
-        return f"http://{self.get_local_ip()}:{self.http_port}/sync"
+        """返回观众访问 URL（含一次性令牌，请勿外传）"""
+        return (
+            f"http://{self.get_local_ip()}:{self.http_port}/sync"
+            f"?t={self.token}"
+        )

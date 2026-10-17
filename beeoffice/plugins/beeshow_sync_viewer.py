@@ -24,11 +24,12 @@
 """
 
 
-def get_viewer_html(ws_port: int = 8766) -> str:
+def get_viewer_html(ws_port: int = 8766, token: str = "") -> str:
     """
     生成观众端 HTML。
 
     :param ws_port: WebSocket 端口
+    :param token: 一次性访问令牌；非空时页面的 WS 连接与 API 请求都会带 ?t=
     :return: HTML 字符串
     """
     return f"""<!DOCTYPE html>
@@ -222,6 +223,8 @@ html, body {{
 
     // ==================== 配置 ====================
     const WS_PORT = {ws_port};
+    // 安全：一次性访问令牌，由服务端注入；WS 与 API 请求都要带上
+    const TOKEN = "{token}";
     const RECONNECT_BASE = 1000;   // 重连基础间隔（毫秒）
     const RECONNECT_MAX = 30000;   // 最大重连间隔
 
@@ -246,7 +249,7 @@ html, body {{
 
     // ==================== WebSocket 连接 ====================
     function connect() {{
-        const url = `ws://${{location.hostname}}:${{WS_PORT}}`;
+        const url = `ws://${{location.hostname}}:${{WS_PORT}}/?t=${{encodeURIComponent(TOKEN)}}`;
         connDot.className = 'connecting';
         connText.textContent = '连接中...';
 
@@ -327,7 +330,7 @@ html, body {{
         waiting.style.display = 'none';
 
         // 请求幻灯片内容（通过 HTTP API）
-        fetch(`/api/slide/${{currentSlide}}`)
+        fetch(`/api/slide/${{currentSlide}}?t=${{encodeURIComponent(TOKEN)}}`)
             .then(r => r.text())
             .then(html => {{
                 slideContent.innerHTML = html;

@@ -36,6 +36,8 @@
       7. self._build_shortcuts()
       8. self._init_loaders_and_timers()
 """
+import logging
+
 import pandas as pd
 
 from PySide6.QtWidgets import (
@@ -566,14 +568,26 @@ class UIMixin:
     def _init_loaders_and_timers(self):
         """初始化分块加载器和自动保存定时器"""
         # 分块加载器（滚动时按需加载）
+        # 线程安全（P0）：chunk_loaded 是"请在 GUI 线程加载第 idx 块"的请求，
+        # 由 _on_chunk_loaded 在 GUI 线程执行，避免 worker 直接改 model。
         self._chunk_loader = ChunkLoader(self.model, self)
-        self._chunk_loader.chunk_loaded.connect(
-            lambda _: self.model.layoutChanged.emit()
-        )
-        self._chunk_loader.progress.connect(self._on_loading_progress)
+        self._chunk_loader.chunk_loaded.connect(self._on_chunk_loaded)
         self._chunk_loader.all_loaded.connect(self._on_all_loaded)
 
         # 自动保存定时器（每 5 分钟）
         self._auto_save_timer = QTimer(self)
         self._auto_save_timer.timeout.connect(self._auto_save)
         self._auto_save_timer.start(300000)
+
+    def _on_chunk_loaded(self, idx):
+        """
+        在 GUI 线程执行真正的分块加载（P0：修复跨线程修改 model）。
+
+        ChunkLoader 线程只发请求，这里才允许碰 QAbstractTableModel。
+        """
+        try:
+            self.model.load_chunk(idx)
+            self.model.layoutChanged.emit()
+            self._on_loading_progress(self.model.loading_progress)
+        except Exception as e:
+            logging.error(f"分块加载失败 idx={idx}: {e}")
