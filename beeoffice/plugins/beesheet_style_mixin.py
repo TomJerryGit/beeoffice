@@ -32,6 +32,12 @@ class StyleMixin:
             if k not in self._cell_formats:
                 self._cell_formats[k] = {}
             self._cell_formats[k][key] = value
+            # 宏录制（阶段三 #8）：格式动作也要能录下来
+            try:
+                from beeoffice.plugins.macro_recorder import RECORDER
+                RECORDER.record_format(idx.row(), idx.column(), key, value)
+            except Exception:
+                pass
             self.model.dataChanged.emit(idx, idx)
 
     # ==================== 加粗/斜体/下划线 ====================
@@ -97,6 +103,12 @@ class StyleMixin:
                 self._cell_formats[k] = {}
             self._cell_formats[k]['number_format'] = text
             self._cell_formats[k]['decimals'] = decimals
+            try:
+                from beeoffice.plugins.macro_recorder import RECORDER
+                RECORDER.record_format(idx.row(), idx.column(), 'number_format', text)
+                RECORDER.record_format(idx.row(), idx.column(), 'decimals', decimals)
+            except Exception:
+                pass
             self.model.dataChanged.emit(idx, idx)
 
     # ==================== 按钮状态同步 ====================

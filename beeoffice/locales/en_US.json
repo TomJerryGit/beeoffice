@@ -794,7 +794,7 @@
   "sheet.macro.started": "Recording macro... click again to stop",
   "sheet.macro.error": "Macro recording failed",
   "sheet.macro.empty": "No macro recorded yet",
-  "sheet.macro.played": "Macro played: {n} actions",
   "sheet.macro.play_failed": "Macro playback failed",
-  "sheet.macro.playing_while_recording": "Stop recording before playing the macro"
+  "sheet.macro.playing_while_recording": "Stop recording before playing the macro",
+  "sheet.macro.played_detail": "Macro played: {n} actions (set {s} / format {f} / switch {t})"
 }

@@ -57,21 +57,66 @@ class MacroMixin:
                 self._set_status(tr("sheet.macro.error", "宏录制失败"), 3000)
                 return
 
-            count = len(RECORDER)
-            if count == 0:
+            counts = RECORDER.counts()
+            if len(RECORDER) == 0:
                 self._set_status(
                     tr("sheet.macro.empty", "没有可播放的宏，请先录制"), 4000
                 )
                 return
 
-            applied = RECORDER.play(model)
+            applied = RECORDER.play(
+                model,
+                switch_sheet=self._macro_switch_sheet,
+                apply_format=self._macro_apply_format,
+            )
             self._set_status(
-                tr("sheet.macro.played", "宏已播放：{n} 个动作").format(
-                    n=applied
-                ), 4000
+                tr("sheet.macro.played_detail",
+                   "宏已播放：{n} 个动作（赋值 {s} / 格式 {f} / 切表 {t}）"
+                   ).format(
+                       n=applied, s=counts.get("set", 0),
+                       f=counts.get("format", 0), t=counts.get("sheet", 0),
+                   ), 5000
             )
         except Exception as e:
             logging.error(f"播放宏失败: {e}")
             self._set_status(
                 tr("sheet.macro.play_failed", "播放宏失败"), 3000
             )
+
+    # ---------- 回放回调（阶段三 #8） ----------
+    def _macro_switch_sheet(self, name: str) -> bool:
+        """按标签页标题切换到指定工作表；找不到返回 False（不抛异常）。"""
+        try:
+            finder = getattr(self, "_find_main_window", None)
+            parent = finder() if finder else None
+            tm = getattr(parent, "tab_manager", None)
+            if tm is None:
+                return False
+            for i in range(tm.count()):
+                widget = tm.widget(i)
+                if not (hasattr(widget, "model") and hasattr(widget.model, "df")):
+                    continue
+                title = (
+                    tm.tabText(i)
+                    .replace("📊 ", "").replace("● ", "").strip()
+                )
+                if title == name:
+                    tm.setCurrentIndex(i)
+                    return True
+            logging.warning(f"宏回放：找不到工作表 {name}")
+            return False
+        except Exception as e:
+            logging.error(f"宏回放切换工作表失败: {e}")
+            return False
+
+    def _macro_apply_format(self, row: int, col: int, key: str, value):
+        """把一条格式动作写回当前工作表。"""
+        try:
+            k = (row, col)
+            if k not in self._cell_formats:
+                self._cell_formats[k] = {}
+            self._cell_formats[k][key] = value
+            idx = self.model.index(row, col)
+            self.model.dataChanged.emit(idx, idx)
+        except Exception as e:
+            logging.error(f"宏回放应用格式失败 ({row},{col},{key}): {e}")

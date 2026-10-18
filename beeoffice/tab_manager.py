@@ -173,6 +173,16 @@ class TabManager(QTabWidget):
 
     # ---------- 标签切换 ----------
     def _on_tab_changed(self, index):
+        # 宏录制（阶段三 #8）：切到另一张蜜算表时记一个 sheet 动作
+        try:
+            from beeoffice.plugins.macro_recorder import RECORDER
+            widget = self.widget(index)
+            if widget is not None and hasattr(widget, "model"):
+                title = (self.tabText(index)
+                         .replace("📊 ", "").replace("● ", "").strip())
+                RECORDER.record_sheet(title)
+        except Exception:
+            pass
         if index < 0:
             return
         title = self.tabText(index)

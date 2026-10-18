@@ -830,7 +830,7 @@ Type your content here... |
 | plugin_market | 🔄 刷新 | 🔄 Refresh |
 | plugin_market | 🔌 插件市场 | 🔌 Plugin Market |
 | plugin_market | 🗑 卸载插件 | 🗑 Uninstall Plugin |
-| sheet | 宏已播放：{n} 个动作 | Macro played: {n} actions |
+| sheet | 宏已播放：{n} 个动作（赋值 {s} / 格式 {f} / 切表 {t}） | Macro played: {n} actions (set {s} / format {f} / switch {t}) |
 | sheet | 宏录制中……再次点击「录制宏」结束 | Recording macro... click again to stop |
 | sheet | 宏录制失败 | Macro recording failed |
 | sheet | 宏录制结束：共 {n} 个动作 | Macro recording stopped: {n} actions |
