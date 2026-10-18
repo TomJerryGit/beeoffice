@@ -35,6 +35,30 @@ class PluginManager:
         "pdf_annotator_plugin",
     )
 
+    # 依赖可选组件的插件：缺依赖时不注册，避免"菜单在、点了报错"。
+    # 蜜演插件的包装模块本身不 import WebEngine（延迟导入），
+    # 所以精简版里它照样能被导入——直到用户点"新建演示"才炸。
+    OPTIONAL_PLUGIN_REQUIREMENTS = {
+        "beeshow_plugin": (
+            "PySide6.QtWebEngineWidgets",
+            "PySide6.QtWebEngineCore",
+        ),
+    }
+
+    @classmethod
+    def _deps_available(cls, name) -> bool:
+        """检查插件的可选依赖是否齐全（精简版会缺 WebEngine）。"""
+        for module in cls.OPTIONAL_PLUGIN_REQUIREMENTS.get(name, ()):
+            try:
+                importlib.import_module(module)
+            except Exception:
+                logging.info(
+                    f"插件 {name} 缺少依赖 {module}，跳过加载"
+                    "（精简版不含蜜演）"
+                )
+                return False
+        return True
+
     def _collect_plugin_module_names(self, plugins_path=None):
         """
         列出需要导入的插件模块名。
@@ -44,6 +68,9 @@ class PluginManager:
         否则打包版会"共加载 0 个插件"：四个模块全部消失，
         界面还在，但新建文档 / 表格 / 演示都点不出来。
 
+        另外过滤掉**可选依赖缺失**的插件：精简版不含 WebEngine 时，
+        蜜演不该被注册，否则菜单里有入口、点下去才报错。
+
         :param plugins_path: 仅测试用，可指定一个不存在的路径来模拟冻结环境
         """
         plugins_path = plugins_path or (Path(__file__).parent / "plugins")
@@ -52,17 +79,18 @@ class PluginManager:
                 "冻结环境：插件目录不可用，改用内置插件清单 "
                 f"({len(self.BUILTIN_PLUGIN_MODULES)} 个)"
             )
-            return list(self.BUILTIN_PLUGIN_MODULES)
+            names = list(self.BUILTIN_PLUGIN_MODULES)
+        else:
+            names = []
+            for module_info in pkgutil.iter_modules([str(plugins_path)]):
+                name = module_info.name
+                if name.startswith("_"):
+                    continue
+                if not self._is_plugin_module(plugins_path, name):
+                    continue
+                names.append(name)
 
-        names = []
-        for module_info in pkgutil.iter_modules([str(plugins_path)]):
-            name = module_info.name
-            if name.startswith("_"):
-                continue
-            if not self._is_plugin_module(plugins_path, name):
-                continue
-            names.append(name)
-        return names
+        return [n for n in names if self._deps_available(n)]
 
     def discover_plugins(self) -> None:
         """

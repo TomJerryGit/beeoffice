@@ -65,3 +65,30 @@ def test_normal_directory_scan_returns_plugins(tmp_path):
 
     names = _manager()._collect_plugin_module_names(tmp_path)
     assert names == ["demo_plugin"], f"扫描结果异常: {names}"
+
+
+def test_optional_dependency_filters_beeshow(tmp_path, monkeypatch):
+    """
+    精简版不含 WebEngine 时，蜜演插件必须被跳过。
+
+    否则会出现更糟的情况：菜单里有"新建演示"，点下去才报 ImportError。
+    """
+    import importlib
+
+    real_import = importlib.import_module
+
+    def fake_import(name, *a, **k):
+        if "QtWebEngine" in name:
+            raise ImportError("no webengine")
+        return real_import(name, *a, **k)
+
+    monkeypatch.setattr(importlib, "import_module", fake_import)
+
+    names = _manager()._collect_plugin_module_names(tmp_path / "missing")
+    assert "beeshow_plugin" not in names, "缺 WebEngine 时蜜演不应注册"
+    assert len(names) == 3, f"期望 3 个插件，实际 {names}"
+
+
+def test_full_deps_keeps_all_four(tmp_path):
+    names = _manager()._collect_plugin_module_names(tmp_path / "missing")
+    assert len(names) == 4
