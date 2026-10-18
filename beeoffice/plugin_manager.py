@@ -25,6 +25,45 @@ class PluginManager:
         self._loaded = False
 
     # ---------- 发现插件 ----------
+    # 冻结（PyInstaller）环境下兜底的插件清单：
+    # 打包后模块在归档里，磁盘上没有 beeoffice/plugins 目录，
+    # 目录扫描必然空转。这份清单必须与新插件保持同步。
+    BUILTIN_PLUGIN_MODULES = (
+        "beewrite_plugin",
+        "beesheet_plugin",
+        "beeshow_plugin",
+        "pdf_annotator_plugin",
+    )
+
+    def _collect_plugin_module_names(self, plugins_path=None):
+        """
+        列出需要导入的插件模块名。
+
+        冻结环境下 `Path(__file__).parent / "plugins"` 不存在
+        （模块在 PYZ 归档里），此时回退到内置清单——
+        否则打包版会"共加载 0 个插件"：四个模块全部消失，
+        界面还在，但新建文档 / 表格 / 演示都点不出来。
+
+        :param plugins_path: 仅测试用，可指定一个不存在的路径来模拟冻结环境
+        """
+        plugins_path = plugins_path or (Path(__file__).parent / "plugins")
+        if not plugins_path.exists():
+            logging.info(
+                "冻结环境：插件目录不可用，改用内置插件清单 "
+                f"({len(self.BUILTIN_PLUGIN_MODULES)} 个)"
+            )
+            return list(self.BUILTIN_PLUGIN_MODULES)
+
+        names = []
+        for module_info in pkgutil.iter_modules([str(plugins_path)]):
+            name = module_info.name
+            if name.startswith("_"):
+                continue
+            if not self._is_plugin_module(plugins_path, name):
+                continue
+            names.append(name)
+        return names
+
     def discover_plugins(self) -> None:
         """
         扫描 beeoffice/plugins 包，寻找 Plugin 子类。
@@ -41,21 +80,14 @@ class PluginManager:
           2. 用户插件：文件首行带 USER_PLUGIN_MARKER（插件市场安装）。
         其余模块在被真正使用到时才 import。
         """
-        plugins_path = Path(__file__).parent / "plugins"
-        if not plugins_path.exists():
-            logging.warning(f"插件目录不存在: {plugins_path}")
+        names = self._collect_plugin_module_names()
+        if not names:
+            logging.warning("没有找到任何插件模块")
             return
 
         skipped = 0
         imported = 0
-        for module_info in pkgutil.iter_modules([str(plugins_path)]):
-            name = module_info.name
-            # 跳过内部模块（以 _ 开头的模块，如 __init__、_helper 等）
-            if name.startswith("_"):
-                continue
-            if not self._is_plugin_module(plugins_path, name):
-                skipped += 1
-                continue
+        for name in names:
             module_name = f"beeoffice.plugins.{name}"
             try:
                 module = importlib.import_module(module_name)
@@ -64,9 +96,7 @@ class PluginManager:
             except Exception as e:
                 logging.error(f"加载插件模块 {module_name} 失败: {e}")
 
-        logging.info(
-            f"插件扫描完成：导入 {imported} 个，跳过 {skipped} 个非插件模块"
-        )
+        logging.info(f"插件扫描完成：导入 {imported} 个插件模块")
 
     @staticmethod
     def _is_plugin_module(plugins_path: Path, name: str) -> bool:
