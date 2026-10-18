@@ -21,6 +21,12 @@ if str(ROOT) not in sys.path:
 
 from beeoffice.plugins.beesheet_engine import FormulaEngine  # noqa: E402
 
+try:
+    from _console import enable_utf8_output
+    enable_utf8_output()
+except Exception:
+    pass
+
 
 class _Model:
     """最小模型：A1=5, A2=10, A3=20。"""

@@ -22,6 +22,12 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+try:
+    from _console import enable_utf8_output
+    enable_utf8_output()
+except Exception:
+    pass
+
 ROOT = Path(__file__).resolve().parent.parent
 CJK = re.compile(r"[\u4e00-\u9fff]")
 

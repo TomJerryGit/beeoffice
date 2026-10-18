@@ -27,6 +27,12 @@ import sys
 import time
 from pathlib import Path
 
+try:
+    from _console import enable_utf8_output
+    enable_utf8_output()
+except Exception:
+    pass
+
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_EXE = ROOT / "dist" / "BeeOffice" / "BeeOffice.exe"
 LOG_DIR = Path.home() / ".beeoffice_logs"

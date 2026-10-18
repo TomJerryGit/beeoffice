@@ -22,6 +22,12 @@ import sys
 import tempfile
 from pathlib import Path
 
+try:
+    from _console import enable_utf8_output
+    enable_utf8_output()
+except Exception:
+    pass
+
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))

@@ -18,6 +18,12 @@
 import sys
 from pathlib import Path
 
+try:
+    from _console import enable_utf8_output
+    enable_utf8_output()
+except Exception:
+    pass
+
 ROOT = Path(__file__).resolve().parent.parent
 
 # (glob, 说明)

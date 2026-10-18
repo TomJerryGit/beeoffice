@@ -13,6 +13,16 @@ on:
   pull_request:
   workflow_dispatch:
 
+env:
+  # GitHub 的 Windows runner 控制台默认 cp1252，脚本打印中文会抛
+  # UnicodeEncodeError 并以退出码 1 结束（看起来像"代码错了"）。
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
+  # Qt 在无显示环境下的必需设置
+  QT_QPA_PLATFORM: "offscreen"
+  # Chromium 在容器/CI 里必须关闭沙箱，否则 WebEngine 起不来
+  QTWEBENGINE_CHROMIUM_FLAGS: "--no-sandbox --disable-gpu"
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
