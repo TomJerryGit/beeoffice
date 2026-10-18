@@ -17,6 +17,7 @@
     变了    变了    冲突：本地保留，远端另存 .remote-<时间戳>
 """
 import json
+import pathlib
 
 import pytest
 
@@ -67,15 +68,15 @@ def env(tmp_path):
     return adapter, sync, doc, state
 
 
-def _remote_name(doc):
-    return f"BeeOffice/{doc.name}"
+def _remote_name(doc, sync):
+    return sync.remote_path_for(doc)
 
 
 def test_first_sync_uploads(env):
     adapter, sync, doc, _ = env
     report = sync.sync([doc])
     assert report.uploaded == [str(doc)]
-    assert _remote_name(doc) in adapter.files
+    assert _remote_name(doc, sync) in adapter.files
 
 
 def test_unchanged_is_skipped(env):
@@ -92,13 +93,13 @@ def test_local_change_uploads(env):
     doc.write_text("v2", encoding="utf-8")
     report = sync.sync([doc])
     assert report.uploaded == [str(doc)]
-    assert adapter.files[_remote_name(doc)][0] == b"v2"
+    assert adapter.files[_remote_name(doc, sync)][0] == b"v2"
 
 
 def test_remote_change_downloads(env):
     adapter, sync, doc, _ = env
     sync.sync([doc])
-    adapter.put_remote(_remote_name(doc), "remote-v2")
+    adapter.put_remote(_remote_name(doc, sync), "remote-v2")
     report = sync.sync([doc])
     assert report.downloaded == [str(doc)]
     assert doc.read_text(encoding="utf-8") == "remote-v2"
@@ -108,7 +109,7 @@ def test_both_changed_creates_conflict_copy(env):
     adapter, sync, doc, _ = env
     sync.sync([doc])
     doc.write_text("local-v2", encoding="utf-8")
-    adapter.put_remote(_remote_name(doc), "remote-v2")
+    adapter.put_remote(_remote_name(doc, sync), "remote-v2")
 
     report = sync.sync([doc])
 
@@ -124,7 +125,7 @@ def test_both_changed_creates_conflict_copy(env):
 def test_first_sync_with_existing_remote_is_conservative(env):
     """没有基线时远端已存在 → 不猜谁新，按冲突处理。"""
     adapter, sync, doc, _ = env
-    adapter.put_remote(_remote_name(doc), "already-there")
+    adapter.put_remote(_remote_name(doc, sync), "already-there")
     report = sync.sync([doc])
     assert report.conflicts == [str(doc)]
     assert doc.read_text(encoding="utf-8") == "v1"
@@ -221,3 +222,46 @@ def test_collect_documents_without_window_attributes():
         pass
 
     assert collect_documents(_Empty()) == []
+
+
+# ==================== 远端路径不撞名 ====================
+def test_same_filename_in_different_dirs_does_not_collide(tmp_path):
+    """两个不同目录下的 README.md 必须映射到不同的远端路径。"""
+    from beeoffice.document_sync import DocumentSync
+
+    a = tmp_path / "projA" / "README.md"; a.parent.mkdir(); a.write_text("A", encoding="utf-8")
+    b = tmp_path / "projB" / "README.md"; b.parent.mkdir(); b.write_text("B", encoding="utf-8")
+
+    sync = DocumentSync(FakeAdapter(), state_path=tmp_path / "s.json")
+    pa, pb = sync.remote_path_for(a), sync.remote_path_for(b)
+    assert pa != pb, f"同名文件映射到同一远端路径: {pa}"
+
+
+def test_paths_under_home_preserve_structure(tmp_path, monkeypatch):
+    """家目录下的文件保留相对层级，便于人读。"""
+    from beeoffice.document_sync import DocumentSync
+
+    import pathlib as _pathlib
+    monkeypatch.setattr(_pathlib.Path, "home", staticmethod(lambda: tmp_path))
+    doc = tmp_path / "doc" / "报告.md"
+    doc.parent.mkdir()
+    doc.write_text("x", encoding="utf-8")
+
+    sync = DocumentSync(FakeAdapter(), state_path=tmp_path / "s.json")
+    assert sync.remote_path_for(doc) == "BeeOffice/home/doc/报告.md"
+
+
+def test_external_path_uses_hash_prefix(tmp_path, monkeypatch):
+    """非家目录的文件用目录哈希前缀区分，避免撞名。"""
+    from beeoffice.document_sync import DocumentSync
+
+    import pathlib as _pathlib
+    monkeypatch.setattr(_pathlib.Path, "home", staticmethod(lambda: tmp_path / "home"))
+    doc = tmp_path / "work" / "x.md"
+    doc.parent.mkdir(parents=True)
+    doc.write_text("x", encoding="utf-8")
+
+    sync = DocumentSync(FakeAdapter(), state_path=tmp_path / "s.json")
+    remote = sync.remote_path_for(doc)
+    assert remote.startswith("BeeOffice/external/")
+    assert remote.endswith("/x.md")

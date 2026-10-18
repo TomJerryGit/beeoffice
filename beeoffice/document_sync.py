@@ -99,7 +99,41 @@ class DocumentSync:
         return h.hexdigest()
 
     def _remote_path(self, local: Path) -> str:
-        return f"{self.remote_dir}/{local.name}"
+        return self.remote_path_for(local)
+
+    def remote_path_for(self, local) -> str:
+        """
+        计算文件在远端的路径（P1-37 修复：不再平铺文件名）。
+
+        v1 用 `BeeOffice/<文件名>` 平铺存放，不同目录的同名文件
+        （比如项目 A 和 B 都有 README.md）会互相覆盖，而且**静默**——
+        同步显示成功，但云端只剩一份。
+
+        规则：
+          · 在家目录下的文件 → 保留相对层级，可读且不会撞名
+                ~/doc/报告.md  →  BeeOffice/home/doc/报告.md
+          · 其它位置 → 用所在目录路径的哈希做前缀
+                D:/work/a/x.md → BeeOffice/external/<hash8>/x.md
+
+        注：文件移动位置会改变远端路径（视为新文件），这是可接受的取舍。
+        """
+        path = Path(local)
+        try:
+            resolved = path.resolve()
+        except Exception:
+            resolved = path
+
+        try:
+            home = Path.home().resolve()
+            rel = resolved.relative_to(home)
+            return f"{self.remote_dir}/home/{rel.as_posix()}"
+        except Exception:
+            pass
+
+        digest = hashlib.sha1(
+            str(resolved.parent).encode("utf-8")
+        ).hexdigest()[:8]
+        return f"{self.remote_dir}/external/{digest}/{resolved.name}"
 
     def _remote_sig(self, remote: str):
         """远端签名 (size, mtime)；失败返回 None。"""
