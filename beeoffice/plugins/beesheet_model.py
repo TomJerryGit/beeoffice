@@ -67,20 +67,19 @@ class SheetDataModel(QAbstractTableModel):
 
     # ==================== 数据设置 ====================
     def set_full_dataframe(self, df):
-        """设置完整数据，并自动补齐空行到默认工作区大小"""
-        real_rows = len(df)
-        self._real_rows = real_rows
+        """
+        设置完整数据。
 
-        # 如果真实数据小于工作区，末尾补齐空行
-        if real_rows < self.DEFAULT_ROWS:
-            empty_count = self.DEFAULT_ROWS - real_rows
-            empty_df = pd.DataFrame(
-                '',
-                index=range(empty_count),
-                columns=df.columns
-            )
-            df = pd.concat([df, empty_df], ignore_index=True)
+        v5.2 架构修正（P1，根因级）：
+        原实现把数据**补齐到 1000 行并用空字符串填充**，
+        于是数值列退化成 object（int 与 '' 混合）——
+        排序直接抛 TypeError，统计 / 条件格式 / 公式同样会踩。
+        排序已经单独绕过，但那是止血不是治本。
 
+        现在数据层只保存真实行；"工作区看起来有 1000 行"
+        由 rowCount() 在显示层算出来，空行不进入 DataFrame。
+        """
+        self._real_rows = len(df)
         self._full_df = df
         self._total_rows = len(df)
         self._total_cols = len(df.columns)
@@ -89,9 +88,38 @@ class SheetDataModel(QAbstractTableModel):
         self._loaded_df = df.head(fc).copy()
         # 索引统一成绝对行号：模型按 .iloc 取值，索引必须等于行位置
         self._loaded_df.index = range(len(self._loaded_df))
-        self._loaded_chunks.add(0)
+        if self._total_rows:
+            self._loaded_chunks.add(0)
         self._is_streaming = fc < self._total_rows
         self.layoutChanged.emit()
+
+    def _grow_to(self, rows: int):
+        """
+        把工作表扩展到至少 rows 行（用户在工作区空白处输入时触发）。
+
+        与"补齐到默认大小"不同：这里只为**用户真的写入的那一行**扩展，
+        且数值列用 NaN 而不是空字符串，避免再次污染 dtype。
+        """
+        if rows <= self._total_rows:
+            return
+        extra = rows - self._total_rows
+        empty = {}
+        for col in self._full_df.columns:
+            if pd.api.types.is_numeric_dtype(self._full_df[col]):
+                empty[col] = pd.Series([float("nan")] * extra)
+            else:
+                empty[col] = pd.Series([""] * extra, dtype=object)
+        tail = pd.DataFrame(empty)
+        self._full_df = pd.concat(
+            [self._full_df, tail], ignore_index=True
+        )
+        self._loaded_df = pd.concat(
+            [self._loaded_df, tail.copy()], ignore_index=True
+        )
+        # 已加载数据始终是"从第 0 行开始的连续前缀"，索引必须等于位置
+        self._loaded_df.index = range(len(self._loaded_df))
+        self._total_rows = rows
+        self._real_rows = max(self._real_rows, rows)
 
     def load_chunk(self, ci):
         """
@@ -178,7 +206,12 @@ class SheetDataModel(QAbstractTableModel):
 
     # ==================== Qt 模型接口 ====================
     def rowCount(self, p=QModelIndex()):
-        return self._total_rows
+        """
+        显示行数。
+
+        v5.2：数据层不再补齐空行，工作区的"最小 1000 行"在这里算出来。
+        """
+        return max(self._total_rows, self.DEFAULT_ROWS)
 
     def columnCount(self, p=QModelIndex()):
         return self._total_cols if self._full_df is not None else 0
@@ -205,7 +238,12 @@ class SheetDataModel(QAbstractTableModel):
         if not index.isValid():
             return None
         r, c = index.row(), index.column()
-        # 超出已加载范围
+        # 超出**数据**范围：工作区里的空白行（可直接输入）
+        if r >= self._total_rows:
+            if role == Qt.DisplayRole:
+                return ""
+            return None
+        # 数据范围内但分块还没加载
         if r >= len(self._loaded_df):
             if role == Qt.DisplayRole:
                 return "⏳"
@@ -358,13 +396,44 @@ class SheetDataModel(QAbstractTableModel):
             pass
         return None
 
+    def _coerce_value(self, c, value):
+        """
+        按列类型转换用户输入（v5.2）。
+
+        背景：以前数据层被补齐成 object 类型，字符串写进数值列不会报错，
+        但那是"错误被类型退化掩盖"。dtype 恢复后必须显式转换：
+          · 数值列 + 数字字符串 → 转成数字（"7" → 7）
+          · 数值列 + 非数字文本 → 把该列升级为 object（Excel 也是如此）
+          · 空字符串 → NaN
+        """
+        col = self._loaded_df.columns[c]
+        dtype = self._loaded_df[col].dtype
+        if not pd.api.types.is_numeric_dtype(dtype):
+            return value
+        if not isinstance(value, str):
+            return value
+
+        text = value.strip()
+        if text == "":
+            return float("nan")
+        try:
+            return int(text) if text.lstrip("-").isdigit() else float(text)
+        except ValueError:
+            for frame in (self._loaded_df, self._full_df):
+                if frame is not None and col in frame.columns:
+                    frame[col] = frame[col].astype(object)
+            return value
+
     def setData(self, index, value, role=Qt.EditRole):
         """设置单元格数据"""
         if not index.isValid():
             return False
         r, c = index.row(), index.column()
         if r >= len(self._loaded_df):
-            return False
+            if r < self._total_rows:
+                return False          # 属于未加载的分块，先滚动触发加载
+            self._grow_to(r + 1)      # 工作区空白行：按需扩展数据
+        value = self._coerce_value(c, value)
         self._loaded_df.iloc[r, c] = value
         if self._full_df is not None:
             self._full_df.iloc[r, c] = value

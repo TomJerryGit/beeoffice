@@ -73,7 +73,8 @@ def test_repeated_edit_same_cell_collapses(recorder, model):
     for v in ("1", "2", "3"):
         model.setData(model.index(0, 0), v, Qt.EditRole)
     assert recorder.stop() == 1
-    assert recorder.actions[0][3] == "3"
+    # v5.2 起写入会按列类型转换，所以记录的是数字 3 而不是字符串 "3"
+    assert recorder.actions[0][3] == 3
 
 
 def test_play_does_not_record_itself(recorder, model):

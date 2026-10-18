@@ -23,6 +23,7 @@ pytest.importorskip("PySide6.QtWidgets")
 pd = pytest.importorskip("pandas")
 
 PLACEHOLDER = "⏳"
+EMPTY = ""      # v5.2 起，超出数据范围的行显示空串（工作区空白行）
 
 
 @pytest.fixture
@@ -42,7 +43,7 @@ def _loaded(m):
     out = []
     for r in range(m.rowCount()):
         val = m.data(m.index(r, 0), Qt.DisplayRole)
-        if val != PLACEHOLDER:
+        if val not in (PLACEHOLDER, EMPTY):
             out.append((r, val))
     return out
 
