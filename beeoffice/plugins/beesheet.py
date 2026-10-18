@@ -636,13 +636,48 @@ class BeeSheetView(
 
     # ==================== 排序 ====================
     def sort_by_column(self, col, ascending=True):
-        """按列排序"""
-        old = self.model.df.copy()
-        self.model._loaded_df = self.model.df.sort_values(
-            by=self.model.df.columns[col], ascending=ascending,
-            ignore_index=True
-        )
-        self._push_command(SortCommand(old, self.model._loaded_df))
+        """
+        按列排序。
+
+        v5.2 修复（实测缺陷）：
+          1. 原来对整个 `model.df` 排序，而它被补齐到 1000 行且用空字符串填充，
+             数值列因此变成 object（int 与 '' 混合），
+             `sort_values` 直接抛 TypeError —— 用户点排序毫无反应。
+          2. 只更新 `_loaded_df`，`_full_df` 仍是旧顺序，
+             再滚动加载分块会把未排序的数据拼回来。
+        现在只对**真实数据行**排序，空行原样保留在末尾，两个 DataFrame 同步更新。
+        """
+        import pandas as pd
+
+        model = self.model
+        df = model.df
+        real_rows = getattr(model, "_real_rows", len(df))
+        if real_rows <= 0 or len(df) == 0:
+            return
+
+        real = df.iloc[:real_rows]
+        padding = df.iloc[real_rows:]
+        by = real.columns[col]
+
+        try:
+            sorted_real = real.sort_values(
+                by=by, ascending=ascending, ignore_index=True
+            )
+        except TypeError:
+            # 列里混了数字和文字，无法比较——给出可读提示而不是静默失败
+            self._set_status(
+                tr("auto.beesheet.sort_mixed_types",
+                   "该列包含无法比较的内容（数字与文字混合），未排序"), 4000
+            )
+            return
+
+        old = df.copy()
+        new_df = pd.concat([sorted_real, padding], ignore_index=True)
+        model._loaded_df = new_df.copy()
+        if getattr(model, "_full_df", None) is not None:
+            model._full_df = new_df.copy()
+
+        self._push_command(SortCommand(old, new_df))
         self._set_status(tr("auto.beesheet.ad5ae539", "已排序"))
 
     def _show_sort_dialog(self):
