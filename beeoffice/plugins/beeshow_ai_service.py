@@ -187,7 +187,7 @@ class BeeshowAIService:
                     return outlines
             except Exception as e:
                 logging.warning(
-                    f"AI 大纲生成失败（第 {attempt + 1} 次）：{e}"
+                    tr("auto.beeshow_ai_service.d3cff31c", "AI 大纲生成失败（第 {0} 次）：{1}").format(attempt + 1, e)
                 )
 
         logging.warning(tr("auto.beeshow_ai_service.32bb12b1", "AI 大纲生成多次失败，降级到本地模板"))
@@ -222,7 +222,7 @@ class BeeshowAIService:
             if outlines:
                 return outlines
         except Exception as e:
-            logging.warning(f"AI 大纲修改失败：{e}")
+            logging.warning(tr("auto.beeshow_ai_service.ed79db20", "AI 大纲修改失败：{e}").format(e=e))
         return current
 
     def generate_notes(
@@ -251,7 +251,7 @@ class BeeshowAIService:
         try:
             return self._call_llm(prompt).strip()
         except Exception as e:
-            logging.warning(f"生成演讲稿失败：{e}")
+            logging.warning(tr("auto.beeshow_ai_service.96eacd4c", "生成演讲稿失败：{e}").format(e=e))
             return ""
 
     def suggest_images(

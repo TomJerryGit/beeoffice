@@ -148,7 +148,7 @@ class ExportMixin:
         except Exception as e:
             logging.error(f"PPTX 导出失败：{e}")
             QMessageBox.warning(
-                self, tr("auto.beeshow_export_mixin.67533812", "导出失败"), f"出错：{e}\n\n尝试旧方案..."
+                self, tr("auto.beeshow_export_mixin.67533812", "导出失败"), tr("auto.beeshow_export_mixin.08588f22", "出错：{e}\n\n尝试旧方案...").format(e=e)
             )
             self._export_pptx_legacy(path)
 
@@ -293,7 +293,7 @@ class ExportMixin:
             try:
                 if success:
                     QMessageBox.information(
-                        self, tr("auto.beeshow_export_mixin.c893536c", "导出成功"), f"已保存: {file_path}"
+                        self, tr("auto.beeshow_export_mixin.c893536c", "导出成功"), tr("auto.beeshow_export_mixin.99bc3d5d", "已保存: {file_path}").format(file_path=file_path)
                     )
                 else:
                     QMessageBox.warning(
@@ -378,7 +378,7 @@ class ExportMixin:
         with open(path, 'w', encoding='utf-8') as f:
             f.write(full_html)
 
-        QMessageBox.information(self, tr("auto.beeshow_export_mixin.c893536c", "导出成功"), f"已保存: {path}")
+        QMessageBox.information(self, tr("auto.beeshow_export_mixin.c893536c", "导出成功"), tr("auto.beeshow_export_mixin.16411a46", "已保存: {path}").format(path=path))
 
     # ==================== 导出图片序列（P0-4） ====================
     def _export_images(self):
@@ -416,7 +416,7 @@ class ExportMixin:
             if results["fail"] == 0:
                 QMessageBox.information(
                     self, tr("auto.beeshow_export_mixin.c893536c", "导出成功"),
-                    f"已保存 {results['ok']} 张图片到:\n{output_dir}"
+                    tr("auto.beeshow_export_mixin.54c90c57", "已保存 {0} 张图片到:\n{1}").format(results['ok'], output_dir)
                 )
             else:
                 QMessageBox.warning(
@@ -516,7 +516,7 @@ class ExportMixin:
             self._slides_html, path, theme['css'], duration
         ):
             QMessageBox.information(
-                self, tr("auto.beeshow_export_mixin.c893536c", "导出成功"), f"GIF 已保存至：\n{path}"
+                self, tr("auto.beeshow_export_mixin.c893536c", "导出成功"), tr("auto.beeshow_export_mixin.6e013b3e", "GIF 已保存至：\n{path}").format(path=path)
             )
         else:
             QMessageBox.warning(self, tr("auto.beeshow_export_mixin.67533812", "导出失败"), tr("auto.beeshow_export_mixin.35f4a209", "GIF 导出失败"))

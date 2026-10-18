@@ -122,7 +122,7 @@ class CommentMixin:
             self._comment_panel.setVisible(True)
 
         self._set_status(
-            f"💬 已添加评论 #{comment['id']}", 2000
+            tr("auto.beeshow_comment_mixin.082f3ad3", "💬 已添加评论 #{0}").format(comment['id']), 2000
         )
 
     def _current_author(self) -> str:
@@ -218,7 +218,7 @@ class CommentMixin:
             self._current_slide = page_idx
             self._show_slide(page_idx)
             self._set_status(
-                f"📍 已跳转到第 {page_idx + 1} 页", 2000
+                tr("auto.beeshow_comment_mixin.5fd13247", "📍 已跳转到第 {0} 页").format(page_idx + 1), 2000
             )
 
     def _edit_comment(self, comment_id: int):
@@ -252,7 +252,7 @@ class CommentMixin:
 
         reply = QMessageBox.question(
             self, tr("auto.beeshow_comment_mixin.a602a2cf", "删除评论"),
-            f"确定删除这条评论吗？\n\n「{comment['text'][:50]}」",
+            tr("auto.beeshow_comment_mixin.ca605041", "确定删除这条评论吗？\n\n「{0}」").format(comment['text'][:50]),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -279,7 +279,7 @@ class CommentMixin:
         self._refresh_comment_panel()
 
         status = "已解决" if comment["resolved"] else "未解决"
-        self._set_status(f"✅ 评论已标记为{status}", 2000)
+        self._set_status(tr("auto.beeshow_comment_mixin.0168ca80", "✅ 评论已标记为{status}").format(status=status), 2000)
 
     # ==================== 查找辅助 ====================
     def _find_comment(self, comment_id: int):
@@ -383,7 +383,7 @@ class CommentMixin:
                         if comments:
                             self._slide_comments[i] = comments
                 except Exception as e:
-                    logging.warning(f"解析第 {i+1} 页评论失败：{e}")
+                    logging.warning(tr("auto.beeshow_comment_mixin.9194de8b", "解析第 {0} 页评论失败：{1}").format(i + 1, e))
 
             self._comment_next_id = max_id + 1
         except Exception as e:

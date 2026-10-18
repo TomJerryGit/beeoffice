@@ -69,7 +69,7 @@ class OnboardingOverlay(QWidget):
         layout = QVBoxLayout(self._tip_widget)
         layout.setContentsMargins(20, 16, 20, 16)
         layout.setSpacing(8)
-        step_label = QLabel(f"第 {self._current_step + 1}/{len(self._steps)} 步")
+        step_label = QLabel(tr("auto.onboarding.e72a4f1e", "第 {0}/{1} 步").format(self._current_step + 1, len(self._steps)))
         step_label.setStyleSheet("color:#FF8F00;font-size:11px;font-weight:bold")
         layout.addWidget(step_label)
         title_label = QLabel(step.title)

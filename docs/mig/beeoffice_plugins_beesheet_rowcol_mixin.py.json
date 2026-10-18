@@ -1,7 +1,5 @@
 {
-  "auto.beesheet_rowcol_mixin.dd486659": "已在左侧插入列",
-  "auto.beesheet_rowcol_mixin.80e20469": "已在右侧插入列",
-  "auto.beesheet_rowcol_mixin.9c8acd3d": "已合并",
-  "auto.beesheet_rowcol_mixin.201a8dd2": "至少保留一行",
-  "auto.beesheet_rowcol_mixin.95d3a0f0": "至少保留一列"
+  "auto.beesheet_rowcol_mixin.81205d2b": "已在第{0}行上方插入",
+  "auto.beesheet_rowcol_mixin.2d23e829": "已在第{0}行下方插入",
+  "auto.beesheet_rowcol_mixin.56da69b2": "已填充 {0} 个单元格"
 }

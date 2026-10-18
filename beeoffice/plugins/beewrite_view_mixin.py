@@ -237,7 +237,7 @@ class ViewMixin:
             return
 
         dlg = QDialog(self)
-        dlg.setWindowTitle(f"📊 双屏对比 — {Path(path).name}")
+        dlg.setWindowTitle(tr("auto.beewrite_view_mixin.7817b7b1", "📊 双屏对比 — {0}").format(Path(path).name))
         dlg.resize(1100, 700)
         layout = QVBoxLayout(dlg)
 
@@ -440,8 +440,8 @@ class ViewMixin:
         text = self.content()
         char_count = len(text)
         word_count = count_words(text)
-        self._word_count_label.setText(f"字数：{word_count}")
-        self._char_count_label.setText(f"字符：{char_count}")
+        self._word_count_label.setText(tr("auto.beewrite_view_mixin.1a98e9a7", "字数：{word_count}").format(word_count=word_count))
+        self._char_count_label.setText(tr("auto.beewrite_view_mixin.fc9bf7d3", "字符：{char_count}").format(char_count=char_count))
 
     def _update_cursor_position(self):
         """更新状态栏光标行列位置"""
@@ -451,4 +451,4 @@ class ViewMixin:
             cursor = self.rich_editor.textCursor()
         line = cursor.blockNumber() + 1
         col = cursor.columnNumber() + 1
-        self._cursor_pos_label.setText(f"行 {line} 列 {col}")
+        self._cursor_pos_label.setText(tr("auto.beewrite_view_mixin.fef93934", "行 {line} 列 {col}").format(line=line, col=col))

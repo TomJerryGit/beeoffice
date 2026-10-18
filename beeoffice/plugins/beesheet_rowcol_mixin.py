@@ -60,7 +60,7 @@ class RowColMixin:
         ).reset_index(drop=True)
         self.model._total_rows = len(self.model._loaded_df)
         self.model.layoutChanged.emit()
-        self._set_status(f"已在第{r+1}行上方插入", 2000)
+        self._set_status(tr("auto.beesheet_rowcol_mixin.81205d2b", "已在第{0}行上方插入").format(r + 1), 2000)
 
     def _insert_row_below(self):
         """在当前行下方插入一行空行"""
@@ -77,7 +77,7 @@ class RowColMixin:
         ).reset_index(drop=True)
         self.model._total_rows = len(self.model._loaded_df)
         self.model.layoutChanged.emit()
-        self._set_status(f"已在第{r+1}行下方插入", 2000)
+        self._set_status(tr("auto.beesheet_rowcol_mixin.2d23e829", "已在第{0}行下方插入").format(r + 1), 2000)
 
     # ==================== 插入列 ====================
     def _insert_col_left(self):
@@ -219,7 +219,7 @@ class RowColMixin:
                 val = self.model.get_value(src_r, col)
                 self.model._loaded_df.iloc[tr, col] = val
         self.model.layoutChanged.emit()
-        self._set_status(f"已填充 {len(target)} 个单元格", 3000)
+        self._set_status(tr("auto.beesheet_rowcol_mixin.56da69b2", "已填充 {0} 个单元格").format(len(target)), 3000)
 
     def _fill_right(self, source_row, source_cols):
         """
@@ -250,4 +250,4 @@ class RowColMixin:
                 val = self.model.get_value(source_row, src_c)
                 self.model._loaded_df.iloc[source_row, tc] = val
         self.model.layoutChanged.emit()
-        self._set_status(f"已填充 {len(target)} 个单元格", 3000)
+        self._set_status(tr("auto.beesheet_rowcol_mixin.56da69b2", "已填充 {0} 个单元格").format(len(target)), 3000)

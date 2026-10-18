@@ -470,7 +470,7 @@ class PPTXGenerator:
                     try:
                         self._add_element(slide, el, prs)
                     except Exception as e:
-                        logging.warning(f"添加元素失败 {el.tag}：{e}")
+                        logging.warning(tr("auto.beeshow_pptx_engine.6935a005", "添加元素失败 {0}：{1}").format(el.tag, e))
 
             prs.save(output_path)
             logging.info(f"PPTX 已生成：{output_path}")
@@ -748,7 +748,7 @@ class PPTXEngine:
                     "导出正常但目标机器可能缺字体"
                 )
         except Exception as e:
-            logging.warning(f"字体嵌入异常（不影响导出）：{e}")
+            logging.warning(tr("auto.beeshow_pptx_engine.7fa7da0f", "字体嵌入异常（不影响导出）：{e}").format(e=e))
 
         return True
 

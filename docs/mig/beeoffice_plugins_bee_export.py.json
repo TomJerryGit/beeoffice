@@ -1,4 +1,5 @@
 {
-  "auto.bee_export.4a56e516": "WeasyPrint 未安装，无法导出 PDF",
-  "auto.bee_export.bab8a6b2": "没有可渲染的幻灯片"
+  "auto.bee_export.acc2c78e": "导出 DOCX：图片不存在 {src}",
+  "auto.bee_export.190d98ef": "导出 DOCX：插入图片失败 {src}: {e}",
+  "auto.bee_export.cdc1122c": "提取段落图片失败: {e}"
 }

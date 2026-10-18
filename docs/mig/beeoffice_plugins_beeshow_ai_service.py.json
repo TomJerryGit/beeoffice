@@ -1,3 +1,5 @@
 {
-  "auto.beeshow_ai_service.32bb12b1": "AI 大纲生成多次失败，降级到本地模板"
+  "auto.beeshow_ai_service.ed79db20": "AI 大纲修改失败：{e}",
+  "auto.beeshow_ai_service.96eacd4c": "生成演讲稿失败：{e}",
+  "auto.beeshow_ai_service.d3cff31c": "AI 大纲生成失败（第 {0} 次）：{1}"
 }

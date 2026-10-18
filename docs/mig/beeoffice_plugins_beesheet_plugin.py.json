@@ -1,0 +1,7 @@
+{
+  "auto.beesheet_plugin.30f35d2f": "📊 蜜算-{timestamp}",
+  "auto.beesheet_plugin.430766e5": "发现 {removed} 行重复数据，是否删除？",
+  "auto.beesheet_plugin.3a74e77c": "已删除 {removed} 行重复数据",
+  "auto.beesheet_plugin.f556c0de": "已导入: {path}",
+  "auto.beesheet_plugin.7f401271": "已插入公式: {result}"
+}

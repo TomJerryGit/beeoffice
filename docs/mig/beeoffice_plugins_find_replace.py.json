@@ -1,21 +1,4 @@
 {
-  "auto.find_replace.1d0a7eb7": "输入要查找的内容...",
-  "auto.find_replace.943de353": "↑ 上一个",
-  "auto.find_replace.ebca443f": "↓ 下一个",
-  "auto.find_replace.2ddd8da9": "关闭查找栏 (Esc)",
-  "auto.find_replace.f5cb1cf7": "输入替换内容...",
-  "auto.find_replace.855241c2": "替换",
-  "auto.find_replace.601f0a9a": "全部替换",
-  "auto.find_replace.e6f5345b": "区分大小写",
-  "auto.find_replace.d17c5c51": "全字匹配",
-  "auto.find_replace.46e5b8bc": "正则表达式",
-  "auto.find_replace.87ceeae0": "已替换 1 处",
-  "auto.find_replace.e1acea7e": "🔍 查找:",
-  "auto.find_replace.945df3b3": "📝 替换:",
-  "auto.find_replace.1861405e": "输入正则表达式，如 \\d+ 或 [A-Z]+",
-  "auto.find_replace.2afda7f7": "已循环到结尾",
-  "auto.find_replace.df5ccaf0": "未找到",
-  "auto.find_replace.ab3656a9": "提示",
-  "auto.find_replace.0e25c092": "当前文档不支持查找替换",
-  "auto.find_replace.09d2dd87": "已循环到开头"
+  "auto.find_replace.2415c336": "已替换 {count} 处",
+  "auto.find_replace.58e50dea": "⚠ 正则错误：{e}"
 }

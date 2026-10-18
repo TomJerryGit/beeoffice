@@ -84,7 +84,7 @@ class BeeShowPlugin(Plugin):
         """新建一个蜜演演示文稿并添加为标签页"""
         view = self.create_widget()
         timestamp = datetime.now().strftime("%H%M")
-        self.parent.tab_manager.addTab(view, f"🎥 蜜演-{timestamp}")
+        self.parent.tab_manager.addTab(view, tr("auto.beeshow_plugin.cdd71eff", "🎥 蜜演-{timestamp}").format(timestamp=timestamp))
         self.parent.tab_manager.setCurrentWidget(view)
         return view
 
@@ -208,7 +208,7 @@ class BeeShowPlugin(Plugin):
                         body.text = content[:1000]
 
             prs.save(path)
-            QMessageBox.information(self.parent, tr("auto.beeshow_plugin.33246f6a", "完成"), f"已导出:\n{path}")
+            QMessageBox.information(self.parent, tr("auto.beeshow_plugin.33246f6a", "完成"), tr("auto.beeshow_plugin.5de5a41a", "已导出:\n{path}").format(path=path))
             self.parent.set_global_status(tr("auto.beeshow_plugin.d2bca342", "PPTX 导出完成"), 3000)
         except ImportError:
             QMessageBox.warning(self.parent, tr("auto.beeshow_plugin.1f393593", "缺少依赖"),

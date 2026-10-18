@@ -97,7 +97,7 @@ class SyncMixin:
             self._show_sync_dialog()
 
             self._set_status(
-                f"📱 同步演示已开启（{self._sync_url}）", 5000
+                tr("auto.beeshow_sync_mixin.777fdaf6", "📱 同步演示已开启（{0}）").format(self._sync_url), 5000
             )
 
         except Exception as e:

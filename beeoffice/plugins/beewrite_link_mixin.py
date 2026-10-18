@@ -133,7 +133,7 @@ class LinkMixin:
             )
         except Exception as e:
             logging.error(f"扫描标题失败: {e}")
-            QMessageBox.warning(self, tr("auto.beewrite_link_mixin.3e3c8068", "失败"), f"扫描标题失败：\n{e}")
+            QMessageBox.warning(self, tr("auto.beewrite_link_mixin.3e3c8068", "失败"), tr("auto.beewrite_link_mixin.172771ca", "扫描标题失败：\n{e}").format(e=e))
             return
 
         if not headings:
@@ -208,7 +208,7 @@ class LinkMixin:
 
             cursor = self.rich_editor.textCursor()
             cursor.insertText(text)
-            self._set_status(f"✅ 已插入引用：{text}", 2000)
+            self._set_status(tr("auto.beewrite_link_mixin.ae044aca", "✅ 已插入引用：{text}").format(text=text), 2000)
             dlg.accept()
 
         btn_insert.clicked.connect(do_insert)
@@ -285,7 +285,7 @@ class LinkMixin:
             cursor.insertBlock()
 
             self._set_status(
-                f"✅ 已插入图片（{img.width()}×{img.height()}）", 3000
+                tr("auto.beewrite_link_mixin.a89305f0", "✅ 已插入图片（{0}×{1}）").format(img.width(), img.height()), 3000
             )
         except Exception as e:
             logging.error(f"插入图片失败: {e}")

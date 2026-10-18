@@ -27,6 +27,7 @@ import json
 import logging
 import time
 from pathlib import Path
+from beeoffice.i18n import tr
 
 DEFAULT_REMOTE_DIR = "BeeOffice"
 
@@ -79,7 +80,7 @@ class DocumentSync:
             if self.state_path.exists():
                 return json.loads(self.state_path.read_text(encoding="utf-8"))
         except Exception as e:
-            logging.warning(f"读取同步状态失败，将重新建立: {e}")
+            logging.warning(tr("auto.document_sync.05d4026b", "读取同步状态失败，将重新建立: {e}").format(e=e))
         return {}
 
     def _save_state(self, state: dict):
@@ -89,7 +90,7 @@ class DocumentSync:
                 encoding="utf-8",
             )
         except Exception as e:
-            logging.warning(f"保存同步状态失败: {e}")
+            logging.warning(tr("auto.document_sync.37163e52", "保存同步状态失败: {e}").format(e=e))
 
     # ---------- 工具 ----------
     @staticmethod
@@ -145,7 +146,7 @@ class DocumentSync:
             size, mtime = self.adapter.get_file_info(remote)
             return [int(size), float(mtime)]
         except Exception as e:
-            logging.warning(f"读取远端信息失败 {remote}: {e}")
+            logging.warning(tr("auto.document_sync.a584995f", "读取远端信息失败 {remote}: {e}").format(remote=remote, e=e))
             return None
 
     # ---------- 单个文件 ----------
@@ -377,7 +378,7 @@ def collect_documents(window, scope: str = "recent") -> list:
                 current = tab_manager.currentWidget()
                 _add(getattr(current, "_current_file_path", None))
             except Exception as e:
-                logging.warning(f"取当前文档失败: {e}")
+                logging.warning(tr("auto.document_sync.92ad208f", "取当前文档失败: {e}").format(e=e))
         return paths
 
     if tab_manager is not None:
@@ -386,7 +387,7 @@ def collect_documents(window, scope: str = "recent") -> list:
                 widget = tab_manager.widget(i)
                 _add(getattr(widget, "_current_file_path", None))
         except Exception as e:
-            logging.warning(f"收集已打开文档失败: {e}")
+            logging.warning(tr("auto.document_sync.4d211900", "收集已打开文档失败: {e}").format(e=e))
 
     settings = getattr(window, "settings", None)
     for attr in ("recent_files", "_recent_files"):

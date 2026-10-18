@@ -243,7 +243,7 @@ class AIMixin:
         self._current_slide = 0
         self._update_preview()
         self._set_status(
-            f"✅ 已生成 {len(outlines)} 页大纲", 3000
+            tr("auto.beeshow_ai_mixin.f640eb0a", "✅ 已生成 {0} 页大纲").format(len(outlines)), 3000
         )
 
     # ==================== AI 配图建议（任务 1.3） ====================
@@ -298,7 +298,7 @@ class AIMixin:
         # 弹窗展示候选图
         self._show_image_picker_dialog(results)
         self._set_status(
-            f"✅ 已找到 {len(results)} 张候选图", 2000
+            tr("auto.beeshow_ai_mixin.200963ea", "✅ 已找到 {0} 张候选图").format(len(results)), 2000
         )
 
     def _show_image_picker_dialog(self, results: list):

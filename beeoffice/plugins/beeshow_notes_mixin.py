@@ -257,7 +257,7 @@ class NotesMixin:
         # 写入备注
         self.add_speaker_notes(notes)
         self._set_status(
-            f"✅ 已生成演讲稿（{len(notes)} 字）", 3000
+            tr("auto.beeshow_notes_mixin.fada6e21", "✅ 已生成演讲稿（{0} 字）").format(len(notes)), 3000
         )
 
     def _ai_generate_all_notes(self):
@@ -308,7 +308,7 @@ class NotesMixin:
                 else f"第 {i + 1} 页"
             )
             self._set_status(
-                f"🤖 正在生成第 {i + 1}/{total} 页...", 0
+                tr("auto.beeshow_notes_mixin.63e0d4dc", "🤖 正在生成第 {0}/{1} 页...").format(i + 1, total), 0
             )
             try:
                 notes = service.generate_notes(
@@ -332,7 +332,7 @@ class NotesMixin:
         # 统一同步回编辑器
         self._sync_notes_to_editor()
         self._set_status(
-            f"✅ 批量完成：成功 {success} 页，失败 {fail} 页", 5000
+            tr("auto.beeshow_notes_mixin.4718777f", "✅ 批量完成：成功 {success} 页，失败 {fail} 页").format(success=success, fail=fail), 5000
         )
 
     # ==================== 状态栏 ====================

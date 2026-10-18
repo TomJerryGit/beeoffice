@@ -1,3 +1,8 @@
 {
-  "auto.beeshow_video_mixin.549f4411": "ffmpeg 提取超时"
+  "auto.beeshow_video_mixin.c77b82f5": "视频文件不存在：{video_path}",
+  "auto.beeshow_video_mixin.2ec98097": "不支持的视频格式：{ext}",
+  "auto.beeshow_video_mixin.dbab38c1": "ffmpeg 提取失败：{0}",
+  "auto.beeshow_video_mixin.fa61b122": "视频解析失败：{0}（原文：{1}）",
+  "auto.beeshow_video_mixin.1b5ff4e5": "复制视频失败 {original}：{e}",
+  "auto.beeshow_video_mixin.536f33de": "提取封面失败：{e}"
 }

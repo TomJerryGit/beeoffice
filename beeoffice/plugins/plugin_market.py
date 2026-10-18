@@ -222,7 +222,7 @@ class PluginMarketDialog(QDialog):
                 )
             except Exception as e:
                 logging.error(f"切换插件状态失败: {e}")
-                QMessageBox.warning(self, tr("auto.plugin_market.3e3c8068", "失败"), f"切换状态失败：{e}")
+                QMessageBox.warning(self, tr("auto.plugin_market.3e3c8068", "失败"), tr("auto.plugin_market.13175b4e", "切换状态失败：{e}").format(e=e))
 
     # ---------- 安装插件 ----------
     def _install_plugin(self):
@@ -280,7 +280,7 @@ class PluginMarketDialog(QDialog):
                     if dest.exists():
                         reply = QMessageBox.question(
                             self, tr("auto.plugin_market.ec908942", "文件已存在"),
-                            f"插件 {py_file.name} 已存在，是否覆盖？",
+                            tr("auto.plugin_market.9667feb3", "插件 {0} 已存在，是否覆盖？").format(py_file.name),
                             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
                         )
                         if reply != QMessageBox.Yes:
@@ -330,7 +330,7 @@ class PluginMarketDialog(QDialog):
                 if dest.exists():
                     reply = QMessageBox.question(
                         self, tr("auto.plugin_market.ec908942", "文件已存在"),
-                        f"插件 {py_file.name} 已存在，是否覆盖？",
+                        tr("auto.plugin_market.9667feb3", "插件 {0} 已存在，是否覆盖？").format(py_file.name),
                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No
                     )
                     if reply != QMessageBox.Yes:
@@ -449,10 +449,10 @@ class PluginMarketDialog(QDialog):
                 logging.error(f"删除插件文件失败: {e}")
                 QMessageBox.warning(
                     self, tr("auto.plugin_market.72250c59", "删除失败"),
-                    f"插件已停用，但文件删除失败：\n{e}"
+                    tr("auto.plugin_market.712e6f62", "插件已停用，但文件删除失败：\n{e}").format(e=e)
                 )
 
-        QMessageBox.information(self, tr("auto.plugin_market.c2ad3378", "已卸载"), f"插件「{name}」已卸载。")
+        QMessageBox.information(self, tr("auto.plugin_market.c2ad3378", "已卸载"), tr("auto.plugin_market.c8185f04", "插件「{name}」已卸载。").format(name=name))
         self._refresh_list()
 
     # ---------- 关闭 ----------
@@ -471,4 +471,4 @@ def show_plugin_market(parent):
         dialog.exec()
     except Exception as e:
         logging.error(f"打开插件市场失败: {e}")
-        QMessageBox.warning(parent, tr("auto.plugin_market.b859c7be", "错误"), f"打开插件市场失败：\n{e}")
+        QMessageBox.warning(parent, tr("auto.plugin_market.b859c7be", "错误"), tr("auto.plugin_market.a9e2e285", "打开插件市场失败：\n{e}").format(e=e))

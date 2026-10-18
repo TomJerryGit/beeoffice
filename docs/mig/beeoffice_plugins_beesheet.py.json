@@ -1,0 +1,17 @@
+{
+  "auto.beesheet.874d563d": "正在分块加载: {0}",
+  "auto.beesheet.d6dc480a": "已加载：{0} 行 × {1} 列",
+  "auto.beesheet.d871806c": "↩ 撤销({0}步)",
+  "auto.beesheet.f1612b07": "↪ 重做({0}步)",
+  "auto.beesheet.a918b4f3": "请输入中文指令：\n（{default_hint}）",
+  "auto.beesheet.d44b1fd2": "✅ 已生成公式: {result}",
+  "auto.beesheet.4cb22b00": "✅ 筛选完成：{0} 行",
+  "auto.beesheet.607ca9fe": "已加载文本: {0} 行",
+  "auto.beesheet.96681a18": "文件有{0}行，仅加载前20万行？",
+  "auto.beesheet.99c8d0ce": "选中:{0} | 空值:{1}{2}",
+  "auto.beesheet.66818f01": "值：{text}",
+  "auto.beesheet.910d3b3a": "已替换{count}处",
+  "auto.beesheet.8a8cd772": "✅ 已选中区域 {ref}",
+  "auto.beesheet.db293213": "✅ 已跳转到 {ref}",
+  "auto.beesheet.7ddfae09": "⚠️ 超出范围：{ref}"
+}

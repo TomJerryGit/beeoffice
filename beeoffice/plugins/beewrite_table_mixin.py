@@ -882,7 +882,7 @@ class TableMixin:
             parent.tab_manager.indexOf(sw)
         ).replace("📊 ", "")
         self.rich_editor.insert_dataframe_table(df, title)
-        self._set_status(f"已插入蜜算数据: {title}", 3000)
+        self._set_status(tr("auto.beewrite_table_mixin.eadd0bf3", "已插入蜜算数据: {title}").format(title=title), 3000)
 
     def _insert_from_file(self):
         """从 CSV / Excel 文件插入数据"""
@@ -907,6 +907,6 @@ class TableMixin:
                 df = pd.read_excel(path)
             title = Path(path).stem
             self.rich_editor.insert_dataframe_table(df.head(100), title)
-            self._set_status(f"已插入文件数据: {title}", 3000)
+            self._set_status(tr("auto.beewrite_table_mixin.dc0dd2be", "已插入文件数据: {title}").format(title=title), 3000)
         except Exception as e:
             QMessageBox.warning(self, tr("auto.beewrite_table_mixin.a01a8d53", "导入失败"), str(e))

@@ -22,6 +22,7 @@
 import logging
 
 from beeoffice.settings import AppSettings
+from beeoffice.i18n import tr
 
 
 # ==================== 单例缓存 ====================
@@ -95,7 +96,7 @@ def get_cloud_storage():
     # 5. 创建新实例
     cls = _get_storage_class(cloud_type)
     if cls is None:
-        logging.warning(f"未知的云存储类型: {cloud_type}")
+        logging.warning(tr("auto.cloud.b9a2f2a4", "未知的云存储类型: {cloud_type}").format(cloud_type=cloud_type))
         return None
 
     try:

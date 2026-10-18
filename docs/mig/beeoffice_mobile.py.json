@@ -1,7 +1,5 @@
 {
-  "auto.mobile.944f6ab6": "📱 移动端查看",
-  "auto.mobile.ab3656a9": "提示",
-  "auto.mobile.c274339a": "请先打开文档",
-  "auto.mobile.b859c7be": "错误",
-  "auto.mobile.dc50189b": "无法找到可用端口"
+  "auto.mobile.eb0b30a2": "移动端服务已在运行，地址：http://{0}:{1}",
+  "auto.mobile.7a936142": "创建临时目录失败: {e}",
+  "auto.mobile.56becff5": "启动失败: {e}"
 }

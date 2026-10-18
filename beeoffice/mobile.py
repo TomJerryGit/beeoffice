@@ -51,7 +51,7 @@ class MobileServer:
         if self.server is not None:
             QMessageBox.information(
                 self.parent, tr("auto.mobile.ab3656a9", "提示"),
-                f"移动端服务已在运行，地址：http://{self.ip}:{self.port}"
+                tr("auto.mobile.eb0b30a2", "移动端服务已在运行，地址：http://{0}:{1}").format(self.ip, self.port)
             )
             return
 
@@ -66,7 +66,7 @@ class MobileServer:
             self.temp_dir.mkdir(parents=True, exist_ok=True)
         except Exception as e:
             logging.error(f"创建临时目录失败: {e}")
-            QMessageBox.warning(self.parent, tr("auto.mobile.b859c7be", "错误"), f"创建临时目录失败: {e}")
+            QMessageBox.warning(self.parent, tr("auto.mobile.b859c7be", "错误"), tr("auto.mobile.7a936142", "创建临时目录失败: {e}").format(e=e))
             return
 
         # 生成首页
@@ -105,7 +105,7 @@ class MobileServer:
             server = _ThreadingHTTPServer(("", port), handler)
         except Exception as e:
             logging.error(f"启动 HTTP 服务器失败: {e}")
-            QMessageBox.warning(self.parent, tr("auto.mobile.b859c7be", "错误"), f"启动失败: {e}")
+            QMessageBox.warning(self.parent, tr("auto.mobile.b859c7be", "错误"), tr("auto.mobile.56becff5", "启动失败: {e}").format(e=e))
             return
         self.server = server
 

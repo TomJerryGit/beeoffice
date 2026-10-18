@@ -308,7 +308,7 @@ class FormulaMixin:
             self.formula_bar.setText(f"={name}(")
             self.formula_bar.setFocus()
             self.formula_bar.setCursorPosition(len(self.formula_bar.text()))
-            self._set_status(f"已插入 {name}，请在括号内填写参数", 3000)
+            self._set_status(tr("auto.beesheet_formula_mixin.632cd3ff", "已插入 {name}，请在括号内填写参数").format(name=name), 3000)
             dlg.accept()
         lst.itemDoubleClicked.connect(on_double_click)
 
@@ -397,7 +397,7 @@ class FormulaMixin:
             self.formula_bar.setText(f"={name}(")
             self.formula_bar.setFocus()
             self.formula_bar.setCursorPosition(len(self.formula_bar.text()))
-            self._set_status(f"已插入 {name}，请在括号内填写参数", 3000)
+            self._set_status(tr("auto.beesheet_formula_mixin.632cd3ff", "已插入 {name}，请在括号内填写参数").format(name=name), 3000)
             dlg.accept()
         lst.itemDoubleClicked.connect(on_double_click)
 
@@ -460,7 +460,7 @@ class FormulaMixin:
         self.formula_bar.setText(f"={name}(")
         self.formula_bar.setFocus()
         self.formula_bar.setCursorPosition(len(self.formula_bar.text()))
-        self._set_status(f"已插入 {name}，请在括号内填写参数", 3000)
+        self._set_status(tr("auto.beesheet_formula_mixin.632cd3ff", "已插入 {name}，请在括号内填写参数").format(name=name), 3000)
 
     # ==================== 自动求和 ====================
     def _auto_sum(self):
@@ -523,7 +523,7 @@ class FormulaMixin:
             formula = f"=SUM({cn}{r_start+1}:{cn}{r_end+1})"
             result = FormulaEngine.evaluate(formula, self.model)
             if not isinstance(result, (int, float)):
-                self._set_status(f"❌ 求和失败: {result}", 5000)
+                self._set_status(tr("auto.beesheet_formula_mixin.774b9373", "❌ 求和失败: {result}").format(result=result), 5000)
                 return
             old_value = self.model.get_value(target_row, col)
             self._formula_cells[(target_row, col)] = formula
@@ -555,7 +555,7 @@ class FormulaMixin:
                     EditCellCommand(r, target_col, old_value, result)
                 )
                 count += 1
-        self._set_status(f"✅ 已按行自动求和 ({count} 行)", 5000)
+        self._set_status(tr("auto.beesheet_formula_mixin.bc121dae", "✅ 已按行自动求和 ({count} 行)").format(count=count), 5000)
 
     # ==================== 公式重算 ====================
     def _recalc_formulas(self, max_rounds=3):
@@ -595,7 +595,7 @@ class FormulaMixin:
                 if func_name in self.FUNCTION_REFERENCE:
                     syntax, cat = self.FUNCTION_REFERENCE[func_name]
                     QMessageBox.information(
-                        self, f"📖 {func_name} 函数帮助",
+                        self, tr("auto.beesheet_formula_mixin.f6a2e07c", "📖 {func_name} 函数帮助").format(func_name=func_name),
                         f"<b>分类：</b>{cat}<br><br>"
                         f"<b>语法：</b><code>{syntax}</code>"
                     )

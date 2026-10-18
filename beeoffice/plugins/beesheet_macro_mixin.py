@@ -103,7 +103,7 @@ class MacroMixin:
                 if title == name:
                     tm.setCurrentIndex(i)
                     return True
-            logging.warning(f"宏回放：找不到工作表 {name}")
+            logging.warning(tr("auto.beesheet_macro_mixin.abc95c49", "宏回放：找不到工作表 {name}").format(name=name))
             return False
         except Exception as e:
             logging.error(f"宏回放切换工作表失败: {e}")

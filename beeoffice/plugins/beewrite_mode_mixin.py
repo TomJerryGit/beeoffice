@@ -200,7 +200,7 @@ class ModeMixin:
                 QMessageBox.warning(
                     self,
                     tr("auto.beewrite_mode_mixin.4f77b594", "模式切换失败"),
-                    f"错误: {e}\n\n请把上方控制台的报错信息发给开发者。",
+                    tr("auto.beewrite_mode_mixin.1f13b111", "错误: {e}\n\n请把上方控制台的报错信息发给开发者。").format(e=e),
                 )
                 self._sync_mode_buttons()
                 return
@@ -241,7 +241,7 @@ class ModeMixin:
                 QMessageBox.warning(
                     self,
                     tr("auto.beewrite_mode_mixin.4f77b594", "模式切换失败"),
-                    f"错误: {e}\n\n请把上方控制台的报错信息发给开发者。",
+                    tr("auto.beewrite_mode_mixin.1f13b111", "错误: {e}\n\n请把上方控制台的报错信息发给开发者。").format(e=e),
                 )
                 self._sync_mode_buttons()
                 return

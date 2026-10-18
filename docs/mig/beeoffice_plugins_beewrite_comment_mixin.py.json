@@ -1,0 +1,10 @@
+{
+  "auto.beewrite_comment_mixin.58220c82": "✅ 已添加批注 #{0}",
+  "auto.beewrite_comment_mixin.b1534475": "✅ 批注已标记为{status}",
+  "auto.beewrite_comment_mixin.92e6255a": "书签{0}",
+  "auto.beewrite_comment_mixin.eaa0bd0c": "✅ 已添加书签「{name}」",
+  "auto.beewrite_comment_mixin.eb83ecc2": "书签「{name}」已存在，是否覆盖？",
+  "auto.beewrite_comment_mixin.594cd197": "🔖 {0}  (第 {1} 行)",
+  "auto.beewrite_comment_mixin.50144e42": "✅ 已删除书签「{name}」",
+  "auto.beewrite_comment_mixin.1c5e7251": "✅ 修订模式已开启（基线 {0} 字符）"
+}

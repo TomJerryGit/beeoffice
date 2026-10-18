@@ -196,7 +196,7 @@ class AIMixin:
                 self.markdown_editor.appendPlainText(kw_md)
 
             self._set_status(
-                f"✅ 已提取 {len(keywords)} 个关键词", 3000
+                tr("auto.beewrite_ai_mixin.90798079", "✅ 已提取 {0} 个关键词").format(len(keywords)), 3000
             )
         except Exception as e:
             logging.error(f"AI 关键词提取失败: {e}")

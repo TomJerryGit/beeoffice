@@ -188,7 +188,7 @@ class TabManager(QTabWidget):
         title = self.tabText(index)
         parent = self.parent()
         if parent and hasattr(parent, 'setWindowTitle'):
-            parent.setWindowTitle(f"{title} - 🐝 蜜蜂办公")
+            parent.setWindowTitle(tr("auto.tab_manager.2ed690dc", "{title} - 🐝 蜜蜂办公").format(title=title))
 
     # ---------- 未保存标记 ----------
     def _mark_unsaved(self, widget):

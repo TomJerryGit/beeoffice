@@ -1,24 +1,3 @@
 {
-  "auto.webdav.2d9894f5": "☁️ WebDAV 设置",
-  "auto.webdav.e4bdc666": "启动时自动同步",
-  "auto.webdav.7693437d": "启用 WebDAV 同步",
-  "auto.webdav.fadf24db": "保存",
-  "auto.webdav.10b7d8ec": "测试连接",
-  "auto.webdav.4d0b4688": "取消",
-  "auto.webdav.936653fe": "WebDAV 同步",
-  "auto.webdav.cdfab96f": "已保存",
-  "auto.webdav.6bbe8892": "WebDAV 设置已保存",
-  "auto.webdav.ab3656a9": "提示",
-  "auto.webdav.abf804ca": "请先配置并启用 WebDAV",
-  "auto.webdav.253a128f": "WebDAV 地址未配置",
-  "auto.webdav.8a6b5672": "同步正在进行中",
-  "auto.webdav.33246f6a": "完成",
-  "auto.webdav.5521e368": "警告",
-  "auto.webdav.b859c7be": "错误",
-  "auto.webdav.6f7b037c": "地址必须以 http:// 或 https:// 开头",
-  "auto.webdav.c0d8905a": "请先填写地址",
-  "auto.webdav.51991a5d": "成功",
-  "auto.webdav.7ae0ea69": "连接成功！",
-  "auto.webdav.a8f14c99": "同步失败",
-  "auto.webdav.3e3c8068": "失败"
+  "auto.webdav.1cb2563c": "连接失败：\n{e}"
 }

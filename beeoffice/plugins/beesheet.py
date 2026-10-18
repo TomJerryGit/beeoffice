@@ -447,7 +447,7 @@ class BeeSheetView(
         self._progress_bar.setVisible(True)
         self._progress_bar.setValue(0)
         self._cancel_load_btn.setVisible(True)
-        self._set_status(f"正在分块加载: {Path(path).name}")
+        self._set_status(tr("auto.beesheet.874d563d", "正在分块加载: {0}").format(Path(path).name))
 
         def on_progress(pct):
             self._progress_bar.setValue(pct)
@@ -504,7 +504,7 @@ class BeeSheetView(
             self.model.set_full_dataframe(df)
             self.table_view.setModel(self.model)
             self._auto_resize_columns()
-            self._set_status(f"已加载文本: {len(df)} 行")
+            self._set_status(tr("auto.beesheet.607ca9fe", "已加载文本: {0} 行").format(len(df)))
         except Exception as e:
             QMessageBox.warning(self, tr("auto.beesheet.a01a8d53", "导入失败"), str(e))
 
@@ -564,7 +564,7 @@ class BeeSheetView(
         """
         if len(df) > 200000:
             reply = QMessageBox.question(
-                self, tr("auto.beesheet.ab3656a9", "提示"), f"文件有{len(df)}行，仅加载前20万行？",
+                self, tr("auto.beesheet.ab3656a9", "提示"), tr("auto.beesheet.96681a18", "文件有{0}行，仅加载前20万行？").format(len(df)),
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
             )
             if reply != QMessageBox.Yes:
@@ -579,7 +579,7 @@ class BeeSheetView(
         # 否则旧坐标上的公式会在重算时覆盖新数据。
         self._formula_cells.clear()
         self._auto_resize_columns()
-        self._set_status(f"已加载：{len(df)} 行 × {len(df.columns)} 列")
+        self._set_status(tr("auto.beesheet.d6dc480a", "已加载：{0} 行 × {1} 列").format(len(df), len(df.columns)))
         return True
 
     def _import_file_from_path(self, path):
@@ -622,7 +622,7 @@ class BeeSheetView(
         cmd = self._undo_stack.pop()
         cmd.undo(self.model)
         self._redo_stack.append(cmd)
-        self._set_status(f"↩ 撤销({len(self._undo_stack)}步)", 2000)
+        self._set_status(tr("auto.beesheet.d871806c", "↩ 撤销({0}步)").format(len(self._undo_stack)), 2000)
 
     def redo(self):
         """重做"""
@@ -632,7 +632,7 @@ class BeeSheetView(
         cmd = self._redo_stack.pop()
         cmd.execute(self.model)
         self._undo_stack.append(cmd)
-        self._set_status(f"↪ 重做({len(self._redo_stack)}步)", 2000)
+        self._set_status(tr("auto.beesheet.f1612b07", "↪ 重做({0}步)").format(len(self._redo_stack)), 2000)
 
     # ==================== 排序 ====================
     def sort_by_column(self, col, ascending=True):
@@ -763,7 +763,7 @@ class BeeSheetView(
             )
         else:
             self.status_label.setText(
-                f"选中:{len(indexes)} | 空值:{empty}{freeze_info}"
+                tr("auto.beesheet.99c8d0ce", "选中:{0} | 空值:{1}{2}").format(len(indexes), empty, freeze_info)
             )
 
     def _set_status(self, msg, timeout=0):
@@ -809,7 +809,7 @@ class BeeSheetView(
             text = str(val)
             if len(text) > 30:
                 text = text[:30] + "..."
-            self._info_value.setText(f"值：{text}")
+            self._info_value.setText(tr("auto.beesheet.66818f01", "值：{text}").format(text=text))
         if key in self._formula_cells:
             f = self._formula_cells[key]
             if len(f) > 40:
@@ -897,7 +897,7 @@ class BeeSheetView(
                 )
                 self.table_view.setCurrentIndex(top_left)
                 self.table_view.scrollTo(top_left)
-                self._set_status(f"✅ 已选中区域 {ref}", 2000)
+                self._set_status(tr("auto.beesheet.8a8cd772", "✅ 已选中区域 {ref}").format(ref=ref), 2000)
             return
         # 单单元格：A1
         m = re.match(r'^([A-Z]+)(\d+)$', ref)
@@ -909,9 +909,9 @@ class BeeSheetView(
             if idx.isValid():
                 self.table_view.setCurrentIndex(idx)
                 self.table_view.scrollTo(idx)
-                self._set_status(f"✅ 已跳转到 {ref}", 2000)
+                self._set_status(tr("auto.beesheet.db293213", "✅ 已跳转到 {ref}").format(ref=ref), 2000)
             else:
-                self._set_status(f"⚠️ 超出范围：{ref}", 3000)
+                self._set_status(tr("auto.beesheet.7ddfae09", "⚠️ 超出范围：{ref}").format(ref=ref), 3000)
             return
         QMessageBox.warning(self, tr("auto.beesheet.b8dbd7d3", "格式错误"),
                              tr("auto.beesheet.c823eb3f", "请输入有效的引用（如 A1、B10:D20）"))
@@ -925,7 +925,7 @@ class BeeSheetView(
                         "筛选大于100的行  /  如果A1大于10就显示'高'")
         text, ok = QInputDialog.getText(
             self, tr("auto.beesheet.eea62adc", "💬 自然语言生成公式"),
-            f"请输入中文指令：\n（{default_hint}）"
+            tr("auto.beesheet.a918b4f3", "请输入中文指令：\n（{default_hint}）").format(default_hint=default_hint)
         )
         if not ok or not text.strip():
             return
@@ -966,7 +966,7 @@ class BeeSheetView(
         )
         self.model.setData(idx, result)
         self.formula_bar.setText(result)
-        self._set_status(f"✅ 已生成公式: {result}", 5000)
+        self._set_status(tr("auto.beesheet.d44b1fd2", "✅ 已生成公式: {result}").format(result=result), 5000)
 
     def _apply_nl_filter(self, op, value):
         """应用自然语言筛选指令"""
@@ -1008,7 +1008,7 @@ class BeeSheetView(
             return
         self.model._loaded_df = filtered
         self.model.layoutChanged.emit()
-        self._set_status(f"✅ 筛选完成：{len(filtered)} 行", 3000)
+        self._set_status(tr("auto.beesheet.4cb22b00", "✅ 筛选完成：{0} 行").format(len(filtered)), 3000)
 
     # ==================== 查找替换 ====================
     def _show_find_replace(self):
@@ -1071,7 +1071,7 @@ class BeeSheetView(
                 self.model.index(len(self.model.df) - 1,
                                   len(self.model.df.columns) - 1)
             )
-            rl.setText(f"已替换{count}处")
+            rl.setText(tr("auto.beesheet.910d3b3a", "已替换{count}处").format(count=count))
 
         bl.addWidget(QPushButton(tr("auto.beesheet.6cb005a6", "查找"), clicked=fn))
         bl.addWidget(QPushButton(tr("auto.beesheet.855241c2", "替换"), clicked=ra))

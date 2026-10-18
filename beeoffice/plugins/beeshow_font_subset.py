@@ -190,7 +190,7 @@ class FontSubsetter:
                 idx = ttc_index if ttc_index is not None else 0
                 if idx >= len(collection.fonts):
                     logging.warning(
-                        f"ttc index {idx} 越界，回退到 0"
+                        tr("auto.beeshow_font_subset.de3a7928", "ttc index {idx} 越界，回退到 0").format(idx=idx)
                     )
                     idx = 0
                 font = collection.fonts[idx]
@@ -375,7 +375,7 @@ def embed_fonts_to_pptx(
             for i, (name, font_path) in enumerate(fonts.items(), 1):
                 src = Path(font_path)
                 if not src.exists():
-                    logging.warning(f"字体文件不存在，跳过：{font_path}")
+                    logging.warning(tr("auto.beeshow_font_subset.4642f66e", "字体文件不存在，跳过：{font_path}").format(font_path=font_path))
                     continue
                 dst_name = f"font{i}.fntdata"
                 dst = fonts_dir / dst_name

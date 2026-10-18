@@ -1,0 +1,13 @@
+{
+  "auto.beewrite_export_mixin.a1a1d0f6": "✅ 已保存为 Markdown：{0}",
+  "auto.beewrite_export_mixin.5b8b2b95": "✅ 已保存为 Word 文档：{0}",
+  "auto.beewrite_export_mixin.f0bb4b8e": "已保存：\n{path}\n\n是否打开？",
+  "auto.beewrite_export_mixin.e52cdf3b": "无法保存文件：\n{e}",
+  "auto.beewrite_export_mixin.e4d65860": "无法保存 Word 文档：\n{e}",
+  "auto.beewrite_export_mixin.1a5cc4b0": "已保存:\n{path}",
+  "auto.beewrite_export_mixin.f1431941": "已保存:\n{path}\n\n是否打开？",
+  "auto.beewrite_export_mixin.42a3bd4e": "应用页面设置失败（使用默认值）: {e}",
+  "auto.beewrite_export_mixin.68b212fe": "保存模板失败：\n{e}",
+  "auto.beewrite_export_mixin.411288e0": "处理单元格图片失败: {e}",
+  "auto.beewrite_export_mixin.ab3d952a": "设置单元格背景色失败: {e}"
+}

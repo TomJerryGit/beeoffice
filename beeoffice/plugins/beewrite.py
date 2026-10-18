@@ -102,6 +102,7 @@ from beeoffice.plugins.beewrite_comment_mixin import CommentMixin
 from beeoffice.plugins.beewrite_link_mixin import LinkMixin
 from beeoffice.plugins.beewrite_ai_mixin import AIMixin
 from beeoffice.plugins.beewrite_view_mixin import ViewMixin
+from beeoffice.i18n import tr
 
 
 # ==================== 主编辑器 ====================
@@ -535,7 +536,7 @@ class BeeWriteEditor(
         try:
             self.data_source_manager.register_file(name, filepath)
         except Exception as e:
-            self._set_status(f"绑定失败: {e}", 3000)
+            self._set_status(tr("auto.beewrite.bd70f072", "绑定失败: {e}").format(e=e), 3000)
 
     def register_sheet_source(self, name, df):
         """注册来自蜜算的 DataFrame 数据源"""

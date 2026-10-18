@@ -1,4 +1,4 @@
 {
-  "auto.macro_recorder.4d859816": "宏包含格式动作，但未提供处理回调，已跳过",
-  "auto.macro_recorder.05710f0f": "宏包含切换工作表，但未提供处理回调，已跳过"
+  "auto.macro_recorder.b116f374": "未知宏动作：{kind}",
+  "auto.macro_recorder.73bd3388": "回放到不存在的工作表：{name}"
 }

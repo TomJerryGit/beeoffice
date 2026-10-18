@@ -220,7 +220,7 @@ class HistoryMixin:
             self._current_slide = 0
             self._update_preview()
             self._set_status(
-                f"↩ 已恢复到 {snap['timestamp']}", 3000
+                tr("auto.beeshow_history_mixin.266550cf", "↩ 已恢复到 {0}").format(snap['timestamp']), 3000
             )
             dlg.accept()
 
@@ -309,7 +309,7 @@ class HistoryMixin:
         self._current_slide = 0
         self._update_preview()
         self._set_status(
-            f"↩ 已回滚到 {prev['timestamp']}", 3000
+            tr("auto.beeshow_history_mixin.85b2e8c1", "↩ 已回滚到 {0}").format(prev['timestamp']), 3000
         )
 
     # ==================== 清空 ====================

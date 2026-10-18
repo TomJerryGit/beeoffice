@@ -83,7 +83,7 @@ class VideoMixin:
                 return self._render_video_tag(params)
             except Exception as e:
                 logging.warning(
-                    f"视频解析失败：{e}（原文：{match.group(0)}）"
+                    tr("auto.beeshow_video_mixin.fa61b122", "视频解析失败：{0}（原文：{1}）").format(e, match.group(0))
                 )
                 return match.group(0)
 
@@ -219,7 +219,7 @@ class VideoMixin:
         # 解析路径
         resolved = self._resolve_video_path(video_path)
         if resolved is None:
-            logging.warning(f"视频文件不存在：{video_path}")
+            logging.warning(tr("auto.beeshow_video_mixin.c77b82f5", "视频文件不存在：{video_path}").format(video_path=video_path))
             return self._render_video_placeholder(
                 f"视频不存在：{video_path}"
             )
@@ -227,7 +227,7 @@ class VideoMixin:
         # 格式检查
         ext = resolved.suffix.lower()
         if ext not in self.SUPPORTED_FORMATS:
-            logging.warning(f"不支持的视频格式：{ext}")
+            logging.warning(tr("auto.beeshow_video_mixin.2ec98097", "不支持的视频格式：{ext}").format(ext=ext))
             return self._render_video_placeholder(
                 f"不支持的格式：{ext}"
             )
@@ -339,7 +339,7 @@ class VideoMixin:
 
                     return f'{attr}="media/{new_name}"'
                 except Exception as e:
-                    logging.warning(f"复制视频失败 {original}：{e}")
+                    logging.warning(tr("auto.beeshow_video_mixin.1b5ff4e5", "复制视频失败 {original}：{e}").format(original=original, e=e))
                     return match.group(0)
 
             new_html = re.sub(
@@ -392,7 +392,7 @@ class VideoMixin:
                 return output_path
             else:
                 logging.warning(
-                    f"ffmpeg 提取失败：{result.stderr.decode()[:200]}"
+                    tr("auto.beeshow_video_mixin.dbab38c1", "ffmpeg 提取失败：{0}").format(result.stderr.decode()[:200])
                 )
                 return None
         except subprocess.TimeoutExpired:
@@ -447,7 +447,7 @@ class VideoMixin:
                             video_path, str(poster_path)
                         )
                     except Exception as e:
-                        logging.warning(f"提取封面失败：{e}")
+                        logging.warning(tr("auto.beeshow_video_mixin.536f33de", "提取封面失败：{e}").format(e=e))
                         poster = None
                     poster_cache[video_path] = poster
 

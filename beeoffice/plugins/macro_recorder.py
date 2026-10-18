@@ -136,9 +136,9 @@ class MacroRecorder:
                     if switch_sheet(name):
                         applied += 1
                     else:
-                        logging.warning(f"回放到不存在的工作表：{name}")
+                        logging.warning(tr("auto.macro_recorder.73bd3388", "回放到不存在的工作表：{name}").format(name=name))
                 else:
-                    logging.warning(f"未知宏动作：{kind}")
+                    logging.warning(tr("auto.macro_recorder.b116f374", "未知宏动作：{kind}").format(kind=kind))
         finally:
             self._playing = False
         return applied

@@ -216,7 +216,7 @@ class CloudSettingsDialog(QDialog):
             self.settings.save()
         except Exception as e:
             logging.error(f"保存云存储设置失败: {e}")
-            QMessageBox.warning(self, tr("auto.cloud_settings.b859c7be", "错误"), f"保存失败: {e}")
+            QMessageBox.warning(self, tr("auto.cloud_settings.b859c7be", "错误"), tr("auto.cloud_settings.64a6fce8", "保存失败: {e}").format(e=e))
             return
 
         # 新增：重置云存储单例，使新配置立即生效

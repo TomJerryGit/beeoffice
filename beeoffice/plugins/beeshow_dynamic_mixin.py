@@ -40,6 +40,7 @@ import logging
 from typing import Dict, Any
 
 from PySide6.QtCore import Qt
+from beeoffice.i18n import tr
 
 
 # ==================== 语法解析 ====================
@@ -79,7 +80,7 @@ class DynamicMixin:
                 params = self._parse_dynamic_params(inner)
                 return self._render_dynamic_span(params)
             except Exception as e:
-                logging.warning(f"动态数字解析失败：{e}（原文：{match.group(0)}）")
+                logging.warning(tr("auto.beeshow_dynamic_mixin.d48ecf31", "动态数字解析失败：{0}（原文：{1}）").format(e, match.group(0)))
                 # 解析失败时保留原文（用户能看到错误）
                 return match.group(0)
 
@@ -335,7 +336,7 @@ class DynamicMixin:
                     s = f"{number:,}"
                 return f"{prefix}{s}{suffix}"
             except Exception as e:
-                logging.warning(f"导出动态数字失败：{e}")
+                logging.warning(tr("auto.beeshow_dynamic_mixin.f6ba9040", "导出动态数字失败：{e}").format(e=e))
                 return match.group(0)
 
         return DYNAMIC_NUMBER_PATTERN.sub(replace, md_text)

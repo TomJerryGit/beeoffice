@@ -224,7 +224,7 @@ class BeeApp(QMainWindow):
             self.tab_manager.setTabText(idx, f"{prefix}{name}")
             # 如果是当前标签，同步窗口标题
             if idx == self.tab_manager.currentIndex():
-                self.setWindowTitle(f"{prefix}{name} - 🐝 蜜蜂办公")
+                self.setWindowTitle(tr("auto.app.146cba16", "{prefix}{name} - 🐝 蜜蜂办公").format(prefix=prefix, name=name))
         except Exception as e:
             logging.error(f"同步标签标题失败: {e}")
 
@@ -495,7 +495,7 @@ class BeeApp(QMainWindow):
         elif ext in TEXT_EXTENSIONS:
             self._open_text_file(path)
         else:
-            logging.warning(f"不支持的文件类型: {ext}")
+            logging.warning(tr("auto.app.eb30832b", "不支持的文件类型: {ext}").format(ext=ext))
 
         self.settings.add_recent_file(path)
         self._update_recent_menu()

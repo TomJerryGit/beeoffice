@@ -1,11 +1,5 @@
 {
-  "auto.beeshow_notes_mixin.c51339a2": "📝 备注已更新",
-  "auto.beeshow_notes_mixin.836b176d": "🤖 正在生成演讲稿...",
-  "auto.beeshow_notes_mixin.a140f197": "🤖 批量生成演讲稿",
-  "auto.beeshow_notes_mixin.ab3656a9": "提示",
-  "auto.beeshow_notes_mixin.63565334": "请先编写幻灯片内容",
-  "auto.beeshow_notes_mixin.6f02da31": "当前页索引无效",
-  "auto.beeshow_notes_mixin.fe019d54": "⚠️ 未生成演讲稿",
-  "auto.beeshow_notes_mixin.64ba75d9": "生成失败",
-  "auto.beeshow_notes_mixin.b017c717": "❌ 生成失败"
+  "auto.beeshow_notes_mixin.fada6e21": "✅ 已生成演讲稿（{0} 字）",
+  "auto.beeshow_notes_mixin.4718777f": "✅ 批量完成：成功 {success} 页，失败 {fail} 页",
+  "auto.beeshow_notes_mixin.63e0d4dc": "🤖 正在生成第 {0}/{1} 页..."
 }

@@ -88,7 +88,7 @@ def protect(text: str) -> str:
             cipher = _dpapi(text.encode("utf-8"), protect=True)
             return PREFIX_DPAPI + base64.b64encode(cipher).decode("ascii")
         except Exception as e:
-            logging.warning(f"DPAPI 加密失败，回退 Base64: {e}")
+            logging.warning(tr("auto.secret_store.96951887", "DPAPI 加密失败，回退 Base64: {e}").format(e=e))
     return PREFIX_B64 + base64.b64encode(text.encode("utf-8")).decode("ascii")
 
 

@@ -1,18 +1,6 @@
 {
-  "auto.beesheet_formula_mixin.7cf7ff1f": "📚 函数参考（双击插入到当前单元格）",
-  "auto.beesheet_formula_mixin.29668b10": "搜索函数...",
-  "auto.beesheet_formula_mixin.843a19f1": "💡 双击函数名插入到公式栏，光标会定位到括号内",
-  "auto.beesheet_formula_mixin.5a598b04": "ƒx 插入函数",
-  "auto.beesheet_formula_mixin.4d9c088f": "搜索函数名或语法...",
-  "auto.beesheet_formula_mixin.d68c58ae": "双击函数名插入到当前单元格的公式栏",
-  "auto.beesheet_formula_mixin.b48a4da0": "插入到当前单元格",
-  "auto.beesheet_formula_mixin.6c14bd7f": "关闭",
-  "auto.beesheet_formula_mixin.25ad4e61": "🔥 常用",
-  "auto.beesheet_formula_mixin.2006162c": "📚 函数帮助",
-  "auto.beesheet_formula_mixin.557b40eb": "请先在公式栏输入 `=` 加函数名，然后按 F1。",
-  "auto.beesheet_formula_mixin.ab3656a9": "提示",
-  "auto.beesheet_formula_mixin.f4d94f7a": "请先在表格中选中一个单元格",
-  "auto.beesheet_formula_mixin.53c01b07": "请选中要计算的数据",
-  "auto.beesheet_formula_mixin.0aa3552f": "当前单元格上方未找到可求和的数字",
-  "auto.beesheet_formula_mixin.a0aba974": "🔍 更多函数..."
+  "auto.beesheet_formula_mixin.632cd3ff": "已插入 {name}，请在括号内填写参数",
+  "auto.beesheet_formula_mixin.bc121dae": "✅ 已按行自动求和 ({count} 行)",
+  "auto.beesheet_formula_mixin.774b9373": "❌ 求和失败: {result}",
+  "auto.beesheet_formula_mixin.f6a2e07c": "📖 {func_name} 函数帮助"
 }

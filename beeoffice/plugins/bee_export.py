@@ -298,14 +298,14 @@ def _add_image_to_paragraph(paragraph, src, docx_path=None,
     path = _resolve_image_path(src, docx_path)
     if path is None:
         paragraph.add_run(f"[图片缺失: {src}]")
-        logging.warning(f"导出 DOCX：图片不存在 {src}")
+        logging.warning(tr("auto.bee_export.acc2c78e", "导出 DOCX：图片不存在 {src}").format(src=src))
         return False
     try:
         run = paragraph.add_run()
         run.add_picture(str(path), width=Inches(max_width_inch))
         return True
     except Exception as e:
-        logging.warning(f"导出 DOCX：插入图片失败 {src}: {e}")
+        logging.warning(tr("auto.bee_export.190d98ef", "导出 DOCX：插入图片失败 {src}: {e}").format(src=src, e=e))
         paragraph.add_run(f"[图片缺失: {src}]")
         return False
 
@@ -787,7 +787,7 @@ def _extract_para_images(para, doc, media_dir, img_counter, docx_p):
                     f"{source_type} rId={r_id}: {e}"
                 )
     except Exception as e:
-        logging.warning(f"提取段落图片失败: {e}")
+        logging.warning(tr("auto.bee_export.cdc1122c", "提取段落图片失败: {e}").format(e=e))
 
     return imgs_md
 

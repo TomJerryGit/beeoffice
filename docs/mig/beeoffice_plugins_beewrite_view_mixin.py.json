@@ -1,11 +1,6 @@
 {
-  "auto.beewrite_view_mixin.7ec936f4": "📖 阅读模式（按 F11 或 Esc 退出）",
-  "auto.beewrite_view_mixin.e8cd7a82": "已退出阅读模式",
-  "auto.beewrite_view_mixin.79abf256": "选择对照文档",
-  "auto.beewrite_view_mixin.d6bedeb2": "Markdown (*.md);;文本 (*.txt);;所有文件 (*)",
-  "auto.beewrite_view_mixin.7202d66a": "🔍 显示差异",
-  "auto.beewrite_view_mixin.0cd0f997": "🔄 交换左右",
-  "auto.beewrite_view_mixin.6c14bd7f": "关闭",
-  "auto.beewrite_view_mixin.95f60c82": "📊 差异详情",
-  "auto.beewrite_view_mixin.e1ae8ece": "打开失败"
+  "auto.beewrite_view_mixin.7817b7b1": "📊 双屏对比 — {0}",
+  "auto.beewrite_view_mixin.1a98e9a7": "字数：{word_count}",
+  "auto.beewrite_view_mixin.fc9bf7d3": "字符：{char_count}",
+  "auto.beewrite_view_mixin.fef93934": "行 {line} 列 {col}"
 }

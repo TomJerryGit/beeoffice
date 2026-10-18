@@ -1,19 +1,3 @@
 {
-  "auto.beewrite_ai_mixin.9ff81cf0": "✅ AI 续写完成",
-  "auto.beewrite_ai_mixin.69385b54": "✅ AI 润色完成",
-  "auto.beewrite_ai_mixin.1b77d493": "✅ AI 总结已插入文末",
-  "auto.beewrite_ai_mixin.495a45e7": "AI 续写失败",
-  "auto.beewrite_ai_mixin.a6ef5e04": "AI 润色失败",
-  "auto.beewrite_ai_mixin.ab3656a9": "提示",
-  "auto.beewrite_ai_mixin.737235e2": "文本太短，无需总结",
-  "auto.beewrite_ai_mixin.f3dcb35f": "⚠️ 无法生成摘要",
-  "auto.beewrite_ai_mixin.7d6733f5": "AI 总结失败",
-  "auto.beewrite_ai_mixin.b6abb666": "文本太短，无法提取关键词",
-  "auto.beewrite_ai_mixin.4989ee5a": "⚠️ 未提取到关键词",
-  "auto.beewrite_ai_mixin.8f7775df": "AI 关键词提取失败",
-  "auto.beewrite_ai_mixin.866d27d6": "✍️ 续写",
-  "auto.beewrite_ai_mixin.0d557228": "✨ 润色",
-  "auto.beewrite_ai_mixin.e65d7465": "📝 总结",
-  "auto.beewrite_ai_mixin.6c712767": "🔑 提取关键词",
-  "auto.beewrite_ai_mixin.e91e0829": "请先选中要润色的文本"
+  "auto.beewrite_ai_mixin.90798079": "✅ 已提取 {0} 个关键词"
 }

@@ -107,7 +107,7 @@ class PDFAnnotator(QWidget):
     def _update_view(self):
         if not self._doc: return
         self._page_view.set_page(self._doc[self._current_page], self._annotations)
-        self._page_label.setText(f"第 {self._current_page+1}/{len(self._doc)} 页")
+        self._page_label.setText(tr("auto.pdf_annotator.0bf25c34", "第 {0}/{1} 页").format(self._current_page + 1, len(self._doc)))
         self._anno_list.clear()
         for i,a in enumerate([a for a in self._annotations if a.page==self._current_page]):
             self._anno_list.addItem(QListWidgetItem(f"{i+1}. [{a.type}] {a.text[:20]}"))
@@ -157,7 +157,7 @@ class PDFAnnotator(QWidget):
         if not self._filepath: return
         p=Path(self._filepath).with_suffix(".beeanno")
         with open(p,'w',encoding='utf-8') as f: json.dump([a.to_dict() for a in self._annotations],f,indent=2,ensure_ascii=False)
-        QMessageBox.information(self,tr("auto.pdf_annotator.7e68eb62", "保存成功"),f"批注已保存至：\n{p}")
+        QMessageBox.information(self,tr("auto.pdf_annotator.7e68eb62", "保存成功"),tr("auto.pdf_annotator.1ebdcaa2", "批注已保存至：\n{p}").format(p=p))
     def _burn_annotations(self):
         if not self._doc or not self._annotations: QMessageBox.information(self,tr("auto.pdf_annotator.ab3656a9", "提示"),tr("auto.pdf_annotator.9fc24eb3", "没有批注可烧录")); return
         p,_=QFileDialog.getSaveFileName(self,tr("auto.pdf_annotator.5639ff2e", "保存已批注 PDF"),"","PDF (*.pdf)")
@@ -170,5 +170,5 @@ class PDFAnnotator(QWidget):
                 elif a.type=="underline": pg.add_underline_annot(a.rect)
                 elif a.type=="strikethrough": pg.add_strikeout_annot(a.rect)
                 elif a.type=="text": pg.add_text_annot(a.rect.tl, a.text)
-            nd.save(p); nd.close(); QMessageBox.information(self,tr("auto.pdf_annotator.74642af0", "烧录成功"),f"已保存至：\n{p}")
+            nd.save(p); nd.close(); QMessageBox.information(self,tr("auto.pdf_annotator.74642af0", "烧录成功"),tr("auto.pdf_annotator.007dde15", "已保存至：\n{p}").format(p=p))
         except Exception as e: QMessageBox.warning(self,tr("auto.pdf_annotator.a975edc5", "烧录失败"),str(e))

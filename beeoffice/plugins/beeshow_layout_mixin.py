@@ -159,7 +159,7 @@ class LayoutMixin:
         self._current_slide = 0
         self._update_preview()
         self._set_status(
-            f"📐 已应用版式：{meta['name']}", 2000
+            tr("auto.beeshow_layout_mixin.9b71574f", "📐 已应用版式：{0}").format(meta['name']), 2000
         )
 
     # ==================== 版式 CSS ====================

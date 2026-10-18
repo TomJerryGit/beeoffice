@@ -228,7 +228,7 @@ class ExportMixin:
             self._notify_self_save(path)
 
             self._set_status(
-                f"✅ 已保存为 Markdown：{Path(path).name}", 3000
+                tr("auto.beewrite_export_mixin.a1a1d0f6", "✅ 已保存为 Markdown：{0}").format(Path(path).name), 3000
             )
             return True
 
@@ -249,7 +249,7 @@ class ExportMixin:
         except Exception as e:
             logging.error(f"保存 Markdown 失败: {e}")
             QMessageBox.warning(
-                self, tr("auto.beewrite_export_mixin.40525a73", "保存失败"), f"无法保存文件：\n{e}"
+                self, tr("auto.beewrite_export_mixin.40525a73", "保存失败"), tr("auto.beewrite_export_mixin.e52cdf3b", "无法保存文件：\n{e}").format(e=e)
             )
             return False
 
@@ -328,7 +328,7 @@ class ExportMixin:
             self._notify_self_save(path)
 
             self._set_status(
-                f"✅ 已保存为 Word 文档：{Path(path).name}", 3000
+                tr("auto.beewrite_export_mixin.5b8b2b95", "✅ 已保存为 Word 文档：{0}").format(Path(path).name), 3000
             )
             return True
 
@@ -373,7 +373,7 @@ class ExportMixin:
             traceback.print_exc()
             logging.error(f"保存 DOCX 失败: {e}")
             QMessageBox.warning(
-                self, tr("auto.beewrite_export_mixin.40525a73", "保存失败"), f"无法保存 Word 文档：\n{e}"
+                self, tr("auto.beewrite_export_mixin.40525a73", "保存失败"), tr("auto.beewrite_export_mixin.e4d65860", "无法保存 Word 文档：\n{e}").format(e=e)
             )
             return False
 
@@ -401,7 +401,7 @@ class ExportMixin:
 
             if export_to_pdf(content, path):
                 QMessageBox.information(
-                    self, tr("auto.beewrite_export_mixin.51991a5d", "成功"), f"已保存:\n{path}"
+                    self, tr("auto.beewrite_export_mixin.51991a5d", "成功"), tr("auto.beewrite_export_mixin.1a5cc4b0", "已保存:\n{path}").format(path=path)
                 )
             else:
                 QMessageBox.warning(self, tr("auto.beewrite_export_mixin.3e3c8068", "失败"), tr("auto.beewrite_export_mixin.aee44226", "需要 WeasyPrint"))
@@ -493,7 +493,7 @@ class ExportMixin:
             if export_to_docx(self.get_rendered_content(), path):
                 r = QMessageBox.information(
                     self, tr("auto.beewrite_export_mixin.51991a5d", "成功"),
-                    f"已保存:\n{path}\n\n是否打开？",
+                    tr("auto.beewrite_export_mixin.f1431941", "已保存:\n{path}\n\n是否打开？").format(path=path),
                     QMessageBox.Yes | QMessageBox.No,
                 )
                 if r == QMessageBox.Yes:
@@ -542,7 +542,7 @@ class ExportMixin:
             self._rich_to_docx(path)
             r = QMessageBox.information(
                 self, tr("auto.beewrite_export_mixin.51991a5d", "成功"),
-                f"已保存：\n{path}\n\n是否打开？",
+                tr("auto.beewrite_export_mixin.f0bb4b8e", "已保存：\n{path}\n\n是否打开？").format(path=path),
                 QMessageBox.Yes | QMessageBox.No,
             )
             if r == QMessageBox.Yes:
@@ -865,7 +865,7 @@ class ExportMixin:
             else:
                 section.orientation = WD_ORIENT.PORTRAIT
         except Exception as e:
-            logging.warning(f"应用页面设置失败（使用默认值）: {e}")
+            logging.warning(tr("auto.beewrite_export_mixin.42a3bd4e", "应用页面设置失败（使用默认值）: {e}").format(e=e))
 
         # ========== 统计文档图片 ==========
         try:
@@ -1123,7 +1123,7 @@ class ExportMixin:
                         )
                         docx_cell._tc.get_or_add_tcPr().append(shd)
                     except Exception as e:
-                        logging.warning(f"设置单元格背景色失败: {e}")
+                        logging.warning(tr("auto.beewrite_export_mixin.ab3d952a", "设置单元格背景色失败: {e}").format(e=e))
 
                 # ---------- v5.0.2 增强：单元格内图片 ----------
                 try:
@@ -1146,7 +1146,7 @@ class ExportMixin:
                                     )
                             it += 1
                 except Exception as e:
-                    logging.warning(f"处理单元格图片失败: {e}")
+                    logging.warning(tr("auto.beewrite_export_mixin.411288e0", "处理单元格图片失败: {e}").format(e=e))
 
     def _open_file_externally(self, path):
         """用系统默认程序打开导出的文件"""
@@ -1177,4 +1177,4 @@ class ExportMixin:
                 QMessageBox.warning(self, tr("auto.beewrite_export_mixin.3e3c8068", "失败"), tr("auto.beewrite_export_mixin.d8fc29f5", "保存模板失败"))
         except Exception as e:
             logging.error(f"保存模板失败: {e}")
-            QMessageBox.warning(self, tr("auto.beewrite_export_mixin.3e3c8068", "失败"), f"保存模板失败：\n{e}")
+            QMessageBox.warning(self, tr("auto.beewrite_export_mixin.3e3c8068", "失败"), tr("auto.beewrite_export_mixin.68b212fe", "保存模板失败：\n{e}").format(e=e))

@@ -1,0 +1,7 @@
+{
+  "auto.document_sync.05d4026b": "读取同步状态失败，将重新建立: {e}",
+  "auto.document_sync.37163e52": "保存同步状态失败: {e}",
+  "auto.document_sync.a584995f": "读取远端信息失败 {remote}: {e}",
+  "auto.document_sync.4d211900": "收集已打开文档失败: {e}",
+  "auto.document_sync.92ad208f": "取当前文档失败: {e}"
+}

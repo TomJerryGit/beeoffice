@@ -163,7 +163,7 @@ class SlideMixin:
             self._show_slide(
                 min(self._current_slide, len(self._slides_html) - 1)
             )
-        self._slide_label.setText(f"幻灯片: {len(self._slides_html)} 页")
+        self._slide_label.setText(tr("auto.beeshow_slide_mixin.1875b86d", "幻灯片: {0} 页").format(len(self._slides_html)))
 
         # 任务 4.1：自动保存版本快照
         # 用 try/except 保护：HistoryMixin 未挂载时不影响主流程
@@ -246,7 +246,7 @@ class SlideMixin:
                     html, styles_map
                 )
             except Exception as e:
-                logging.warning(f"应用元素样式失败：{e}")
+                logging.warning(tr("auto.beeshow_slide_mixin.5f4bb5b3", "应用元素样式失败：{e}").format(e=e))
 
         # 任务 2.3：应用图片信息
         images_map = {}
@@ -262,7 +262,7 @@ class SlideMixin:
                     html, images_map
                 )
         except Exception as e:
-            logging.warning(f"应用图片样式失败：{e}")
+            logging.warning(tr("auto.beeshow_slide_mixin.a30d0539", "应用图片样式失败：{e}").format(e=e))
 
         # 任务 5.2：应用 morph id
         try:
@@ -512,7 +512,7 @@ class SlideMixin:
 
         except Exception as e:
             logging.error(f"应用元素编辑失败：{e}")
-            self._set_status(f"❌ 应用失败：{e}", 3000)
+            self._set_status(tr("auto.beeshow_slide_mixin.628c9d07", "❌ 应用失败：{e}").format(e=e), 3000)
 
     # ==================== 图片编辑回调（任务 2.3） ====================
     def _on_image_edit_applied(self, data: dict):
@@ -558,4 +558,4 @@ class SlideMixin:
 
         except Exception as e:
             logging.error(f"应用图片编辑失败：{e}")
-            self._set_status(f"❌ 应用失败：{e}", 3000)
+            self._set_status(tr("auto.beeshow_slide_mixin.628c9d07", "❌ 应用失败：{e}").format(e=e), 3000)

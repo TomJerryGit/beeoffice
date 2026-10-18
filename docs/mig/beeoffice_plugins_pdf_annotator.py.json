@@ -1,15 +1,5 @@
 {
-  "auto.pdf_annotator.dfef6472": "🐝 PDF 批注",
-  "auto.pdf_annotator.0a68d7e1": "第 1/1 页",
-  "auto.pdf_annotator.ab3656a9": "提示",
-  "auto.pdf_annotator.c8b4281b": "当前页没有可撤销的批注",
-  "auto.pdf_annotator.7e68eb62": "保存成功",
-  "auto.pdf_annotator.5639ff2e": "保存已批注 PDF",
-  "auto.pdf_annotator.fcc52c17": "🎨 颜色",
-  "auto.pdf_annotator.8c72a3c9": "批注列表",
-  "auto.pdf_annotator.3a108067": "添加文字批注",
-  "auto.pdf_annotator.9fc24eb3": "没有批注可烧录",
-  "auto.pdf_annotator.74642af0": "烧录成功",
-  "auto.pdf_annotator.e1ae8ece": "打开失败",
-  "auto.pdf_annotator.a975edc5": "烧录失败"
+  "auto.pdf_annotator.0bf25c34": "第 {0}/{1} 页",
+  "auto.pdf_annotator.1ebdcaa2": "批注已保存至：\n{p}",
+  "auto.pdf_annotator.007dde15": "已保存至：\n{p}"
 }

@@ -41,6 +41,10 @@ def collect_zh():
         except UnicodeDecodeError:
             continue
         for key, zh in TR_PATTERN.findall(src):
+            # 跳过不像真 key 的匹配：注释里的示例（如 tr("k", "中文")）
+            # 真实键一定是 `模块.条目` 形式，至少含一个点
+            if "." not in key:
+                continue
             pairs.setdefault(key, zh)
     return pairs
 

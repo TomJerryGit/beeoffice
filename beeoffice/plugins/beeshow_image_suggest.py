@@ -39,6 +39,7 @@ import re
 import urllib.parse
 import urllib.request
 from typing import List, Dict, Optional
+from beeoffice.i18n import tr
 
 
 # ==================== 停用词 ====================
@@ -208,7 +209,7 @@ class ImageSuggester:
                 })
             return results
         except Exception as e:
-            logging.warning(f"Unsplash 搜索失败：{e}")
+            logging.warning(tr("auto.beeshow_image_suggest.0b566554", "Unsplash 搜索失败：{e}").format(e=e))
             return []
 
     # ==================== Pexels ====================
@@ -241,7 +242,7 @@ class ImageSuggester:
                 })
             return results
         except Exception as e:
-            logging.warning(f"Pexels 搜索失败：{e}")
+            logging.warning(tr("auto.beeshow_image_suggest.b57f964f", "Pexels 搜索失败：{e}").format(e=e))
             return []
 
     # ==================== Lorem Picsum 降级 ====================

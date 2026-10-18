@@ -189,7 +189,7 @@ class CommentPanel(QWidget):
     def refresh(self, comments):
         """刷新列表"""
         self._list.clear()
-        self._title_label.setText(f"💬 批注 ({len(comments)})")
+        self._title_label.setText(tr("auto.beewrite_comment.4b2e7658", "💬 批注 ({0})").format(len(comments)))
 
         # 按时间倒序
         sorted_comments = sorted(
@@ -218,7 +218,7 @@ class CommentPanel(QWidget):
                            f"    {text}")
 
             item.setText(display)
-            item.setToolTip(f"原文：{excerpt}\n\n{c.get('text', '')}")
+            item.setToolTip(tr("auto.beewrite_comment.575ff22c", "原文：{0}\n\n{1}").format(excerpt, c.get('text', '')))
             self._list.addItem(item)
 
     # ==================== 事件 ====================
@@ -287,7 +287,7 @@ class CommentEditDialog(QDialog):
         layout = QVBoxLayout(self)
 
         if excerpt:
-            excerpt_label = QLabel(f"原文：{excerpt[:80]}")
+            excerpt_label = QLabel(tr("auto.beewrite_comment.1358fe30", "原文：{0}").format(excerpt[:80]))
             excerpt_label.setStyleSheet(
                 "QLabel{color:#666;font-size:12px;"
                 "background:#F5F5F5;padding:6px;"

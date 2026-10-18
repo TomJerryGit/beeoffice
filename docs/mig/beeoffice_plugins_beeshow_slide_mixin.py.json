@@ -1,6 +1,6 @@
 {
-  "auto.beeshow_slide_mixin.1cd80fd7": "重命名",
-  "auto.beeshow_slide_mixin.cc35063f": "幻灯片标题:",
-  "auto.beeshow_slide_mixin.a3a83ca4": "✅ 样式已应用",
-  "auto.beeshow_slide_mixin.4f66081e": "✅ 图片样式已应用"
+  "auto.beeshow_slide_mixin.1875b86d": "幻灯片: {0} 页",
+  "auto.beeshow_slide_mixin.a30d0539": "应用图片样式失败：{e}",
+  "auto.beeshow_slide_mixin.628c9d07": "❌ 应用失败：{e}",
+  "auto.beeshow_slide_mixin.5f4bb5b3": "应用元素样式失败：{e}"
 }

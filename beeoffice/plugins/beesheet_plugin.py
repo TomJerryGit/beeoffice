@@ -82,7 +82,7 @@ class BeeSheetPlugin(Plugin):
         """新建一个蜜算表格并添加为标签页"""
         view = self.create_widget()
         timestamp = datetime.now().strftime("%H%M")
-        self.parent.tab_manager.addTab(view, f"📊 蜜算-{timestamp}")
+        self.parent.tab_manager.addTab(view, tr("auto.beesheet_plugin.30f35d2f", "📊 蜜算-{timestamp}").format(timestamp=timestamp))
         self.parent.tab_manager.setCurrentWidget(view)
         return view
 
@@ -119,7 +119,7 @@ class BeeSheetPlugin(Plugin):
                 self.parent.tab_manager.set_tab_file_path(view, path)
                 if hasattr(self.parent, "_add_file_watch"):
                     self.parent._add_file_watch(path)
-                self.parent.set_global_status(f"已导入: {path}", 3000)
+                self.parent.set_global_status(tr("auto.beesheet_plugin.f556c0de", "已导入: {path}").format(path=path), 3000)
             except Exception as e:
                 logging.error(f"导入数据失败: {e}")
                 QMessageBox.warning(self.parent, tr("auto.beesheet_plugin.a01a8d53", "导入失败"), str(e))
@@ -244,7 +244,7 @@ class BeeSheetPlugin(Plugin):
                 if index.isValid():
                     from PySide6.QtCore import Qt
                     view.model.setData(index, result, Qt.EditRole)
-                    self.parent.set_global_status(f"已插入公式: {result}", 3000)
+                    self.parent.set_global_status(tr("auto.beesheet_plugin.7f401271", "已插入公式: {result}").format(result=result), 3000)
                 else:
                     QMessageBox.warning(self.parent, tr("auto.beesheet_plugin.ab3656a9", "提示"), tr("auto.beesheet_plugin.1aeffc93", "请先选择一个单元格"))
         except Exception as e:
@@ -279,7 +279,7 @@ class BeeSheetPlugin(Plugin):
 
         reply = QMessageBox.question(
             self.parent, tr("auto.beesheet_plugin.15e10f35", "数据清洗"),
-            f"发现 {removed} 行重复数据，是否删除？",
+            tr("auto.beesheet_plugin.430766e5", "发现 {removed} 行重复数据，是否删除？").format(removed=removed),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
         )
         if reply != QMessageBox.Yes:
@@ -294,7 +294,7 @@ class BeeSheetPlugin(Plugin):
                 view.model.df = cleaned
                 if hasattr(view.model, "layoutChanged"):
                     view.model.layoutChanged.emit()
-            self.parent.set_global_status(f"已删除 {removed} 行重复数据", 3000)
+            self.parent.set_global_status(tr("auto.beesheet_plugin.3a74e77c", "已删除 {removed} 行重复数据").format(removed=removed), 3000)
         except Exception as e:
             logging.error(f"数据清洗失败: {e}")
             QMessageBox.warning(self.parent, tr("auto.beesheet_plugin.de00c5c2", "清洗失败"), str(e))

@@ -101,11 +101,11 @@ class SyncConflictDialog(QDialog):
             )
             if self._list.count() == 0:
                 self._hint.setText(
-                    f"全部 {self._resolved} 个冲突已处理完毕，可以关闭了。"
+                    tr("auto.sync_conflict_dialog.cd908478", "全部 {0} 个冲突已处理完毕，可以关闭了。").format(self._resolved)
                 )
         else:
             self._status.setText(
-                f"处理失败：{ACTION_LABELS[action]} 未生效，详见日志"
+                tr("auto.sync_conflict_dialog.f6bff7b5", "处理失败：{0} 未生效，详见日志").format(ACTION_LABELS[action])
             )
             logging.error(f"冲突处理失败: {detail.get('local')}")
 

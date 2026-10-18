@@ -422,7 +422,7 @@ class ImageEditorDialog(QDialog):
             img = self._process_image()
             img.save(path)
             self._result_path = path
-            QMessageBox.information(self, tr("auto.beewrite_image.51991a5d", "成功"), f"已保存：\n{path}")
+            QMessageBox.information(self, tr("auto.beewrite_image.51991a5d", "成功"), tr("auto.beewrite_image.ec44b3f2", "已保存：\n{path}").format(path=path))
         except Exception as e:
             QMessageBox.warning(self, tr("auto.beewrite_image.3e3c8068", "失败"), str(e))
 

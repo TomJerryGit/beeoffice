@@ -418,7 +418,7 @@ class RichTextEditor(QTextEdit):
         try:
             img = QImage(str(path))
             if img.isNull():
-                logging.warning(f"图片加载失败: {path}")
+                logging.warning(tr("auto.beewrite_rich_editor.821376a8", "图片加载失败: {path}").format(path=path))
                 return
 
             c = self._cursor_at_end()

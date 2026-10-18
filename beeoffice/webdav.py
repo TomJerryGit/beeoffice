@@ -93,7 +93,7 @@ def show_webdav_settings(parent):
             client.check()
             QMessageBox.information(dlg, tr("auto.webdav.51991a5d", "成功"), tr("auto.webdav.7ae0ea69", "连接成功！"))
         except Exception as e:
-            QMessageBox.warning(dlg, tr("auto.webdav.3e3c8068", "失败"), f"连接失败：\n{e}")
+            QMessageBox.warning(dlg, tr("auto.webdav.3e3c8068", "失败"), tr("auto.webdav.1cb2563c", "连接失败：\n{e}").format(e=e))
 
     save_btn.clicked.connect(save_config)
     test_btn.clicked.connect(test_connection)

@@ -1,7 +1,7 @@
 {
-  "auto.beeshow_comment_mixin.25e590f3": "✅ 评论已更新",
-  "auto.beeshow_comment_mixin.a602a2cf": "删除评论",
-  "auto.beeshow_comment_mixin.34c04064": "✅ 评论已删除",
-  "auto.beeshow_comment_mixin.ab3656a9": "提示",
-  "auto.beeshow_comment_mixin.63565334": "请先编写幻灯片内容"
+  "auto.beeshow_comment_mixin.082f3ad3": "💬 已添加评论 #{0}",
+  "auto.beeshow_comment_mixin.ca605041": "确定删除这条评论吗？\n\n「{0}」",
+  "auto.beeshow_comment_mixin.0168ca80": "✅ 评论已标记为{status}",
+  "auto.beeshow_comment_mixin.5fd13247": "📍 已跳转到第 {0} 页",
+  "auto.beeshow_comment_mixin.9194de8b": "解析第 {0} 页评论失败：{1}"
 }

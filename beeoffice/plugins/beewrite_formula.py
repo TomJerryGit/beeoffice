@@ -220,7 +220,7 @@ class FormulaDialog(QDialog):
             self._preview_label.setText("")
         except Exception as e:
             self._preview_label.setText(
-                f"❌ 渲染失败：{e}\n\n请检查 LaTeX 语法"
+                tr("auto.beewrite_formula.d1525365", "❌ 渲染失败：{e}\n\n请检查 LaTeX 语法").format(e=e)
             )
             self._preview_label.setPixmap(QPixmap())
 

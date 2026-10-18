@@ -180,7 +180,7 @@ class FindReplaceBar(QWidget):
             try:
                 return re.compile(text, flags)
             except re.error as e:
-                self.result_label.setText(f"⚠ 正则错误：{e}")
+                self.result_label.setText(tr("auto.find_replace.58e50dea", "⚠ 正则错误：{e}").format(e=e))
                 return None
         else:
             # 普通模式：转义特殊字符
@@ -363,7 +363,7 @@ class FindReplaceBar(QWidget):
             cursor.setPosition(pos)
             self._editor.setTextCursor(cursor)
 
-        self.result_label.setText(f"已替换 {count} 处")
+        self.result_label.setText(tr("auto.find_replace.2415c336", "已替换 {count} 处").format(count=count))
 
     # ==================== 键盘事件 ====================
     def keyPressEvent(self, event):

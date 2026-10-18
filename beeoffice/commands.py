@@ -109,6 +109,6 @@ def _register_builtin_commands(palette, parent):
             callback = _resolve_target(parent, target)
         except AttributeError as e:
             # 某个功能尚未挂载时跳过，而不是让整个面板构建失败
-            logging.warning(f"命令 {slug} 的目标方法不存在: {e}")
+            logging.warning(tr("auto.commands.f47de3b1", "命令 {slug} 的目标方法不存在: {e}").format(slug=slug, e=e))
             continue
         palette.register_command(name, desc, callback)

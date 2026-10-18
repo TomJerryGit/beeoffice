@@ -34,7 +34,7 @@ class AuditMixin:
         self._refresh_all_cells()
         if refs:
             self._set_status(
-                f"📌 追踪引用：{len(refs)} 个单元格（橙色高亮）",
+                tr("auto.beesheet_audit_mixin.0076746c", "📌 追踪引用：{0} 个单元格（橙色高亮）").format(len(refs)),
                 5000
             )
         else:
@@ -61,7 +61,7 @@ class AuditMixin:
                 f"{target_ref}（橙色高亮）", 5000
             )
         else:
-            self._set_status(f"{target_ref} 没有被任何公式引用", 3000)
+            self._set_status(tr("auto.beesheet_audit_mixin.8b11acfa", "{target_ref} 没有被任何公式引用").format(target_ref=target_ref), 3000)
 
     def _clear_audit(self):
         """清除审计高亮"""
@@ -396,7 +396,7 @@ class AuditMixin:
                         f.write(f"检查时间：{datetime.now()}\n\n")
                         f.write("\n".join(lines))
                     QMessageBox.information(
-                        dlg, tr("auto.beesheet_audit_mixin.51991a5d", "成功"), f"已保存：\n{path}"
+                        dlg, tr("auto.beesheet_audit_mixin.51991a5d", "成功"), tr("auto.beesheet_audit_mixin.ec44b3f2", "已保存：\n{path}").format(path=path)
                     )
                 except Exception as e:
                     QMessageBox.warning(dlg, tr("auto.beesheet_audit_mixin.3e3c8068", "失败"), str(e))

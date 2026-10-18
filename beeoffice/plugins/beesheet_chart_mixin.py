@@ -212,5 +212,5 @@ class ChartMixin:
         parent.tab_manager.addTab(new_sheet, title)
         parent.tab_manager.setCurrentWidget(new_sheet)
         self._set_status(
-            f"✅ 已生成透视表：{len(pivot)} 行 × {len(pivot.columns)} 列", 5000
+            tr("auto.beesheet_chart_mixin.8c665fa7", "✅ 已生成透视表：{0} 行 × {1} 列").format(len(pivot), len(pivot.columns)), 5000
         )

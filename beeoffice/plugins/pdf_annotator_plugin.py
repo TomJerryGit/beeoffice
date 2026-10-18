@@ -123,12 +123,12 @@ class PDFAnnotatorPlugin(Plugin):
                     if hasattr(self.parent, "_update_recent_menu"):
                         self.parent._update_recent_menu()
                 except Exception as e:
-                    logging.warning(f"更新最近文件失败: {e}")
+                    logging.warning(tr("auto.pdf_annotator_plugin.5769ad88", "更新最近文件失败: {e}").format(e=e))
 
             # 状态栏提示
             if hasattr(self.parent, "set_global_status"):
                 self.parent.set_global_status(
-                    f"已打开 PDF: {Path(filepath).name}", 3000
+                    tr("auto.pdf_annotator_plugin.4b543708", "已打开 PDF: {0}").format(Path(filepath).name), 3000
                 )
 
             logging.info(f"已打开 PDF 批注: {filepath}")
@@ -176,10 +176,10 @@ class PDFAnnotatorPlugin(Plugin):
             try:
                 annotator.close()
             except Exception as e:
-                logging.warning(f"关闭批注窗口失败: {e}")
+                logging.warning(tr("auto.pdf_annotator_plugin.5865f3e5", "关闭批注窗口失败: {e}").format(e=e))
         self._annotators.clear()
         if hasattr(self.parent, "set_global_status"):
-            self.parent.set_global_status(f"已关闭 {count} 个批注窗口", 2000)
+            self.parent.set_global_status(tr("auto.pdf_annotator_plugin.ccab2adc", "已关闭 {count} 个批注窗口").format(count=count), 2000)
 
     # ---------- 当前活动批注窗口 ----------
     def _get_active_annotator(self):

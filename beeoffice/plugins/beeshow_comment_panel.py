@@ -166,7 +166,7 @@ class CommentPanel(QWidget):
                 text = text[:100] + "..."
 
             item.setText(f"{header_text}\n    {text}")
-            item.setToolTip(f"原文：{text}")
+            item.setToolTip(tr("auto.beeshow_comment_panel.79dcc79e", "原文：{text}").format(text=text))
             item.setData(Qt.UserRole + 1, c)
 
             # 视觉样式

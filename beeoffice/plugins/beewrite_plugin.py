@@ -91,7 +91,7 @@ class BeeWritePlugin(Plugin):
         """新建一个蜜写文档并添加为标签页"""
         editor = self.create_widget()
         timestamp = datetime.now().strftime("%H%M")
-        self.parent.tab_manager.addTab(editor, f"📝 蜜写-{timestamp}")
+        self.parent.tab_manager.addTab(editor, tr("auto.beewrite_plugin.421b367d", "📝 蜜写-{timestamp}").format(timestamp=timestamp))
         self.parent.tab_manager.setCurrentWidget(editor)
         return editor
 
@@ -105,7 +105,7 @@ class BeeWritePlugin(Plugin):
             try:
                 editor._switch_mode("rich_text")
             except Exception as e:
-                logging.warning(f"切换到富文本模式失败: {e}")
+                logging.warning(tr("auto.beewrite_plugin.2de7ef04", "切换到富文本模式失败: {e}").format(e=e))
         timestamp = datetime.now().strftime("%H%M")
         self.parent.tab_manager.addTab(editor, f"📝 Word-{timestamp}")
         self.parent.tab_manager.setCurrentWidget(editor)

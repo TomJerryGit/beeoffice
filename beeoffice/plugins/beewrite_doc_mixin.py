@@ -83,7 +83,7 @@ class DocMixin:
         if ok:
             self._header_text = text.strip()
             self._set_status(
-                f"页眉已设置：{self._header_text or '（空）'}（导出 Word 时生效）",
+                tr("auto.beewrite_doc_mixin.cfc15eab", "页眉已设置：{0}（导出 Word 时生效）").format(self._header_text or '（空）'),
                 3000,
             )
 
@@ -100,7 +100,7 @@ class DocMixin:
         if ok:
             self._footer_text = text.strip()
             self._set_status(
-                f"页脚已设置：{self._footer_text or '（空）'}（导出 Word 时生效）",
+                tr("auto.beewrite_doc_mixin.26197cf4", "页脚已设置：{0}（导出 Word 时生效）").format(self._footer_text or '（空）'),
                 3000,
             )
 
@@ -146,7 +146,7 @@ class DocMixin:
             from beeoffice.plugins.bee_export import generate_toc
         except Exception as e:
             logging.error(f"导入 generate_toc 失败: {e}")
-            QMessageBox.warning(self, tr("auto.beewrite_doc_mixin.3e3c8068", "失败"), f"生成目录失败：\n{e}")
+            QMessageBox.warning(self, tr("auto.beewrite_doc_mixin.3e3c8068", "失败"), tr("auto.beewrite_doc_mixin.8831e02a", "生成目录失败：\n{e}").format(e=e))
             return
 
         md = self.content()
@@ -167,7 +167,7 @@ class DocMixin:
         self._watermark_config = config
         if config:
             self._set_status(
-                f"✅ 水印已设置：「{config['text']}」（导出 PDF 生效）",
+                tr("auto.beewrite_doc_mixin.4fa4c532", "✅ 水印已设置：「{0}」（导出 PDF 生效）").format(config['text']),
                 3000,
             )
         else:
@@ -185,7 +185,7 @@ class DocMixin:
         self._page_number_config = config
         if config.get("enabled"):
             self._set_status(
-                f"✅ 页码已启用（{config['position']}，导出 PDF 生效）",
+                tr("auto.beewrite_doc_mixin.052ec4d2", "✅ 页码已启用（{0}，导出 PDF 生效）").format(config['position']),
                 3000,
             )
         else:
@@ -307,7 +307,7 @@ class DocMixin:
             self._page_settings["margin_right"] = right_spin.value() * 10
 
             self._set_status(
-                f"✅ 页面设置已更新（{paper_combo.currentText()}）", 3000
+                tr("auto.beewrite_doc_mixin.0d812700", "✅ 页面设置已更新（{0}）").format(paper_combo.currentText()), 3000
             )
             dlg.accept()
 
@@ -374,7 +374,7 @@ class DocMixin:
             from beeoffice.plugins.bee_export import compare_documents
         except Exception as e:
             logging.error(f"导入 compare_documents 失败: {e}")
-            QMessageBox.warning(self, tr("auto.beewrite_doc_mixin.3e3c8068", "失败"), f"文档对比失败：\n{e}")
+            QMessageBox.warning(self, tr("auto.beewrite_doc_mixin.3e3c8068", "失败"), tr("auto.beewrite_doc_mixin.84e66f8d", "文档对比失败：\n{e}").format(e=e))
             return
 
         path = self._get_associated_path()

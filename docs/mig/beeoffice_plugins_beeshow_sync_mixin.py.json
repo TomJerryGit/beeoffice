@@ -1,14 +1,3 @@
 {
-  "auto.beeshow_sync_mixin.dafa0043": "📱 同步演示已关闭",
-  "auto.beeshow_sync_mixin.011dd46a": "📱 同步演示",
-  "auto.beeshow_sync_mixin.d7b3dfc3": "📱 观众扫码或访问链接",
-  "auto.beeshow_sync_mixin.6558e0bc": "📋 复制链接",
-  "auto.beeshow_sync_mixin.f80ba642": "👥 当前观众：0",
-  "auto.beeshow_sync_mixin.510a39c3": "关闭对话框",
-  "auto.beeshow_sync_mixin.ae6964aa": "🛑 停止同步",
-  "auto.beeshow_sync_mixin.ab3656a9": "提示",
-  "auto.beeshow_sync_mixin.63565334": "请先编写幻灯片内容",
-  "auto.beeshow_sync_mixin.7b79b0ba": "✅ 链接已复制到剪贴板",
-  "auto.beeshow_sync_mixin.65525f0f": "启动失败",
-  "auto.beeshow_sync_mixin.3e3c8068": "失败"
+  "auto.beeshow_sync_mixin.777fdaf6": "📱 同步演示已开启（{0}）"
 }

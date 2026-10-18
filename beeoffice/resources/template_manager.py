@@ -188,7 +188,7 @@ class TemplateManager:
             ):
                 cleaned.append(tpl)
             else:
-                logging.warning(f"跳过无效模板索引条目: {tpl}")
+                logging.warning(tr("auto.template_manager.ba760fb2", "跳过无效模板索引条目: {tpl}").format(tpl=tpl))
 
         self._index = {"user_templates": cleaned}
 

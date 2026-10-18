@@ -25,7 +25,7 @@ def show_template_picker(parent):
         templates = tm.get_all_templates()
     except Exception as e:
         logging.error(f"加载模板失败: {e}")
-        QMessageBox.warning(parent, tr("auto.templates.b859c7be", "错误"), f"加载模板失败：\n{e}")
+        QMessageBox.warning(parent, tr("auto.templates.b859c7be", "错误"), tr("auto.templates.610db40f", "加载模板失败：\n{e}").format(e=e))
         return
 
     dialog = QDialog(parent)
@@ -100,7 +100,7 @@ def show_template_picker(parent):
         )
         for tpl in categories[cat_name]:
             icon = "📦" if tpl.get("source") == "builtin" else "👤"
-            item = QListWidgetItem(f"{icon} {tpl.get('name', '未命名')}")
+            item = QListWidgetItem(tr("auto.templates.b245f581", "{0} {1}").format(icon, tpl.get('name', '未命名')))
             item.setData(Qt.UserRole, tpl)
             lst.addItem(item)
 
@@ -176,7 +176,7 @@ def _create_from_template(parent, tpl_info):
         from beeoffice.plugins.beewrite import BeeWriteEditor
     except Exception as e:
         logging.error(f"导入 BeeWriteEditor 失败: {e}")
-        QMessageBox.warning(parent, tr("auto.templates.b859c7be", "错误"), f"无法创建文档：\n{e}")
+        QMessageBox.warning(parent, tr("auto.templates.b859c7be", "错误"), tr("auto.templates.691635ca", "无法创建文档：\n{e}").format(e=e))
         return
 
     content = tpl_info.get("content", "")
@@ -194,10 +194,10 @@ def _create_from_template(parent, tpl_info):
         parent.tab_manager.setCurrentWidget(editor)
         # 文件路径未知，暂不监视
         if hasattr(parent, "set_global_status"):
-            parent.set_global_status(f"已从模板创建: {name}", 3000)
+            parent.set_global_status(tr("auto.templates.e0eeb39f", "已从模板创建: {name}").format(name=name), 3000)
     except Exception as e:
         logging.error(f"添加标签页失败: {e}")
-        QMessageBox.warning(parent, tr("auto.templates.b859c7be", "错误"), f"添加标签页失败：\n{e}")
+        QMessageBox.warning(parent, tr("auto.templates.b859c7be", "错误"), tr("auto.templates.4ee03918", "添加标签页失败：\n{e}").format(e=e))
 
 
 def save_as_template_dialog(parent, content):
@@ -227,9 +227,9 @@ def save_as_template_dialog(parent, content):
         from beeoffice.resources.template_manager import TemplateManager
         tm = TemplateManager()
         if tm.save_user_template(name, content, category):
-            QMessageBox.information(parent, tr("auto.templates.51991a5d", "成功"), f"模板「{name}」已保存到分类「{category}」")
+            QMessageBox.information(parent, tr("auto.templates.51991a5d", "成功"), tr("auto.templates.10d545e5", "模板「{name}」已保存到分类「{category}」").format(name=name, category=category))
         else:
             QMessageBox.warning(parent, tr("auto.templates.3e3c8068", "失败"), tr("auto.templates.d8fc29f5", "保存模板失败"))
     except Exception as e:
         logging.error(f"保存模板失败: {e}")
-        QMessageBox.warning(parent, tr("auto.templates.3e3c8068", "失败"), f"保存模板失败：\n{e}")
+        QMessageBox.warning(parent, tr("auto.templates.3e3c8068", "失败"), tr("auto.templates.68b212fe", "保存模板失败：\n{e}").format(e=e))

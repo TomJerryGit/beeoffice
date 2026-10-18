@@ -103,7 +103,7 @@ class CommentMixin:
         self._refresh_comment_panel()
         self._comment_panel.setVisible(True)
         self._set_status(
-            f"✅ 已添加批注 #{comment['id']}", 2000
+            tr("auto.beewrite_comment_mixin.58220c82", "✅ 已添加批注 #{0}").format(comment['id']), 2000
         )
 
     def _add_comment_no_anchor(self, text):
@@ -119,7 +119,7 @@ class CommentMixin:
         self._refresh_comment_panel()
         self._comment_panel.setVisible(True)
         self._set_status(
-            f"✅ 已添加批注 #{comment['id']}", 2000
+            tr("auto.beewrite_comment_mixin.58220c82", "✅ 已添加批注 #{0}").format(comment['id']), 2000
         )
 
     # ==================================================================
@@ -253,7 +253,7 @@ class CommentMixin:
         self._comment_manager.resolve(comment_id, resolved)
         self._refresh_comment_panel()
         status = "已解决" if resolved else "未解决"
-        self._set_status(f"✅ 批注已标记为{status}", 2000)
+        self._set_status(tr("auto.beewrite_comment_mixin.b1534475", "✅ 批注已标记为{status}").format(status=status), 2000)
 
     def _on_comment_reply(self, comment_id):
         """编辑 / 回复批注（修改文本内容）"""
@@ -289,7 +289,7 @@ class CommentMixin:
             self,
             tr("auto.beewrite_comment_mixin.9dbbfd02", "添加书签"),
             tr("auto.beewrite_comment_mixin.400dec00", "书签名称："),
-            text=f"书签{len(self._bookmark_manager._bookmarks) + 1}",
+            text=tr("auto.beewrite_comment_mixin.92e6255a", "书签{0}").format(len(self._bookmark_manager._bookmarks) + 1),
         )
         if not ok or not name.strip():
             return
@@ -300,7 +300,7 @@ class CommentMixin:
             reply = QMessageBox.question(
                 self,
                 tr("auto.beewrite_comment_mixin.98931ce0", "书签已存在"),
-                f"书签「{name}」已存在，是否覆盖？",
+                tr("auto.beewrite_comment_mixin.eb83ecc2", "书签「{name}」已存在，是否覆盖？").format(name=name),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -308,7 +308,7 @@ class CommentMixin:
                 return
 
         self._bookmark_manager.add(name, pos, line)
-        self._set_status(f"✅ 已添加书签「{name}」", 2000)
+        self._set_status(tr("auto.beewrite_comment_mixin.eaa0bd0c", "✅ 已添加书签「{name}」").format(name=name), 2000)
 
     def _show_bookmark_list(self):
         """书签管理对话框（跳转 / 删除）"""
@@ -326,7 +326,7 @@ class CommentMixin:
         list_widget = QListWidget()
         for name, info in bookmarks.items():
             item = QListWidgetItem(
-                f"🔖 {name}  (第 {info.get('line', '?')} 行)"
+                tr("auto.beewrite_comment_mixin.594cd197", "🔖 {0}  (第 {1} 行)").format(name, info.get('line', '?'))
             )
             item.setData(Qt.UserRole, name)
             list_widget.addItem(item)
@@ -357,7 +357,7 @@ class CommentMixin:
             name = item.data(Qt.UserRole)
             self._bookmark_manager.remove(name)
             list_widget.takeItem(list_widget.row(item))
-            self._set_status(f"✅ 已删除书签「{name}」", 2000)
+            self._set_status(tr("auto.beewrite_comment_mixin.50144e42", "✅ 已删除书签「{name}」").format(name=name), 2000)
 
         btn_jump = QPushButton(tr("auto.beewrite_comment_mixin.c0bd0f2c", "📍 跳转"))
         btn_jump.clicked.connect(jump)
@@ -404,7 +404,7 @@ class CommentMixin:
             self._btn_revision.setChecked(True)
             self._btn_revision.setText(tr("auto.beewrite_comment_mixin.2ce250d6", "📝 修订中"))
             self._set_status(
-                f"✅ 修订模式已开启（基线 {len(current)} 字符）", 3000
+                tr("auto.beewrite_comment_mixin.1c5e7251", "✅ 修订模式已开启（基线 {0} 字符）").format(len(current)), 3000
             )
 
     # ==================================================================

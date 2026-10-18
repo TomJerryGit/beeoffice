@@ -1,20 +1,9 @@
 {
-  "auto.templates.09b31282": "📄 选择模板",
-  "auto.templates.72a7fce2": "+ 新建分类",
-  "auto.templates.5396434d": "使用此模板",
-  "auto.templates.4d0b4688": "取消",
-  "auto.templates.827613c8": "保存为模板",
-  "auto.templates.fd89b161": "模板名称：",
-  "auto.templates.e568c7d4": "分类（如：工作、会议）：",
-  "auto.templates.1a26edf9": "其他",
-  "auto.templates.cf33314c": "选择一个模板开始撰写（双击新建，单击预览）",
-  "auto.templates.04c08442": "新建分类",
-  "auto.templates.c2413931": "输入分类名称：",
-  "auto.templates.ab3656a9": "提示",
-  "auto.templates.f85a9a32": "内容为空，无法保存为模板",
-  "auto.templates.b859c7be": "错误",
-  "auto.templates.f61088ef": "请先选择一个模板",
-  "auto.templates.51991a5d": "成功",
-  "auto.templates.3e3c8068": "失败",
-  "auto.templates.d8fc29f5": "保存模板失败"
+  "auto.templates.610db40f": "加载模板失败：\n{e}",
+  "auto.templates.b245f581": "{0} {1}",
+  "auto.templates.691635ca": "无法创建文档：\n{e}",
+  "auto.templates.e0eeb39f": "已从模板创建: {name}",
+  "auto.templates.4ee03918": "添加标签页失败：\n{e}",
+  "auto.templates.10d545e5": "模板「{name}」已保存到分类「{category}」",
+  "auto.templates.68b212fe": "保存模板失败：\n{e}"
 }

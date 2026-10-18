@@ -1,0 +1,7 @@
+{
+  "auto.plugin_market.c8185f04": "插件「{name}」已卸载。",
+  "auto.plugin_market.a9e2e285": "打开插件市场失败：\n{e}",
+  "auto.plugin_market.13175b4e": "切换状态失败：{e}",
+  "auto.plugin_market.9667feb3": "插件 {0} 已存在，是否覆盖？",
+  "auto.plugin_market.712e6f62": "插件已停用，但文件删除失败：\n{e}"
+}

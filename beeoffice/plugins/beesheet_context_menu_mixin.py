@@ -140,7 +140,7 @@ class ContextMenuMixin:
         if column == 0 and install is not None:
             install()
         self._update_status()
-        self._set_status(f"📌 已冻结前 {self._frozen_cols} 列", 3000)
+        self._set_status(tr("auto.beesheet_context_menu_mixin.aa48c247", "📌 已冻结前 {0} 列").format(self._frozen_cols), 3000)
 
     def _freeze_row(self, row):
         """冻结前 N 行（0 基 row 参数，内部 +1 转数量）"""
@@ -154,7 +154,7 @@ class ContextMenuMixin:
         if row == 0 and install is not None:
             install()
         self._update_status()
-        self._set_status(f"📌 已冻结前 {self._frozen_rows} 行", 3000)
+        self._set_status(tr("auto.beesheet_context_menu_mixin.55d84fc5", "📌 已冻结前 {0} 行").format(self._frozen_rows), 3000)
 
     def _freeze_cell(self):
         """冻结到当前单元格：同时冻结所在行以上 + 列左侧"""
