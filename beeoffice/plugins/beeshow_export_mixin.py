@@ -193,6 +193,10 @@ class ExportMixin:
                     slide.placeholders[1].text = "\n".join(content)
 
             prs.save(path)
+            return True
+        except Exception as e:
+            logging.error(f"PPTX 遗留导出失败: {e}")
+            return False
             QMessageBox.information(
                 self, tr("auto.beeshow_export_mixin.8af82fcd", "导出成功（保底方案）"),
                 f"已保存: {path}\n\n"

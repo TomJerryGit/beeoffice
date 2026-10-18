@@ -1,8 +1,8 @@
 # i18n 走查报告
 
-- 代码中的 tr() key：**713**
+- 代码中的 tr() key：**721**
 - **英文缺失（会回退中文）：0**
-- 可对照条目：**713**
+- 可对照条目：**721**
 - 同一中文多种译法：**0**
 - 同一英文对应多个中文：**2**
 
@@ -148,6 +148,7 @@ Type your content here...
 | beesheet | 筛选失败 | Filter failed |
 | beesheet | 筛选条件不完整 | The filter is incomplete |
 | beesheet | 筛选结果为空 | The filter returned no rows |
+| beesheet | 该列包含无法比较的内容（数字与文字混合），未排序 | This column mixes numbers and text and was not sorted |
 | beesheet | 请先导入数据 | Import data first |
 | beesheet | 请先选择一个单元格 | Select a cell first |
 | beesheet | 请输入有效的引用（如 A1、B10:D20） | Enter a valid reference (e.g. A1, B10:D20) |
@@ -829,6 +830,13 @@ Type your content here... |
 | plugin_market | 🔄 刷新 | 🔄 Refresh |
 | plugin_market | 🔌 插件市场 | 🔌 Plugin Market |
 | plugin_market | 🗑 卸载插件 | 🗑 Uninstall Plugin |
+| sheet | 宏已播放：{n} 个动作 | Macro played: {n} actions |
+| sheet | 宏录制中……再次点击「录制宏」结束 | Recording macro... click again to stop |
+| sheet | 宏录制失败 | Macro recording failed |
+| sheet | 宏录制结束：共 {n} 个动作 | Macro recording stopped: {n} actions |
+| sheet | 播放宏失败 | Macro playback failed |
+| sheet | 没有可播放的宏，请先录制 | No macro recorded yet |
+| sheet | 请先结束录制再播放宏 | Stop recording before playing the macro |
 | tab | 「{title}」中的内容可能还未保存。\n确定要关闭吗？ | "{title}" may have unsaved changes.
 Close anyway? |
 | tab | 关闭其他标签 | Close Other Tabs |
