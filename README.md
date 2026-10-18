@@ -158,3 +158,21 @@ python -m beeoffice.main
 插件加载器自动跳过蜜演插件，**不会崩溃、不会报错**，其余功能完全不受影响。
 
 两种包型用的是同一份代码，差异只在打包时是否带 WebEngine。
+
+## 📄 许可证
+
+本项目**源代码**以 [MIT](LICENSE) 发布。
+
+⚠️ 但打包分发的**二进制**包含第三方组件，其中 **PyMuPDF 是 AGPL-3.0**：
+
+| 使用方式 | 义务 |
+|---|---|
+| 只用源码（`python -m beeoffice.main`） | 按 MIT 保留版权声明即可 |
+| 公开发布打包产物 | AGPL 要求向接收者提供完整对应源码，或购买 Artifex 商业授权 |
+| 不想承担 AGPL | 打包时排除 PDF 批注模块（目前需要手工改 `beeoffice.spec` 的 excludes） |
+
+其余依赖（PySide6 为 LGPL-3.0、pandas/numpy 为 BSD 等）的说明见
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+> 当前 `v5.2.0` 的发布**只包含源码**，未附带二进制，因此尚未触发 AGPL 的分发义务。
+
