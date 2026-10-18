@@ -1211,7 +1211,10 @@ class BeeApp(QMainWindow):
                 from beeoffice.document_sync import (
                     DocumentSync, collect_documents,
                 )
-                docs = collect_documents(self)
+                scope = getattr(
+                    self.settings, "cloud_sync_scope", "recent"
+                )
+                docs = collect_documents(self, scope)
                 if docs:
                     report = DocumentSync(storage).sync(docs)
                     doc_summary = report.summary()

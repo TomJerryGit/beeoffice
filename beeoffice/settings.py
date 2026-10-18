@@ -58,6 +58,8 @@ class AppSettings:
         self.cloud_config = {}
         self.cloud_enabled = False
         self.cloud_auto_sync = False
+        # 文档同步范围：recent = 已打开 + 最近；current = 仅当前文档
+        self.cloud_sync_scope = "recent"
 
         # AI 服务（任务 1.1）
         self.ai_api_key = ""
@@ -157,6 +159,7 @@ class AppSettings:
                     )
         self.cloud_enabled = data.get("cloud_enabled", False)
         self.cloud_auto_sync = data.get("cloud_auto_sync", False)
+        self.cloud_sync_scope = data.get("cloud_sync_scope", "recent")
 
         # AI 服务（任务 1.1）
         self.ai_api_key = self._decode(data.get("ai_api_key", ""))
@@ -258,6 +261,7 @@ class AppSettings:
                     "cloud_config": cloud_config_encoded,
                     "cloud_enabled": self.cloud_enabled,
                     "cloud_auto_sync": self.cloud_auto_sync,
+            "cloud_sync_scope": self.cloud_sync_scope,
                     # AI 服务（任务 1.1）
                     "ai_api_key": self._encode(self.ai_api_key),
                     "ai_api_base": self.ai_api_base,

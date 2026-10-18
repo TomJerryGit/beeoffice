@@ -88,6 +88,20 @@ class CloudSettingsDialog(QDialog):
         option_layout.addWidget(self.enabled_check)
         self.auto_sync_check = QCheckBox(tr("auto.cloud_settings.e4bdc666", "启动时自动同步"))
         option_layout.addWidget(self.auto_sync_check)
+
+        # 同步范围（阶段三）：决定"同步"到底同步哪些文档
+        scope_row = QHBoxLayout()
+        scope_label = QLabel("同步范围:")
+        self.scope_combo = QComboBox()
+        self.scope_combo.addItem("已打开 + 最近文档", "recent")
+        self.scope_combo.addItem("仅当前文档", "current")
+        self.scope_combo.setToolTip(
+            "「已打开 + 最近」会同步所有打开的标签页和最近文件列表；\n"
+            "「仅当前文档」只同步当前标签页。"
+        )
+        scope_row.addWidget(scope_label)
+        scope_row.addWidget(self.scope_combo, 1)
+        option_layout.addLayout(scope_row)
         layout.addLayout(option_layout)
 
         layout.addStretch()
@@ -142,6 +156,9 @@ class CloudSettingsDialog(QDialog):
         # 通用选项
         self.enabled_check.setChecked(self.settings.cloud_enabled)
         self.auto_sync_check.setChecked(self.settings.cloud_auto_sync)
+        scope = getattr(self.settings, "cloud_sync_scope", "recent")
+        idx = self.scope_combo.findData(scope)
+        self.scope_combo.setCurrentIndex(idx if idx >= 0 else 0)
 
     # ---------- 类型切换 ----------
     def _on_type_changed(self, index):
@@ -153,6 +170,17 @@ class CloudSettingsDialog(QDialog):
         """保存配置到 settings"""
         cloud_type = self.type_combo.currentData()
         config = {}
+
+        # 同步范围是**独立偏好**，不该被连接配置的校验拦住：
+        # 用户只想改"同步哪些文档"，却因为地址没填而被整体 return ——
+        # 改了等于没改。这里先单独落盘。
+        try:
+            self.settings.cloud_sync_scope = (
+                self.scope_combo.currentData() or "recent"
+            )
+            self.settings.save()
+        except Exception as e:
+            logging.error(f"保存同步范围失败: {e}")
 
         # 按类型收集字段
         if cloud_type == "webdav":

@@ -280,15 +280,19 @@ class DocumentSync:
         return report
 
 
-def collect_documents(window) -> list:
+def collect_documents(window, scope: str = "recent") -> list:
     """
-    收集待同步的用户文档：**当前打开的标签页** + **最近文件列表**。
+    收集待同步的用户文档。
 
     用鸭子类型而不是硬绑定主窗口类型，便于测试与复用：
-      · window.tab_manager：有 count()/widget(i)，控件上带 _current_file_path
+      · window.tab_manager：有 count()/widget(i)/currentWidget()，
+        控件上带 _current_file_path
       · window.settings.recent_files：路径字符串列表
 
-    只返回真实存在、扩展名可识别的普通文件；去重并保持顺序。
+    :param scope: 同步范围
+        · "recent"（默认）—— 已打开的全部文档 + 最近文件列表
+        · "current"        —— 只同步当前标签页的那一个文档
+    只返回真实存在的普通文件；去重并保持顺序。
     """
     paths = []
     seen = set()
@@ -308,7 +312,19 @@ def collect_documents(window) -> list:
         seen.add(key)
         paths.append(path)
 
+    scope = (scope or "recent").lower()
     tab_manager = getattr(window, "tab_manager", None)
+
+    if scope == "current":
+        # 只同步当前标签页
+        if tab_manager is not None:
+            try:
+                current = tab_manager.currentWidget()
+                _add(getattr(current, "_current_file_path", None))
+            except Exception as e:
+                logging.warning(f"取当前文档失败: {e}")
+        return paths
+
     if tab_manager is not None:
         try:
             for i in range(tab_manager.count()):
