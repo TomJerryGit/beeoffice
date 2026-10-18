@@ -244,12 +244,12 @@ class NotesMixin:
         if not notes:
             QMessageBox.information(
                 self, tr("auto.beeshow_notes_mixin.ab3656a9", "提示"),
-                "AI 未返回演讲稿。\n\n"
+                tr("auto.beeshow_notes_mixin.6c7443b2", "AI 未返回演讲稿。\n\n"
                 "可能原因：\n"
                 "• 未配置 AI API Key（设置 → AI 服务）\n"
                 "• API 调用失败\n\n"
                 "可在 ~/.beeoffice_settings.json 中配置 "
-                "ai_api_key 后重试。"
+                "ai_api_key 后重试。")
             )
             self._set_status(tr("auto.beeshow_notes_mixin.fe019d54", "⚠️ 未生成演讲稿"), 3000)
             return
@@ -280,9 +280,7 @@ class NotesMixin:
         total = len(self._slides_md)
         reply = QMessageBox.question(
             self, tr("auto.beeshow_notes_mixin.a140f197", "🤖 批量生成演讲稿"),
-            f"将为 {total} 页生成演讲稿，"
-            f"预计耗时 {total * 3}~{total * 5} 秒。\n\n"
-            f"是否继续？",
+            tr("auto.beeshow_notes_mixin.08976435", "将为 {0} 页生成演讲稿，预计耗时 {1}~{2} 秒。\n\n是否继续？").format(total, total * 3, total * 5),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.Yes,
         )
@@ -293,9 +291,9 @@ class NotesMixin:
         if not service.api_key:
             QMessageBox.information(
                 self, tr("auto.beeshow_notes_mixin.ab3656a9", "提示"),
-                "未配置 AI API Key。\n\n"
+                tr("auto.beeshow_notes_mixin.e8d5758c", "未配置 AI API Key。\n\n"
                 "请在 ~/.beeoffice_settings.json 中配置 "
-                "ai_api_key 后重试。"
+                "ai_api_key 后重试。")
             )
             return
 

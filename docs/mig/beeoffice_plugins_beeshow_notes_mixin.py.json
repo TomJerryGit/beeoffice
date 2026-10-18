@@ -1,5 +1,5 @@
 {
-  "auto.beeshow_notes_mixin.fada6e21": "✅ 已生成演讲稿（{0} 字）",
-  "auto.beeshow_notes_mixin.4718777f": "✅ 批量完成：成功 {success} 页，失败 {fail} 页",
-  "auto.beeshow_notes_mixin.63e0d4dc": "🤖 正在生成第 {0}/{1} 页..."
+  "auto.beeshow_notes_mixin.08976435": "将为 {0} 页生成演讲稿，预计耗时 {1}~{2} 秒。\n\n是否继续？",
+  "auto.beeshow_notes_mixin.6c7443b2": "AI 未返回演讲稿。\n\n可能原因：\n• 未配置 AI API Key（设置 → AI 服务）\n• API 调用失败\n\n可在 ~/.beeoffice_settings.json 中配置 ai_api_key 后重试。",
+  "auto.beeshow_notes_mixin.e8d5758c": "未配置 AI API Key。\n\n请在 ~/.beeoffice_settings.json 中配置 ai_api_key 后重试。"
 }

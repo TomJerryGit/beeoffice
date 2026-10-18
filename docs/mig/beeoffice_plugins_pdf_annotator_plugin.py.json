@@ -1,6 +1,3 @@
 {
-  "auto.pdf_annotator_plugin.ccab2adc": "已关闭 {count} 个批注窗口",
-  "auto.pdf_annotator_plugin.4b543708": "已打开 PDF: {0}",
-  "auto.pdf_annotator_plugin.5865f3e5": "关闭批注窗口失败: {e}",
-  "auto.pdf_annotator_plugin.5769ad88": "更新最近文件失败: {e}"
+  "auto.pdf_annotator_plugin.45aea6aa": "PDF 批注模块不可用：\n{e}\n\n请确认已安装 PyMuPDF 依赖。"
 }

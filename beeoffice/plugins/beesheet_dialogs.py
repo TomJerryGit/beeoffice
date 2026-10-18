@@ -33,8 +33,8 @@ class PivotTableDialog(QDialog):
 
         # 提示
         tip = QLabel(
-            "选择行、列、值字段，生成汇总表。"
-            "建议先确认数据第一行是表头。"
+            tr("auto.beesheet_dialogs.6f40e036", "选择行、列、值字段，生成汇总表。"
+            "建议先确认数据第一行是表头。")
         )
         tip.setStyleSheet("color:#666;font-size:12px;padding:4px;")
         layout.addWidget(tip)

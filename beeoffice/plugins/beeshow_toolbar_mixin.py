@@ -309,13 +309,13 @@ class ToolbarMixin:
 
         self._editor = QPlainTextEdit()
         self._editor.setPlaceholderText(
-            "在此编写幻灯片...\n"
+            tr("auto.beeshow_toolbar_mixin.d4b7314a", "在此编写幻灯片...\n"
             "--- 分隔每页\n"
             "<!-- 备注 --> 添加演讲备注\n"
             "{{number: 12345}} 动态数字\n"
             "{{video: path.mp4}} 视频嵌入\n"
             "{#element-id} 平滑动画标记\n"
-            "| 表头1 | 表头2 | Markdown 表格"
+            "| 表头1 | 表头2 | Markdown 表格")
         )
         self._editor.setFont(QFont("Consolas", 13))
         self._editor.textChanged.connect(self._on_editor_changed)

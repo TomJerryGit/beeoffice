@@ -1,4 +1,4 @@
 {
-  "auto.sync_conflict_dialog.f6bff7b5": "处理失败：{0} 未生效，详见日志",
-  "auto.sync_conflict_dialog.cd908478": "全部 {0} 个冲突已处理完毕，可以关闭了。"
+  "auto.sync_conflict_dialog.4b4e047e": "发现 {0} 个冲突：本地和远端都被修改过。\n请选择每一项的处理方式；未处理的冲突会保持现状（两份都保留）。",
+  "auto.sync_conflict_dialog.00405937": "已处理：{0}（剩余 {1} 项）"
 }

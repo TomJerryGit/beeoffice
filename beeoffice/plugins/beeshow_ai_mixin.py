@@ -289,8 +289,8 @@ class AIMixin:
         if not results:
             QMessageBox.information(
                 self, tr("auto.beeshow_ai_mixin.ab3656a9", "提示"),
-                "未找到合适的配图。\n\n"
-                "可在设置中配置 Unsplash / Pexels API Key 以获取更好的结果。"
+                tr("auto.beeshow_ai_mixin.170ce584", "未找到合适的配图。\n\n"
+                "可在设置中配置 Unsplash / Pexels API Key 以获取更好的结果。")
             )
             self._set_status(tr("auto.beeshow_ai_mixin.bc9ce8ad", "⚠️ 未找到配图"), 3000)
             return
@@ -375,6 +375,6 @@ class AIMixin:
         QMessageBox.information(
             self,
             tr("auto.beeshow_ai_mixin.2b65c7a1", "二维码分享"),
-            "此功能需要联网生成。\n"
-            "可以将导出HTML上传到服务器后生成二维码。"
+            tr("auto.beeshow_ai_mixin.dfe98bc4", "此功能需要联网生成。\n"
+            "可以将导出HTML上传到服务器后生成二维码。")
         )

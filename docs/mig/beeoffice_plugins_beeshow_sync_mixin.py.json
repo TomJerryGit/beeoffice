@@ -1,3 +1,5 @@
 {
-  "auto.beeshow_sync_mixin.777fdaf6": "📱 同步演示已开启（{0}）"
+  "auto.beeshow_sync_mixin.74fab265": "💡 观众手机需与电脑在同一局域网。\n   演示者的翻页、激光笔、黑屏操作会同步显示。",
+  "auto.beeshow_sync_mixin.6779946c": "同步服务器启动失败。\n\n可能原因：\n• 端口 8765 / 8766 已被占用\n• 防火墙阻止了监听\n\n请检查后重试。",
+  "auto.beeshow_sync_mixin.2316f892": "👥 当前观众：{0}"
 }

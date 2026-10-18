@@ -53,6 +53,11 @@ UI_FUNCS = {
 def _call_name(node: ast.Call) -> str:
     f = node.func
     if isinstance(f, ast.Attribute):
+        # logging.warning / logger.critical 与 QMessageBox.warning 同名，
+        # 但日志不是界面文案，不能算 UI（否则会去翻译日志）。
+        base = f.value
+        if isinstance(base, ast.Name) and base.id in ("logging", "logger", "log"):
+            return ""
         return f.attr
     if isinstance(f, ast.Name):
         return f.id
@@ -60,12 +65,23 @@ def _call_name(node: ast.Call) -> str:
 
 
 def _is_tr_wrapped(node: ast.AST) -> bool:
-    """判断字符串是否已被 tr()/tf() 包裹。"""
-    return (
-        isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Name)
-        and node.func.id in ("tr", "tf")
-    )
+    """
+    判断字符串是否已被 tr()/tf() 包裹。
+
+    需要识别**链式调用**：迁移后的代码是
+        tr("key", "模板").format(x=x)
+    参数本身是一个 `.format(...)` 调用，若不穿透到内层，
+    已翻译的字符串会被继续当成"未国际化"，统计永远降不到 0。
+    """
+    if not isinstance(node, ast.Call):
+        return False
+    func = node.func
+    if isinstance(func, ast.Name) and func.id in ("tr", "tf"):
+        return True
+    if isinstance(func, ast.Attribute):
+        # a.b(...) → 递归看 a 是不是 tr(...)/封装器
+        return _is_tr_wrapped(func.value)
+    return False
 
 
 def scan_file(path: Path):

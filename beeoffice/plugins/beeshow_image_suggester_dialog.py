@@ -48,8 +48,7 @@ class ImageSuggesterDialog(QDialog):
 
         # 顶部提示
         tip = QLabel(
-            f"💡 根据当前页内容找到 {len(results)} 张候选图。\n"
-            f"单击选中，双击直接插入。"
+            tr("auto.beeshow_image_suggester_dialog.046eeca2", "💡 根据当前页内容找到 {0} 张候选图。\n单击选中，双击直接插入。").format(len(results))
         )
         tip.setStyleSheet(
             "QLabel{color:#666;font-size:12px;padding:8px;"

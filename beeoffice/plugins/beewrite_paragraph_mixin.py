@@ -287,8 +287,8 @@ class ParagraphMixin:
 
         # ---------- 预览 ----------
         preview_label = QLabel(
-            "预览：\n这是一段用于预览段落格式的示例文字。\n"
-            "调整上方参数可以看到格式变化效果。"
+            tr("auto.beewrite_paragraph_mixin.40396148", "预览：\n这是一段用于预览段落格式的示例文字。\n"
+            "调整上方参数可以看到格式变化效果。")
         )
         preview_label.setStyleSheet(
             "QLabel{background:#FAFAFA;padding:12px;"

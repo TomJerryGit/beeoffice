@@ -1,8 +1,4 @@
 {
-  "auto.beewrite_page_extras.0ae43139": "💧 水印设置",
-  "auto.beewrite_page_extras.cf7407af": "输入水印文字",
-  "auto.beewrite_page_extras.91732e25": "选择颜色",
-  "auto.beewrite_page_extras.628ec39b": "清除水印",
-  "auto.beewrite_page_extras.a1fe835c": "📄 页码设置",
-  "auto.beewrite_page_extras.9fd38ef6": "在导出 PDF 时添加页码"
+  "auto.beewrite_page_extras.76c1b278": "💡 水印只在导出 PDF / HTML 时生效。\n编辑视图不显示水印（Qt 限制）。",
+  "auto.beewrite_page_extras.66ffe2c5": "💡 页码只在导出 PDF 时生效（通过 CSS @page 规则）。\n若使用 QWebEngineView 打印，可能不支持全部格式。"
 }

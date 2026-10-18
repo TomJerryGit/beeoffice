@@ -1,3 +1,3 @@
 {
-  "auto.beewrite_formula.d1525365": "❌ 渲染失败：{e}\n\n请检查 LaTeX 语法"
+  "auto.beewrite_formula.ab9edbc0": "数学公式需要 matplotlib：\npip install matplotlib"
 }

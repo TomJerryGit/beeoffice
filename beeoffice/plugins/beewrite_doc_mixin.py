@@ -394,9 +394,7 @@ class DocMixin:
             dlg.resize(600, 400)
             layout = QVBoxLayout(dlg)
             layout.addWidget(QLabel(
-                f"新增: {result['additions']} 行 | "
-                f"删除: {result['deletions']} 行 | "
-                f"变更: {result['total_changes']} 处"
+                tr("auto.beewrite_doc_mixin.9188260b", "新增: {0} 行 | 删除: {1} 行 | 变更: {2} 处").format(result['additions'], result['deletions'], result['total_changes'])
             ))
             diff_view = QTextEdit()
             diff_view.setReadOnly(True)

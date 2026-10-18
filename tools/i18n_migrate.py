@@ -45,6 +45,10 @@ TR_IMPORT = "from beeoffice.i18n import tr"
 def _call_name(node):
     f = node.func
     if isinstance(f, ast.Attribute):
+        # logging.warning 与 QMessageBox.warning 同名，但日志不是界面文案
+        base = f.value
+        if isinstance(base, ast.Name) and base.id in ("logging", "logger", "log"):
+            return ""
         return f.attr
     if isinstance(f, ast.Name):
         return f.id
@@ -78,10 +82,46 @@ def _escape_literal(text: str) -> str:
     return text.replace("{", "{{").replace("}", "}}")
 
 
+def _spec_and_conv(value):
+    """
+    抽出格式化说明符与转换标志；不支持（嵌套占位符 / 非字面量）返回 None。
+
+    `{x:.1f}` 与 `{x!r}` 其实都能被 .format 处理，所以这里放行——
+    之前一律跳过，导致 memory_monitor 那类带精度的文案永远迁移不了。
+    """
+    conv = ""
+    if value.conversion not in (-1, None):
+        if value.conversion not in (ord("r"), ord("s"), ord("a")):
+            return None
+        conv = "!" + chr(value.conversion)
+
+    spec = ""
+    if value.format_spec is not None:
+        if not isinstance(value.format_spec, ast.JoinedStr):
+            return None
+        parts = []
+        for piece in value.format_spec.values:
+            if not (isinstance(piece, ast.Constant)
+                    and isinstance(piece.value, str)):
+                return None
+            parts.append(piece.value)
+        spec = ":" + "".join(parts)
+        if "{" in spec or "}" in spec:
+            return None      # 嵌套占位符（如 {x:{w}}），.format 语义复杂，跳过
+    return conv + spec
+
+
 def _fstring_template(node):
     """
-    把 JoinedStr 转成 (模板, format 参数表)；不支持时返回 None。
+    把 JoinedStr 转成 (模板, format 参数表)。
+
+    返回 None 表示"不处理"——两种情况：
+      · 无法安全转换（嵌套 f-string、复杂格式说明符）
+      · 根本没有插值（纯字面量的 f-string，交给调用方按普通字符串处理）
     """
+    if not any(isinstance(v, ast.FormattedValue) for v in node.values):
+        return None
+
     # 先尝试全关键字形式：所有插值都是简单变量且不重名
     keyword_parts, keyword_args, names = [], [], []
     keyword_ok = True
@@ -89,15 +129,13 @@ def _fstring_template(node):
         if isinstance(value, ast.Constant) and isinstance(value.value, str):
             keyword_parts.append(_escape_literal(value.value))
         elif isinstance(value, ast.FormattedValue):
-            if value.format_spec is not None or value.conversion not in (-1, None):
-                keyword_ok = False
-                break
+            tail = _spec_and_conv(value)
             inner = value.value
-            if not isinstance(inner, ast.Name) or inner.id in names:
+            if tail is None or not isinstance(inner, ast.Name) or inner.id in names:
                 keyword_ok = False
                 break
             names.append(inner.id)
-            keyword_parts.append("{" + inner.id + "}")
+            keyword_parts.append("{" + inner.id + tail + "}")
             keyword_args.append(f"{inner.id}={inner.id}")
         else:
             keyword_ok = False
@@ -112,17 +150,18 @@ def _fstring_template(node):
         if isinstance(value, ast.Constant) and isinstance(value.value, str):
             positional_parts.append(_escape_literal(value.value))
         elif isinstance(value, ast.FormattedValue):
-            if value.format_spec is not None or value.conversion not in (-1, None):
+            tail = _spec_and_conv(value)
+            if tail is None or not hasattr(ast, "unparse"):
                 return None
-            if not hasattr(ast, "unparse"):
-                return None
+            if isinstance(value.value, ast.JoinedStr):
+                return None          # 嵌套 f-string，跳过
             try:
                 expr = ast.unparse(value.value)
             except Exception:
                 return None
             if not expr:
                 return None
-            positional_parts.append("{" + str(len(positional_args)) + "}")
+            positional_parts.append("{" + str(len(positional_args)) + tail + "}")
             positional_args.append(expr)
         else:
             return None
@@ -148,8 +187,7 @@ def collect(src: str, module: str):
                 continue
             if not isinstance(arg, (ast.Constant, ast.JoinedStr)):
                 continue
-            if arg.end_lineno != arg.lineno:
-                continue  # 跨行，切片容易出错
+            # 跨行也支持：偏移按字节计算，行号只用于定位起点
 
             text = None
             replacement = None
@@ -160,7 +198,7 @@ def collect(src: str, module: str):
                     continue
                 text = arg.value
                 start = _abs(arg, offsets)
-                end = start + (arg.end_col_offset - arg.col_offset)
+                end = offsets[arg.end_lineno - 1] + arg.end_col_offset
                 literal = src_bytes[start:end].decode("utf-8")
 
             # ---------- f-string ----------
@@ -170,11 +208,30 @@ def collect(src: str, module: str):
                     continue
                 built = _fstring_template(arg)
                 if built is None:
+                    # 纯字面量的 f-string（如 f"加载完成"）没有插值，
+                    # 直接当普通字符串包成 tr()
+                    consts = [
+                        v.value for v in arg.values
+                        if isinstance(v, ast.Constant)
+                    ]
+                    if len(consts) != len(arg.values):
+                        continue        # 含不支持的结构，跳过
+                    text = "".join(consts)
+                    if not CJK.search(text):
+                        continue
+                    start = _abs(arg, offsets)
+                    end = offsets[arg.end_lineno - 1] + arg.end_col_offset
+                    key = seen.get(text) or make_key(module, text)
+                    seen.setdefault(text, key)
+                    replacement = (
+                        f'tr("{key}", {json.dumps(text, ensure_ascii=False)})'
+                    )
+                    entries.append((start, end, key, replacement, text))
                     continue
                 template, format_args = built
                 text = template
                 start = _abs(arg, offsets)
-                end = start + (arg.end_col_offset - arg.col_offset)
+                end = offsets[arg.end_lineno - 1] + arg.end_col_offset
                 key = seen.get(text) or make_key(module, text)
                 seen.setdefault(text, key)
                 template_literal = json.dumps(template, ensure_ascii=False)

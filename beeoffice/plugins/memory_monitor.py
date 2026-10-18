@@ -77,8 +77,8 @@ class MemoryMonitor(QDialog):
         if len(self._history) > 120:
             self._history = self._history[-120:]
 
-        self.current_label.setText(f"当前: {mb:.1f} MB")
-        self.peak_label.setText(f"峰值: {self._peak:.1f} MB")
+        self.current_label.setText(tr("auto.memory_monitor.15e0e545", "当前: {mb:.1f} MB").format(mb=mb))
+        self.peak_label.setText(tr("auto.memory_monitor.5c281f25", "峰值: {0:.1f} MB").format(self._peak))
         self.progress.setValue(int(mb))
 
         # 颜色指示
@@ -101,10 +101,10 @@ class MemoryMonitor(QDialog):
         if len(self._history) >= 10:
             diff = sum(self._history[-5:]) / 5 - sum(self._history[:5]) / 5
             if diff > 5:
-                self.trend_label.setText(f"⚠️ 趋势: 上升 +{diff:.1f} MB/10s")
+                self.trend_label.setText(tr("auto.memory_monitor.f6cbacec", "⚠️ 趋势: 上升 +{diff:.1f} MB/10s").format(diff=diff))
                 self.trend_label.setStyleSheet("color: #D32F2F; font-size: 12px;")
             elif diff < -5:
-                self.trend_label.setText(f"✅ 趋势: 下降 {diff:.1f} MB/10s")
+                self.trend_label.setText(tr("auto.memory_monitor.0868df22", "✅ 趋势: 下降 {diff:.1f} MB/10s").format(diff=diff))
                 self.trend_label.setStyleSheet("color: #4CAF50; font-size: 12px;")
             else:
                 self.trend_label.setText(tr("auto.memory_monitor.b3cfa623", "✅ 趋势: 稳定"))

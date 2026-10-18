@@ -1,4 +1,7 @@
 {
-  "auto.beeshow_history_mixin.85b2e8c1": "↩ 已回滚到 {0}",
-  "auto.beeshow_history_mixin.266550cf": "↩ 已恢复到 {0}"
+  "auto.beeshow_history_mixin.eb5bc1cd": "💡 共 {0} 个历史版本。\n双击任意版本可恢复；恢复后当前内容会被覆盖（可撤销）。",
+  "auto.beeshow_history_mixin.999fa178": "暂无历史版本。\n\n每次编辑后会自动保存快照，最多保留 50 个。",
+  "auto.beeshow_history_mixin.64f5a68a": "🕐 {0}\n   {1} 页 · {2} 字",
+  "auto.beeshow_history_mixin.a6cff6a6": "确定恢复到 {0} 的版本吗？\n\n当前内容将被覆盖。\n（恢复后可通过再次编辑产生新快照）",
+  "auto.beeshow_history_mixin.7337b389": "确定清空全部 {0} 个历史版本吗？（不可恢复）"
 }

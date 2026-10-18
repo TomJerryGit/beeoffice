@@ -230,9 +230,9 @@ class PluginMarketDialog(QDialog):
         # 选择方式
         reply = QMessageBox.question(
             self, tr("auto.plugin_market.76a38f0a", "安装插件"),
-            "选择安装方式：\n\n"
+            tr("auto.plugin_market.5443bb78", "选择安装方式：\n\n"
             "是(Y) — 从 ZIP 文件安装\n"
-            "否(N) — 从文件夹安装",
+            "否(N) — 从文件夹安装"),
             QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
             QMessageBox.Yes
         )
@@ -291,8 +291,7 @@ class PluginMarketDialog(QDialog):
                 if installed > 0:
                     QMessageBox.information(
                         self, tr("auto.plugin_market.f4235733", "安装完成"),
-                        f"已安装 {installed} 个插件文件。\n\n"
-                        f"请重启应用以加载新插件。"
+                        tr("auto.plugin_market.2eff7b2c", "已安装 {installed} 个插件文件。\n\n请重启应用以加载新插件。").format(installed=installed)
                     )
                     self._refresh_list()
                 else:
@@ -341,8 +340,7 @@ class PluginMarketDialog(QDialog):
             if installed > 0:
                 QMessageBox.information(
                     self, tr("auto.plugin_market.f4235733", "安装完成"),
-                    f"已安装 {installed} 个插件文件。\n\n"
-                    f"请重启应用以加载新插件。"
+                    tr("auto.plugin_market.2eff7b2c", "已安装 {installed} 个插件文件。\n\n请重启应用以加载新插件。").format(installed=installed)
                 )
                 self._refresh_list()
             else:
@@ -416,17 +414,14 @@ class PluginMarketDialog(QDialog):
                     if not self._is_user_installed(candidate):
                         QMessageBox.information(
                             self, tr("auto.plugin_market.8e305aee", "无法卸载"),
-                            f"「{name}」是内置插件，不能删除源文件。\n\n"
-                            f"如需停用，请使用右侧的「启用此插件」开关；\n"
-                            f"内置插件文件位于：\n{candidate}"
+                            tr("auto.plugin_market.cd103fe3", "「{name}」是内置插件，不能删除源文件。\n\n如需停用，请使用右侧的「启用此插件」开关；\n内置插件文件位于：\n{candidate}").format(name=name, candidate=candidate)
                         )
                         return
                     file_path = candidate
 
         reply = QMessageBox.question(
             self, tr("auto.plugin_market.af91141a", "卸载插件"),
-            f"确定要卸载插件「{name}」吗？\n\n"
-            f"这会删除插件文件，且不可恢复。",
+            tr("auto.plugin_market.fc14b75c", "确定要卸载插件「{name}」吗？\n\n这会删除插件文件，且不可恢复。").format(name=name),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
         if reply != QMessageBox.Yes:

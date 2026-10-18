@@ -496,8 +496,8 @@ class TableMixin:
         if not rows:
             QMessageBox.information(
                 self, tr("auto.beeshow_table_mixin.ab3656a9", "提示"),
-                "当前页没有表格。\n\n"
-                "请使用「📊 表格」按钮新建。"
+                tr("auto.beeshow_table_mixin.a3182f64", "当前页没有表格。\n\n"
+                "请使用「📊 表格」按钮新建。")
             )
             return
 

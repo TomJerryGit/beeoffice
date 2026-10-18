@@ -426,15 +426,7 @@ class CommentMixin:
 
         # ---------- 摘要 ----------
         summary = QLabel(
-            f"<b>修订摘要</b>（基线时间："
-            f"{self._revision_manager.baseline_time}）<br>"
-            f"<span style='color:#1B5E20;'>"
-            f"新增 {result['additions']} 行</span> | "
-            f"<span style='color:#B71C1C;'>"
-            f"删除 {result['deletions']} 行</span> | "
-            f"<span style='color:#E65100;'>"
-            f"修改 {result['modified']} 行</span> | "
-            f"<b>总变更 {result['total_changes']} 处</b>"
+            tr("auto.beewrite_comment_mixin.b652921f", "<b>修订摘要</b>（基线时间：{0}）<br><span style='color:#1B5E20;'>新增 {1} 行</span> | <span style='color:#B71C1C;'>删除 {2} 行</span> | <span style='color:#E65100;'>修改 {3} 行</span> | <b>总变更 {4} 处</b>").format(self._revision_manager.baseline_time, result['additions'], result['deletions'], result['modified'], result['total_changes'])
         )
         summary.setStyleSheet(
             "QLabel{background:#FFF8E1;padding:12px;"

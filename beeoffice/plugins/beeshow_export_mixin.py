@@ -122,9 +122,7 @@ class ExportMixin:
             if success:
                 QMessageBox.information(
                     self, tr("auto.beeshow_export_mixin.c893536c", "导出成功"),
-                    f"已保存: {path}\n\n"
-                    f"✅ 文本可编辑、可搜索\n"
-                    f"✅ 保留字号/颜色/对齐"
+                    tr("auto.beeshow_export_mixin.88cd08b2", "已保存: {path}\n\n✅ 文本可编辑、可搜索\n✅ 保留字号/颜色/对齐").format(path=path)
                 )
                 self._set_status(tr("auto.beeshow_export_mixin.029fa78e", "✅ PPTX 导出完成"), 3000)
             else:
@@ -138,10 +136,7 @@ class ExportMixin:
             logging.error(f"PPTX 引擎导入失败：{e}")
             QMessageBox.warning(
                 self, tr("auto.beeshow_export_mixin.1f393593", "缺少依赖"),
-                f"PPTX 引擎不可用：\n{e}\n\n"
-                f"请确认 python-pptx 已安装。\n"
-                f"如需精确版式，请安装 playwright：\n"
-                f"pip install playwright && playwright install chromium"
+                tr("auto.beeshow_export_mixin.eeb35820", "PPTX 引擎不可用：\n{e}\n\n请确认 python-pptx 已安装。\n如需精确版式，请安装 playwright：\npip install playwright && playwright install chromium").format(e=e)
             )
             self._export_pptx_legacy(path)
 
@@ -199,8 +194,7 @@ class ExportMixin:
             return False
             QMessageBox.information(
                 self, tr("auto.beeshow_export_mixin.8af82fcd", "导出成功（保底方案）"),
-                f"已保存: {path}\n\n"
-                f"⚠️ 使用了保底方案，版式可能不精确。"
+                tr("auto.beeshow_export_mixin.4221e686", "已保存: {path}\n\n⚠️ 使用了保底方案，版式可能不精确。").format(path=path)
             )
         except Exception as e:
             logging.error(f"保底方案也失败：{e}")
@@ -421,8 +415,7 @@ class ExportMixin:
             else:
                 QMessageBox.warning(
                     self, tr("auto.beeshow_export_mixin.7912043e", "部分失败"),
-                    f"成功 {results['ok']} 张，失败 {results['fail']} 张。\n"
-                    f"目录: {output_dir}"
+                    tr("auto.beeshow_export_mixin.b8294b84", "成功 {0} 张，失败 {1} 张。\n目录: {2}").format(results['ok'], results['fail'], output_dir)
                 )
 
         for i, s in enumerate(self._slides_html):
@@ -535,6 +528,6 @@ class ExportMixin:
         QMessageBox.information(
             self,
             tr("auto.beeshow_export_mixin.fe3e8e19", "录制"),
-            "录制功能需要在全屏播放时自动记录幻灯片切换时间戳。\n"
-            "按 F5 开始播放即可自动记录。"
+            tr("auto.beeshow_export_mixin.7ae18b2e", "录制功能需要在全屏播放时自动记录幻灯片切换时间戳。\n"
+            "按 F5 开始播放即可自动记录。")
         )

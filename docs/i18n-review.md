@@ -1,8 +1,8 @@
 # i18n 走查报告
 
-- 代码中的 tr() key：**1395**
+- 代码中的 tr() key：**1446**
 - **英文缺失（会回退中文）：0**
-- 可对照条目：**1395**
+- 可对照条目：**1446**
 - 同一中文多种译法：**0**
 - 同一英文对应多个中文：**11**
 
@@ -66,9 +66,15 @@ Open it now?** ← 已保存:\n{path}\n\n是否打开？ / 已保存：\n{path}\
 - 蜜演：新建幻灯片 → BeeShow: New Slides
 - 蜜演：添加幻灯片 → BeeShow: Add Slide
 
-### Note（6 条）
+### Note（7 条）
 - <h2>当前页备注</h2> → <h2>Notes for this slide</h2>
 - 备注已保存 → Notes saved
+- 无法写入文件：\n{path}\n\n该文件正在被其他程序打开。\n\n请关闭占用该文件的程序（如 WPS、Word、记事本）后重试。 → Could not write the file:
+{path}
+
+The file is open in another program.
+
+Close the program using it (e.g. WPS, Word, Notepad) and try again.
 - 蜜演：演讲备注 → BeeShow: Speaker Notes
 - 💡 提示：Qt 富文本不支持字符边框，底纹/颜色会立即生效。 → 💡 Note: Qt rich text does not support character borders; shading and colors apply immediately.
 - 📝 备注 → 📝 Notes
@@ -119,7 +125,7 @@ Open it now?** ← 已保存:\n{path}\n\n是否打开？ / 已保存：\n{path}\
 - 导出 HTML → Export HTML
 - 导出 HTML → Export HTML
 
-### Save（48 条）
+### Save（50 条）
 - ✅ 已保存: {path} → ✅ Saved: {path}
 - ✅ 已保存为 Markdown：{0} → ✅ Saved as Markdown: {0}
 - ✅ 已保存为 Word 文档：{0} → ✅ Saved as Word document: {0}
@@ -161,6 +167,7 @@ Type your content here...
 
 | 模块 | 中文 | English |
 |---|---|---|
+| app | <h2 style='color:#FFB300;'>🐝 蜜蜂办公 BeeOffice</h2><p><b>{0} {1}</b></p><p>{2}</p><br><p>{3}：{4}</p><p>{5}：{6}</p> | <h2 style='color:#FFB300;'>🐝 BeeOffice</h2><p><b>{0} {1}</b></p><p>{2}</p><br><p>{3}: {4}</p><p>{5}: {6}</p> |
 | app | {prefix}{name} - 🐝 蜜蜂办公 | {prefix}{name} - 🐝 BeeOffice |
 | app | 不支持的文件类型: {ext} | Unsupported file type: {ext} |
 | app | 就绪 | Ready |
@@ -173,6 +180,8 @@ Type your content here...
 | beesheet | ↩ 撤销({0}步) | ↩ Undo ({0} steps) |
 | beesheet | ↪ 重做({0}步) | ↪ Redo ({0} steps) |
 | beesheet | ⚠️ 超出范围：{ref} | ⚠️ Out of range: {ref} |
+| beesheet | ✅ 已加载: {0:,} 行 × {1} 列 | ✅ Loaded: {0:,} rows × {1} columns |
+| beesheet | ✅ 已填充 | ✅ Filled |
 | beesheet | ✅ 已生成公式: {result} | ✅ Formula generated: {result} |
 | beesheet | ✅ 已跳转到 {ref} | ✅ Jumped to {ref} |
 | beesheet | ✅ 已选中区域 {ref} | ✅ Selected range {ref} |
@@ -182,6 +191,7 @@ Type your content here...
 | beesheet | 值：（空） | Value: (empty) |
 | beesheet | 关闭 | Close |
 | beesheet | 加载失败 | Load failed |
+| beesheet | 加载完成 | Loading complete |
 | beesheet | 区分大小写 | Match case |
 | beesheet | 取消 | Cancel |
 | beesheet | 大文件 | Large file |
@@ -197,6 +207,8 @@ Type your content here...
 | beesheet | 所有支持格式 (*.csv *.xlsx *.xls *.txt);;所有 (*) | All supported (*.csv *.xlsx *.xls *.txt);;All files (*) |
 | beesheet | 找到 | Found |
 | beesheet | 提示 | Notice |
+| beesheet | 文件大小 {size_mb:.1f} MB，是否使用分块加载？\n（推荐，可避免界面卡顿） | The file is {size_mb:.1f} MB. Load it in chunks?
+(Recommended; keeps the interface responsive.) |
 | beesheet | 文件有{0}行，仅加载前20万行？ | The file has {0} rows; load only the first 200,000? |
 | beesheet | 无撤销 | Nothing to undo |
 | beesheet | 无法解析 | Cannot parse |
@@ -211,6 +223,7 @@ Type your content here...
 | beesheet | 筛选失败 | Filter failed |
 | beesheet | 筛选条件不完整 | The filter is incomplete |
 | beesheet | 筛选结果为空 | The filter returned no rows |
+| beesheet | 计数:{0} \| 求和:{1:,.2f} \| 平均:{2:,.2f} \| 空值:{3}{4} | Count: {0} \| Sum: {1:,.2f} \| Average: {2:,.2f} \| Empty: {3}{4} |
 | beesheet | 该列包含无法比较的内容（数字与文字混合），未排序 | This column mixes numbers and text and was not sorted |
 | beesheet | 请先导入数据 | Import data first |
 | beesheet | 请先选择一个单元格 | Select a cell first |
@@ -223,6 +236,9 @@ Type your content here...
 | beesheet | 🔍 定位 | 🔍 Go To |
 | beesheet_audit_mixin | <b>中文说明：</b> | <b>Explanation:</b> |
 | beesheet_audit_mixin | <b>公式：</b> | <b>Formula:</b> |
+| beesheet_audit_mixin | <h2 style='color:#1B5E20;'>✅ 完美兼容</h2><p>共检查 {total} 项，全部通过。</p> | <h2 style='color:#1B5E20;'>✅ Fully compatible</h2><p>Checked {total} items; all passed.</p> |
+| beesheet_audit_mixin | <h2 style='color:#B71C1C;'>❌ 发现 {0} 个问题</h2><p>警告 {1} 项，通过 {2} 项。</p> | <h2 style='color:#B71C1C;'>❌ Found {0} problems</h2><p>{1} warnings, {2} passed.</p> |
+| beesheet_audit_mixin | <h2 style='color:#E65100;'>⚠️ 发现 {0} 个警告</h2><p>全部通过 {1} 项。</p> | <h2 style='color:#E65100;'>⚠️ Found {0} warnings</h2><p>{1} passed.</p> |
 | beesheet_audit_mixin | {target_ref} 没有被任何公式引用 | {target_ref} is not referenced by any formula |
 | beesheet_audit_mixin | ⚠ 公式错误助手 | ⚠ Formula Error Helper |
 | beesheet_audit_mixin | ✏️ 编辑公式 | ✏️ Edit Formula |
@@ -239,11 +255,17 @@ Type your content here...
 | beesheet_audit_mixin | 提示 | Notice |
 | beesheet_audit_mixin | 文本 (*.txt) | Text (*.txt) |
 | beesheet_audit_mixin | 该公式没有引用其他单元格 | This formula does not reference other cells |
+| beesheet_audit_mixin | 该单元格存在错误：\n\n{error_value}\n\n（公式记录已丢失，无法显示详细原因） | This cell contains an error:
+
+{error_value}
+
+(The formula record was lost, so the detailed cause is unavailable.) |
 | beesheet_audit_mixin | 错误详情 | Error details |
 | beesheet_audit_mixin | 💡 诊断与建议： | 💡 Diagnosis & suggestions: |
 | beesheet_audit_mixin | 📋 复制公式 | 📋 Copy Formula |
 | beesheet_audit_mixin | 📋 复制说明 | 📋 Copy Explanation |
 | beesheet_audit_mixin | 📋 导出报告 | 📋 Export Report |
+| beesheet_audit_mixin | 📌 追踪从属：{0} 个单元格引用了 {1}（橙色高亮） | 📌 Dependents: {0} cells reference {1} (highlighted orange) |
 | beesheet_audit_mixin | 📌 追踪引用：{0} 个单元格（橙色高亮） | 📌 Precedents: {0} cells (highlighted orange) |
 | beesheet_audit_mixin | 📖 公式翻译器 | 📖 Formula Translator |
 | beesheet_audit_mixin | 📝 原始公式： | 📝 Original formula: |
@@ -280,6 +302,7 @@ Type your content here...
 | beesheet_context_menu_mixin | 📌 冻结前3行 | 📌 Freeze First 3 Rows |
 | beesheet_context_menu_mixin | 📌 冻结首列 | 📌 Freeze First Column |
 | beesheet_context_menu_mixin | 📌 冻结首行 | 📌 Freeze First Row |
+| beesheet_context_menu_mixin | 📌 已冻结 {0} 行 × {1} 列 | 📌 Froze {0} rows × {1} columns |
 | beesheet_context_menu_mixin | 📌 已冻结前 {0} 列 | 📌 Froze the first {0} columns |
 | beesheet_context_menu_mixin | 📌 已冻结前 {0} 行 | 📌 Froze the first {0} rows |
 | beesheet_context_menu_mixin | 📖 翻译公式 | 📖 Translate Formula |
@@ -292,6 +315,8 @@ Type your content here...
 | beesheet_data_mixin | ✅ 列「{0}」已{1} | ✅ Column "{0}" {1} |
 | beesheet_data_mixin | ✅ 列「{cn}」已转为数字 | ✅ Column "{cn}" converted to numbers |
 | beesheet_data_mixin | ✅ 列「{cn}」已转为文本 | ✅ Column "{cn}" converted to text |
+| beesheet_data_mixin | ✅ 列已移动 | ✅ Column moved |
+| beesheet_data_mixin | ✅ 已为 {0} 个单元格添加下拉（{1} 项） | ✅ Added a dropdown to {0} cells ({1} options) |
 | beesheet_data_mixin | ✅ 已保存: {path} | ✅ Saved: {path} |
 | beesheet_data_mixin | ✅ 已删除 {removed} 个重复行 | ✅ Removed {removed} duplicate rows |
 | beesheet_data_mixin | ✅ 已删除名称「{name}」 | ✅ Deleted name "{name}" |
@@ -344,6 +369,7 @@ Guangzhou |
 | beesheet_data_mixin | 导出图片 | Export Image |
 | beesheet_data_mixin | 已保存：\n{path} | Saved:
 {path} |
+| beesheet_data_mixin | 已分列 | Column split |
 | beesheet_data_mixin | 已删除列「{col_name}」 | Deleted column "{col_name}" |
 | beesheet_data_mixin | 已删除第 {0} 行 | Deleted row {0} |
 | beesheet_data_mixin | 已删除重复行 | Duplicate rows removed |
@@ -428,6 +454,8 @@ Guangzhou |
 | beesheet_dialogs | 请至少选择：1 个行/列字段 + 1 个值字段 | Select at least one row/column field and one value field |
 | beesheet_dialogs | 👁 预览 | 👁 Preview |
 | beesheet_dialogs | 📊 数据透视表 | 📊 Pivot Table |
+| beesheet_formula_mixin | <b style='color:#E65100;'>{name}</b><br><span style='color:#666;'>语法：{syntax}</span> | <b style='color:#E65100;'>{name}</b><br><span style='color:#666;'>Syntax: {syntax}</span> |
+| beesheet_formula_mixin | <b>分类：</b>{cat}<br><br><b>语法：</b><code>{syntax}</code> | <b>Category:</b> {cat}<br><br><b>Syntax:</b> <code>{syntax}</code> |
 | beesheet_formula_mixin | ƒx 插入函数 | ƒx Insert Function |
 | beesheet_formula_mixin | ✅ 已按行自动求和 ({count} 行) | ✅ AutoSum applied by row ({count} rows) |
 | beesheet_formula_mixin | ❌ 求和失败: {result} | ❌ Sum failed: {result} |
@@ -580,6 +608,12 @@ Guangzhou |
 | beeshow_export_mixin | GIF 已保存至：\n{path} | GIF saved to:
 {path} |
 | beeshow_export_mixin | PDF 写入失败（磁盘空间不足或无写权限？） | Failed to write the PDF (disk full or no write permission?) |
+| beeshow_export_mixin | PPTX 引擎不可用：\n{e}\n\n请确认 python-pptx 已安装。\n如需精确版式，请安装 playwright：\npip install playwright && playwright install chromium | PPTX engine unavailable:
+{e}
+
+Make sure python-pptx is installed.
+For precise layout, install playwright:
+pip install playwright && playwright install chromium |
 | beeshow_export_mixin | PPTX 引擎返回失败，尝试旧方案... | The PPTX engine failed, trying the legacy path... |
 | beeshow_export_mixin | ✅ PPTX 导出完成 | ✅ PPTX export finished |
 | beeshow_export_mixin | 出错：{e}\n\n尝试旧方案... | Error: {e}
@@ -596,7 +630,16 @@ Trying the legacy path... |
 {1} |
 | beeshow_export_mixin | 已保存: {file_path} | Saved: {file_path} |
 | beeshow_export_mixin | 已保存: {path} | Saved: {path} |
+| beeshow_export_mixin | 已保存: {path}\n\n⚠️ 使用了保底方案，版式可能不精确。 | Saved: {path}
+
+⚠️ The fallback path was used; the layout may be imprecise. |
+| beeshow_export_mixin | 已保存: {path}\n\n✅ 文本可编辑、可搜索\n✅ 保留字号/颜色/对齐 | Saved: {path}
+
+✅ Text stays editable and searchable
+✅ Font size / color / alignment preserved |
 | beeshow_export_mixin | 录制 | Record |
+| beeshow_export_mixin | 成功 {0} 张，失败 {1} 张。\n目录: {2} | Succeeded {0}, failed {1}.
+Folder: {2} |
 | beeshow_export_mixin | 提示 | Notice |
 | beeshow_export_mixin | 演示.gif | presentation.gif |
 | beeshow_export_mixin | 演示.html | presentation.html |
@@ -622,10 +665,19 @@ Trying the legacy path... |
 | beeshow_history_mixin | ⚠️ 没有更早的版本 | ⚠️ No earlier version |
 | beeshow_history_mixin | 关闭 | Close |
 | beeshow_history_mixin | 确定删除此历史版本吗？（不可恢复） | Delete this version? This cannot be undone. |
+| beeshow_history_mixin | 确定恢复到 {0} 的版本吗？\n\n当前内容将被覆盖。\n（恢复后可通过再次编辑产生新快照） | Restore the version from {0}?
+
+The current content will be overwritten.
+(A new snapshot is created after you edit again.) |
+| beeshow_history_mixin | 确定清空全部 {0} 个历史版本吗？（不可恢复） | Clear all {0} versions? This cannot be undone. |
 | beeshow_history_mixin | 确认删除 | Confirm Delete |
 | beeshow_history_mixin | 确认恢复 | Confirm Restore |
 | beeshow_history_mixin | 确认清空 | Confirm Clear |
+| beeshow_history_mixin | 💡 共 {0} 个历史版本。\n双击任意版本可恢复；恢复后当前内容会被覆盖（可撤销）。 | 💡 {0} versions available.
+Double-click a version to restore it; the current content will be overwritten (undoable). |
 | beeshow_history_mixin | 📜 版本历史 | 📜 Version History |
+| beeshow_history_mixin | 🕐 {0}\n   {1} 页 · {2} 字 | 🕐 {0}
+   {1} slides · {2} characters |
 | beeshow_history_mixin | 🗑 删除此版本 | 🗑 Delete This Version |
 | beeshow_history_mixin | 🧹 历史已清空 | 🧹 History cleared |
 | beeshow_history_mixin | 🧹 清空历史 | 🧹 Clear History |
@@ -636,6 +688,8 @@ Trying the legacy path... |
 | beeshow_image_suggester_dialog | 加载中... | Loading... |
 | beeshow_image_suggester_dialog | 取消 | Cancel |
 | beeshow_image_suggester_dialog | （无法加载） | (could not load) |
+| beeshow_image_suggester_dialog | 💡 根据当前页内容找到 {0} 张候选图。\n单击选中，双击直接插入。 | 💡 Found {0} candidate images for this slide.
+Click to select; double-click to insert. |
 | beeshow_image_suggester_dialog | 🖼️ 选择配图 | 🖼️ Choose Image |
 | beeshow_layout_mixin | 关闭 | Close |
 | beeshow_layout_mixin | 📐 已应用版式：{0} | 📐 Layout applied: {0} |
@@ -644,6 +698,9 @@ Trying the legacy path... |
 | beeshow_notes_mixin | ✅ 已生成演讲稿（{0} 字） | ✅ Script generated ({0} characters) |
 | beeshow_notes_mixin | ✅ 批量完成：成功 {success} 页，失败 {fail} 页 | ✅ Batch complete: {success} succeeded, {fail} failed |
 | beeshow_notes_mixin | ❌ 生成失败 | ❌ Generation failed |
+| beeshow_notes_mixin | 将为 {0} 页生成演讲稿，预计耗时 {1}~{2} 秒。\n\n是否继续？ | Generate scripts for {0} slides? This takes about {1}–{2} seconds.
+
+Continue? |
 | beeshow_notes_mixin | 当前页索引无效 | Invalid page index |
 | beeshow_notes_mixin | 提示 | Notice |
 | beeshow_notes_mixin | 生成失败 | Generation failed |
@@ -655,6 +712,8 @@ Trying the legacy path... |
 | beeshow_play_mixin | <h2>下一页</h2> | <h2>Next page</h2> |
 | beeshow_play_mixin | <h2>当前页备注</h2> | <h2>Notes for this slide</h2> |
 | beeshow_play_mixin | ⏱ 排练: 00:00 | ⏱ Rehearsal: 00:00 |
+| beeshow_play_mixin | ⏱ 排练: {minutes:02d}:{seconds:02d} | ⏱ Rehearsal: {minutes:02d}:{seconds:02d} |
+| beeshow_play_mixin | ⏱ 排练总时长: {minutes:02d}:{seconds:02d} | ⏱ Total rehearsal: {minutes:02d}:{seconds:02d} |
 | beeshow_play_mixin | ⏱ 排练计时开始 | ⏱ Rehearsal timer started |
 | beeshow_play_mixin | 🎤 演讲者视图 | 🎤 Presenter View |
 | beeshow_plugin | PPTX 导出完成 | PPTX export finished |
@@ -711,6 +770,7 @@ Trying the legacy path... |
 | beeshow_sync_mixin | 提示 | Notice |
 | beeshow_sync_mixin | 请先编写幻灯片内容 | Write some slide content first |
 | beeshow_sync_mixin | 👥 当前观众：0 | 👥 Viewers: 0 |
+| beeshow_sync_mixin | 👥 当前观众：{0} | 👥 Viewers: {0} |
 | beeshow_sync_mixin | 📋 复制链接 | 📋 Copy Link |
 | beeshow_sync_mixin | 📱 同步演示 | 📱 Sync Presentation |
 | beeshow_sync_mixin | 📱 同步演示已关闭 | 📱 Presentation sync stopped |
@@ -818,6 +878,7 @@ Trying the legacy path... |
 | beewrite_comment | 📍 跳转 | 📍 Go To |
 | beewrite_comment | 📝 批注 | 📝 Comments |
 | beewrite_comment | 🗑️ 删除 | 🗑️ Delete |
+| beewrite_comment_mixin | <b>修订摘要</b>（基线时间：{0}）<br><span style='color:#1B5E20;'>新增 {1} 行</span> \| <span style='color:#B71C1C;'>删除 {2} 行</span> \| <span style='color:#E65100;'>修改 {3} 行</span> \| <b>总变更 {4} 处</b> | <b>Revision summary</b> (baseline: {0})<br><span style='color:#1B5E20;'>{1} added</span> \| <span style='color:#B71C1C;'>{2} deleted</span> \| <span style='color:#E65100;'>{3} changed</span> \| <b>{4} total changes</b> |
 | beewrite_comment_mixin | ✅ 修订模式已开启（基线 {0} 字符） | ✅ Track changes on (baseline {0} characters) |
 | beewrite_comment_mixin | ✅ 已删除书签「{name}」 | ✅ Deleted bookmark "{name}" |
 | beewrite_comment_mixin | ✅ 已恢复到基线 | ✅ Restored to the baseline |
@@ -859,6 +920,7 @@ Trying the legacy path... |
 | beewrite_doc_mixin | 提示 | Notice |
 | beewrite_doc_mixin | 文档对比失败：\n{e} | Document comparison failed:
 {e} |
+| beewrite_doc_mixin | 新增: {0} 行 \| 删除: {1} 行 \| 变更: {2} 处 | Added: {0} \| Deleted: {1} \| Changed: {2} |
 | beewrite_doc_mixin | 水印已清除 | Watermark removed |
 | beewrite_doc_mixin | 生成目录失败：\n{e} | Failed to generate the table of contents:
 {e} |
@@ -914,6 +976,24 @@ Open it now? |
 {e} |
 | beewrite_export_mixin | 无法保存文件：\n{e} | Could not save the file:
 {e} |
+| beewrite_export_mixin | 无法写入文件：\n{path}\n\n该文件正在被其他程序打开。\n\n请关闭占用该文件的程序（如 WPS、Word、记事本）后重试。 | Could not write the file:
+{path}
+
+The file is open in another program.
+
+Close the program using it (e.g. WPS, Word, Notepad) and try again. |
+| beewrite_export_mixin | 无法写入文件：\n{path}\n\n该文件正在被其他程序打开，请关闭后重试。 | Could not write the file:
+{path}
+
+The file is open in another program; close it and try again. |
+| beewrite_export_mixin | 无法写入文件：\n{path}\n\n该文件正在被其他程序（如 WPS、Word）打开。\n\n请选择操作：\n• 「是」 → 关闭占用程序后重试\n• 「否」 → 另存为新文件 | Could not write the file:
+{path}
+
+The file is open in another program (e.g. WPS, Word).
+
+Choose an action:
+• "Yes" → close the program and retry
+• "No" → save as a new file |
 | beewrite_export_mixin | 无法生成 | Could not generate |
 | beewrite_export_mixin | 无法生成 Word 文档 | Could not generate the Word document |
 | beewrite_export_mixin | 模板名称: | Template name: |
@@ -1223,12 +1303,14 @@ Send the console output above to the developer. |
 | beewrite_toolbar_mixin | 🖍️ 高亮 | 🖍️ Highlight |
 | beewrite_toolbar_mixin | 🖨️ 打印预览 | 🖨️ Print Preview |
 | beewrite_toolbar_mixin | 🖼️ 图片 | 🖼️ Image |
+| beewrite_view_mixin | <b>左侧</b>：当前文档　\|　<b>右侧</b>：{0} | <b>Left</b>: current document　\|　<b>Right</b>: {0} |
 | beewrite_view_mixin | Markdown (*.md);;文本 (*.txt);;所有文件 (*) | Markdown (*.md);;Text (*.txt);;All files (*) |
 | beewrite_view_mixin | 关闭 | Close |
 | beewrite_view_mixin | 字数：{word_count} | Words: {word_count} |
 | beewrite_view_mixin | 字符：{char_count} | Characters: {char_count} |
 | beewrite_view_mixin | 已退出阅读模式 | Exited reading mode |
 | beewrite_view_mixin | 打开失败 | Failed to open |
+| beewrite_view_mixin | 新增：<b>{0}</b> 行　\|　删除：<b>{1}</b> 行　\|　总变更：<b>{2}</b> 处 | Added: <b>{0}</b>　\|　Deleted: <b>{1}</b>　\|　Total changes: <b>{2}</b> |
 | beewrite_view_mixin | 行 {line} 列 {col} | Ln {line}, Col {col} |
 | beewrite_view_mixin | 选择对照文档 | Select Comparison Document |
 | beewrite_view_mixin | 📊 双屏对比 — {0} | 📊 Split Comparison — {0} |
@@ -1289,6 +1371,13 @@ Send the console output above to the developer. |
 | command_palette | 📊 蜜算 | 📊 BeeSheet |
 | command_palette | 📝 蜜写 | 📝 BeeWrite |
 | commands | 命令 {slug} 的目标方法不存在: {e} | Command {slug} targets a missing method: {e} |
+| crash_handler | 很抱歉，程序遇到了意外错误。\n\n错误详情已保存至：\n{log_path}\n\n请将此文件发送给开发者以帮助改进。\n邮箱：1265338136@qq.com | Sorry, BeeOffice hit an unexpected error.
+
+The error details were saved to:
+{log_path}
+
+Please send this file to the developer to help improve the app.
+Email: 1265338136@qq.com |
 | crash_handler | 🐝 蜜蜂遇到了问题 | 🐝 BeeOffice hit a problem |
 | dialog | ⌨️ 快捷键 | ⌨️ Shortcuts |
 | dialog | 关于蜜蜂办公 | About BeeOffice |
@@ -1327,6 +1416,20 @@ Send the console output above to the developer. |
 | find_replace | 输入要查找的内容... | Enter text to find... |
 | find_replace | 📝 替换: | 📝 Replace: |
 | find_replace | 🔍 查找: | 🔍 Find: |
+| friendly_errors | 「{filename}」中的内容可能还没有保存。\n\n建议先导出为 PDF 或保存为 Markdown 文件。\n\n确定要关闭吗？ | "{filename}" may have unsaved changes.
+
+Consider exporting to PDF or saving as Markdown first.
+
+Close anyway? |
+| friendly_errors | 公式 `{formula}` 无法计算。\n\n{detail}\n\n💡 常见问题：\n• 函数名拼写是否正确？\n• 参数数量是否正确？\n• 引用的单元格是否有效？\n• 范围格式是否正确（如 A1:B10）？ | The formula `{formula}` could not be calculated.
+
+{detail}
+
+💡 Common issues:
+• Is the function name spelled correctly?
+• Is the number of arguments correct?
+• Are the referenced cells valid?
+• Is the range format correct (e.g. A1:B10)? |
 | friendly_errors | 🐝 公式计算错误 | 🐝 Formula Error |
 | friendly_errors | 🐝 内容还未保存 | 🐝 Content Not Saved Yet |
 | googledrive | Google Drive access_token 为空 | Google Drive access_token is empty |
@@ -1334,11 +1437,15 @@ Send the console output above to the developer. |
 | macro_recorder | 宏包含切换工作表，但未提供处理回调，已跳过 | Macro contains a sheet switch but no handler was provided; skipped |
 | macro_recorder | 宏包含格式动作，但未提供处理回调，已跳过 | Macro contains format actions but no handler was provided; skipped |
 | macro_recorder | 未知宏动作：{kind} | Unknown macro action: {kind} |
+| memory_monitor | ⚠️ 趋势: 上升 +{diff:.1f} MB/10s | ⚠️ Trend: up +{diff:.1f} MB/10s |
+| memory_monitor | ✅ 趋势: 下降 {diff:.1f} MB/10s | ✅ Trend: down {diff:.1f} MB/10s |
 | memory_monitor | ✅ 趋势: 稳定 | ✅ Trend: stable |
 | memory_monitor | 关闭 | Close |
 | memory_monitor | 峰值: -- MB | Peak: -- MB |
 | memory_monitor | 峰值: 0.0 MB | Peak: 0.0 MB |
+| memory_monitor | 峰值: {0:.1f} MB | Peak: {0:.1f} MB |
 | memory_monitor | 当前: -- MB | Current: -- MB |
+| memory_monitor | 当前: {mb:.1f} MB | Current: {mb:.1f} MB |
 | memory_monitor | 趋势: 监测中... | Trend: monitoring... |
 | memory_monitor | 需要安装 psutil | psutil is required |
 | memory_monitor | 🐝 内存监控 | 🐝 Memory Monitor |
@@ -1384,6 +1491,10 @@ Send the console output above to the developer. |
 | menu | 🔌 插件市场 | 🔌 Plugin Market |
 | mobile | 创建临时目录失败: {e} | Failed to create a temp directory: {e} |
 | mobile | 启动失败: {e} | Startup failed: {e} |
+| mobile | 在手机浏览器访问：\nhttp://{0}:{1}/?t={2}\n\n（确保手机与本机在同一局域网；链接含一次性令牌，请勿外传） | Open this address in your phone browser:
+http://{0}:{1}/?t={2}
+
+(Make sure the phone and this computer are on the same network; the link contains a one-time token, do not share it.) |
 | mobile | 提示 | Notice |
 | mobile | 无法找到可用端口 | Could not find a free port |
 | mobile | 移动端服务已在运行，地址：http://{0}:{1} | Mobile server already running at http://{0}:{1} |
@@ -1456,6 +1567,10 @@ Type your content here... |
 | pdf_annotator | 第 {0}/{1} 页 | Page {0}/{1} |
 | pdf_annotator | 🎨 颜色 | 🎨 Color |
 | pdf_annotator | 🐝 PDF 批注 | 🐝 PDF Annotation |
+| pdf_annotator_plugin | PDF 批注模块不可用：\n{e}\n\n请确认已安装 PyMuPDF 依赖。 | The PDF annotation module is unavailable:
+{e}
+
+Make sure PyMuPDF is installed. |
 | pdf_annotator_plugin | PDF 文件 (*.pdf);;所有文件 (*) | PDF files (*.pdf);;All files (*) |
 | pdf_annotator_plugin | PDF：关闭全部批注窗口 | PDF: Close All Annotation Windows |
 | pdf_annotator_plugin | PDF：打开并批注 | PDF: Open and Annotate |
@@ -1473,6 +1588,11 @@ Type your content here... |
 | pdf_annotator_plugin | 重新打开最近一次编辑的 PDF | Reopen the most recently edited PDF |
 | plugin_manager | 插件已加载，跳过重复调用 | Plugin already loaded; skipping duplicate call |
 | plugin_manager | 没有找到任何插件模块 | No plugin modules found |
+| plugin_market | 「{name}」是内置插件，不能删除源文件。\n\n如需停用，请使用右侧的「启用此插件」开关；\n内置插件文件位于：\n{candidate} | "{name}" is a built-in plugin; its source files cannot be deleted.
+
+Use the "Enable this plugin" switch instead;
+built-in plugin files live in:
+{candidate} |
 | plugin_market | 关闭 | Close |
 | plugin_market | 切换状态失败：{e} | Failed to toggle state: {e} |
 | plugin_market | 删除失败 | Delete failed |
@@ -1483,6 +1603,9 @@ Type your content here... |
 | plugin_market | 安装完成 | Installation complete |
 | plugin_market | 安装插件 | Install Plugin |
 | plugin_market | 已卸载 | Uninstalled |
+| plugin_market | 已安装 {installed} 个插件文件。\n\n请重启应用以加载新插件。 | Installed {installed} plugin files.
+
+Restart the app to load the new plugins. |
 | plugin_market | 已安装插件： | Installed plugins: |
 | plugin_market | 打开插件市场失败：\n{e} | Failed to open the plugin market:
 {e} |
@@ -1502,6 +1625,9 @@ Type your content here... |
 | plugin_market | 未安装 | Nothing installed |
 | plugin_market | 目录中未找到有效的插件（无 Plugin 子类） | No valid plugin found in the folder (no Plugin subclass) |
 | plugin_market | 目录中没有 Python 文件 | No Python files in the folder |
+| plugin_market | 确定要卸载插件「{name}」吗？\n\n这会删除插件文件，且不可恢复。 | Uninstall the plugin "{name}"?
+
+This deletes the plugin files and cannot be undone. |
 | plugin_market | 管理已安装的插件。插件目录：beeoffice/plugins/ | Manage installed plugins. Plugin folder: beeoffice/plugins/ |
 | plugin_market | 请先选择一个插件 | Select a plugin first |
 | plugin_market | 选择插件压缩包 | Select a plugin archive |
@@ -1523,8 +1649,11 @@ Type your content here... |
 | sheet | 请先结束录制再播放宏 | Stop recording before playing the macro |
 | sync_conflict_dialog | 全部 {0} 个冲突已处理完毕，可以关闭了。 | All {0} conflicts resolved; you can close this window. |
 | sync_conflict_dialog | 关闭 | Close |
+| sync_conflict_dialog | 发现 {0} 个冲突：本地和远端都被修改过。\n请选择每一项的处理方式；未处理的冲突会保持现状（两份都保留）。 | Found {0} conflicts: both sides changed.
+Choose how to handle each one; unresolved conflicts keep both versions. |
 | sync_conflict_dialog | 同步冲突 | Sync Conflicts |
 | sync_conflict_dialog | 处理失败：{0} 未生效，详见日志 | Failed: {0} did not apply; see the log |
+| sync_conflict_dialog | 已处理：{0}（剩余 {1} 项） | Handled: {0} ({1} remaining) |
 | sync_conflict_dialog | 请先在列表里选中一个冲突 | Select a conflict in the list first |
 | tab | 「{title}」中的内容可能还未保存。\n确定要关闭吗？ | "{title}" may have unsaved changes.
 Close anyway? |

@@ -48,8 +48,7 @@ class SyncConflictDialog(QDialog):
         layout = QVBoxLayout(self)
 
         self._hint = QLabel(
-            f"发现 {len(self._details)} 个冲突：本地和远端都被修改过。\n"
-            "请选择每一项的处理方式；未处理的冲突会保持现状（两份都保留）。"
+            tr("auto.sync_conflict_dialog.4b4e047e", "发现 {0} 个冲突：本地和远端都被修改过。\n请选择每一项的处理方式；未处理的冲突会保持现状（两份都保留）。").format(len(self._details))
         )
         self._hint.setWordWrap(True)
         layout.addWidget(self._hint)
@@ -96,8 +95,7 @@ class SyncConflictDialog(QDialog):
             self._resolved += 1
             self._list.takeItem(self._list.row(item))
             self._status.setText(
-                f"已处理：{ACTION_LABELS[action]}"
-                f"（剩余 {self._list.count()} 项）"
+                tr("auto.sync_conflict_dialog.00405937", "已处理：{0}（剩余 {1} 项）").format(ACTION_LABELS[action], self._list.count())
             )
             if self._list.count() == 0:
                 self._hint.setText(

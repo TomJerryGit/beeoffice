@@ -1,17 +1,9 @@
 {
-  "auto.beesheet.874d563d": "正在分块加载: {0}",
-  "auto.beesheet.d6dc480a": "已加载：{0} 行 × {1} 列",
-  "auto.beesheet.d871806c": "↩ 撤销({0}步)",
-  "auto.beesheet.f1612b07": "↪ 重做({0}步)",
-  "auto.beesheet.a918b4f3": "请输入中文指令：\n（{default_hint}）",
-  "auto.beesheet.d44b1fd2": "✅ 已生成公式: {result}",
-  "auto.beesheet.4cb22b00": "✅ 筛选完成：{0} 行",
-  "auto.beesheet.607ca9fe": "已加载文本: {0} 行",
-  "auto.beesheet.96681a18": "文件有{0}行，仅加载前20万行？",
-  "auto.beesheet.99c8d0ce": "选中:{0} | 空值:{1}{2}",
-  "auto.beesheet.66818f01": "值：{text}",
-  "auto.beesheet.910d3b3a": "已替换{count}处",
-  "auto.beesheet.8a8cd772": "✅ 已选中区域 {ref}",
-  "auto.beesheet.db293213": "✅ 已跳转到 {ref}",
-  "auto.beesheet.7ddfae09": "⚠️ 超出范围：{ref}"
+  "auto.beesheet.1f5ac468": "加载完成",
+  "auto.beesheet.a9018697": "✅ 已填充",
+  "auto.beesheet.eb23d585": "✅ 已加载: {0:,} 行 × {1} 列",
+  "auto.beesheet.638a1048": "计数:{0} | 求和:{1:,.2f} | 平均:{2:,.2f} | 空值:{3}{4}",
+  "auto.beesheet.af64e103": "无法理解指令，请尝试：\n\n• 求和A1到A10\n• 平均值B列\n• 最大值A1到A5\n• 筛选大于100的行\n• 如果A1大于10就显示'高'\n• 合并A1和B1",
+  "auto.beesheet.67960bae": "请手动在单元格输入 VLOOKUP 公式：\n\n=VLOOKUP(查找值, 表范围, 列号, FALSE)",
+  "auto.beesheet.9ea4bfd4": "文件大小 {size_mb:.1f} MB，是否使用分块加载？\n（推荐，可避免界面卡顿）"
 }

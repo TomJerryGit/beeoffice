@@ -290,9 +290,9 @@ class PlayMixin:
         else:
             # 无备注：显示引导提示
             tip = QLabel(
-                "💡 当前演示文稿还没有备注\n\n"
+                tr("auto.beeshow_play_mixin.ec5c0110", "💡 当前演示文稿还没有备注\n\n"
                 "点击工具栏「📝 备注」按钮，\n"
-                "可为每张幻灯片添加演讲备注。"
+                "可为每张幻灯片添加演讲备注。")
             )
             tip.setAlignment(Qt.AlignCenter)
             tip.setStyleSheet(
@@ -461,10 +461,10 @@ class PlayMixin:
         minutes = int(self._rehearsal_elapsed // 60)
         seconds = int(self._rehearsal_elapsed % 60)
         self._rehearsal_label.setText(
-            f"⏱ 排练: {minutes:02d}:{seconds:02d}"
+            tr("auto.beeshow_play_mixin.625dccdc", "⏱ 排练: {minutes:02d}:{seconds:02d}").format(minutes=minutes, seconds=seconds)
         )
         self._set_status(
-            f"⏱ 排练总时长: {minutes:02d}:{seconds:02d}", 5000
+            tr("auto.beeshow_play_mixin.60536482", "⏱ 排练总时长: {minutes:02d}:{seconds:02d}").format(minutes=minutes, seconds=seconds), 5000
         )
 
     def reset_rehearsal(self):
@@ -484,5 +484,5 @@ class PlayMixin:
         minutes = int(elapsed // 60)
         seconds = int(elapsed % 60)
         self._rehearsal_label.setText(
-            f"⏱ 排练: {minutes:02d}:{seconds:02d}"
+            tr("auto.beeshow_play_mixin.625dccdc", "⏱ 排练: {minutes:02d}:{seconds:02d}").format(minutes=minutes, seconds=seconds)
         )

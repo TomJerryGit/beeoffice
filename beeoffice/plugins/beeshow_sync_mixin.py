@@ -78,11 +78,11 @@ class SyncMixin:
             if not self._sync_server.start():
                 QMessageBox.warning(
                     self, tr("auto.beeshow_sync_mixin.65525f0f", "启动失败"),
-                    "同步服务器启动失败。\n\n"
+                    tr("auto.beeshow_sync_mixin.6779946c", "同步服务器启动失败。\n\n"
                     "可能原因：\n"
                     "• 端口 8765 / 8766 已被占用\n"
                     "• 防火墙阻止了监听\n\n"
-                    "请检查后重试。"
+                    "请检查后重试。")
                 )
                 self._sync_server = None
                 return
@@ -223,16 +223,15 @@ class SyncMixin:
         timer = QTimer(dlg)
         timer.timeout.connect(
             lambda: viewer_label.setText(
-                f"👥 当前观众："
-                f"{self._sync_server.viewer_count if self._sync_server else 0}"
+                tr("auto.beeshow_sync_mixin.2316f892", "👥 当前观众：{0}").format(self._sync_server.viewer_count if self._sync_server else 0)
             )
         )
         timer.start(2000)
 
         # 提示
         tip = QLabel(
-            "💡 观众手机需与电脑在同一局域网。\n"
-            "   演示者的翻页、激光笔、黑屏操作会同步显示。"
+            tr("auto.beeshow_sync_mixin.74fab265", "💡 观众手机需与电脑在同一局域网。\n"
+            "   演示者的翻页、激光笔、黑屏操作会同步显示。")
         )
         tip.setStyleSheet(
             "QLabel{color:#666;font-size:12px;padding:8px;"

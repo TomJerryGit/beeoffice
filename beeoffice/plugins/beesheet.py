@@ -403,7 +403,7 @@ class BeeSheetView(
                             self.model._loaded_df.iloc[r, c] = val
                 self.model.layoutChanged.emit()
             self._recalc_formulas()
-            self._set_status(f"✅ 已填充", 2000)
+            self._set_status(tr("auto.beesheet.a9018697", "✅ 已填充"), 2000)
         finally:
             self._fill_start_range = None
             self._fill_direction = None
@@ -425,8 +425,7 @@ class BeeSheetView(
             if size_mb > 50:
                 reply = QMessageBox.question(
                     self, tr("auto.beesheet.1055b3e1", "大文件"),
-                    f"文件大小 {size_mb:.1f} MB，是否使用分块加载？\n"
-                    f"（推荐，可避免界面卡顿）",
+                    tr("auto.beesheet.9ea4bfd4", "文件大小 {size_mb:.1f} MB，是否使用分块加载？\n（推荐，可避免界面卡顿）").format(size_mb=size_mb),
                     QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
                 )
                 if reply == QMessageBox.Yes:
@@ -461,7 +460,7 @@ class BeeSheetView(
             self._redo_stack.clear()
             self._auto_resize_columns()
             self._set_status(
-                f"✅ 已加载: {len(full_df):,} 行 × {len(full_df.columns)} 列",
+                tr("auto.beesheet.eb23d585", "✅ 已加载: {0:,} 行 × {1} 列").format(len(full_df), len(full_df.columns)),
                 5000
             )
 
@@ -728,7 +727,7 @@ class BeeSheetView(
     def _on_all_loaded(self):
         """所有分块加载完成"""
         self._auto_resize_columns()
-        self._set_status(f"加载完成", 5000)
+        self._set_status(tr("auto.beesheet.1f5ac468", "加载完成"), 5000)
 
     # ==================== 状态栏 ====================
     def _update_status(self):
@@ -757,9 +756,7 @@ class BeeSheetView(
                            f"{self._frozen_cols}列")
         if values:
             self.status_label.setText(
-                f"计数:{len(values)} | 求和:{sum(values):,.2f} | "
-                f"平均:{sum(values)/len(values):,.2f} | "
-                f"空值:{empty}{freeze_info}"
+                tr("auto.beesheet.638a1048", "计数:{0} | 求和:{1:,.2f} | 平均:{2:,.2f} | 空值:{3}{4}").format(len(values), sum(values), sum(values) / len(values), empty, freeze_info)
             )
         else:
             self.status_label.setText(
@@ -933,13 +930,13 @@ class BeeSheetView(
         if not result:
             QMessageBox.warning(
                 self, tr("auto.beesheet.729fac3e", "无法解析"),
-                "无法理解指令，请尝试：\n\n"
+                tr("auto.beesheet.af64e103", "无法理解指令，请尝试：\n\n"
                 "• 求和A1到A10\n"
                 "• 平均值B列\n"
                 "• 最大值A1到A5\n"
                 "• 筛选大于100的行\n"
                 "• 如果A1大于10就显示'高'\n"
-                "• 合并A1和B1"
+                "• 合并A1和B1")
             )
             return
         # FILTER 指令：走筛选流程
@@ -953,8 +950,8 @@ class BeeSheetView(
         if result == "VLOOKUP":
             QMessageBox.information(
                 self, "VLOOKUP",
-                "请手动在单元格输入 VLOOKUP 公式：\n\n"
-                "=VLOOKUP(查找值, 表范围, 列号, FALSE)"
+                tr("auto.beesheet.67960bae", "请手动在单元格输入 VLOOKUP 公式：\n\n"
+                "=VLOOKUP(查找值, 表范围, 列号, FALSE)")
             )
             return
         if not idx.isValid():

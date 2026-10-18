@@ -1010,11 +1010,7 @@ class BeeApp(QMainWindow):
         QMessageBox.about(
             self,
             tr("dialog.about_title", "关于蜜蜂办公"),
-            f"<h2 style='color:#FFB300;'>🐝 蜜蜂办公 BeeOffice</h2>"
-            f"<p><b>{tr('about.version', '版本')} {__version__}</b></p>"
-            f"<p>{__slogan__}</p><br>"
-            f"<p>{tr('about.author', '开发者')}：{__author__}</p>"
-            f"<p>{tr('about.email', '联系邮箱')}：{__email__}</p>",
+            tr("auto.app.ca83dd76", "<h2 style='color:#FFB300;'>🐝 蜜蜂办公 BeeOffice</h2><p><b>{0} {1}</b></p><p>{2}</p><br><p>{3}：{4}</p><p>{5}：{6}</p>").format(tr('about.version', '版本'), __version__, __slogan__, tr('about.author', '开发者'), __author__, tr('about.email', '联系邮箱'), __email__),
         )
 
     # ==================================================================

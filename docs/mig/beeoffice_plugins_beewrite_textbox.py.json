@@ -1,6 +1,3 @@
 {
-  "auto.beewrite_textbox.a2d3c862": "📦 插入文本框",
-  "auto.beewrite_textbox.ad2b9430": "选择边框颜色",
-  "auto.beewrite_textbox.5bd1333a": "选择背景色",
-  "auto.beewrite_textbox.ec911e7b": "圆角边框（不支持，仅提示）"
+  "auto.beewrite_textbox.4aea5104": "💡 文本框是静态的，插入后内容在此框内输入。\nQt 不支持拖动位置，也不能浮动于文字之上。"
 }

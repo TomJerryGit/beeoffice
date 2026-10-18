@@ -56,8 +56,8 @@ class LayoutMixin:
 
         # 顶部提示
         tip = QLabel(
-            "💡 选择版式后，当前幻灯片内容会被替换为版式骨架。\n"
-            "如需保留原内容，请先复制或另存。"
+            tr("auto.beeshow_layout_mixin.66593906", "💡 选择版式后，当前幻灯片内容会被替换为版式骨架。\n"
+            "如需保留原内容，请先复制或另存。")
         )
         tip.setStyleSheet(
             "QLabel{color:#666;font-size:12px;padding:8px;"

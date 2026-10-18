@@ -85,8 +85,8 @@ class TextBoxDialog(QDialog):
 
         # 提示
         tip = QLabel(
-            "💡 文本框是静态的，插入后内容在此框内输入。\n"
-            "Qt 不支持拖动位置，也不能浮动于文字之上。"
+            tr("auto.beewrite_textbox.4aea5104", "💡 文本框是静态的，插入后内容在此框内输入。\n"
+            "Qt 不支持拖动位置，也不能浮动于文字之上。")
         )
         tip.setStyleSheet(
             "QLabel{color:#666;font-size:11px;padding:8px;"

@@ -81,8 +81,8 @@ class WatermarkDialog(QDialog):
 
         # 提示
         tip = QLabel(
-            "💡 水印只在导出 PDF / HTML 时生效。\n"
-            "编辑视图不显示水印（Qt 限制）。"
+            tr("auto.beewrite_page_extras.76c1b278", "💡 水印只在导出 PDF / HTML 时生效。\n"
+            "编辑视图不显示水印（Qt 限制）。")
         )
         tip.setStyleSheet(
             "QLabel{color:#666;font-size:11px;padding:8px;"
@@ -195,8 +195,8 @@ class PageNumberDialog(QDialog):
 
         # 提示
         tip = QLabel(
-            "💡 页码只在导出 PDF 时生效（通过 CSS @page 规则）。\n"
-            "若使用 QWebEngineView 打印，可能不支持全部格式。"
+            tr("auto.beewrite_page_extras.66ffe2c5", "💡 页码只在导出 PDF 时生效（通过 CSS @page 规则）。\n"
+            "若使用 QWebEngineView 打印，可能不支持全部格式。")
         )
         tip.setStyleSheet(
             "QLabel{color:#666;font-size:11px;padding:8px;"

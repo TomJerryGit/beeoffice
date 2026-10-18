@@ -111,10 +111,7 @@ class CrashHandler:
             QMessageBox.critical(
                 None,
                 tr("auto.crash_handler.a19f00ec", "🐝 蜜蜂遇到了问题"),
-                f"很抱歉，程序遇到了意外错误。\n\n"
-                f"错误详情已保存至：\n{log_path}\n\n"
-                f"请将此文件发送给开发者以帮助改进。\n"
-                f"邮箱：1265338136@qq.com"
+                tr("auto.crash_handler.c6aa4bc2", "很抱歉，程序遇到了意外错误。\n\n错误详情已保存至：\n{log_path}\n\n请将此文件发送给开发者以帮助改进。\n邮箱：1265338136@qq.com").format(log_path=log_path)
             )
         except Exception:
             # 弹框失败，仅打印

@@ -1,7 +1,7 @@
 {
-  "auto.beeshow_export_mixin.16411a46": "已保存: {path}",
-  "auto.beeshow_export_mixin.6e013b3e": "GIF 已保存至：\n{path}",
-  "auto.beeshow_export_mixin.08588f22": "出错：{e}\n\n尝试旧方案...",
-  "auto.beeshow_export_mixin.54c90c57": "已保存 {0} 张图片到:\n{1}",
-  "auto.beeshow_export_mixin.99bc3d5d": "已保存: {file_path}"
+  "auto.beeshow_export_mixin.7ae18b2e": "录制功能需要在全屏播放时自动记录幻灯片切换时间戳。\n按 F5 开始播放即可自动记录。",
+  "auto.beeshow_export_mixin.88cd08b2": "已保存: {path}\n\n✅ 文本可编辑、可搜索\n✅ 保留字号/颜色/对齐",
+  "auto.beeshow_export_mixin.eeb35820": "PPTX 引擎不可用：\n{e}\n\n请确认 python-pptx 已安装。\n如需精确版式，请安装 playwright：\npip install playwright && playwright install chromium",
+  "auto.beeshow_export_mixin.4221e686": "已保存: {path}\n\n⚠️ 使用了保底方案，版式可能不精确。",
+  "auto.beeshow_export_mixin.b8294b84": "成功 {0} 张，失败 {1} 张。\n目录: {2}"
 }

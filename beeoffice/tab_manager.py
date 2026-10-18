@@ -74,9 +74,9 @@ class TabManager(QTabWidget):
         """弹出文件对话框打开文件"""
         path, _ = QFileDialog.getOpenFileName(
             self, tr("auto.tab_manager.38820b3d", "打开文件"), "",
-            "所有支持格式 (*.md *.docx *.csv *.xlsx *.txt);;"
+            tr("auto.tab_manager.c92eef33", "所有支持格式 (*.md *.docx *.csv *.xlsx *.txt);;"
             "Excel (*.xlsx *.xls);;CSV (*.csv);;Word (*.docx);;"
-            "Markdown (*.md);;文本 (*.txt)"
+            "Markdown (*.md);;文本 (*.txt)")
         )
         if not path:
             return

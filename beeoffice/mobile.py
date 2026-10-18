@@ -115,8 +115,7 @@ class MobileServer:
 
         QMessageBox.information(
             self.parent, tr("auto.mobile.944f6ab6", "📱 移动端查看"),
-            f"在手机浏览器访问：\nhttp://{self.ip}:{self.port}/?t={self.token}\n\n"
-            f"（确保手机与本机在同一局域网；链接含一次性令牌，请勿外传）"
+            tr("auto.mobile.893e91e5", "在手机浏览器访问：\nhttp://{0}:{1}/?t={2}\n\n（确保手机与本机在同一局域网；链接含一次性令牌，请勿外传）").format(self.ip, self.port, self.token)
         )
 
     # ---------- 停止 ----------

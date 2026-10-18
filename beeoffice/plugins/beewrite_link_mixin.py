@@ -140,8 +140,8 @@ class LinkMixin:
             QMessageBox.information(
                 self,
                 tr("auto.beewrite_link_mixin.ab3656a9", "提示"),
-                "文档中没有标题。\n"
-                "请先用「样式」下拉框把段落设为标题。",
+                tr("auto.beewrite_link_mixin.79040c98", "文档中没有标题。\n"
+                "请先用「样式」下拉框把段落设为标题。"),
             )
             return
 

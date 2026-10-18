@@ -1,4 +1,4 @@
 {
-  "auto.beeshow_ai_mixin.f640eb0a": "✅ 已生成 {0} 页大纲",
-  "auto.beeshow_ai_mixin.200963ea": "✅ 已找到 {0} 张候选图"
+  "auto.beeshow_ai_mixin.dfe98bc4": "此功能需要联网生成。\n可以将导出HTML上传到服务器后生成二维码。",
+  "auto.beeshow_ai_mixin.170ce584": "未找到合适的配图。\n\n可在设置中配置 Unsplash / Pexels API Key 以获取更好的结果。"
 }

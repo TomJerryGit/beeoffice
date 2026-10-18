@@ -74,8 +74,8 @@ class FormulaDialog(QDialog):
         if not HAS_MPL:
             QMessageBox.warning(
                 self, tr("auto.beewrite_formula.1f393593", "缺少依赖"),
-                "数学公式需要 matplotlib：\n"
-                "pip install matplotlib"
+                tr("auto.beewrite_formula.ab9edbc0", "数学公式需要 matplotlib：\n"
+                "pip install matplotlib")
             )
             return
 

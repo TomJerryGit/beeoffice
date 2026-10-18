@@ -104,8 +104,8 @@ class HistoryMixin:
         if not self._slide_history:
             QMessageBox.information(
                 self, tr("auto.beeshow_history_mixin.fe6e2c68", "📜 版本历史"),
-                "暂无历史版本。\n\n"
-                "每次编辑后会自动保存快照，最多保留 50 个。"
+                tr("auto.beeshow_history_mixin.999fa178", "暂无历史版本。\n\n"
+                "每次编辑后会自动保存快照，最多保留 50 个。")
             )
             return
 
@@ -116,8 +116,7 @@ class HistoryMixin:
 
         # 顶部提示
         tip = QLabel(
-            f"💡 共 {len(self._slide_history)} 个历史版本。\n"
-            f"双击任意版本可恢复；恢复后当前内容会被覆盖（可撤销）。"
+            tr("auto.beeshow_history_mixin.eb5bc1cd", "💡 共 {0} 个历史版本。\n双击任意版本可恢复；恢复后当前内容会被覆盖（可撤销）。").format(len(self._slide_history))
         )
         tip.setStyleSheet(
             "QLabel{color:#666;font-size:12px;padding:8px;"
@@ -141,9 +140,7 @@ class HistoryMixin:
         for i in range(len(self._slide_history) - 1, -1, -1):
             snap = self._slide_history[i]
             item = QListWidgetItem(
-                f"🕐 {snap['timestamp']}\n"
-                f"   {snap['slide_count']} 页 · "
-                f"{snap['char_count']} 字"
+                tr("auto.beeshow_history_mixin.64f5a68a", "🕐 {0}\n   {1} 页 · {2} 字").format(snap['timestamp'], snap['slide_count'], snap['char_count'])
             )
             item.setData(Qt.UserRole, i)  # 存原始索引
             lst.addItem(item)
@@ -201,9 +198,7 @@ class HistoryMixin:
             snap = self._slide_history[idx]
             reply = QMessageBox.question(
                 dlg, tr("auto.beeshow_history_mixin.b537457e", "确认恢复"),
-                f"确定恢复到 {snap['timestamp']} 的版本吗？\n\n"
-                f"当前内容将被覆盖。\n"
-                f"（恢复后可通过再次编辑产生新快照）",
+                tr("auto.beeshow_history_mixin.a6cff6a6", "确定恢复到 {0} 的版本吗？\n\n当前内容将被覆盖。\n（恢复后可通过再次编辑产生新快照）").format(snap['timestamp']),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -265,8 +260,7 @@ class HistoryMixin:
         def do_clear():
             reply = QMessageBox.question(
                 dlg, tr("auto.beeshow_history_mixin.1cb22bad", "确认清空"),
-                f"确定清空全部 {len(self._slide_history)} "
-                f"个历史版本吗？（不可恢复）",
+                tr("auto.beeshow_history_mixin.7337b389", "确定清空全部 {0} 个历史版本吗？（不可恢复）").format(len(self._slide_history)),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )

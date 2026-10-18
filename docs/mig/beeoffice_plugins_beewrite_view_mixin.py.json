@@ -1,6 +1,4 @@
 {
-  "auto.beewrite_view_mixin.7817b7b1": "📊 双屏对比 — {0}",
-  "auto.beewrite_view_mixin.1a98e9a7": "字数：{word_count}",
-  "auto.beewrite_view_mixin.fc9bf7d3": "字符：{char_count}",
-  "auto.beewrite_view_mixin.fef93934": "行 {line} 列 {col}"
+  "auto.beewrite_view_mixin.ee0d46d7": "<b>左侧</b>：当前文档　|　<b>右侧</b>：{0}",
+  "auto.beewrite_view_mixin.922d2cf6": "新增：<b>{0}</b> 行　|　删除：<b>{1}</b> 行　|　总变更：<b>{2}</b> 处"
 }

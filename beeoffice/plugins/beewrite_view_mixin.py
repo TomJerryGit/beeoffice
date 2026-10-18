@@ -243,8 +243,7 @@ class ViewMixin:
 
         # ---------- 顶部标题 ----------
         header = QLabel(
-            f"<b>左侧</b>：当前文档　|　"
-            f"<b>右侧</b>：{Path(path).name}"
+            tr("auto.beewrite_view_mixin.ee0d46d7", "<b>左侧</b>：当前文档　|　<b>右侧</b>：{0}").format(Path(path).name)
         )
         header.setStyleSheet(
             "QLabel{background:#FFF8E1;padding:8px;"
@@ -297,9 +296,7 @@ class ViewMixin:
             dl = QVBoxLayout(diff_dlg)
 
             summary = QLabel(
-                f"新增：<b>{result['additions']}</b> 行　|　"
-                f"删除：<b>{result['deletions']}</b> 行　|　"
-                f"总变更：<b>{result['total_changes']}</b> 处"
+                tr("auto.beewrite_view_mixin.922d2cf6", "新增：<b>{0}</b> 行　|　删除：<b>{1}</b> 行　|　总变更：<b>{2}</b> 处").format(result['additions'], result['deletions'], result['total_changes'])
             )
             summary.setStyleSheet(
                 "QLabel{background:#FFF8E1;padding:12px;"

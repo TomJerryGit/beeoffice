@@ -1,9 +1,3 @@
 {
-  "auto.beewrite_doc_mixin.cfc15eab": "页眉已设置：{0}（导出 Word 时生效）",
-  "auto.beewrite_doc_mixin.26197cf4": "页脚已设置：{0}（导出 Word 时生效）",
-  "auto.beewrite_doc_mixin.4fa4c532": "✅ 水印已设置：「{0}」（导出 PDF 生效）",
-  "auto.beewrite_doc_mixin.052ec4d2": "✅ 页码已启用（{0}，导出 PDF 生效）",
-  "auto.beewrite_doc_mixin.0d812700": "✅ 页面设置已更新（{0}）",
-  "auto.beewrite_doc_mixin.8831e02a": "生成目录失败：\n{e}",
-  "auto.beewrite_doc_mixin.84e66f8d": "文档对比失败：\n{e}"
+  "auto.beewrite_doc_mixin.9188260b": "新增: {0} 行 | 删除: {1} 行 | 变更: {2} 处"
 }

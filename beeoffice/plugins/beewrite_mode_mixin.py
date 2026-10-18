@@ -213,13 +213,13 @@ class ModeMixin:
                     reply = QMessageBox.question(
                         self,
                         tr("auto.beewrite_mode_mixin.77db9f23", "⚠️ 文档含图片"),
-                        "当前文档包含图片。\n\n"
+                        tr("auto.beewrite_mode_mixin.5580ea2a", "当前文档包含图片。\n\n"
                         "切换到 Markdown 模式后，图片会以 "
                         "![](...) 语法展示在源码中，\n"
                         "但右侧预览区无法显示图片。\n\n"
                         "若切回所见即所得模式，图片会从原路径"
                         "重新加载——请确保图片文件未被移动或删除。\n\n"
-                        "是否继续切换？",
+                        "是否继续切换？"),
                         QMessageBox.Yes | QMessageBox.No,
                         QMessageBox.Yes,
                     )

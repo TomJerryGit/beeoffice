@@ -1,13 +1,6 @@
 {
-  "auto.memory_monitor.2a4d9efd": "🐝 内存监控",
-  "auto.memory_monitor.19efb576": "📊 内存使用情况",
-  "auto.memory_monitor.f57b360d": "当前: -- MB",
-  "auto.memory_monitor.95439aed": "峰值: -- MB",
-  "auto.memory_monitor.01f84f88": "趋势: 监测中...",
-  "auto.memory_monitor.f4c8592e": "🗑️ 手动垃圾回收",
-  "auto.memory_monitor.bdcdbf28": "🔄 重置统计",
-  "auto.memory_monitor.6c14bd7f": "关闭",
-  "auto.memory_monitor.9df14a4e": "峰值: 0.0 MB",
-  "auto.memory_monitor.4fd5c135": "需要安装 psutil",
-  "auto.memory_monitor.b3cfa623": "✅ 趋势: 稳定"
+  "auto.memory_monitor.15e0e545": "当前: {mb:.1f} MB",
+  "auto.memory_monitor.5c281f25": "峰值: {0:.1f} MB",
+  "auto.memory_monitor.f6cbacec": "⚠️ 趋势: 上升 +{diff:.1f} MB/10s",
+  "auto.memory_monitor.0868df22": "✅ 趋势: 下降 {diff:.1f} MB/10s"
 }

@@ -269,7 +269,7 @@ class DataMixin:
                                               split_data[i])
             self.model._total_cols = len(self.model._loaded_df.columns)
             self.model.layoutChanged.emit()
-            self._set_status(f"已分列", 3000)
+            self._set_status(tr("auto.beesheet_data_mixin.61d91797", "已分列"), 3000)
 
     # ==================== 筛选 ====================
     def _show_filter_dialog(self):
@@ -677,7 +677,7 @@ class DataMixin:
             cols.insert(new_col, cols.pop(col))
             self.model._loaded_df = self.model._loaded_df[cols]
             self.model.layoutChanged.emit()
-            self._set_status(f"✅ 列已移动", 2000)
+            self._set_status(tr("auto.beesheet_data_mixin.5b0d6caa", "✅ 列已移动"), 2000)
         except Exception as e:
             QMessageBox.warning(self, tr("auto.beesheet_data_mixin.3e3c8068", "失败"), str(e))
 
@@ -999,8 +999,7 @@ class DataMixin:
                     ] = options
                 self.model.layoutChanged.emit()
                 self._set_status(
-                    f"✅ 已为 {len(sel.indexes())} 个单元格添加下拉"
-                    f"（{len(options)} 项）", 3000
+                    tr("auto.beesheet_data_mixin.75c40d56", "✅ 已为 {0} 个单元格添加下拉（{1} 项）").format(len(sel.indexes()), len(options)), 3000
                 )
             elif vtype == "数值范围":
                 try:
@@ -1156,8 +1155,8 @@ class DataMixin:
         if source_col is None:
             QMessageBox.information(
                 self, tr("auto.beesheet_data_mixin.ab3656a9", "提示"),
-                "无法识别填充模式。\n"
-                "请先手动填写前 1-3 行的示例，再使用智能填充。"
+                tr("auto.beesheet_data_mixin.6ce03f61", "无法识别填充模式。\n"
+                "请先手动填写前 1-3 行的示例，再使用智能填充。")
             )
             return
 

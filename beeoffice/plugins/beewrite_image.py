@@ -54,8 +54,8 @@ class ImageEditorDialog(QDialog):
         if not HAS_PIL:
             QMessageBox.warning(
                 self, tr("auto.beewrite_image.1f393593", "缺少依赖"),
-                "图片编辑需要 Pillow 库：\n"
-                "pip install Pillow"
+                tr("auto.beewrite_image.addfaaa2", "图片编辑需要 Pillow 库：\n"
+                "pip install Pillow")
             )
             return
 

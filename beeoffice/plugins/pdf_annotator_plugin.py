@@ -136,8 +136,7 @@ class PDFAnnotatorPlugin(Plugin):
             logging.error(f"PDF 批注模块不可用: {e}")
             QMessageBox.warning(
                 self.parent, tr("auto.pdf_annotator_plugin.c804173e", "无法打开"),
-                f"PDF 批注模块不可用：\n{e}\n\n"
-                f"请确认已安装 PyMuPDF 依赖。"
+                tr("auto.pdf_annotator_plugin.45aea6aa", "PDF 批注模块不可用：\n{e}\n\n请确认已安装 PyMuPDF 依赖。").format(e=e)
             )
         except Exception as e:
             logging.error(f"打开 PDF 失败: {e}")

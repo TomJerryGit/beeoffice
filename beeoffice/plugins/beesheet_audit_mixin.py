@@ -57,8 +57,7 @@ class AuditMixin:
         self._refresh_all_cells()
         if dependents:
             self._set_status(
-                f"📌 追踪从属：{len(dependents)} 个单元格引用了 "
-                f"{target_ref}（橙色高亮）", 5000
+                tr("auto.beesheet_audit_mixin.d4b4df23", "📌 追踪从属：{0} 个单元格引用了 {1}（橙色高亮）").format(len(dependents), target_ref), 5000
             )
         else:
             self._set_status(tr("auto.beesheet_audit_mixin.8b11acfa", "{target_ref} 没有被任何公式引用").format(target_ref=target_ref), 3000)
@@ -188,8 +187,7 @@ class AuditMixin:
         if not formula:
             QMessageBox.information(
                 self, tr("auto.beesheet_audit_mixin.bb72f34f", "错误详情"),
-                f"该单元格存在错误：\n\n{error_value}\n\n"
-                f"（公式记录已丢失，无法显示详细原因）"
+                tr("auto.beesheet_audit_mixin.ba96db0f", "该单元格存在错误：\n\n{error_value}\n\n（公式记录已丢失，无法显示详细原因）").format(error_value=error_value)
             )
             return
 
@@ -337,18 +335,15 @@ class AuditMixin:
         summary = QLabel()
         if not issues and not warnings:
             summary.setText(
-                f"<h2 style='color:#1B5E20;'>✅ 完美兼容</h2>"
-                f"<p>共检查 {total} 项，全部通过。</p>"
+                tr("auto.beesheet_audit_mixin.33f9bc11", "<h2 style='color:#1B5E20;'>✅ 完美兼容</h2><p>共检查 {total} 项，全部通过。</p>").format(total=total)
             )
         elif issues:
             summary.setText(
-                f"<h2 style='color:#B71C1C;'>❌ 发现 {len(issues)} 个问题</h2>"
-                f"<p>警告 {len(warnings)} 项，通过 {ok_count} 项。</p>"
+                tr("auto.beesheet_audit_mixin.75433a4d", "<h2 style='color:#B71C1C;'>❌ 发现 {0} 个问题</h2><p>警告 {1} 项，通过 {2} 项。</p>").format(len(issues), len(warnings), ok_count)
             )
         else:
             summary.setText(
-                f"<h2 style='color:#E65100;'>⚠️ 发现 {len(warnings)} 个警告</h2>"
-                f"<p>全部通过 {ok_count} 项。</p>"
+                tr("auto.beesheet_audit_mixin.46f9ea00", "<h2 style='color:#E65100;'>⚠️ 发现 {0} 个警告</h2><p>全部通过 {1} 项。</p>").format(len(warnings), ok_count)
             )
         layout.addWidget(summary)
 

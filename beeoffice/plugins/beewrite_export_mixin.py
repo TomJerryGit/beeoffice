@@ -240,9 +240,7 @@ class ExportMixin:
             QMessageBox.warning(
                 self,
                 tr("auto.beewrite_export_mixin.d7202ab7", "⚠️ 文件被占用"),
-                f"无法写入文件：\n{path}\n\n"
-                f"该文件正在被其他程序打开。\n\n"
-                f"请关闭占用该文件的程序（如 WPS、Word、记事本）后重试。",
+                tr("auto.beewrite_export_mixin.7efa4961", "无法写入文件：\n{path}\n\n该文件正在被其他程序打开。\n\n请关闭占用该文件的程序（如 WPS、Word、记事本）后重试。").format(path=path),
             )
             return False
 
@@ -340,11 +338,7 @@ class ExportMixin:
             reply = QMessageBox.question(
                 self,
                 tr("auto.beewrite_export_mixin.d7202ab7", "⚠️ 文件被占用"),
-                f"无法写入文件：\n{path}\n\n"
-                f"该文件正在被其他程序（如 WPS、Word）打开。\n\n"
-                f"请选择操作：\n"
-                f"• 「是」 → 关闭占用程序后重试\n"
-                f"• 「否」 → 另存为新文件",
+                tr("auto.beewrite_export_mixin.db994961", "无法写入文件：\n{path}\n\n该文件正在被其他程序（如 WPS、Word）打开。\n\n请选择操作：\n• 「是」 → 关闭占用程序后重试\n• 「否」 → 另存为新文件").format(path=path),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.Yes,
             )
@@ -505,8 +499,7 @@ class ExportMixin:
             QMessageBox.warning(
                 self,
                 tr("auto.beewrite_export_mixin.d7202ab7", "⚠️ 文件被占用"),
-                f"无法写入文件：\n{path}\n\n"
-                f"该文件正在被其他程序打开，请关闭后重试。",
+                tr("auto.beewrite_export_mixin.18e2041d", "无法写入文件：\n{path}\n\n该文件正在被其他程序打开，请关闭后重试。").format(path=path),
             )
         except Exception as e:
             logging.error(f"导出 DOCX 失败: {e}")
@@ -552,8 +545,7 @@ class ExportMixin:
             QMessageBox.warning(
                 self,
                 tr("auto.beewrite_export_mixin.d7202ab7", "⚠️ 文件被占用"),
-                f"无法写入文件：\n{path}\n\n"
-                f"该文件正在被其他程序打开，请关闭后重试。",
+                tr("auto.beewrite_export_mixin.18e2041d", "无法写入文件：\n{path}\n\n该文件正在被其他程序打开，请关闭后重试。").format(path=path),
             )
         except Exception as e:
             import traceback

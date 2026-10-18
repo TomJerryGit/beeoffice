@@ -55,8 +55,8 @@ class MarkdownTableEditorDialog(QDialog):
 
         # 顶部提示
         tip = QLabel(
-            "💡 编辑完成后点击「确定」回写 Markdown，点击「取消」放弃修改\n"
-            "Tab 跳下一格 · 右键表格加行/列"
+            tr("auto.beewrite_md_table_dialog.42730a08", "💡 编辑完成后点击「确定」回写 Markdown，点击「取消」放弃修改\n"
+            "Tab 跳下一格 · 右键表格加行/列")
         )
         tip.setStyleSheet("color:#666;font-size:12px;padding:4px;")
         layout.addWidget(tip)

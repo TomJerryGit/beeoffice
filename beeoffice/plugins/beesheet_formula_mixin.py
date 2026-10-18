@@ -367,8 +367,7 @@ class FormulaMixin:
                 return
             syntax = item.data(Qt.UserRole + 1) or ""
             preview.setText(
-                f"<b style='color:#E65100;'>{name}</b><br>"
-                f"<span style='color:#666;'>语法：{syntax}</span>"
+                tr("auto.beesheet_formula_mixin.64caad1c", "<b style='color:#E65100;'>{name}</b><br><span style='color:#666;'>语法：{syntax}</span>").format(name=name, syntax=syntax)
             )
         lst.itemSelectionChanged.connect(on_select)
 
@@ -596,8 +595,7 @@ class FormulaMixin:
                     syntax, cat = self.FUNCTION_REFERENCE[func_name]
                     QMessageBox.information(
                         self, tr("auto.beesheet_formula_mixin.f6a2e07c", "📖 {func_name} 函数帮助").format(func_name=func_name),
-                        f"<b>分类：</b>{cat}<br><br>"
-                        f"<b>语法：</b><code>{syntax}</code>"
+                        tr("auto.beesheet_formula_mixin.bae572e3", "<b>分类：</b>{cat}<br><br><b>语法：</b><code>{syntax}</code>").format(cat=cat, syntax=syntax)
                     )
                     return
         QMessageBox.information(

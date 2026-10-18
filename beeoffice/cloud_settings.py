@@ -96,8 +96,8 @@ class CloudSettingsDialog(QDialog):
         self.scope_combo.addItem("已打开 + 最近文档", "recent")
         self.scope_combo.addItem("仅当前文档", "current")
         self.scope_combo.setToolTip(
-            "「已打开 + 最近」会同步所有打开的标签页和最近文件列表；\n"
-            "「仅当前文档」只同步当前标签页。"
+            tr("auto.cloud_settings.d5dbd390", "「已打开 + 最近」会同步所有打开的标签页和最近文件列表；\n"
+            "「仅当前文档」只同步当前标签页。")
         )
         scope_row.addWidget(scope_label)
         scope_row.addWidget(self.scope_combo, 1)

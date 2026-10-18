@@ -173,8 +173,7 @@ class ContextMenuMixin:
             )
             self._update_status()
             self._set_status(
-                f"📌 已冻结 {self._frozen_rows} 行 × "
-                f"{self._frozen_cols} 列", 3000
+                tr("auto.beesheet_context_menu_mixin.2d2fedda", "📌 已冻结 {0} 行 × {1} 列").format(self._frozen_rows, self._frozen_cols), 3000
             )
 
     def _unfreeze_all(self):

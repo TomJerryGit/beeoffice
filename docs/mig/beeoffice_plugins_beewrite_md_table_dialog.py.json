@@ -1,9 +1,3 @@
 {
-  "auto.beewrite_md_table_dialog.edfe0182": "📊 编辑 Markdown 表格",
-  "auto.beewrite_md_table_dialog.bca250c6": "➕ 加行",
-  "auto.beewrite_md_table_dialog.54bb7f69": "➕ 加列",
-  "auto.beewrite_md_table_dialog.2feac660": "➖ 删行",
-  "auto.beewrite_md_table_dialog.4e3f9310": "➖ 删列",
-  "auto.beewrite_md_table_dialog.673142b9": "✅ 确定",
-  "auto.beewrite_md_table_dialog.4d0b4688": "取消"
+  "auto.beewrite_md_table_dialog.42730a08": "💡 编辑完成后点击「确定」回写 Markdown，点击「取消」放弃修改\nTab 跳下一格 · 右键表格加行/列"
 }

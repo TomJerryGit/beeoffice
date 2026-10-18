@@ -1,6 +1,4 @@
 {
-  "auto.beesheet_formula_mixin.632cd3ff": "已插入 {name}，请在括号内填写参数",
-  "auto.beesheet_formula_mixin.bc121dae": "✅ 已按行自动求和 ({count} 行)",
-  "auto.beesheet_formula_mixin.774b9373": "❌ 求和失败: {result}",
-  "auto.beesheet_formula_mixin.f6a2e07c": "📖 {func_name} 函数帮助"
+  "auto.beesheet_formula_mixin.64caad1c": "<b style='color:#E65100;'>{name}</b><br><span style='color:#666;'>语法：{syntax}</span>",
+  "auto.beesheet_formula_mixin.bae572e3": "<b>分类：</b>{cat}<br><br><b>语法：</b><code>{syntax}</code>"
 }

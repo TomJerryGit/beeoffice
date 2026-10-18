@@ -1,5 +1,7 @@
 {
-  "auto.beesheet_audit_mixin.0076746c": "📌 追踪引用：{0} 个单元格（橙色高亮）",
-  "auto.beesheet_audit_mixin.8b11acfa": "{target_ref} 没有被任何公式引用",
-  "auto.beesheet_audit_mixin.ec44b3f2": "已保存：\n{path}"
+  "auto.beesheet_audit_mixin.d4b4df23": "📌 追踪从属：{0} 个单元格引用了 {1}（橙色高亮）",
+  "auto.beesheet_audit_mixin.ba96db0f": "该单元格存在错误：\n\n{error_value}\n\n（公式记录已丢失，无法显示详细原因）",
+  "auto.beesheet_audit_mixin.33f9bc11": "<h2 style='color:#1B5E20;'>✅ 完美兼容</h2><p>共检查 {total} 项，全部通过。</p>",
+  "auto.beesheet_audit_mixin.75433a4d": "<h2 style='color:#B71C1C;'>❌ 发现 {0} 个问题</h2><p>警告 {1} 项，通过 {2} 项。</p>",
+  "auto.beesheet_audit_mixin.46f9ea00": "<h2 style='color:#E65100;'>⚠️ 发现 {0} 个警告</h2><p>全部通过 {1} 项。</p>"
 }

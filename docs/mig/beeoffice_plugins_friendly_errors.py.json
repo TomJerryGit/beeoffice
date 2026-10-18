@@ -1,4 +1,4 @@
 {
-  "auto.friendly_errors.fae8ee69": "🐝 公式计算错误",
-  "auto.friendly_errors.ed73c2b2": "🐝 内容还未保存"
+  "auto.friendly_errors.48067b4b": "公式 `{formula}` 无法计算。\n\n{detail}\n\n💡 常见问题：\n• 函数名拼写是否正确？\n• 参数数量是否正确？\n• 引用的单元格是否有效？\n• 范围格式是否正确（如 A1:B10）？",
+  "auto.friendly_errors.2f55dbca": "「{filename}」中的内容可能还没有保存。\n\n建议先导出为 PDF 或保存为 Markdown 文件。\n\n确定要关闭吗？"
 }
