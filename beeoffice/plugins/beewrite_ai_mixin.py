@@ -45,6 +45,29 @@ class AIMixin:
     # ==================================================================
     # AI 续写
     # ==================================================================
+    @staticmethod
+    def _strip_echoed_context(context: str, result: str) -> str:
+        """
+        从 AI 返回结果里剥掉被回显的上下文。
+
+        修复（P1-28）：原实现只判断 `result.startswith(context)`。
+        上下文是从**句子中间**截取的（末尾 200 字），模型往往会回显
+        包含这句的完整句子，于是 startswith 判断失败，
+        整段（含已有的上下文）被原样插入 —— 表现为"续写把原文又贴了一遍"。
+
+        现在改为找 context 后缀与 result 前缀的**最长重叠**并剥掉。
+        """
+        if not result:
+            return ""
+        if context and result.startswith(context):
+            return result[len(context):]
+        if context:
+            limit = min(len(context), len(result))
+            for k in range(limit, 0, -1):
+                if context.endswith(result[:k]):
+                    return result[k:]
+        return result
+
     def _ai_continue(self):
         """
         AI 续写：基于光标前的 200 个字符作为上下文，
@@ -54,28 +77,17 @@ class AIMixin:
 
         try:
             if self._edit_mode == "rich_text":
-                cursor = self.rich_editor.textCursor()
-                pos = cursor.position()
-                context = self.rich_editor.toPlainText()[:pos][-200:]
-                result = AIAssist.continue_text(context)
-                addition = (
-                    result[len(context):]
-                    if result.startswith(context)
-                    else result
-                )
-                cursor.insertText(addition)
+                target = self.rich_editor
             else:
-                cursor = self.markdown_editor.textCursor()
-                pos = cursor.position()
-                text = self.markdown_editor.toPlainText()
-                context = text[:pos][-200:]
-                result = AIAssist.continue_text(context)
-                addition = (
-                    result[len(context):]
-                    if result.startswith(context)
-                    else result
-                )
-                cursor.insertText(addition)
+                target = self.markdown_editor
+
+            cursor = target.textCursor()
+            pos = cursor.position()
+            context = target.toPlainText()[:pos][-200:]
+
+            result = AIAssist.continue_text(context)
+            addition = self._strip_echoed_context(context, result)
+            cursor.insertText(addition)
 
             self._set_status("✅ AI 续写完成", 3000)
         except Exception as e:

@@ -87,28 +87,52 @@ class SheetDataModel(QAbstractTableModel):
         self._loaded_chunks = set()
         fc = min(self.CHUNK_SIZE, self._total_rows)
         self._loaded_df = df.head(fc).copy()
+        # 索引统一成绝对行号：模型按 .iloc 取值，索引必须等于行位置
+        self._loaded_df.index = range(len(self._loaded_df))
         self._loaded_chunks.add(0)
         self._is_streaming = fc < self._total_rows
         self.layoutChanged.emit()
 
     def load_chunk(self, ci):
-        """加载指定索引的分块"""
+        """
+        加载指定索引的分块。
+
+        修复（P1-16）：模型以"已加载前缀"识别占位行
+        （`data()` 里 `r >= len(_loaded_df)` 返回 "⏳"），
+        所以已加载数据必须是**连续前缀**。
+
+        原实现只把自己这一块追加到末尾，并用
+        `pd.concat(..., ignore_index=False)` 保留原索引：
+        跳着加载（先看第 3 块再回第 1 块）时，第 1 块被追加到末尾，
+        位置与绝对行号错位 —— 界面上表现为"这一行显示了别的行的数据"。
+
+        现在：从最小的缺失块开始，**把到 ci 为止缺的块一次性补齐**，
+        并用 `ignore_index=True` 重建 0..n-1 的位置索引，
+        保证 `iloc[r]` 就是第 r 行。
+        """
         if ci in self._loaded_chunks or self._full_df is None:
             return False
-        s = ci * self.CHUNK_SIZE
-        e = min(ci * self.CHUNK_SIZE + self.CHUNK_SIZE, self._total_rows)
-        if s >= self._total_rows:
-            return False
-        cd = self._full_df.iloc[s:e].copy()
-        self._loaded_df = pd.concat([self._loaded_df, cd], ignore_index=False)
-        self._loaded_df = self._loaded_df[
-            ~self._loaded_df.index.duplicated(keep='last')
-        ]
-        self._loaded_chunks.add(ci)
-        self._is_streaming = (
-            len(self._loaded_chunks) * self.CHUNK_SIZE < self._total_rows
-        )
-        return True
+
+        loaded_any = False
+        for k in range(ci + 1):
+            if k in self._loaded_chunks:
+                continue
+            s = k * self.CHUNK_SIZE
+            e = min(s + self.CHUNK_SIZE, self._total_rows)
+            if s >= self._total_rows:
+                break
+            cd = self._full_df.iloc[s:e].copy()
+            self._loaded_df = pd.concat(
+                [self._loaded_df, cd], ignore_index=True
+            )
+            self._loaded_chunks.add(k)
+            loaded_any = True
+
+        if loaded_any:
+            self._is_streaming = (
+                len(self._loaded_df) < self._total_rows
+            )
+        return loaded_any
 
     def needs_chunks_for_range(self, sr, er):
         """返回指定行范围内需要加载的分块索引集合"""

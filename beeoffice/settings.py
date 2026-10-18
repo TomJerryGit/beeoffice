@@ -76,23 +76,30 @@ class AppSettings:
 
     # ---------- 编码/解码 ----------
     def _encode(self, s):
-        """Base64 编码敏感信息"""
+        """
+        加密敏感信息。
+
+        修复（P1-39）：原来只是 Base64——编码不是加密，打开配置文件
+        就能一眼还原。现在 Windows 上走 DPAPI（密钥由系统按当前用户保管），
+        其它平台回退 Base64 但带 `b64:` 前缀明确标注。
+        """
         if not s:
             return s
         try:
-            return base64.b64encode(s.encode("utf-8")).decode("utf-8")
+            from beeoffice.secret_store import protect
+            return protect(s)
         except Exception as e:
             logging.error(f"编码失败: {e}")
             return s
 
     def _decode(self, s):
-        """Base64 解码敏感信息"""
+        """解密敏感信息（兼容历史 Base64 数据）"""
         if not s:
             return s
         try:
-            return base64.b64decode(s.encode("utf-8")).decode("utf-8")
+            from beeoffice.secret_store import unprotect
+            return unprotect(s)
         except Exception:
-            # 兼容未编码的旧数据
             return s
 
     # ---------- 加载 ----------

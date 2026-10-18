@@ -203,7 +203,14 @@ class CloudSettingsDialog(QDialog):
 
     # ---------- 测试连接 ----------
     def _test_connection(self):
-        """测试当前配置的连接"""
+        """
+        测试当前配置的连接。
+
+        修复（P1-38）：原实现在 GUI 线程里同步发网络请求，
+        连接慢或超时时整个窗口卡死（最长 10 秒无响应）。
+        现在参数校验留在主线程，真正的网络调用交给
+        AsyncTaskManager 的线程池，结果回到主线程再弹窗。
+        """
         cloud_type = self.type_combo.currentData()
 
         if cloud_type == "webdav":
@@ -211,56 +218,101 @@ class CloudSettingsDialog(QDialog):
             if not url:
                 QMessageBox.warning(self, tr("auto.cloud_settings.ab3656a9", "提示"), tr("auto.cloud_settings.5f916474", "请先填写 WebDAV 地址"))
                 return
-            try:
-                from webdav3.client import Client
-                client = Client({
-                    "webdav_hostname": url,
-                    "webdav_login": self.user_edit.text().strip(),
-                    "webdav_password": self.pwd_edit.text(),
-                })
-                client.check()
-                QMessageBox.information(self, tr("auto.cloud_settings.51991a5d", "成功"), tr("auto.cloud_settings.195b5ddf", "WebDAV 连接成功！"))
-            except Exception as e:
-                QMessageBox.warning(self, tr("auto.cloud_settings.3e3c8068", "失败"), f"WebDAV 连接失败：\n{e}")
-
+            payload = (
+                url,
+                self.user_edit.text().strip(),
+                self.pwd_edit.text(),
+            )
         elif cloud_type == "onedrive":
             token = self.onedrive_token_edit.text().strip()
             if not token:
                 QMessageBox.warning(self, tr("auto.cloud_settings.ab3656a9", "提示"), tr("auto.cloud_settings.fc8293e5", "请先填写 Access Token"))
                 return
-            try:
-                import requests
-                resp = requests.get(
-                    "https://graph.microsoft.com/v1.0/me/drive/root",
-                    headers={"Authorization": f"Bearer {token}"},
-                    timeout=10
-                )
-                if resp.status_code == 200:
-                    QMessageBox.information(self, tr("auto.cloud_settings.51991a5d", "成功"), tr("auto.cloud_settings.40c67fc1", "OneDrive 连接成功！"))
-                else:
-                    QMessageBox.warning(self, tr("auto.cloud_settings.3e3c8068", "失败"), f"OneDrive 返回状态码: {resp.status_code}")
-            except Exception as e:
-                QMessageBox.warning(self, tr("auto.cloud_settings.3e3c8068", "失败"), f"OneDrive 连接失败：\n{e}")
-
+            payload = token
         elif cloud_type == "googledrive":
             token = self.gdrive_token_edit.text().strip()
             if not token:
                 QMessageBox.warning(self, tr("auto.cloud_settings.ab3656a9", "提示"), tr("auto.cloud_settings.fc8293e5", "请先填写 Access Token"))
                 return
-            try:
-                import requests
-                resp = requests.get(
-                    "https://www.googleapis.com/drive/v3/about",
-                    headers={"Authorization": f"Bearer {token}"},
-                    params={"fields": "user"},
-                    timeout=10
-                )
-                if resp.status_code == 200:
-                    QMessageBox.information(self, tr("auto.cloud_settings.51991a5d", "成功"), tr("auto.cloud_settings.f6d9177d", "Google Drive 连接成功！"))
-                else:
-                    QMessageBox.warning(self, tr("auto.cloud_settings.3e3c8068", "失败"), f"Google Drive 返回状态码: {resp.status_code}")
-            except Exception as e:
-                QMessageBox.warning(self, tr("auto.cloud_settings.3e3c8068", "失败"), f"Google Drive 连接失败：\n{e}")
+            payload = token
+        else:
+            return
+
+        from beeoffice.async_task import AsyncTaskManager
+
+        if getattr(self, "_testing", False):
+            return
+        self._testing = True
+        if hasattr(self, "test_btn"):
+            self.test_btn.setEnabled(False)
+
+        def finish():
+            self._testing = False
+            if hasattr(self, "test_btn"):
+                self.test_btn.setEnabled(True)
+
+        def on_result(code):
+            finish()
+            messages = {
+                "webdav": tr("auto.cloud_settings.195b5ddf", "WebDAV 连接成功！"),
+                "onedrive": tr("auto.cloud_settings.40c67fc1", "OneDrive 连接成功！"),
+                "googledrive": tr("auto.cloud_settings.f6d9177d", "Google Drive 连接成功！"),
+            }
+            QMessageBox.information(
+                self, tr("auto.cloud_settings.51991a5d", "成功"),
+                messages.get(code, str(code)),
+            )
+
+        def on_error(err):
+            finish()
+            QMessageBox.warning(
+                self, tr("auto.cloud_settings.3e3c8068", "失败"), err
+            )
+
+        AsyncTaskManager.run(
+            self._probe_connection, cloud_type, payload,
+            on_result=on_result, on_error=on_error,
+        )
+
+    @staticmethod
+    def _probe_connection(cloud_type, payload):
+        """
+        **在 worker 线程执行**的连接探测。
+
+        必须保持纯净：不碰任何 Qt 控件，只做网络请求并返回文本。
+        """
+        if cloud_type == "webdav":
+            url, user, pwd = payload
+            from webdav3.client import Client
+            client = Client({
+                "webdav_hostname": url,
+                "webdav_login": user,
+                "webdav_password": pwd,
+            })
+            client.check()
+            return "webdav"
+
+        import requests
+        token = payload
+        if cloud_type == "onedrive":
+            resp = requests.get(
+                "https://graph.microsoft.com/v1.0/me/drive/root",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                return "onedrive"
+            raise RuntimeError(f"OneDrive 返回状态码: {resp.status_code}")
+
+        resp = requests.get(
+            "https://www.googleapis.com/drive/v3/about",
+            headers={"Authorization": f"Bearer {token}"},
+            params={"fields": "user"},
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            return "googledrive"
+        raise RuntimeError(f"Google Drive 返回状态码: {resp.status_code}")
 
 
 def show_cloud_settings(parent=None):
