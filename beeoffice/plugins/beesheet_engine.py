@@ -96,6 +96,19 @@ class FormulaEngine:
     def _eval_sheet_ref(cls, expr, model):
         if not hasattr(model, '_get_sheet_data'):
             raise ValueError("跨表引用不可用")
+
+        # 查找类函数依赖"区域形状"，不能把 S1!A1:B3 压平成 "1,一,2,..."：
+        # 压平会把一个区域拆成多个参数，导致列号参数拿到单元格内容
+        # （历史上表现为 `int('一')` 直接抛错）。
+        # 这类调用保留原始参数，交给 _sheet_range 按区域解析。
+        look = re.match(
+            r'^\s*(VLOOKUP|HLOOKUP)\s*\((.*)\)\s*$',
+            expr.strip(),
+            re.IGNORECASE | re.DOTALL,
+        )
+        if look and '!' in look.group(2):
+            return cls._func(look.group(1).upper(), look.group(2), model)
+
         sheet_pattern = r'([^!(),:+\-*/]+)!(\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?)'
 
         def replace_sheet(match):
@@ -782,29 +795,77 @@ class FormulaEngine:
         return "#ERROR"
 
     @classmethod
+    @staticmethod
+    def _sheet_range(spec, model):
+        """
+        解析区域，支持跨表写法 `Sheet2!A1:B10`。
+
+        返回 (r1, c1, r2, c2, getter)；getter(r, c) 从对应工作表取值。
+        解析失败返回 None。
+
+        为什么需要它：`_range()` 只认纯 A1 坐标，
+        遇到 `S1!A1:A3` 会返回 None，于是 VLOOKUP 跨表一律 #ERROR。
+        """
+        spec = (spec or "").strip()
+        if not spec:
+            return None
+
+        sheet = None
+        if "!" in spec:
+            sheet, spec = spec.rsplit("!", 1)
+            sheet = sheet.strip().strip("'\"")
+
+        rng = FormulaEngine._range(spec.strip())
+        if not rng:
+            return None
+        (r1, c1), (r2, c2) = rng
+
+        if sheet:
+            getter_sheet = getattr(model, "_get_sheet_data", None)
+            data = None
+            if getter_sheet:
+                try:
+                    data = getter_sheet(sheet)
+                except Exception:
+                    data = None
+            if data is None:
+                return None
+
+            def get(r, c):
+                try:
+                    return data.iloc[r, c]
+                except Exception:
+                    return None
+        else:
+            def get(r, c):
+                return model.get_value(r, c)
+
+        return r1, c1, r2, c2, get
+
+    @classmethod
     def _vlookup(cls, a, m):
         p = cls._args(a)
         if len(p) < 3:
             return "#ERROR"
         lk = str(cls._av(p[0], m))
-        rng = cls._range(p[1])
+        rng = cls._sheet_range(p[1], m)
         ci = int(cls._av(p[2], m))
         exact = len(p) < 4 or 'FALSE' in p[3].upper()
         if not rng:
             return "#ERROR"
-        (r1, c1), (r2, c2) = rng
+        r1, c1, r2, c2, get = rng
         for r in range(r1, r2 + 1):
-            cv = str(m.get_value(r, c1)).strip()
+            cv = str(get(r, c1)).strip()
             if exact and cv == lk:
                 tc = c1 + ci - 1
                 if tc <= c2:
-                    return m.get_value(r, tc)
+                    return get(r, tc)
             elif not exact:
                 try:
                     if float(cv) >= float(lk):
                         tc = c1 + ci - 1
                         if tc <= c2:
-                            return m.get_value(r, tc)
+                            return get(r, tc)
                 except:
                     pass
         return "#N/A"
@@ -815,16 +876,16 @@ class FormulaEngine:
         if len(p) < 3:
             return "#ERROR"
         lk = str(cls._av(p[0], m))
-        rng = cls._range(p[1])
+        rng = cls._sheet_range(p[1], m)
         ri = int(cls._av(p[2], m))
         if not rng:
             return "#ERROR"
-        (r1, c1), (r2, c2) = rng
+        r1, c1, r2, c2, get = rng
         for c in range(c1, c2 + 1):
-            if str(m.get_value(r1, c)).strip() == lk:
+            if str(get(r1, c)).strip() == lk:
                 tr = r1 + ri - 1
                 if tr <= r2:
-                    return m.get_value(tr, c)
+                    return get(tr, c)
         return "#N/A"
 
     @classmethod
@@ -1074,18 +1135,38 @@ class FormulaEngine:
 
     @classmethod
     def _countifs(cls, a, m):
+        """
+        多条件计数：**同一偏移位置上所有条件同时成立**才算一次。
+
+        修复（P1-14）：原实现把每对 (范围, 条件) 独立计数后相加，
+        等于把 COUNTIFS 当成了 SUM(COUNTIF...)，
+        例如 COUNTIFS(A1:A3,">1", B1:B3,"x") 会被算成 2+2=4，正确值是 1。
+        """
         p = cls._args(a)
-        cnt = 0
+        if len(p) < 2 or len(p) % 2 != 0:
+            return "#ERROR"
+
+        ranges = []
         for i in range(0, len(p), 2):
             rng = cls._range(p[i])
-            cond = p[i + 1].strip().strip('"')
             if not rng:
-                continue
-            (r1, c1), (r2, c2) = rng
-            for r in range(r1, r2 + 1):
-                for c in range(c1, c2 + 1):
-                    if cls._check_cond(m.get_value(r, c), cond):
-                        cnt += 1
+                return "#ERROR"
+            ranges.append(rng)
+
+        (r1, c1), (r2, c2) = ranges[0]
+        cnt = 0
+        for r in range(r1, r2 + 1):
+            for c in range(c1, c2 + 1):
+                dr, dc = r - r1, c - c1
+                matched = True
+                for k, rng in enumerate(ranges):
+                    cond = p[k * 2 + 1].strip().strip('"')
+                    value = m.get_value(rng[0][0] + dr, rng[0][1] + dc)
+                    if not cls._check_cond(value, cond):
+                        matched = False
+                        break
+                if matched:
+                    cnt += 1
         return cnt
 
     # ==================== P0-11：多条件求和/平均 ====================
@@ -1111,20 +1192,23 @@ class FormulaEngine:
         (sr1, sc1), (sr2, sc2) = sr
         total = 0
         for r in range(sr1, sr2 + 1):
-            match = True
-            for i in range(1, len(p) - 1, 2):
-                cr = cls._range(p[i])
-                cond = p[i + 1].strip().strip('"')
-                if not cr:
-                    continue
-                # P0-11 修复：条件范围按自己的起始行 + 相对偏移取值
-                cond_row = cr[0][0] + (r - sr1)
-                cond_col = cr[0][1]
-                if not cls._check_cond(m.get_value(cond_row, cond_col), cond):
-                    match = False
-                    break
-            if match:
-                total += float(m.get_value(r, sc1) or 0)
+            for c in range(sc1, sc2 + 1):
+                dr, dc = r - sr1, c - sc1
+                match = True
+                for i in range(1, len(p) - 1, 2):
+                    cr = cls._range(p[i])
+                    cond = p[i + 1].strip().strip('"')
+                    if not cr:
+                        continue
+                    # P1-14：条件范围按"与求和单元格相同的偏移"取值。
+                    # 原实现 cond_col 恒取 cr[0][1]，多列条件区只有首列生效。
+                    cond_row = cr[0][0] + dr
+                    cond_col = cr[0][1] + dc
+                    if not cls._check_cond(m.get_value(cond_row, cond_col), cond):
+                        match = False
+                        break
+                if match:
+                    total += float(m.get_value(r, c) or 0)
         return total
 
     @classmethod
@@ -1143,21 +1227,23 @@ class FormulaEngine:
         (sr1, sc1), (sr2, sc2) = sr
         total, cnt = 0, 0
         for r in range(sr1, sr2 + 1):
-            match = True
-            for i in range(1, len(p) - 1, 2):
-                cr = cls._range(p[i])
-                cond = p[i + 1].strip().strip('"')
-                if not cr:
-                    continue
-                # P0-11 修复：条件范围按自己的起始行 + 相对偏移取值
-                cond_row = cr[0][0] + (r - sr1)
-                cond_col = cr[0][1]
-                if not cls._check_cond(m.get_value(cond_row, cond_col), cond):
-                    match = False
-                    break
-            if match:
-                total += float(m.get_value(r, sc1) or 0)
-                cnt += 1
+            for c in range(sc1, sc2 + 1):
+                dr, dc = r - sr1, c - sc1
+                match = True
+                for i in range(1, len(p) - 1, 2):
+                    cr = cls._range(p[i])
+                    cond = p[i + 1].strip().strip('"')
+                    if not cr:
+                        continue
+                    # P1-14：与 SUMIFS 同源问题——条件区只取首列，多列时条件失效
+                    cond_row = cr[0][0] + dr
+                    cond_col = cr[0][1] + dc
+                    if not cls._check_cond(m.get_value(cond_row, cond_col), cond):
+                        match = False
+                        break
+                if match:
+                    total += float(m.get_value(r, c) or 0)
+                    cnt += 1
         return total / cnt if cnt > 0 else 0
 
     @classmethod
