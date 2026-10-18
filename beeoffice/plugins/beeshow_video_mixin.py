@@ -51,6 +51,7 @@ import subprocess
 import shutil
 from pathlib import Path
 from typing import Dict, Any, Optional
+from beeoffice.i18n import tr
 
 
 # ==================== 语法解析 ====================
@@ -395,7 +396,7 @@ class VideoMixin:
                 )
                 return None
         except subprocess.TimeoutExpired:
-            logging.warning("ffmpeg 提取超时")
+            logging.warning(tr("auto.beeshow_video_mixin.549f4411", "ffmpeg 提取超时"))
             return None
         except Exception as e:
             logging.error(f"ffmpeg 提取异常：{e}")

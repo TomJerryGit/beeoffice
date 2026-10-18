@@ -54,6 +54,7 @@ from beeoffice.plugins.beewrite_page_extras import (
     WatermarkDialog,
     PageNumberDialog,
 )
+from beeoffice.i18n import tr
 
 
 # ==================== DocMixin ====================
@@ -76,7 +77,7 @@ class DocMixin:
         from PySide6.QtWidgets import QInputDialog
 
         text, ok = QInputDialog.getText(
-            self, "页眉", "请输入页眉文字:",
+            self, tr("auto.beewrite_doc_mixin.a666b4dc", "页眉"), tr("auto.beewrite_doc_mixin.3b0cbf26", "请输入页眉文字:"),
             text=getattr(self, "_header_text", ""),
         )
         if ok:
@@ -93,7 +94,7 @@ class DocMixin:
         from PySide6.QtWidgets import QInputDialog
 
         text, ok = QInputDialog.getText(
-            self, "页脚", "请输入页脚文字:",
+            self, tr("auto.beewrite_doc_mixin.d1511155", "页脚"), tr("auto.beewrite_doc_mixin.c14713dc", "请输入页脚文字:"),
             text=getattr(self, "_footer_text", ""),
         )
         if ok:
@@ -145,14 +146,14 @@ class DocMixin:
             from beeoffice.plugins.bee_export import generate_toc
         except Exception as e:
             logging.error(f"导入 generate_toc 失败: {e}")
-            QMessageBox.warning(self, "失败", f"生成目录失败：\n{e}")
+            QMessageBox.warning(self, tr("auto.beewrite_doc_mixin.3e3c8068", "失败"), f"生成目录失败：\n{e}")
             return
 
         md = self.content()
         toc = generate_toc(md)
         self.rich_editor.textCursor().insertBlock()
         self.rich_editor.textCursor().insertText(toc + "\n")
-        self._set_status("目录已生成", 3000)
+        self._set_status(tr("auto.beewrite_doc_mixin.ce1d16eb", "目录已生成"), 3000)
 
     # ==================================================================
     # 水印
@@ -170,7 +171,7 @@ class DocMixin:
                 3000,
             )
         else:
-            self._set_status("水印已清除", 2000)
+            self._set_status(tr("auto.beewrite_doc_mixin.5be9561b", "水印已清除"), 2000)
 
     # ==================================================================
     # 页码
@@ -188,7 +189,7 @@ class DocMixin:
                 3000,
             )
         else:
-            self._set_status("页码已关闭", 2000)
+            self._set_status(tr("auto.beewrite_doc_mixin.cce4b227", "页码已关闭"), 2000)
 
     # ==================================================================
     # 页面设置
@@ -196,12 +197,12 @@ class DocMixin:
     def _show_page_setup_dialog(self):
         """页面设置对话框（纸张 / 方向 / 页边距）"""
         dlg = QDialog(self)
-        dlg.setWindowTitle("📄 页面设置")
+        dlg.setWindowTitle(tr("auto.beewrite_doc_mixin.4638ca51", "📄 页面设置"))
         dlg.resize(440, 520)
         layout = QVBoxLayout(dlg)
 
         # ---------- 纸张 ----------
-        paper_group = QGroupBox("纸张")
+        paper_group = QGroupBox(tr("auto.beewrite_doc_mixin.59b908f4", "纸张"))
         paper_form = QFormLayout(paper_group)
 
         paper_combo = QComboBox()
@@ -234,7 +235,7 @@ class DocMixin:
         layout.addWidget(paper_group)
 
         # ---------- 页边距 ----------
-        margin_group = QGroupBox("页边距（厘米）")
+        margin_group = QGroupBox(tr("auto.beewrite_doc_mixin.addcb77e", "页边距（厘米）"))
         margin_form = QFormLayout(margin_group)
 
         top_spin = QDoubleSpinBox()
@@ -268,7 +269,7 @@ class DocMixin:
 
         # ---------- 提示 ----------
         tip = QLabel(
-            "💡 页面设置会保存到当前文档，导出 PDF 时自动应用。"
+            tr("auto.beewrite_doc_mixin.e2861613", "💡 页面设置会保存到当前文档，导出 PDF 时自动应用。")
         )
         tip.setStyleSheet(
             "QLabel{color:#666;font-size:12px;padding:8px;"
@@ -331,7 +332,7 @@ class DocMixin:
             )
         except ImportError:
             QMessageBox.warning(
-                self, "提示", "当前环境不支持打印功能"
+                self, tr("auto.beewrite_doc_mixin.ab3656a9", "提示"), tr("auto.beewrite_doc_mixin.b12475c6", "当前环境不支持打印功能")
             )
             return
 
@@ -339,7 +340,7 @@ class DocMixin:
         printer.setPageSize(QPrinter.A4)
 
         preview = QPrintPreviewDialog(printer, self)
-        preview.setWindowTitle("📄 打印预览")
+        preview.setWindowTitle(tr("auto.beewrite_doc_mixin.b1d3e566", "📄 打印预览"))
         preview.resize(900, 700)
 
         def render(p):
@@ -373,13 +374,13 @@ class DocMixin:
             from beeoffice.plugins.bee_export import compare_documents
         except Exception as e:
             logging.error(f"导入 compare_documents 失败: {e}")
-            QMessageBox.warning(self, "失败", f"文档对比失败：\n{e}")
+            QMessageBox.warning(self, tr("auto.beewrite_doc_mixin.3e3c8068", "失败"), f"文档对比失败：\n{e}")
             return
 
         path = self._get_associated_path()
         if not path:
             QMessageBox.information(
-                self, "提示", "请先保存文档后再对比"
+                self, tr("auto.beewrite_doc_mixin.ab3656a9", "提示"), tr("auto.beewrite_doc_mixin.2b1c1ff4", "请先保存文档后再对比")
             )
             return
 
@@ -389,7 +390,7 @@ class DocMixin:
             result = compare_documents(original, self.content())
 
             dlg = QDialog(self)
-            dlg.setWindowTitle("📊 文档对比")
+            dlg.setWindowTitle(tr("auto.beewrite_doc_mixin.1bb6ea3e", "📊 文档对比"))
             dlg.resize(600, 400)
             layout = QVBoxLayout(dlg)
             layout.addWidget(QLabel(
@@ -403,7 +404,7 @@ class DocMixin:
             layout.addWidget(diff_view)
             dlg.exec()
         except Exception as e:
-            QMessageBox.warning(self, "对比失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_doc_mixin.3a7c4883", "对比失败"), str(e))
 
     def _get_associated_path(self):
         """获取当前文档关联的磁盘文件路径（若未保存返回空字符串）"""

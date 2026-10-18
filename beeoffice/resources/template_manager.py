@@ -27,6 +27,7 @@ from datetime import datetime
 from PySide6.QtCore import QThread, Signal
 
 from beeoffice.resources.templates import TEMPLATES
+from beeoffice.i18n import tr
 
 
 # ==================== 常量 ====================
@@ -168,13 +169,13 @@ class TemplateManager:
 
         # 结构校验
         if not isinstance(data, dict):
-            logging.warning("模板索引结构异常，将重建")
+            logging.warning(tr("auto.template_manager.55eb946b", "模板索引结构异常，将重建"))
             self._index = {"user_templates": []}
             return
 
         user_templates = data.get("user_templates", [])
         if not isinstance(user_templates, list):
-            logging.warning("user_templates 字段不是列表，将重置")
+            logging.warning(tr("auto.template_manager.09650c82", "user_templates 字段不是列表，将重置"))
             user_templates = []
 
         # 清洗条目：只保留含 filename 且 name 的 dict
@@ -268,7 +269,7 @@ class TemplateManager:
         """
         name = (name or "").strip()
         if not name:
-            logging.warning("模板名称为空，已忽略")
+            logging.warning(tr("auto.template_manager.6f3ac2e6", "模板名称为空，已忽略"))
             return False
 
         if content is None:
@@ -373,7 +374,7 @@ class TemplateManager:
         注意：会阻塞当前线程，建议在后台线程调用。
         """
         if not download_url:
-            logging.warning("下载地址为空")
+            logging.warning(tr("auto.template_manager.3a077ddf", "下载地址为空"))
             return False
 
         try:

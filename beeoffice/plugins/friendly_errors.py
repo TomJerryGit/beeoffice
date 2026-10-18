@@ -12,6 +12,7 @@ v5.0.1 修复（P1-8）：
 """
 import re
 from PySide6.QtWidgets import QMessageBox
+from beeoffice.i18n import tr
 
 
 class FriendlyError:
@@ -124,7 +125,7 @@ class FriendlyError:
         """显示公式错误"""
         QMessageBox.warning(
             parent,
-            "🐝 公式计算错误",
+            tr("auto.friendly_errors.fae8ee69", "🐝 公式计算错误"),
             f"公式 `{formula}` 无法计算。\n\n"
             f"{detail}\n\n"
             "💡 常见问题：\n"
@@ -139,7 +140,7 @@ class FriendlyError:
         """显示未保存警告，返回用户是否选择继续"""
         reply = QMessageBox.question(
             parent,
-            "🐝 内容还未保存",
+            tr("auto.friendly_errors.ed73c2b2", "🐝 内容还未保存"),
             f"「{filename}」中的内容可能还没有保存。\n\n"
             "建议先导出为 PDF 或保存为 Markdown 文件。\n\n"
             "确定要关闭吗？",

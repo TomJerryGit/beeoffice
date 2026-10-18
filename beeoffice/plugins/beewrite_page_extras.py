@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
+from beeoffice.i18n import tr
 
 
 class WatermarkDialog(QDialog):
@@ -22,7 +23,7 @@ class WatermarkDialog(QDialog):
 
     def __init__(self, config=None, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("💧 水印设置")
+        self.setWindowTitle(tr("auto.beewrite_page_extras.0ae43139", "💧 水印设置"))
         self.resize(420, 340)
 
         config = config or {}
@@ -35,7 +36,7 @@ class WatermarkDialog(QDialog):
         self._text_edit = QLineEdit(
             config.get("text", "内部资料")
         )
-        self._text_edit.setPlaceholderText("输入水印文字")
+        self._text_edit.setPlaceholderText(tr("auto.beewrite_page_extras.cf7407af", "输入水印文字"))
         form.addRow("水印文字:", self._text_edit)
 
         # 字号
@@ -46,7 +47,7 @@ class WatermarkDialog(QDialog):
         form.addRow("字号:", self._fontsize_spin)
 
         # 颜色
-        self._color_btn = QPushButton("选择颜色")
+        self._color_btn = QPushButton(tr("auto.beewrite_page_extras.91732e25", "选择颜色"))
         self._color_btn.setStyleSheet(
             f"QPushButton{{background:{self._color.name()};"
             f"padding:6px;border:1px solid #CCC;border-radius:3px;}}"
@@ -95,7 +96,7 @@ class WatermarkDialog(QDialog):
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel
         )
 
-        btn_clear = QPushButton("清除水印")
+        btn_clear = QPushButton(tr("auto.beewrite_page_extras.628ec39b", "清除水印"))
         btn_clear.clicked.connect(self._clear)
         btns.addButton(btn_clear, QDialogButtonBox.ActionRole)
 
@@ -141,7 +142,7 @@ class PageNumberDialog(QDialog):
 
     def __init__(self, config=None, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("📄 页码设置")
+        self.setWindowTitle(tr("auto.beewrite_page_extras.a1fe835c", "📄 页码设置"))
         self.resize(400, 280)
 
         config = config or {}
@@ -149,7 +150,7 @@ class PageNumberDialog(QDialog):
         form = QFormLayout()
 
         # 启用
-        self._enable_check = QCheckBox("在导出 PDF 时添加页码")
+        self._enable_check = QCheckBox(tr("auto.beewrite_page_extras.9fd38ef6", "在导出 PDF 时添加页码"))
         self._enable_check.setChecked(config.get("enabled", False))
         form.addRow(self._enable_check)
 

@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, Q
                                 QGraphicsView, QGraphicsScene, QColorDialog)
 from PySide6.QtCore import Qt, QRectF, Signal, QPointF
 from PySide6.QtGui import (QPixmap, QImage, QPainter, QColor, QPen, QFont)
+from beeoffice.i18n import tr
 
 
 class Annotation:
@@ -76,21 +77,21 @@ class PDFPageView(QGraphicsView):
 class PDFAnnotator(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("🐝 PDF 批注"); self.resize(1100,750)
+        self.setWindowTitle(tr("auto.pdf_annotator.dfef6472", "🐝 PDF 批注")); self.resize(1100,750)
         self._doc=None; self._filepath=None; self._annotations=[]; self._current_page=0
         self._current_color=(1,0.8,0)
         layout=QVBoxLayout(self)
         toolbar=QHBoxLayout()
-        self._page_label=QLabel("第 1/1 页"); toolbar.addWidget(self._page_label); toolbar.addStretch()
+        self._page_label=QLabel(tr("auto.pdf_annotator.0a68d7e1", "第 1/1 页")); toolbar.addWidget(self._page_label); toolbar.addStretch()
         for n,t in [("🖍️ 高亮","highlight"),("📝 下划线","underline"),("🚫 删除线","strikethrough"),("💬 批注","text")]:
             btn=QPushButton(n); btn.setCheckable(True); btn.clicked.connect(lambda checked, tt=t: self._set_tool(tt)); toolbar.addWidget(btn)
-        toolbar.addWidget(QPushButton("🎨 颜色", clicked=self._choose_color)); toolbar.addStretch()
+        toolbar.addWidget(QPushButton(tr("auto.pdf_annotator.fcc52c17", "🎨 颜色"), clicked=self._choose_color)); toolbar.addStretch()
         for text,slot in [("◀",self._prev_page),("▶",self._next_page),("💾 保存批注",self._save_annotations),("🔥 烧录",self._burn_annotations),("↩ 撤销",self._undo_annotation)]:
             toolbar.addWidget(QPushButton(text, clicked=slot))
         layout.addLayout(toolbar)
         splitter=QSplitter(Qt.Horizontal)
         self._page_view=PDFPageView(); self._page_view.annotation_added.connect(self._on_annotation_added); splitter.addWidget(self._page_view)
-        right=QWidget(); rl=QVBoxLayout(right); rl.addWidget(QLabel("批注列表"))
+        right=QWidget(); rl=QVBoxLayout(right); rl.addWidget(QLabel(tr("auto.pdf_annotator.8c72a3c9", "批注列表")))
         self._anno_list=QListWidget(); rl.addWidget(self._anno_list)
         self._note_editor=QTextEdit(); self._note_editor.hide(); rl.addWidget(self._note_editor)
         splitter.addWidget(right); splitter.setSizes([750,300]); layout.addWidget(splitter)
@@ -102,7 +103,7 @@ class PDFAnnotator(QWidget):
             if ap.exists():
                 with open(ap,'r',encoding='utf-8') as f: self._annotations=[Annotation.from_dict(d) for d in json.load(f)]
             self._update_view()
-        except Exception as e: QMessageBox.warning(self,"打开失败",str(e))
+        except Exception as e: QMessageBox.warning(self,tr("auto.pdf_annotator.e1ae8ece", "打开失败"),str(e))
     def _update_view(self):
         if not self._doc: return
         self._page_view.set_page(self._doc[self._current_page], self._annotations)
@@ -120,7 +121,7 @@ class PDFAnnotator(QWidget):
         if self._doc and self._current_page<len(self._doc)-1: self._current_page+=1; self._update_view()
     def _on_annotation_added(self, anno):
         if anno.type=="text":
-            dlg=QDialog(self); dlg.setWindowTitle("添加文字批注"); ed=QTextEdit()
+            dlg=QDialog(self); dlg.setWindowTitle(tr("auto.pdf_annotator.3a108067", "添加文字批注")); ed=QTextEdit()
             btns=QDialogButtonBox(QDialogButtonBox.Ok|QDialogButtonBox.Cancel)
             btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject)
             l=QVBoxLayout(dlg); l.addWidget(ed); l.addWidget(btns)
@@ -149,17 +150,17 @@ class PDFAnnotator(QWidget):
                 return
         # 当前页没有批注
         QMessageBox.information(
-            self, "提示", "当前页没有可撤销的批注"
+            self, tr("auto.pdf_annotator.ab3656a9", "提示"), tr("auto.pdf_annotator.c8b4281b", "当前页没有可撤销的批注")
         )
 
     def _save_annotations(self):
         if not self._filepath: return
         p=Path(self._filepath).with_suffix(".beeanno")
         with open(p,'w',encoding='utf-8') as f: json.dump([a.to_dict() for a in self._annotations],f,indent=2,ensure_ascii=False)
-        QMessageBox.information(self,"保存成功",f"批注已保存至：\n{p}")
+        QMessageBox.information(self,tr("auto.pdf_annotator.7e68eb62", "保存成功"),f"批注已保存至：\n{p}")
     def _burn_annotations(self):
-        if not self._doc or not self._annotations: QMessageBox.information(self,"提示","没有批注可烧录"); return
-        p,_=QFileDialog.getSaveFileName(self,"保存已批注 PDF","","PDF (*.pdf)")
+        if not self._doc or not self._annotations: QMessageBox.information(self,tr("auto.pdf_annotator.ab3656a9", "提示"),tr("auto.pdf_annotator.9fc24eb3", "没有批注可烧录")); return
+        p,_=QFileDialog.getSaveFileName(self,tr("auto.pdf_annotator.5639ff2e", "保存已批注 PDF"),"","PDF (*.pdf)")
         if not p: return
         try:
             nd=fitz.open(self._filepath)
@@ -169,5 +170,5 @@ class PDFAnnotator(QWidget):
                 elif a.type=="underline": pg.add_underline_annot(a.rect)
                 elif a.type=="strikethrough": pg.add_strikeout_annot(a.rect)
                 elif a.type=="text": pg.add_text_annot(a.rect.tl, a.text)
-            nd.save(p); nd.close(); QMessageBox.information(self,"烧录成功",f"已保存至：\n{p}")
-        except Exception as e: QMessageBox.warning(self,"烧录失败",str(e))
+            nd.save(p); nd.close(); QMessageBox.information(self,tr("auto.pdf_annotator.74642af0", "烧录成功"),f"已保存至：\n{p}")
+        except Exception as e: QMessageBox.warning(self,tr("auto.pdf_annotator.a975edc5", "烧录失败"),str(e))

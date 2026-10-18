@@ -1,0 +1,8 @@
+{
+  "auto.beeshow_font_subset.1b2c298e": "未找到可用的中文字体",
+  "auto.beeshow_font_subset.68042fa6": "fonttools 未安装，跳过子集化",
+  "auto.beeshow_font_subset.06b28123": "字符集为空，跳过子集化",
+  "auto.beeshow_font_subset.a21f990f": "无可用中文字体，跳过嵌入",
+  "auto.beeshow_font_subset.eafd9ed4": "字符集为空，跳过嵌入",
+  "auto.beeshow_font_subset.7f1c9423": "子集化失败，跳过嵌入"
+}

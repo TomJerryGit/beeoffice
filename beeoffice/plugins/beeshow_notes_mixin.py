@@ -38,6 +38,7 @@ import re
 import logging
 
 from PySide6.QtWidgets import QInputDialog, QMessageBox
+from beeoffice.i18n import tr
 
 
 class NotesMixin:
@@ -55,7 +56,7 @@ class NotesMixin:
           4. 用户确认后调 add_speaker_notes 写入
         """
         if not self._slides_html:
-            QMessageBox.information(self, "提示", "请先编写幻灯片内容")
+            QMessageBox.information(self, tr("auto.beeshow_notes_mixin.ab3656a9", "提示"), tr("auto.beeshow_notes_mixin.63565334", "请先编写幻灯片内容"))
             return
 
         current_notes = ""
@@ -100,7 +101,7 @@ class NotesMixin:
 
         # 写回 _editor
         self._sync_notes_to_editor()
-        self._set_status("📝 备注已更新", 2000)
+        self._set_status(tr("auto.beeshow_notes_mixin.c51339a2", "📝 备注已更新"), 2000)
 
     def _sync_notes_to_editor(self):
         """
@@ -202,11 +203,11 @@ class NotesMixin:
         )
 
         if not self._slides_md:
-            QMessageBox.information(self, "提示", "请先编写幻灯片内容")
+            QMessageBox.information(self, tr("auto.beeshow_notes_mixin.ab3656a9", "提示"), tr("auto.beeshow_notes_mixin.63565334", "请先编写幻灯片内容"))
             return
 
         if not (0 <= self._current_slide < len(self._slides_md)):
-            QMessageBox.information(self, "提示", "当前页索引无效")
+            QMessageBox.information(self, tr("auto.beeshow_notes_mixin.ab3656a9", "提示"), tr("auto.beeshow_notes_mixin.6f02da31", "当前页索引无效"))
             return
 
         # 取当前页标题与内容
@@ -226,7 +227,7 @@ class NotesMixin:
         if not ok:
             return
 
-        self._set_status("🤖 正在生成演讲稿...", 0)
+        self._set_status(tr("auto.beeshow_notes_mixin.836b176d", "🤖 正在生成演讲稿..."), 0)
         try:
             service = create_service_from_settings()
             notes = service.generate_notes(
@@ -236,13 +237,13 @@ class NotesMixin:
             )
         except Exception as e:
             logging.error(f"AI 生成演讲稿失败：{e}")
-            QMessageBox.warning(self, "生成失败", str(e))
-            self._set_status("❌ 生成失败", 3000)
+            QMessageBox.warning(self, tr("auto.beeshow_notes_mixin.64ba75d9", "生成失败"), str(e))
+            self._set_status(tr("auto.beeshow_notes_mixin.b017c717", "❌ 生成失败"), 3000)
             return
 
         if not notes:
             QMessageBox.information(
-                self, "提示",
+                self, tr("auto.beeshow_notes_mixin.ab3656a9", "提示"),
                 "AI 未返回演讲稿。\n\n"
                 "可能原因：\n"
                 "• 未配置 AI API Key（设置 → AI 服务）\n"
@@ -250,7 +251,7 @@ class NotesMixin:
                 "可在 ~/.beeoffice_settings.json 中配置 "
                 "ai_api_key 后重试。"
             )
-            self._set_status("⚠️ 未生成演讲稿", 3000)
+            self._set_status(tr("auto.beeshow_notes_mixin.fe019d54", "⚠️ 未生成演讲稿"), 3000)
             return
 
         # 写入备注
@@ -273,12 +274,12 @@ class NotesMixin:
         )
 
         if not self._slides_md:
-            QMessageBox.information(self, "提示", "请先编写幻灯片内容")
+            QMessageBox.information(self, tr("auto.beeshow_notes_mixin.ab3656a9", "提示"), tr("auto.beeshow_notes_mixin.63565334", "请先编写幻灯片内容"))
             return
 
         total = len(self._slides_md)
         reply = QMessageBox.question(
-            self, "🤖 批量生成演讲稿",
+            self, tr("auto.beeshow_notes_mixin.a140f197", "🤖 批量生成演讲稿"),
             f"将为 {total} 页生成演讲稿，"
             f"预计耗时 {total * 3}~{total * 5} 秒。\n\n"
             f"是否继续？",
@@ -291,7 +292,7 @@ class NotesMixin:
         service = create_service_from_settings()
         if not service.api_key:
             QMessageBox.information(
-                self, "提示",
+                self, tr("auto.beeshow_notes_mixin.ab3656a9", "提示"),
                 "未配置 AI API Key。\n\n"
                 "请在 ~/.beeoffice_settings.json 中配置 "
                 "ai_api_key 后重试。"

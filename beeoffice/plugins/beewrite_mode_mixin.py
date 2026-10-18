@@ -31,6 +31,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QTextCharFormat, QTextCursor, QTextTable
 
 from beeoffice.plugins.beewrite_utils import FORMAT_PAINTER
+from beeoffice.i18n import tr
 
 
 class ModeMixin:
@@ -179,7 +180,7 @@ class ModeMixin:
                 self._sync_mode_buttons()
                 self._apply_mode_layout(mode)
                 self._set_status(
-                    "✨ 已切换回所见即所得（保留原样式）", 3000
+                    tr("auto.beewrite_mode_mixin.c263fa57", "✨ 已切换回所见即所得（保留原样式）"), 3000
                 )
                 return
 
@@ -198,7 +199,7 @@ class ModeMixin:
                 traceback.print_exc()
                 QMessageBox.warning(
                     self,
-                    "模式切换失败",
+                    tr("auto.beewrite_mode_mixin.4f77b594", "模式切换失败"),
                     f"错误: {e}\n\n请把上方控制台的报错信息发给开发者。",
                 )
                 self._sync_mode_buttons()
@@ -211,7 +212,7 @@ class ModeMixin:
                 if self._document_has_images():
                     reply = QMessageBox.question(
                         self,
-                        "⚠️ 文档含图片",
+                        tr("auto.beewrite_mode_mixin.77db9f23", "⚠️ 文档含图片"),
                         "当前文档包含图片。\n\n"
                         "切换到 Markdown 模式后，图片会以 "
                         "![](...) 语法展示在源码中，\n"
@@ -239,7 +240,7 @@ class ModeMixin:
                 traceback.print_exc()
                 QMessageBox.warning(
                     self,
-                    "模式切换失败",
+                    tr("auto.beewrite_mode_mixin.4f77b594", "模式切换失败"),
                     f"错误: {e}\n\n请把上方控制台的报错信息发给开发者。",
                 )
                 self._sync_mode_buttons()
@@ -252,10 +253,10 @@ class ModeMixin:
 
         if mode == "rich_text":
             self._set_status(
-                "✨ 已切换到所见即所得模式（可编辑表格）", 3000
+                tr("auto.beewrite_mode_mixin.929d1ba9", "✨ 已切换到所见即所得模式（可编辑表格）"), 3000
             )
         else:
-            self._set_status("已切换到 Markdown 源码模式", 3000)
+            self._set_status(tr("auto.beewrite_mode_mixin.6dd99d4d", "已切换到 Markdown 源码模式"), 3000)
 
     def _ensure_rich_editor_dir(self):
         """
@@ -593,11 +594,11 @@ class ModeMixin:
             if cursor.hasSelection():
                 FORMAT_PAINTER.copy_from_cursor(cursor)
                 self._set_status(
-                    "🖌️ 格式已复制！选中其他文字自动应用", 5000
+                    tr("auto.beewrite_mode_mixin.ed568dd8", "🖌️ 格式已复制！选中其他文字自动应用"), 5000
                 )
             else:
                 self._fmt_btn.setChecked(False)
-                self._set_status("请先选中要复制格式的文字", 2000)
+                self._set_status(tr("auto.beewrite_mode_mixin.7dde5bf4", "请先选中要复制格式的文字"), 2000)
         else:
             FORMAT_PAINTER.clear()
 
@@ -605,4 +606,4 @@ class ModeMixin:
         """格式刷应用完成时的回调（由 RichTextEditor 通知）"""
         self._fmt_btn.setChecked(False)
         FORMAT_PAINTER.clear()
-        self._set_status("✅ 格式已应用！", 3000)
+        self._set_status(tr("auto.beewrite_mode_mixin.537fe393", "✅ 格式已应用！"), 3000)

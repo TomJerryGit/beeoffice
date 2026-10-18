@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap, QImage
+from beeoffice.i18n import tr
 
 # 尝试导入 matplotlib
 try:
@@ -65,14 +66,14 @@ class FormulaDialog(QDialog):
 
     def __init__(self, parent=None, initial_latex=""):
         super().__init__(parent)
-        self.setWindowTitle("∑ 数学公式")
+        self.setWindowTitle(tr("auto.beewrite_formula.85a01694", "∑ 数学公式"))
         self.resize(720, 560)
         self._result_path = None
         self._result_latex = None
 
         if not HAS_MPL:
             QMessageBox.warning(
-                self, "缺少依赖",
+                self, tr("auto.beewrite_formula.1f393593", "缺少依赖"),
                 "数学公式需要 matplotlib：\n"
                 "pip install matplotlib"
             )
@@ -89,7 +90,7 @@ class FormulaDialog(QDialog):
         layout = QVBoxLayout(self)
 
         # 输入区
-        layout.addWidget(QLabel("LaTeX 公式（不需要 $ 或 \\[ 包裹）："))
+        layout.addWidget(QLabel(tr("auto.beewrite_formula.6d093a35", "LaTeX 公式（不需要 $ 或 \\[ 包裹）：")))
 
         self._input_edit = QTextEdit()
         self._input_edit.setStyleSheet(
@@ -98,7 +99,7 @@ class FormulaDialog(QDialog):
         )
         self._input_edit.setMaximumHeight(80)
         self._input_edit.setPlaceholderText(
-            r"例如：\frac{a}{b} 或 \sum_{i=1}^{n} x_i"
+            tr("auto.beewrite_formula.73e59d2f", r"例如：\frac{a}{b} 或 \sum_{i=1}^{n} x_i")
         )
         self._input_edit.textChanged.connect(self._on_text_changed)
         layout.addWidget(self._input_edit)
@@ -119,9 +120,9 @@ class FormulaDialog(QDialog):
         layout.addLayout(tpl_group_layout)
 
         # 预览区
-        layout.addWidget(QLabel("预览："))
+        layout.addWidget(QLabel(tr("auto.beewrite_formula.ad5abaa0", "预览：")))
 
-        self._preview_label = QLabel("（输入公式后自动预览）")
+        self._preview_label = QLabel(tr("auto.beewrite_formula.9e6074c4", "（输入公式后自动预览）"))
         self._preview_label.setAlignment(Qt.AlignCenter)
         self._preview_label.setMinimumHeight(160)
         self._preview_label.setStyleSheet(
@@ -157,11 +158,11 @@ class FormulaDialog(QDialog):
         # 底部按钮
         btns = QDialogButtonBox()
 
-        btn_render = QPushButton("🔄 刷新预览")
+        btn_render = QPushButton(tr("auto.beewrite_formula.3c1a670b", "🔄 刷新预览"))
         btn_render.clicked.connect(self._render_preview)
         btns.addButton(btn_render, QDialogButtonBox.ActionRole)
 
-        btn_insert = QPushButton("✅ 插入公式")
+        btn_insert = QPushButton(tr("auto.beewrite_formula.11b82e83", "✅ 插入公式"))
         btn_insert.setStyleSheet(
             "QPushButton{background:#FFB300;color:#000;"
             "padding:6px 16px;border:none;border-radius:4px;"
@@ -171,7 +172,7 @@ class FormulaDialog(QDialog):
         btn_insert.clicked.connect(self._insert_formula)
         btns.addButton(btn_insert, QDialogButtonBox.AcceptRole)
 
-        btn_cancel = QPushButton("取消")
+        btn_cancel = QPushButton(tr("auto.beewrite_formula.4d0b4688", "取消"))
         btn_cancel.clicked.connect(self.reject)
         btns.addButton(btn_cancel, QDialogButtonBox.RejectRole)
 
@@ -206,7 +207,7 @@ class FormulaDialog(QDialog):
         """渲染公式为预览图"""
         latex = self._input_edit.toPlainText().strip()
         if not latex:
-            self._preview_label.setText("（输入公式后自动预览）")
+            self._preview_label.setText(tr("auto.beewrite_formula.9e6074c4", "（输入公式后自动预览）"))
             self._preview_label.setPixmap(QPixmap())
             return
 
@@ -282,7 +283,7 @@ class FormulaDialog(QDialog):
     def _insert_formula(self):
         latex = self._input_edit.toPlainText().strip()
         if not latex:
-            QMessageBox.information(self, "提示", "请输入公式")
+            QMessageBox.information(self, tr("auto.beewrite_formula.ab3656a9", "提示"), tr("auto.beewrite_formula.18550340", "请输入公式"))
             return
 
         latex = self._clean_latex(latex)
@@ -325,7 +326,7 @@ class FormulaDialog(QDialog):
             self._result_latex = latex
             self.accept()
         except Exception as e:
-            QMessageBox.warning(self, "渲染失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_formula.b164ae2a", "渲染失败"), str(e))
 
     def get_result_path(self):
         return self._result_path

@@ -73,7 +73,7 @@ class TabManager(QTabWidget):
     def open_file(self):
         """弹出文件对话框打开文件"""
         path, _ = QFileDialog.getOpenFileName(
-            self, "打开文件", "",
+            self, tr("auto.tab_manager.38820b3d", "打开文件"), "",
             "所有支持格式 (*.md *.docx *.csv *.xlsx *.txt);;"
             "Excel (*.xlsx *.xls);;CSV (*.csv);;Word (*.docx);;"
             "Markdown (*.md);;文本 (*.txt)"

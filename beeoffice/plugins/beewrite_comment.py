@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, QPoint
 from PySide6.QtGui import QColor, QFont
+from beeoffice.i18n import tr
 
 
 # ==================== 批注数据管理器 ====================
@@ -132,14 +133,14 @@ class CommentPanel(QWidget):
 
         # 标题栏
         header = QHBoxLayout()
-        self._title_label = QLabel("💬 批注 (0)")
+        self._title_label = QLabel(tr("auto.beewrite_comment.358e7cb7", "💬 批注 (0)"))
         self._title_label.setStyleSheet(
             "QLabel{font-size:13px;font-weight:bold;color:#E65100;}"
         )
         header.addWidget(self._title_label)
         header.addStretch()
 
-        btn_add = QPushButton("+ 新建")
+        btn_add = QPushButton(tr("auto.beewrite_comment.d1dd7737", "+ 新建"))
         btn_add.setStyleSheet(
             "QPushButton{background:#FFF3E0;border:1px solid #FFB300;"
             "color:#E65100;padding:3px 8px;border-radius:3px;"
@@ -177,7 +178,7 @@ class CommentPanel(QWidget):
         layout.addWidget(self._list, 1)
 
         # 底部提示
-        tip = QLabel("💡 双击列表项跳转到批注位置")
+        tip = QLabel(tr("auto.beewrite_comment.10df4150", "💡 双击列表项跳转到批注位置"))
         tip.setStyleSheet(
             "QLabel{color:#999;font-size:11px;padding:4px;}"
         )
@@ -254,21 +255,21 @@ class CommentPanel(QWidget):
         comment_id = item.data(Qt.UserRole)
 
         menu = QMenu(self)
-        menu.addAction("📍 跳转").triggered.connect(
+        menu.addAction(tr("auto.beewrite_comment.c0bd0f2c", "📍 跳转")).triggered.connect(
             lambda: self._emit_jump(comment_id)
         )
-        menu.addAction("💬 回复").triggered.connect(
+        menu.addAction(tr("auto.beewrite_comment.abf24497", "💬 回复")).triggered.connect(
             lambda: self.reply_requested.emit(comment_id)
         )
         menu.addSeparator()
-        menu.addAction("✅ 标记已解决").triggered.connect(
+        menu.addAction(tr("auto.beewrite_comment.865439df", "✅ 标记已解决")).triggered.connect(
             lambda: self.resolve_requested.emit(comment_id, True)
         )
-        menu.addAction("↩️ 标记未解决").triggered.connect(
+        menu.addAction(tr("auto.beewrite_comment.b5df733f", "↩️ 标记未解决")).triggered.connect(
             lambda: self.resolve_requested.emit(comment_id, False)
         )
         menu.addSeparator()
-        menu.addAction("🗑️ 删除").triggered.connect(
+        menu.addAction(tr("auto.beewrite_comment.d217371d", "🗑️ 删除")).triggered.connect(
             lambda: self.delete_requested.emit(comment_id)
         )
         menu.exec(self._list.mapToGlobal(pos))
@@ -281,7 +282,7 @@ class CommentEditDialog(QDialog):
     def __init__(self, parent=None, initial_text="",
                  excerpt=""):
         super().__init__(parent)
-        self.setWindowTitle("📝 批注")
+        self.setWindowTitle(tr("auto.beewrite_comment.2c2856b1", "📝 批注"))
         self.resize(380, 260)
         layout = QVBoxLayout(self)
 
@@ -295,7 +296,7 @@ class CommentEditDialog(QDialog):
             excerpt_label.setWordWrap(True)
             layout.addWidget(excerpt_label)
 
-        layout.addWidget(QLabel("批注内容："))
+        layout.addWidget(QLabel(tr("auto.beewrite_comment.ef5350d6", "批注内容：")))
         self._edit = QTextEdit()
         self._edit.setPlainText(initial_text)
         self._edit.setStyleSheet(

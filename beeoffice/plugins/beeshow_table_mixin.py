@@ -44,6 +44,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
+from beeoffice.i18n import tr
 
 
 # ==================== 表格编辑器对话框 ====================
@@ -66,7 +67,7 @@ class TableEditorDialog(QDialog):
         :param parent: 父窗口
         """
         super().__init__(parent)
-        self.setWindowTitle("📊 表格编辑器")
+        self.setWindowTitle(tr("auto.beeshow_table_mixin.cc2775cd", "📊 表格编辑器"))
         self.resize(720, 560)
 
         self._initial_rows = initial_rows
@@ -75,31 +76,31 @@ class TableEditorDialog(QDialog):
 
         # ===== 顶部：新建选项 =====
         top_bar = QHBoxLayout()
-        top_bar.addWidget(QLabel("行:"))
+        top_bar.addWidget(QLabel(tr("auto.beeshow_table_mixin.b9b77381", "行:")))
         self._row_spin = QSpinBox()
         self._row_spin.setRange(1, 50)
         self._row_spin.setValue(3)
         self._row_spin.setMaximumWidth(70)
         top_bar.addWidget(self._row_spin)
 
-        top_bar.addWidget(QLabel("列:"))
+        top_bar.addWidget(QLabel(tr("auto.beeshow_table_mixin.f85a5e90", "列:")))
         self._col_spin = QSpinBox()
         self._col_spin.setRange(1, 20)
         self._col_spin.setValue(3)
         self._col_spin.setMaximumWidth(70)
         top_bar.addWidget(self._col_spin)
 
-        btn_new = QPushButton("🆕 新建")
+        btn_new = QPushButton(tr("auto.beeshow_table_mixin.ba9dc330", "🆕 新建"))
         btn_new.clicked.connect(self._on_new_table)
         top_bar.addWidget(btn_new)
 
-        btn_clear = QPushButton("🧹 清空内容")
+        btn_clear = QPushButton(tr("auto.beeshow_table_mixin.323280c8", "🧹 清空内容"))
         btn_clear.clicked.connect(self._on_clear)
         top_bar.addWidget(btn_clear)
 
         top_bar.addStretch()
 
-        self._header_check = QCheckBox("含表头")
+        self._header_check = QCheckBox(tr("auto.beeshow_table_mixin.7bbad6ae", "含表头"))
         self._header_check.setChecked(True)
         self._header_check.stateChanged.connect(self._on_header_changed)
         top_bar.addWidget(self._header_check)
@@ -143,7 +144,7 @@ class TableEditorDialog(QDialog):
         layout.addLayout(op_bar)
 
         # ===== 底部：Markdown 预览 =====
-        layout.addWidget(QLabel("Markdown 预览："))
+        layout.addWidget(QLabel(tr("auto.beeshow_table_mixin.01130939", "Markdown 预览：")))
         self._preview = QTextEdit()
         self._preview.setReadOnly(True)
         self._preview.setStyleSheet(
@@ -155,7 +156,7 @@ class TableEditorDialog(QDialog):
 
         # ===== 底部按钮 =====
         btns = QDialogButtonBox()
-        ok_btn = QPushButton("✅ 插入")
+        ok_btn = QPushButton(tr("auto.beeshow_table_mixin.70d67f36", "✅ 插入"))
         ok_btn.setStyleSheet(
             "QPushButton{background:#FFB300;color:#000;"
             "padding:6px 16px;border:none;border-radius:4px;"
@@ -165,7 +166,7 @@ class TableEditorDialog(QDialog):
         ok_btn.clicked.connect(self._on_accept)
         btns.addButton(ok_btn, QDialogButtonBox.AcceptRole)
 
-        cancel_btn = QPushButton("取消")
+        cancel_btn = QPushButton(tr("auto.beeshow_table_mixin.4d0b4688", "取消"))
         cancel_btn.clicked.connect(self.reject)
         btns.addButton(cancel_btn, QDialogButtonBox.RejectRole)
 
@@ -251,7 +252,7 @@ class TableEditorDialog(QDialog):
     def _delete_row(self):
         """删除当前行（至少保留一行）"""
         if self._table.rowCount() <= 1:
-            QMessageBox.information(self, "提示", "至少保留一行")
+            QMessageBox.information(self, tr("auto.beeshow_table_mixin.ab3656a9", "提示"), tr("auto.beeshow_table_mixin.201a8dd2", "至少保留一行"))
             return
         cur_row = self._table.currentRow()
         if cur_row < 0:
@@ -262,7 +263,7 @@ class TableEditorDialog(QDialog):
     def _delete_col(self):
         """删除当前列（至少保留一列）"""
         if self._table.columnCount() <= 1:
-            QMessageBox.information(self, "提示", "至少保留一列")
+            QMessageBox.information(self, tr("auto.beeshow_table_mixin.ab3656a9", "提示"), tr("auto.beeshow_table_mixin.95d3a0f0", "至少保留一列"))
             return
         cur_col = self._table.currentColumn()
         if cur_col < 0:
@@ -357,11 +358,11 @@ class TableEditorDialog(QDialog):
         """点击"插入"按钮"""
         rows = self._get_grid()
         if not rows:
-            QMessageBox.warning(self, "提示", "表格为空")
+            QMessageBox.warning(self, tr("auto.beeshow_table_mixin.ab3656a9", "提示"), tr("auto.beeshow_table_mixin.c12fa40f", "表格为空"))
             return
         # 检查是否所有单元格为空
         if all(not cell.strip() for row in rows for cell in row):
-            QMessageBox.warning(self, "提示", "表格内容全为空")
+            QMessageBox.warning(self, tr("auto.beeshow_table_mixin.ab3656a9", "提示"), tr("auto.beeshow_table_mixin.162ad18e", "表格内容全为空"))
             return
         self.accept()
 
@@ -393,7 +394,7 @@ class TableMixin:
 
         if not self._slides_md:
             QMessageBox.information(
-                self, "提示", "请先编写幻灯片内容"
+                self, tr("auto.beeshow_table_mixin.ab3656a9", "提示"), tr("auto.beeshow_table_mixin.63565334", "请先编写幻灯片内容")
             )
             return
 
@@ -412,7 +413,7 @@ class TableMixin:
             return
 
         self._insert_table_md(md_table)
-        self._set_status("✅ 表格已插入", 2000)
+        self._set_status(tr("auto.beeshow_table_mixin.2e671706", "✅ 表格已插入"), 2000)
 
     # ==================== 提取当前表格 ====================
     def _extract_current_table(self):
@@ -482,7 +483,7 @@ class TableMixin:
             self._update_preview()
         except Exception as e:
             logging.error(f"插入表格失败：{e}")
-            QMessageBox.warning(self, "插入失败", str(e))
+            QMessageBox.warning(self, tr("auto.beeshow_table_mixin.4620fab0", "插入失败"), str(e))
 
     # ==================== 编辑已有表格 ====================
     def _edit_current_table(self):
@@ -494,7 +495,7 @@ class TableMixin:
         rows = self._extract_current_table()
         if not rows:
             QMessageBox.information(
-                self, "提示",
+                self, tr("auto.beeshow_table_mixin.ab3656a9", "提示"),
                 "当前页没有表格。\n\n"
                 "请使用「📊 表格」按钮新建。"
             )
@@ -511,7 +512,7 @@ class TableMixin:
             return
 
         self._replace_current_table(md_table)
-        self._set_status("✅ 表格已更新", 2000)
+        self._set_status(tr("auto.beeshow_table_mixin.b2153c80", "✅ 表格已更新"), 2000)
 
     def _replace_current_table(self, new_md_table: str):
         """
@@ -560,4 +561,4 @@ class TableMixin:
                 self._update_preview()
         except Exception as e:
             logging.error(f"替换表格失败：{e}")
-            QMessageBox.warning(self, "替换失败", str(e))
+            QMessageBox.warning(self, tr("auto.beeshow_table_mixin.8f1950e0", "替换失败"), str(e))

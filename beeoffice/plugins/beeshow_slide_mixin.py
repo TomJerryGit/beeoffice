@@ -59,6 +59,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QTimer
 
 from beeoffice.plugins.beeshow_constants import SLIDE_THEMES
+from beeoffice.i18n import tr
 
 
 class SlideMixin:
@@ -293,7 +294,7 @@ class SlideMixin:
         if not (0 <= idx < len(self._slide_titles)):
             return
         new_title, ok = QInputDialog.getText(
-            self, "重命名", "幻灯片标题:", text=self._slide_titles[idx]
+            self, tr("auto.beeshow_slide_mixin.1cd80fd7", "重命名"), tr("auto.beeshow_slide_mixin.cc35063f", "幻灯片标题:"), text=self._slide_titles[idx]
         )
         if ok and new_title.strip():
             self._slide_titles[idx] = new_title.strip()
@@ -507,7 +508,7 @@ class SlideMixin:
                 self._editor.setPlainText('\n---\n'.join(parts))
                 self._editor.blockSignals(False)
                 self._update_preview()
-                self._set_status("✅ 样式已应用", 2000)
+                self._set_status(tr("auto.beeshow_slide_mixin.a3a83ca4", "✅ 样式已应用"), 2000)
 
         except Exception as e:
             logging.error(f"应用元素编辑失败：{e}")
@@ -553,7 +554,7 @@ class SlideMixin:
                 self._editor.setPlainText('\n---\n'.join(parts))
                 self._editor.blockSignals(False)
                 self._update_preview()
-                self._set_status("✅ 图片样式已应用", 2000)
+                self._set_status(tr("auto.beeshow_slide_mixin.4f66081e", "✅ 图片样式已应用"), 2000)
 
         except Exception as e:
             logging.error(f"应用图片编辑失败：{e}")

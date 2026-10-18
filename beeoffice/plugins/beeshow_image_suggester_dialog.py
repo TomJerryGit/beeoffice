@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
+from beeoffice.i18n import tr
 
 
 class ImageSuggesterDialog(QDialog):
@@ -36,7 +37,7 @@ class ImageSuggesterDialog(QDialog):
         :param parent: 父窗口
         """
         super().__init__(parent)
-        self.setWindowTitle("🖼️ 选择配图")
+        self.setWindowTitle(tr("auto.beeshow_image_suggester_dialog.bd00cc20", "🖼️ 选择配图"))
         self.resize(800, 600)
 
         self._results = results
@@ -76,7 +77,7 @@ class ImageSuggesterDialog(QDialog):
         bl = QHBoxLayout()
         bl.addStretch()
 
-        self._insert_btn = QPushButton("✅ 插入选中图")
+        self._insert_btn = QPushButton(tr("auto.beeshow_image_suggester_dialog.22f154d2", "✅ 插入选中图"))
         self._insert_btn.setEnabled(False)
         self._insert_btn.setStyleSheet(
             "QPushButton{background:#FFB300;color:#000;"
@@ -88,7 +89,7 @@ class ImageSuggesterDialog(QDialog):
         self._insert_btn.clicked.connect(self._on_insert)
         bl.addWidget(self._insert_btn)
 
-        cancel_btn = QPushButton("取消")
+        cancel_btn = QPushButton(tr("auto.beeshow_image_suggester_dialog.4d0b4688", "取消"))
         cancel_btn.clicked.connect(self.reject)
         bl.addWidget(cancel_btn)
 
@@ -113,7 +114,7 @@ class ImageSuggesterDialog(QDialog):
         card_layout.setSpacing(4)
 
         # 缩略图
-        thumb_label = QLabel("加载中...")
+        thumb_label = QLabel(tr("auto.beeshow_image_suggester_dialog.514c33af", "加载中..."))
         thumb_label.setAlignment(Qt.AlignCenter)
         thumb_label.setMinimumHeight(140)
         thumb_label.setStyleSheet(
@@ -133,7 +134,7 @@ class ImageSuggesterDialog(QDialog):
             )
             thumb_label.setText("")
         else:
-            thumb_label.setText("（无法加载）")
+            thumb_label.setText(tr("auto.beeshow_image_suggester_dialog.e8e2e471", "（无法加载）"))
 
         # 来源信息
         source_label = QLabel(

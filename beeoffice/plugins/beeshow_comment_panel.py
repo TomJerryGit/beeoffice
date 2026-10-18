@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QFont
+from beeoffice.i18n import tr
 
 
 class CommentPanel(QWidget):
@@ -61,7 +62,7 @@ class CommentPanel(QWidget):
 
         # 标题栏
         header = QHBoxLayout()
-        self._title_label = QLabel("💬 评论")
+        self._title_label = QLabel(tr("auto.beeshow_comment_panel.6ca733e4", "💬 评论"))
         self._title_label.setStyleSheet(
             "QLabel{font-size:13px;font-weight:bold;color:#E65100;}"
         )
@@ -81,7 +82,7 @@ class CommentPanel(QWidget):
         layout.addLayout(header)
 
         # 提示
-        tip = QLabel("💡 双击评论可跳转到对应页")
+        tip = QLabel(tr("auto.beeshow_comment_panel.6309e31b", "💡 双击评论可跳转到对应页"))
         tip.setStyleSheet(
             "QLabel{color:#999;font-size:11px;padding:2px;}"
         )
@@ -197,25 +198,25 @@ class CommentPanel(QWidget):
             return
 
         menu = QMenu(self)
-        menu.addAction("📍 跳转到此页").triggered.connect(
+        menu.addAction(tr("auto.beeshow_comment_panel.f3ef403a", "📍 跳转到此页")).triggered.connect(
             lambda: self.jump_requested.emit(comment_id)
         )
-        menu.addAction("✏️ 编辑").triggered.connect(
+        menu.addAction(tr("auto.beeshow_comment_panel.b186d065", "✏️ 编辑")).triggered.connect(
             lambda: self.edit_requested.emit(comment_id)
         )
 
         is_resolved = comment_data.get("resolved", False)
         if is_resolved:
-            menu.addAction("↩️ 标记未解决").triggered.connect(
+            menu.addAction(tr("auto.beeshow_comment_panel.b5df733f", "↩️ 标记未解决")).triggered.connect(
                 lambda: self.resolve_requested.emit(comment_id)
             )
         else:
-            menu.addAction("✅ 标记已解决").triggered.connect(
+            menu.addAction(tr("auto.beeshow_comment_panel.865439df", "✅ 标记已解决")).triggered.connect(
                 lambda: self.resolve_requested.emit(comment_id)
             )
 
         menu.addSeparator()
-        menu.addAction("🗑️ 删除").triggered.connect(
+        menu.addAction(tr("auto.beeshow_comment_panel.d217371d", "🗑️ 删除")).triggered.connect(
             lambda: self.delete_requested.emit(comment_id)
         )
 

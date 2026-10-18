@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel,
                                 QHBoxLayout, QComboBox, QFileDialog)
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
+from beeoffice.i18n import tr
 
 
 class VariablePanel(QWidget):
@@ -28,7 +29,7 @@ class VariablePanel(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
 
-        title = QLabel("📊 数据变量")
+        title = QLabel(tr("auto.variable_panel.2e69743a", "📊 数据变量"))
         title.setStyleSheet(
             "font-weight: bold; font-size: 14px; color: #FF8F00;"
         )
@@ -36,9 +37,9 @@ class VariablePanel(QWidget):
 
         sl = QHBoxLayout()
         self.source_combo = QComboBox()
-        self.source_combo.setPlaceholderText("选择数据源...")
+        self.source_combo.setPlaceholderText(tr("auto.variable_panel.b2fd52af", "选择数据源..."))
         sl.addWidget(self.source_combo)
-        bind_btn = QPushButton("绑定文件")
+        bind_btn = QPushButton(tr("auto.variable_panel.bfb81f10", "绑定文件"))
         bind_btn.clicked.connect(self._bind_file)
         sl.addWidget(bind_btn)
         layout.addLayout(sl)
@@ -51,7 +52,7 @@ class VariablePanel(QWidget):
         self.status_label.setStyleSheet("color: #888; font-size: 11px;")
         layout.addWidget(self.status_label)
 
-        refresh_btn = QPushButton("🔄 刷新变量")
+        refresh_btn = QPushButton(tr("auto.variable_panel.090fcb81", "🔄 刷新变量"))
         refresh_btn.clicked.connect(self.refresh_requested.emit)
         layout.addWidget(refresh_btn)
 
@@ -94,8 +95,8 @@ class VariablePanel(QWidget):
     def _bind_file(self):
         """弹出文件对话框绑定新的数据源"""
         path, _ = QFileDialog.getOpenFileName(
-            self, "选择数据源文件", "",
-            "数据文件 (*.csv *.xlsx *.xls)"
+            self, tr("auto.variable_panel.6d551f76", "选择数据源文件"), "",
+            tr("auto.variable_panel.21b176af", "数据文件 (*.csv *.xlsx *.xls)")
         )
         if path:
             from pathlib import Path

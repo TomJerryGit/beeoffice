@@ -33,6 +33,7 @@ from PySide6.QtGui import (
     QTextCharFormat,
     QTextTableFormat,
 )
+from beeoffice.i18n import tr
 
 
 # ==================== Markdown 表格编辑对话框 ====================
@@ -45,7 +46,7 @@ class MarkdownTableEditorDialog(QDialog):
         :param parent: 父窗口
         """
         super().__init__(parent)
-        self.setWindowTitle("📊 编辑 Markdown 表格")
+        self.setWindowTitle(tr("auto.beewrite_md_table_dialog.edfe0182", "📊 编辑 Markdown 表格"))
         self.resize(700, 500)
         # 深拷贝，避免修改原始数据
         self.rows = [list(r) for r in rows]
@@ -71,25 +72,25 @@ class MarkdownTableEditorDialog(QDialog):
         # 底部按钮栏
         bl = QHBoxLayout()
 
-        add_row_btn = QPushButton("➕ 加行")
+        add_row_btn = QPushButton(tr("auto.beewrite_md_table_dialog.bca250c6", "➕ 加行"))
         add_row_btn.clicked.connect(self._add_row)
         bl.addWidget(add_row_btn)
 
-        add_col_btn = QPushButton("➕ 加列")
+        add_col_btn = QPushButton(tr("auto.beewrite_md_table_dialog.54bb7f69", "➕ 加列"))
         add_col_btn.clicked.connect(self._add_col)
         bl.addWidget(add_col_btn)
 
-        del_row_btn = QPushButton("➖ 删行")
+        del_row_btn = QPushButton(tr("auto.beewrite_md_table_dialog.2feac660", "➖ 删行"))
         del_row_btn.clicked.connect(self._del_row)
         bl.addWidget(del_row_btn)
 
-        del_col_btn = QPushButton("➖ 删列")
+        del_col_btn = QPushButton(tr("auto.beewrite_md_table_dialog.4e3f9310", "➖ 删列"))
         del_col_btn.clicked.connect(self._del_col)
         bl.addWidget(del_col_btn)
 
         bl.addStretch()
 
-        ok_btn = QPushButton("✅ 确定")
+        ok_btn = QPushButton(tr("auto.beewrite_md_table_dialog.673142b9", "✅ 确定"))
         ok_btn.setStyleSheet(
             "QPushButton{background:#FFB300;color:#000;"
             "padding:6px 16px;border:none;border-radius:4px;"
@@ -99,7 +100,7 @@ class MarkdownTableEditorDialog(QDialog):
         ok_btn.clicked.connect(self._on_ok)
         bl.addWidget(ok_btn)
 
-        cancel_btn = QPushButton("取消")
+        cancel_btn = QPushButton(tr("auto.beewrite_md_table_dialog.4d0b4688", "取消"))
         cancel_btn.clicked.connect(self.reject)
         bl.addWidget(cancel_btn)
 

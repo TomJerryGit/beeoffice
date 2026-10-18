@@ -35,6 +35,7 @@ import io
 import logging
 import difflib
 from pathlib import Path
+from beeoffice.i18n import tr
 
 # ==================== 可选依赖导入 ====================
 try:
@@ -548,7 +549,7 @@ def export_to_pdf(content, output_path):
     try:
         from weasyprint import HTML
     except ImportError:
-        logging.warning("WeasyPrint 未安装，无法导出 PDF")
+        logging.warning(tr("auto.bee_export.4a56e516", "WeasyPrint 未安装，无法导出 PDF"))
         return False
 
     try:
@@ -1062,7 +1063,7 @@ def export_slides_to_gif(slides_html, output_path, css, duration_ms=2000):
                 frames.append(img)
 
         if not frames:
-            logging.warning("没有可渲染的幻灯片")
+            logging.warning(tr("auto.bee_export.bab8a6b2", "没有可渲染的幻灯片"))
             return False
 
         # 保存为 GIF

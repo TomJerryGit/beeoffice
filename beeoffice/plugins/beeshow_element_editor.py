@@ -38,6 +38,7 @@ import json
 import logging
 import urllib.parse
 from typing import Dict, Any, Optional
+from beeoffice.i18n import tr
 
 
 # ==================== JS 生成器 ====================
@@ -600,7 +601,7 @@ class MarkdownStylePatcher:
 
             return str(soup)
         except ImportError:
-            logging.warning("bs4 未安装，样式应用跳过")
+            logging.warning(tr("auto.beeshow_element_editor.c1bf0cb7", "bs4 未安装，样式应用跳过"))
             return html
         except Exception as e:
             logging.error(f"应用样式失败：{e}")

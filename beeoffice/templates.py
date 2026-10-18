@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QPushButton, QWidget, QInputDialog, QMessageBox
 )
 from PySide6.QtCore import Qt
+from beeoffice.i18n import tr
 
 
 def show_template_picker(parent):
@@ -24,16 +25,16 @@ def show_template_picker(parent):
         templates = tm.get_all_templates()
     except Exception as e:
         logging.error(f"加载模板失败: {e}")
-        QMessageBox.warning(parent, "错误", f"加载模板失败：\n{e}")
+        QMessageBox.warning(parent, tr("auto.templates.b859c7be", "错误"), f"加载模板失败：\n{e}")
         return
 
     dialog = QDialog(parent)
-    dialog.setWindowTitle("📄 选择模板")
+    dialog.setWindowTitle(tr("auto.templates.09b31282", "📄 选择模板"))
     dialog.resize(750, 500)
     layout = QVBoxLayout(dialog)
 
     # 顶部提示
-    layout.addWidget(QLabel("选择一个模板开始撰写（双击新建，单击预览）"))
+    layout.addWidget(QLabel(tr("auto.templates.cf33314c", "选择一个模板开始撰写（双击新建，单击预览）")))
 
     # 主体：左侧标签页 + 右侧预览
     splitter = QSplitter(Qt.Horizontal)
@@ -122,9 +123,9 @@ def show_template_picker(parent):
 
     # 底部按钮
     btn_layout = QHBoxLayout()
-    new_cat_btn = QPushButton("+ 新建分类")
-    open_btn = QPushButton("使用此模板")
-    cancel_btn = QPushButton("取消")
+    new_cat_btn = QPushButton(tr("auto.templates.72a7fce2", "+ 新建分类"))
+    open_btn = QPushButton(tr("auto.templates.5396434d", "使用此模板"))
+    cancel_btn = QPushButton(tr("auto.templates.4d0b4688", "取消"))
 
     def use_current_template():
         """使用当前选中模板新建文档"""
@@ -133,7 +134,7 @@ def show_template_picker(parent):
             return
         item = current_tab.currentItem()
         if not item:
-            QMessageBox.information(dialog, "提示", "请先选择一个模板")
+            QMessageBox.information(dialog, tr("auto.templates.ab3656a9", "提示"), tr("auto.templates.f61088ef", "请先选择一个模板"))
             return
         tpl = item.data(Qt.UserRole)
         if tpl:
@@ -142,7 +143,7 @@ def show_template_picker(parent):
 
     def add_new_category():
         """新建分类（用于快速保存模板时的分类选择，本处仅提示）"""
-        text, ok = QInputDialog.getText(dialog, "新建分类", "输入分类名称：")
+        text, ok = QInputDialog.getText(dialog, tr("auto.templates.04c08442", "新建分类"), tr("auto.templates.c2413931", "输入分类名称："))
         if ok and text.strip():
             # 新建一个空分类标签
             new_lst = QListWidget()
@@ -175,7 +176,7 @@ def _create_from_template(parent, tpl_info):
         from beeoffice.plugins.beewrite import BeeWriteEditor
     except Exception as e:
         logging.error(f"导入 BeeWriteEditor 失败: {e}")
-        QMessageBox.warning(parent, "错误", f"无法创建文档：\n{e}")
+        QMessageBox.warning(parent, tr("auto.templates.b859c7be", "错误"), f"无法创建文档：\n{e}")
         return
 
     content = tpl_info.get("content", "")
@@ -196,7 +197,7 @@ def _create_from_template(parent, tpl_info):
             parent.set_global_status(f"已从模板创建: {name}", 3000)
     except Exception as e:
         logging.error(f"添加标签页失败: {e}")
-        QMessageBox.warning(parent, "错误", f"添加标签页失败：\n{e}")
+        QMessageBox.warning(parent, tr("auto.templates.b859c7be", "错误"), f"添加标签页失败：\n{e}")
 
 
 def save_as_template_dialog(parent, content):
@@ -206,17 +207,17 @@ def save_as_template_dialog(parent, content):
     :param content: 要保存的内容（字符串）
     """
     if not content or not content.strip():
-        QMessageBox.information(parent, "提示", "内容为空，无法保存为模板")
+        QMessageBox.information(parent, tr("auto.templates.ab3656a9", "提示"), tr("auto.templates.f85a9a32", "内容为空，无法保存为模板"))
         return
 
     # 输入模板名称
-    name, ok = QInputDialog.getText(parent, "保存为模板", "模板名称：")
+    name, ok = QInputDialog.getText(parent, tr("auto.templates.827613c8", "保存为模板"), tr("auto.templates.fd89b161", "模板名称："))
     if not ok or not name.strip():
         return
     name = name.strip()
 
     # 输入分类
-    category, ok = QInputDialog.getText(parent, "保存为模板", "分类（如：工作、会议）：", text="其他")
+    category, ok = QInputDialog.getText(parent, tr("auto.templates.827613c8", "保存为模板"), tr("auto.templates.e568c7d4", "分类（如：工作、会议）："), text=tr("auto.templates.1a26edf9", "其他"))
     if not ok:
         return
     category = category.strip() or "其他"
@@ -226,9 +227,9 @@ def save_as_template_dialog(parent, content):
         from beeoffice.resources.template_manager import TemplateManager
         tm = TemplateManager()
         if tm.save_user_template(name, content, category):
-            QMessageBox.information(parent, "成功", f"模板「{name}」已保存到分类「{category}」")
+            QMessageBox.information(parent, tr("auto.templates.51991a5d", "成功"), f"模板「{name}」已保存到分类「{category}」")
         else:
-            QMessageBox.warning(parent, "失败", "保存模板失败")
+            QMessageBox.warning(parent, tr("auto.templates.3e3c8068", "失败"), tr("auto.templates.d8fc29f5", "保存模板失败"))
     except Exception as e:
         logging.error(f"保存模板失败: {e}")
-        QMessageBox.warning(parent, "失败", f"保存模板失败：\n{e}")
+        QMessageBox.warning(parent, tr("auto.templates.3e3c8068", "失败"), f"保存模板失败：\n{e}")

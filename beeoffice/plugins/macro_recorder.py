@@ -15,6 +15,7 @@ v1（前一版）只录制单元格赋值。本版扩成三类动作：
     · 向后兼容：v1 录制的是 `("set", r, c, v)` 四元组，格式不变，旧宏可直接播放
 """
 import logging
+from beeoffice.i18n import tr
 
 try:
     from PySide6.QtCore import Qt
@@ -123,14 +124,14 @@ class MacroRecorder:
                 elif kind == "format":
                     _, r, c, key, value = action
                     if apply_format is None:
-                        logging.warning("宏包含格式动作，但未提供处理回调，已跳过")
+                        logging.warning(tr("auto.macro_recorder.4d859816", "宏包含格式动作，但未提供处理回调，已跳过"))
                         continue
                     apply_format(r, c, key, value)
                     applied += 1
                 elif kind == "sheet":
                     _, name = action
                     if switch_sheet is None:
-                        logging.warning("宏包含切换工作表，但未提供处理回调，已跳过")
+                        logging.warning(tr("auto.macro_recorder.05710f0f", "宏包含切换工作表，但未提供处理回调，已跳过"))
                         continue
                     if switch_sheet(name):
                         applied += 1

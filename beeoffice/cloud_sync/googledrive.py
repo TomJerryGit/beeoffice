@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 from beeoffice.cloud_sync.base import CloudStorage
+from beeoffice.i18n import tr
 
 
 class GoogleDriveStorage(CloudStorage):
@@ -149,7 +150,7 @@ class GoogleDriveStorage(CloudStorage):
     def authenticate(self) -> bool:
         """测试 Google Drive 连接"""
         if not self.access_token:
-            logging.warning("Google Drive access_token 为空")
+            logging.warning(tr("auto.googledrive.7656a4a3", "Google Drive access_token 为空"))
             return False
         try:
             self._check_requests()

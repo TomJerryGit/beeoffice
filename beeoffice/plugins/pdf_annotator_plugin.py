@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QWidget, QMessageBox, QFileDialog
 from PySide6.QtCore import Qt
 
 from beeoffice.plugin_base import Plugin
+from beeoffice.i18n import tr
 
 
 class PDFAnnotatorPlugin(Plugin):
@@ -53,18 +54,18 @@ class PDFAnnotatorPlugin(Plugin):
     def register_commands(self, palette):
         """注册 PDF 批注相关命令到命令面板"""
         palette.register_command(
-            "PDF：打开并批注",
-            "选择 PDF 文件并打开批注工具",
+            tr("auto.pdf_annotator_plugin.b83ed594", "PDF：打开并批注"),
+            tr("auto.pdf_annotator_plugin.3141ac58", "选择 PDF 文件并打开批注工具"),
             self.open_pdf_dialog
         )
         palette.register_command(
-            "PDF：打开最近的批注",
-            "重新打开最近一次编辑的 PDF",
+            tr("auto.pdf_annotator_plugin.b1ab16ef", "PDF：打开最近的批注"),
+            tr("auto.pdf_annotator_plugin.4a11fe5b", "重新打开最近一次编辑的 PDF"),
             self.reopen_last_pdf
         )
         palette.register_command(
-            "PDF：关闭全部批注窗口",
-            "关闭所有已打开的 PDF 批注窗口",
+            tr("auto.pdf_annotator_plugin.66a730d6", "PDF：关闭全部批注窗口"),
+            tr("auto.pdf_annotator_plugin.a75e982f", "关闭所有已打开的 PDF 批注窗口"),
             self.close_all_annotators
         )
 
@@ -73,9 +74,9 @@ class PDFAnnotatorPlugin(Plugin):
         """弹出文件对话框，选择 PDF 后打开批注器"""
         path, _ = QFileDialog.getOpenFileName(
             self.parent,
-            "打开 PDF 文件",
+            tr("auto.pdf_annotator_plugin.b977bc33", "打开 PDF 文件"),
             "",
-            "PDF 文件 (*.pdf);;所有文件 (*)"
+            tr("auto.pdf_annotator_plugin.2a20c779", "PDF 文件 (*.pdf);;所有文件 (*)")
         )
         if not path:
             return
@@ -134,13 +135,13 @@ class PDFAnnotatorPlugin(Plugin):
         except ImportError as e:
             logging.error(f"PDF 批注模块不可用: {e}")
             QMessageBox.warning(
-                self.parent, "无法打开",
+                self.parent, tr("auto.pdf_annotator_plugin.c804173e", "无法打开"),
                 f"PDF 批注模块不可用：\n{e}\n\n"
                 f"请确认已安装 PyMuPDF 依赖。"
             )
         except Exception as e:
             logging.error(f"打开 PDF 失败: {e}")
-            QMessageBox.warning(self.parent, "打开失败", str(e))
+            QMessageBox.warning(self.parent, tr("auto.pdf_annotator_plugin.e1ae8ece", "打开失败"), str(e))
 
     # ---------- 重新打开最近的 PDF ----------
     def reopen_last_pdf(self):
@@ -198,7 +199,7 @@ class PDFAnnotatorPlugin(Plugin):
     # ---------- 辅助 ----------
     def _warn(self, message: str):
         """统一提示"""
-        QMessageBox.information(self.parent, "提示", message)
+        QMessageBox.information(self.parent, tr("auto.pdf_annotator_plugin.ab3656a9", "提示"), message)
 
     # ---------- 生命周期 ----------
     def on_close(self):

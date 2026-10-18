@@ -91,7 +91,7 @@ class CloudSettingsDialog(QDialog):
 
         # 同步范围（阶段三）：决定"同步"到底同步哪些文档
         scope_row = QHBoxLayout()
-        scope_label = QLabel("同步范围:")
+        scope_label = QLabel(tr("auto.cloud_settings.eacac49c", "同步范围:"))
         self.scope_combo = QComboBox()
         self.scope_combo.addItem("已打开 + 最近文档", "recent")
         self.scope_combo.addItem("仅当前文档", "current")

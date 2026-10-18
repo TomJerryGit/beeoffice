@@ -54,6 +54,7 @@ from beeoffice.plugins.beewrite_utils import (
     count_words,
     safe_escape_html,
 )
+from beeoffice.i18n import tr
 
 
 # ==================== ViewMixin ====================
@@ -154,7 +155,7 @@ class ViewMixin:
         new_sizes[1] = total
         self._main_splitter.setSizes(new_sizes)
 
-        self._set_status("📖 阅读模式（按 F11 或 Esc 退出）", 0)
+        self._set_status(tr("auto.beewrite_view_mixin.7ec936f4", "📖 阅读模式（按 F11 或 Esc 退出）"), 0)
 
     def _exit_reading_mode(self):
         """退出阅读模式，恢复原布局"""
@@ -173,7 +174,7 @@ class ViewMixin:
         self.preview.setVisible(True)
         self._main_splitter.setSizes([0, 350, 350, 0, 250])
 
-        self._set_status("已退出阅读模式", 2000)
+        self._set_status(tr("auto.beewrite_view_mixin.e8cd7a82", "已退出阅读模式"), 2000)
 
     def _hide_layout_widgets(self, layout, hide):
         """遍历 QLayout 中的 widget，统一设置可见性"""
@@ -222,9 +223,9 @@ class ViewMixin:
         """打开双屏对比对话框"""
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "选择对照文档",
+            tr("auto.beewrite_view_mixin.79abf256", "选择对照文档"),
             "",
-            "Markdown (*.md);;文本 (*.txt);;所有文件 (*)",
+            tr("auto.beewrite_view_mixin.d6bedeb2", "Markdown (*.md);;文本 (*.txt);;所有文件 (*)"),
         )
         if not path:
             return
@@ -232,7 +233,7 @@ class ViewMixin:
             with open(path, 'r', encoding='utf-8') as f:
                 compare_content = f.read()
         except Exception as e:
-            QMessageBox.warning(self, "打开失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_view_mixin.e1ae8ece", "打开失败"), str(e))
             return
 
         dlg = QDialog(self)
@@ -278,7 +279,7 @@ class ViewMixin:
         # ---------- 按钮栏 ----------
         bl = QHBoxLayout()
 
-        btn_diff = QPushButton("🔍 显示差异")
+        btn_diff = QPushButton(tr("auto.beewrite_view_mixin.7202d66a", "🔍 显示差异"))
         btn_diff.setStyleSheet(
             "QPushButton{background:#FFF3E0;border:1px solid #FFB300;"
             "color:#E65100;padding:6px 12px;border-radius:4px;}"
@@ -291,7 +292,7 @@ class ViewMixin:
                 compare_content, self.content()
             )
             diff_dlg = QDialog(dlg)
-            diff_dlg.setWindowTitle("📊 差异详情")
+            diff_dlg.setWindowTitle(tr("auto.beewrite_view_mixin.95f60c82", "📊 差异详情"))
             diff_dlg.resize(800, 500)
             dl = QVBoxLayout(diff_dlg)
 
@@ -338,7 +339,7 @@ class ViewMixin:
             diff_view.setHtml("<br>".join(html_lines))
             dl.addWidget(diff_view, 1)
 
-            btn_close2 = QPushButton("关闭")
+            btn_close2 = QPushButton(tr("auto.beewrite_view_mixin.6c14bd7f", "关闭"))
             btn_close2.clicked.connect(diff_dlg.reject)
             dl.addWidget(btn_close2)
 
@@ -350,7 +351,7 @@ class ViewMixin:
         bl.addStretch()
 
         # ---------- 交换左右 ----------
-        btn_swap = QPushButton("🔄 交换左右")
+        btn_swap = QPushButton(tr("auto.beewrite_view_mixin.0cd0f997", "🔄 交换左右"))
 
         def swap():
             left_content = left_edit.toPlainText()
@@ -362,7 +363,7 @@ class ViewMixin:
         bl.addWidget(btn_swap)
 
         # ---------- 关闭 ----------
-        btn_close = QPushButton("关闭")
+        btn_close = QPushButton(tr("auto.beewrite_view_mixin.6c14bd7f", "关闭"))
         btn_close.clicked.connect(dlg.accept)
         bl.addWidget(btn_close)
 

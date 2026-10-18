@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QTextCursor, QTextCharFormat, QColor
 from PySide6.QtCore import Qt
+from beeoffice.i18n import tr
 
 
 class HyperlinkDialog(QDialog):
@@ -22,7 +23,7 @@ class HyperlinkDialog(QDialog):
     def __init__(self, parent=None, initial_text="",
                  initial_url="", show_text_field=True):
         super().__init__(parent)
-        self.setWindowTitle("🔗 超链接")
+        self.setWindowTitle(tr("auto.beewrite_hyperlink.2fd97d00", "🔗 超链接"))
         self.resize(400, 200)
         layout = QVBoxLayout(self)
         form = QFormLayout()
@@ -49,7 +50,7 @@ class HyperlinkDialog(QDialog):
     def _on_ok(self):
         url = self._url_edit.text().strip()
         if not url or url == "https://":
-            QMessageBox.warning(self, "提示", "请输入有效的链接地址")
+            QMessageBox.warning(self, tr("auto.beewrite_hyperlink.ab3656a9", "提示"), tr("auto.beewrite_hyperlink.f9460ff0", "请输入有效的链接地址"))
             return
         self.accept()
 
@@ -66,12 +67,12 @@ class HyperlinkManagerDialog(QDialog):
     def __init__(self, editor, parent=None):
         super().__init__(parent)
         self._editor = editor
-        self.setWindowTitle("🔗 超链接管理")
+        self.setWindowTitle(tr("auto.beewrite_hyperlink.895095e0", "🔗 超链接管理"))
         self.resize(560, 400)
 
         layout = QVBoxLayout(self)
 
-        layout.addWidget(QLabel("当前文档中的超链接："))
+        layout.addWidget(QLabel(tr("auto.beewrite_hyperlink.bf3f1bb6", "当前文档中的超链接：")))
 
         self._list = QListWidget()
         self._list.setStyleSheet(
@@ -85,21 +86,21 @@ class HyperlinkManagerDialog(QDialog):
         # 按钮栏
         bl = QHBoxLayout()
 
-        btn_jump = QPushButton("📍 跳转")
+        btn_jump = QPushButton(tr("auto.beewrite_hyperlink.c0bd0f2c", "📍 跳转"))
         btn_jump.clicked.connect(self._jump_to_link)
         bl.addWidget(btn_jump)
 
-        btn_edit = QPushButton("✏️ 编辑")
+        btn_edit = QPushButton(tr("auto.beewrite_hyperlink.b186d065", "✏️ 编辑"))
         btn_edit.clicked.connect(self._edit_link)
         bl.addWidget(btn_edit)
 
-        btn_remove = QPushButton("🗑️ 移除链接")
+        btn_remove = QPushButton(tr("auto.beewrite_hyperlink.1173260e", "🗑️ 移除链接"))
         btn_remove.clicked.connect(self._remove_link)
         bl.addWidget(btn_remove)
 
         bl.addStretch()
 
-        btn_close = QPushButton("关闭")
+        btn_close = QPushButton(tr("auto.beewrite_hyperlink.6c14bd7f", "关闭"))
         btn_close.clicked.connect(self.accept)
         bl.addWidget(btn_close)
 
@@ -139,7 +140,7 @@ class HyperlinkManagerDialog(QDialog):
             self._list.addItem(item)
 
         if not self._links:
-            item = QListWidgetItem("（当前文档没有超链接）")
+            item = QListWidgetItem(tr("auto.beewrite_hyperlink.50b9da5c", "（当前文档没有超链接）"))
             item.setFlags(Qt.NoItemFlags)
             self._list.addItem(item)
 

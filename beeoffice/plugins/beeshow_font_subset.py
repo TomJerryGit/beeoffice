@@ -53,6 +53,7 @@ import logging
 import shutil
 from pathlib import Path
 from typing import Set, Optional, Dict, List
+from beeoffice.i18n import tr
 
 
 # ==================== 候选中文字体 ====================
@@ -111,7 +112,7 @@ class FontLocator:
             if p.exists():
                 logging.info(f"找到中文字体：{name} ({path})")
                 return (name, path, index)
-        logging.warning("未找到可用的中文字体")
+        logging.warning(tr("auto.beeshow_font_subset.1b2c298e", "未找到可用的中文字体"))
         return None
 
     @classmethod
@@ -169,11 +170,11 @@ class FontSubsetter:
         :return: 输出路径（成功）或 None（失败）
         """
         if not self._fonttools_available:
-            logging.warning("fonttools 未安装，跳过子集化")
+            logging.warning(tr("auto.beeshow_font_subset.68042fa6", "fonttools 未安装，跳过子集化"))
             return None
 
         if not texts:
-            logging.warning("字符集为空，跳过子集化")
+            logging.warning(tr("auto.beeshow_font_subset.06b28123", "字符集为空，跳过子集化"))
             return None
 
         try:
@@ -565,7 +566,7 @@ class FontEmbedder:
             font_tuple = self.locator.find_first_available()
 
         if not font_tuple:
-            logging.warning("无可用中文字体，跳过嵌入")
+            logging.warning(tr("auto.beeshow_font_subset.a21f990f", "无可用中文字体，跳过嵌入"))
             return False
 
         name, font_path, ttc_index = font_tuple
@@ -574,7 +575,7 @@ class FontEmbedder:
         # 2. 收集字符集
         chars = self.subsetter.collect_texts(slides_html)
         if not chars:
-            logging.warning("字符集为空，跳过嵌入")
+            logging.warning(tr("auto.beeshow_font_subset.eafd9ed4", "字符集为空，跳过嵌入"))
             return False
 
         # 3. 子集化
@@ -588,7 +589,7 @@ class FontEmbedder:
                 ttc_index=ttc_index,
             )
             if not result:
-                logging.warning("子集化失败，跳过嵌入")
+                logging.warning(tr("auto.beeshow_font_subset.7f1c9423", "子集化失败，跳过嵌入"))
                 return False
 
             # 4. 嵌入到 PPTX

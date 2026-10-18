@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 from beeoffice.cloud_sync.base import CloudStorage
+from beeoffice.i18n import tr
 
 
 class OneDriveStorage(CloudStorage):
@@ -43,7 +44,7 @@ class OneDriveStorage(CloudStorage):
     def authenticate(self) -> bool:
         """测试 OneDrive 连接"""
         if not self.access_token:
-            logging.warning("OneDrive access_token 为空")
+            logging.warning(tr("auto.onedrive.4738abca", "OneDrive access_token 为空"))
             return False
         try:
             self._check_requests()

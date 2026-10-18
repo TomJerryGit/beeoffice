@@ -16,6 +16,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import (
     QColor, QTextCursor, QTextFrameFormat, QTextLength
 )
+from beeoffice.i18n import tr
 
 
 class TextBoxDialog(QDialog):
@@ -23,7 +24,7 @@ class TextBoxDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("📦 插入文本框")
+        self.setWindowTitle(tr("auto.beewrite_textbox.a2d3c862", "📦 插入文本框"))
         self.resize(400, 380)
 
         self._bg_color = QColor("#FFF8E1")
@@ -52,7 +53,7 @@ class TextBoxDialog(QDialog):
         form.addRow("边框宽度:", self._border_spin)
 
         # 边框颜色
-        self._border_btn = QPushButton("选择边框颜色")
+        self._border_btn = QPushButton(tr("auto.beewrite_textbox.ad2b9430", "选择边框颜色"))
         self._border_btn.setStyleSheet(
             f"QPushButton{{background:{self._border_color.name()};"
             f"padding:6px;border:1px solid #CCC;border-radius:3px;}}"
@@ -61,7 +62,7 @@ class TextBoxDialog(QDialog):
         form.addRow("边框颜色:", self._border_btn)
 
         # 背景色
-        self._bg_btn = QPushButton("选择背景色")
+        self._bg_btn = QPushButton(tr("auto.beewrite_textbox.5bd1333a", "选择背景色"))
         self._bg_btn.setStyleSheet(
             f"QPushButton{{background:{self._bg_color.name()};"
             f"padding:6px;border:1px solid #CCC;border-radius:3px;}}"
@@ -76,7 +77,7 @@ class TextBoxDialog(QDialog):
         form.addRow("内边距:", self._padding_spin)
 
         # 圆角（暂不支持，作为提示）
-        self._round_check = QCheckBox("圆角边框（不支持，仅提示）")
+        self._round_check = QCheckBox(tr("auto.beewrite_textbox.ec911e7b", "圆角边框（不支持，仅提示）"))
         self._round_check.setEnabled(False)
         form.addRow(self._round_check)
 

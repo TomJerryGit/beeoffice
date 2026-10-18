@@ -50,6 +50,7 @@ from PySide6.QtGui import QFont, QShortcut, QKeySequence
 
 from beeoffice.plugins.beesheet_delegate import CellEditorDelegate
 from beeoffice.plugins.beesheet_loaders import ChunkLoader
+from beeoffice.i18n import tr
 
 
 class UIMixin:
@@ -175,7 +176,7 @@ class UIMixin:
         t1.addWidget(self._name_box)
 
         self._fx_btn = QPushButton("fx ▾")
-        self._fx_btn.setToolTip("插入函数")
+        self._fx_btn.setToolTip(tr("auto.beesheet_ui_mixin.19e2c0c0", "插入函数"))
         self._fx_btn.setStyleSheet(
             "QPushButton{background:#FFF3E0;border:1px solid #FFB300;"
             "color:#E65100;font-weight:bold;padding:3px 8px;border-radius:3px;}"
@@ -186,7 +187,7 @@ class UIMixin:
 
         self.formula_bar = QLineEdit()
         self.formula_bar.setPlaceholderText(
-            "输入值或公式（输入 = 开始，F1 查看函数帮助）"
+            tr("auto.beesheet_ui_mixin.b3ea4281", "输入值或公式（输入 = 开始，F1 查看函数帮助）")
         )
         t1.addWidget(self.formula_bar)
 
@@ -199,12 +200,12 @@ class UIMixin:
         self._preview_label.hide()
         t1.addWidget(self._preview_label)
 
-        btn_import = QPushButton("📂 导入")
+        btn_import = QPushButton(tr("auto.beesheet_ui_mixin.85c5bee6", "📂 导入"))
         btn_import.setStyleSheet(btn_style)
         btn_import.clicked.connect(self._import_file)
         t1.addWidget(btn_import)
 
-        self._export_btn = QPushButton("💾 导出 ▾")
+        self._export_btn = QPushButton(tr("auto.beesheet_ui_mixin.6810bfb6", "💾 导出 ▾"))
         self._export_btn.setStyleSheet(btn_style)
         self._export_btn.clicked.connect(self._show_export_menu)
         t1.addWidget(self._export_btn)
@@ -220,7 +221,7 @@ class UIMixin:
         # P0-15：加载取消按钮
         self._cancel_load_btn = QPushButton("✕")
         self._cancel_load_btn.setFixedWidth(24)
-        self._cancel_load_btn.setToolTip("取消加载")
+        self._cancel_load_btn.setToolTip(tr("auto.beesheet_ui_mixin.43448f3e", "取消加载"))
         self._cancel_load_btn.setStyleSheet(
             "QPushButton{background:#FFEBEE;border:1px solid #F44336;"
             "color:#B71C1C;font-weight:bold;border-radius:3px;}"
@@ -236,8 +237,8 @@ class UIMixin:
         self.status_label.mouseDoubleClickEvent = \
             lambda e: self._show_selection_stats()
 
-        self._stat_btn = QPushButton("📊 统计")
-        self._stat_btn.setToolTip("选中多个单元格时显示详细统计")
+        self._stat_btn = QPushButton(tr("auto.beesheet_ui_mixin.61d3c49a", "📊 统计"))
+        self._stat_btn.setToolTip(tr("auto.beesheet_ui_mixin.a40a3c63", "选中多个单元格时显示详细统计"))
         self._stat_btn.setStyleSheet(
             "QPushButton{background:#E3F2FD;border:1px solid #2196F3;"
             "color:#0D47A1;padding:3px 10px;border-radius:3px;font-size:12px;}"
@@ -262,14 +263,14 @@ class UIMixin:
             btn.clicked.connect(slot)
             self._t2.addWidget(btn)
 
-        btn_sum = QPushButton("Σ 自动求和")
-        btn_sum.setToolTip("自动求和（Alt+=）：选中数据后点击，在下方填入 SUM")
+        btn_sum = QPushButton(tr("auto.beesheet_ui_mixin.36be99cc", "Σ 自动求和"))
+        btn_sum.setToolTip(tr("auto.beesheet_ui_mixin.18a580d6", "自动求和（Alt+=）：选中数据后点击，在下方填入 SUM"))
         btn_sum.setStyleSheet(btn_style)
         btn_sum.clicked.connect(self._auto_sum)
         self._t2.addWidget(btn_sum)
 
-        btn_fx = QPushButton("ƒx 插入函数")
-        btn_fx.setToolTip("从函数列表中选择并插入")
+        btn_fx = QPushButton(tr("auto.beesheet_ui_mixin.5a598b04", "ƒx 插入函数"))
+        btn_fx.setToolTip(tr("auto.beesheet_ui_mixin.a05dde64", "从函数列表中选择并插入"))
         btn_fx.setStyleSheet(btn_style)
         btn_fx.clicked.connect(self._show_function_picker)
         self._t2.addWidget(btn_fx)
@@ -311,7 +312,7 @@ class UIMixin:
             btn.setStyleSheet(btn_style)
             btn.clicked.connect(slot)
             self._t4.addWidget(btn)
-        btn_toggle = QPushButton("▲ 隐藏")
+        btn_toggle = QPushButton(tr("auto.beesheet_ui_mixin.b3c69577", "▲ 隐藏"))
         btn_toggle.setStyleSheet("QPushButton{font-size:10px;padding:2px 6px;}")
         btn_toggle.clicked.connect(lambda: self._toggle_toolbars(btn_toggle))
         self._t4.addStretch()
@@ -329,14 +330,14 @@ class UIMixin:
         )
         self._fmt_bold_btn = QPushButton("B")
         self._fmt_bold_btn.setCheckable(True)
-        self._fmt_bold_btn.setToolTip("加粗（Ctrl+B）")
+        self._fmt_bold_btn.setToolTip(tr("auto.beesheet_ui_mixin.6faea341", "加粗（Ctrl+B）"))
         self._fmt_bold_btn.setStyleSheet(fmt_btn_style)
         self._fmt_bold_btn.clicked.connect(self._toggle_cell_bold)
         self._t5.addWidget(self._fmt_bold_btn)
 
         self._fmt_italic_btn = QPushButton("I")
         self._fmt_italic_btn.setCheckable(True)
-        self._fmt_italic_btn.setToolTip("斜体（Ctrl+I）")
+        self._fmt_italic_btn.setToolTip(tr("auto.beesheet_ui_mixin.e834506e", "斜体（Ctrl+I）"))
         self._fmt_italic_btn.setStyleSheet(
             fmt_btn_style + "QPushButton{font-style:italic;}"
         )
@@ -345,7 +346,7 @@ class UIMixin:
 
         self._fmt_underline_btn = QPushButton("U")
         self._fmt_underline_btn.setCheckable(True)
-        self._fmt_underline_btn.setToolTip("下划线")
+        self._fmt_underline_btn.setToolTip(tr("auto.beesheet_ui_mixin.9bc18ae5", "下划线"))
         self._fmt_underline_btn.setStyleSheet(
             fmt_btn_style + "QPushButton{text-decoration:underline;}"
         )
@@ -375,15 +376,15 @@ class UIMixin:
             "QComboBox{border:1px solid #CCC;padding:2px 6px;border-radius:3px;}"
         )
         self._num_format_combo.currentTextChanged.connect(self._apply_num_format)
-        self._t5.addWidget(QLabel("格式:"))
+        self._t5.addWidget(QLabel(tr("auto.beesheet_ui_mixin.f30b9d5a", "格式:")))
         self._t5.addWidget(self._num_format_combo)
 
         self._decimal_spin = QSpinBox()
         self._decimal_spin.setRange(0, 6)
         self._decimal_spin.setValue(2)
         self._decimal_spin.setMaximumWidth(60)
-        self._decimal_spin.setToolTip("小数位数")
-        self._t5.addWidget(QLabel("小数:"))
+        self._decimal_spin.setToolTip(tr("auto.beesheet_ui_mixin.ff827033", "小数位数"))
+        self._t5.addWidget(QLabel(tr("auto.beesheet_ui_mixin.4562e62f", "小数:")))
         self._t5.addWidget(self._decimal_spin)
 
         self._t5.addStretch()

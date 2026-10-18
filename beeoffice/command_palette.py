@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLineEdit,
                                 QListWidget, QListWidgetItem, QLabel, QWidget)
 from PySide6.QtCore import Qt, Signal, QEvent, QTimer
 from PySide6.QtGui import QColor
+from beeoffice.i18n import tr
 
 
 class CommandPalette(QDialog):
@@ -34,7 +35,7 @@ class CommandPalette(QDialog):
         # 可能为非 QWidget，如测试用的 _FakeParent）
         self._parent = parent
 
-        self.setWindowTitle("命令面板")
+        self.setWindowTitle(tr("auto.command_palette.5c28d848", "命令面板"))
         self.setWindowFlags(Qt.Dialog | Qt.Popup)
         self.resize(450, 60)
 
@@ -50,7 +51,7 @@ class CommandPalette(QDialog):
         # 输入框
         header_layout = QHBoxLayout()
         self.input = QLineEdit()
-        self.input.setPlaceholderText("输入命令搜索...")
+        self.input.setPlaceholderText(tr("auto.command_palette.2d7652e2", "输入命令搜索..."))
         self.input.setStyleSheet(
             "QLineEdit { border: none; font-size: 15px; padding: 6px; background: transparent; }"
         )
@@ -170,7 +171,7 @@ class CommandPalette(QDialog):
         # ---------- 蜜写编辑器识别 ----------
         # 依据：BeeWriteEditor 有 editor 属性 + preview 属性
         if hasattr(widget, 'editor') and hasattr(widget, 'preview'):
-            self.context_label.setText("📝 蜜写")
+            self.context_label.setText(tr("auto.command_palette.41c3d07a", "📝 蜜写"))
             self.context_label.show()
             self.context_commands = [
                 "导出 PDF", "导出 DOCX", "导出 HTML", "保存文件", "查找替换",
@@ -179,7 +180,7 @@ class CommandPalette(QDialog):
         # ---------- 蜜算表格识别 ----------
         # 依据：BeeSheetView 有 table_view + model
         elif hasattr(widget, 'table_view') and hasattr(widget, 'model'):
-            self.context_label.setText("📊 蜜算")
+            self.context_label.setText(tr("auto.command_palette.06bf9dd7", "📊 蜜算"))
             self.context_label.show()
             self.context_commands = [
                 "导入数据", "导出表格", "排序与筛选", "数据清洗", "生成图表",
@@ -190,7 +191,7 @@ class CommandPalette(QDialog):
         # 语义更明确，避免同名方法误判
         elif (hasattr(widget, '_slides_html')
               and hasattr(widget, '_start_play')):
-            self.context_label.setText("🎥 蜜演")
+            self.context_label.setText(tr("auto.command_palette.268a7dbb", "🎥 蜜演"))
             self.context_label.show()
             self.context_commands = [
                 "播放幻灯片", "导出 PPTX", "演讲备注", "排练计时"
@@ -260,7 +261,7 @@ class CommandPalette(QDialog):
             self.list_widget.setCurrentRow(0)
             self.resize(450, min(len(matched) * 36 + 60, 350))
         else:
-            item = QListWidgetItem("未找到匹配的命令")
+            item = QListWidgetItem(tr("auto.command_palette.fcbf7a6c", "未找到匹配的命令"))
             item.setFlags(Qt.NoItemFlags)
             item.setForeground(QColor("#999"))
             self.list_widget.addItem(item)
@@ -299,7 +300,7 @@ class CommandPalette(QDialog):
                 import logging
                 logging.error(f"执行命令 [{name}] 失败: {e}")
                 from PySide6.QtWidgets import QMessageBox
-                QMessageBox.warning(self._parent, "命令执行失败", str(e))
+                QMessageBox.warning(self._parent, tr("auto.command_palette.b852bcda", "命令执行失败"), str(e))
         else:
             self.close()
 

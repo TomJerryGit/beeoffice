@@ -69,6 +69,7 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Dict, Any
+from beeoffice.i18n import tr
 
 
 # ==================== 常量 ====================
@@ -708,7 +709,7 @@ class PPTXEngine:
             self.generator.slide_height = slide_height
 
         if not slides_html:
-            logging.warning("无幻灯片可导出")
+            logging.warning(tr("auto.beeshow_pptx_engine.1192cfac", "无幻灯片可导出"))
             return False
 
         measured_slides = []

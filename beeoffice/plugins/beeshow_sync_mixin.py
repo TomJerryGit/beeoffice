@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer
 
 from beeoffice.plugins.beeshow_sync_server import SyncServer
+from beeoffice.i18n import tr
 
 
 class SyncMixin:
@@ -64,7 +65,7 @@ class SyncMixin:
         """开启同步演示"""
         if not self._slides_html:
             QMessageBox.information(
-                self, "提示", "请先编写幻灯片内容"
+                self, tr("auto.beeshow_sync_mixin.ab3656a9", "提示"), tr("auto.beeshow_sync_mixin.63565334", "请先编写幻灯片内容")
             )
             return
 
@@ -76,7 +77,7 @@ class SyncMixin:
             )
             if not self._sync_server.start():
                 QMessageBox.warning(
-                    self, "启动失败",
+                    self, tr("auto.beeshow_sync_mixin.65525f0f", "启动失败"),
                     "同步服务器启动失败。\n\n"
                     "可能原因：\n"
                     "• 端口 8765 / 8766 已被占用\n"
@@ -101,7 +102,7 @@ class SyncMixin:
 
         except Exception as e:
             logging.error(f"开启同步失败：{e}")
-            QMessageBox.warning(self, "失败", str(e))
+            QMessageBox.warning(self, tr("auto.beeshow_sync_mixin.3e3c8068", "失败"), str(e))
             self._stop_sync_mode()
 
     def _stop_sync_mode(self):
@@ -115,7 +116,7 @@ class SyncMixin:
 
         self._sync_enabled = False
         self._sync_url = ""
-        self._set_status("📱 同步演示已关闭", 2000)
+        self._set_status(tr("auto.beeshow_sync_mixin.dafa0043", "📱 同步演示已关闭"), 2000)
 
     # ==================== 广播 ====================
     def _broadcast_slide(self):
@@ -179,12 +180,12 @@ class SyncMixin:
             return
 
         dlg = QDialog(self)
-        dlg.setWindowTitle("📱 同步演示")
+        dlg.setWindowTitle(tr("auto.beeshow_sync_mixin.011dd46a", "📱 同步演示"))
         dlg.resize(480, 360)
         layout = QVBoxLayout(dlg)
 
         # 标题
-        title = QLabel("📱 观众扫码或访问链接")
+        title = QLabel(tr("auto.beeshow_sync_mixin.d7b3dfc3", "📱 观众扫码或访问链接"))
         title.setStyleSheet(
             "QLabel{font-size:15px;font-weight:bold;"
             "color:#E65100;padding:8px;}"
@@ -205,14 +206,14 @@ class SyncMixin:
         layout.addWidget(url_label)
 
         # 复制按钮
-        copy_btn = QPushButton("📋 复制链接")
+        copy_btn = QPushButton(tr("auto.beeshow_sync_mixin.6558e0bc", "📋 复制链接"))
         copy_btn.clicked.connect(
             lambda: self._copy_to_clipboard(self._sync_url)
         )
         layout.addWidget(copy_btn)
 
         # 观众数
-        viewer_label = QLabel("👥 当前观众：0")
+        viewer_label = QLabel(tr("auto.beeshow_sync_mixin.f80ba642", "👥 当前观众：0"))
         viewer_label.setStyleSheet(
             "QLabel{padding:8px;font-size:13px;color:#555;}"
         )
@@ -246,11 +247,11 @@ class SyncMixin:
         bl = QHBoxLayout()
         bl.addStretch()
 
-        close_btn = QPushButton("关闭对话框")
+        close_btn = QPushButton(tr("auto.beeshow_sync_mixin.510a39c3", "关闭对话框"))
         close_btn.clicked.connect(dlg.reject)
         bl.addWidget(close_btn)
 
-        stop_btn = QPushButton("🛑 停止同步")
+        stop_btn = QPushButton(tr("auto.beeshow_sync_mixin.ae6964aa", "🛑 停止同步"))
         stop_btn.setStyleSheet(
             "QPushButton{background:#FFEBEE;color:#B71C1C;"
             "border:1px solid #F44336;padding:6px 16px;"
@@ -273,7 +274,7 @@ class SyncMixin:
         try:
             from PySide6.QtWidgets import QApplication
             QApplication.clipboard().setText(text)
-            self._set_status("✅ 链接已复制到剪贴板", 2000)
+            self._set_status(tr("auto.beeshow_sync_mixin.7b79b0ba", "✅ 链接已复制到剪贴板"), 2000)
         except Exception as e:
             logging.error(f"复制失败：{e}")
 

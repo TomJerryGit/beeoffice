@@ -18,6 +18,7 @@ import logging
 from pathlib import Path
 
 from PySide6.QtWidgets import QMessageBox
+from beeoffice.i18n import tr
 
 
 class MobileServer:
@@ -49,7 +50,7 @@ class MobileServer:
         # 若已在运行，提示并返回
         if self.server is not None:
             QMessageBox.information(
-                self.parent, "提示",
+                self.parent, tr("auto.mobile.ab3656a9", "提示"),
                 f"移动端服务已在运行，地址：http://{self.ip}:{self.port}"
             )
             return
@@ -57,7 +58,7 @@ class MobileServer:
         # 获取当前文档
         widget = self.parent.tab_manager.currentWidget()
         if not widget:
-            QMessageBox.information(self.parent, "提示", "请先打开文档")
+            QMessageBox.information(self.parent, tr("auto.mobile.ab3656a9", "提示"), tr("auto.mobile.c274339a", "请先打开文档"))
             return
 
         # 准备临时目录
@@ -65,7 +66,7 @@ class MobileServer:
             self.temp_dir.mkdir(parents=True, exist_ok=True)
         except Exception as e:
             logging.error(f"创建临时目录失败: {e}")
-            QMessageBox.warning(self.parent, "错误", f"创建临时目录失败: {e}")
+            QMessageBox.warning(self.parent, tr("auto.mobile.b859c7be", "错误"), f"创建临时目录失败: {e}")
             return
 
         # 生成首页
@@ -90,7 +91,7 @@ class MobileServer:
             except OSError:
                 port += 1
         else:
-            QMessageBox.warning(self.parent, "错误", "无法找到可用端口")
+            QMessageBox.warning(self.parent, tr("auto.mobile.b859c7be", "错误"), tr("auto.mobile.dc50189b", "无法找到可用端口"))
             return
         self.port = port
 
@@ -104,7 +105,7 @@ class MobileServer:
             server = _ThreadingHTTPServer(("", port), handler)
         except Exception as e:
             logging.error(f"启动 HTTP 服务器失败: {e}")
-            QMessageBox.warning(self.parent, "错误", f"启动失败: {e}")
+            QMessageBox.warning(self.parent, tr("auto.mobile.b859c7be", "错误"), f"启动失败: {e}")
             return
         self.server = server
 
@@ -113,7 +114,7 @@ class MobileServer:
         self.thread.start()
 
         QMessageBox.information(
-            self.parent, "📱 移动端查看",
+            self.parent, tr("auto.mobile.944f6ab6", "📱 移动端查看"),
             f"在手机浏览器访问：\nhttp://{self.ip}:{self.port}/?t={self.token}\n\n"
             f"（确保手机与本机在同一局域网；链接含一次性令牌，请勿外传）"
         )

@@ -35,6 +35,7 @@ import urllib.request
 import urllib.error
 from dataclasses import dataclass, field, asdict
 from typing import List, Optional, Dict, Any
+from beeoffice.i18n import tr
 
 
 # ==================== 数据结构 ====================
@@ -189,7 +190,7 @@ class BeeshowAIService:
                     f"AI 大纲生成失败（第 {attempt + 1} 次）：{e}"
                 )
 
-        logging.warning("AI 大纲生成多次失败，降级到本地模板")
+        logging.warning(tr("auto.beeshow_ai_service.32bb12b1", "AI 大纲生成多次失败，降级到本地模板"))
         return self._local_fallback_outline(
             topic, audience, duration, page_count
         )

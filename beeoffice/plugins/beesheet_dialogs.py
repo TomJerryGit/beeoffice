@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QListWidget, QComboBox, QCheckBox, QPushButton, QTextEdit,
     QMessageBox, QAbstractItemView
 )
+from beeoffice.i18n import tr
 
 
 class PivotTableDialog(QDialog):
@@ -15,7 +16,7 @@ class PivotTableDialog(QDialog):
 
     def __init__(self, df, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("📊 数据透视表")
+        self.setWindowTitle(tr("auto.beesheet_dialogs.0b120dcd", "📊 数据透视表"))
         self.resize(560, 480)
         self.df = df
         self.result_config = None
@@ -72,19 +73,19 @@ class PivotTableDialog(QDialog):
         form.addRow("聚合方式:", self.agg_combo)
 
         # 显示总计
-        self.margins_check = QCheckBox("显示行列总计")
+        self.margins_check = QCheckBox(tr("auto.beesheet_dialogs.8a74e8e0", "显示行列总计"))
         form.addRow(self.margins_check)
 
         layout.addLayout(form)
 
         # ===== 按钮 =====
         bl = QHBoxLayout()
-        preview_btn = QPushButton("👁 预览")
+        preview_btn = QPushButton(tr("auto.beesheet_dialogs.5178a7de", "👁 预览"))
         preview_btn.clicked.connect(self._preview)
         bl.addWidget(preview_btn)
         bl.addStretch()
 
-        ok_btn = QPushButton("✅ 生成")
+        ok_btn = QPushButton(tr("auto.beesheet_dialogs.9a157ea8", "✅ 生成"))
         ok_btn.setStyleSheet(
             "QPushButton{background:#FFB300;color:#000;"
             "padding:6px 16px;border:none;border-radius:4px;"
@@ -94,7 +95,7 @@ class PivotTableDialog(QDialog):
         ok_btn.clicked.connect(self._generate)
         bl.addWidget(ok_btn)
 
-        cancel_btn = QPushButton("取消")
+        cancel_btn = QPushButton(tr("auto.beesheet_dialogs.4d0b4688", "取消"))
         cancel_btn.clicked.connect(self.reject)
         bl.addWidget(cancel_btn)
         layout.addLayout(bl)
@@ -196,13 +197,13 @@ class PivotTableDialog(QDialog):
         config = self._get_config()
         if not config:
             QMessageBox.warning(
-                self, "提示",
-                "请至少选择：1 个行/列字段 + 1 个值字段"
+                self, tr("auto.beesheet_dialogs.ab3656a9", "提示"),
+                tr("auto.beesheet_dialogs.db6477f0", "请至少选择：1 个行/列字段 + 1 个值字段")
             )
             return
         pivot, err = self._build_pivot(config)
         if err:
-            QMessageBox.warning(self, "生成失败", err)
+            QMessageBox.warning(self, tr("auto.beesheet_dialogs.64ba75d9", "生成失败"), err)
             return
         self.result_config = (pivot, config)
         self.accept()

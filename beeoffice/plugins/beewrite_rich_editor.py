@@ -97,6 +97,7 @@ from PySide6.QtGui import (
 )
 
 from beeoffice.plugins.beewrite_utils import FORMAT_PAINTER
+from beeoffice.i18n import tr
 
 
 # 默认正文字体色（避免继承标题的橙色）
@@ -1135,7 +1136,7 @@ class RichTextEditor(QTextEdit):
     # ==================== 插入表格 ====================
     def insert_table_dialog(self):
         dlg = QDialog(self)
-        dlg.setWindowTitle("📋 插入表格")
+        dlg.setWindowTitle(tr("auto.beewrite_rich_editor.f9d8545d", "📋 插入表格"))
         form = QFormLayout(dlg)
         rows = QSpinBox()
         rows.setRange(1, 50)
@@ -1145,7 +1146,7 @@ class RichTextEditor(QTextEdit):
         cols.setRange(1, 20)
         cols.setValue(3)
         form.addRow("列数:", cols)
-        hdr = QCheckBox("含表头")
+        hdr = QCheckBox(tr("auto.beewrite_rich_editor.7bbad6ae", "含表头"))
         hdr.setChecked(True)
         form.addRow(hdr)
         btns = QDialogButtonBox(
@@ -1232,37 +1233,37 @@ class RichTextEditor(QTextEdit):
         t = self.textCursor().currentTable()
         if t:
             menu.addSeparator()
-            menu.addAction("📋 上方插入行").triggered.connect(
+            menu.addAction(tr("auto.beewrite_rich_editor.36c83e53", "📋 上方插入行")).triggered.connect(
                 lambda: self._insert_row(t, -1)
             )
-            menu.addAction("📋 下方插入行").triggered.connect(
+            menu.addAction(tr("auto.beewrite_rich_editor.e2c257f4", "📋 下方插入行")).triggered.connect(
                 lambda: t.appendRows(1)
             )
-            menu.addAction("📋 左侧插入列").triggered.connect(
+            menu.addAction(tr("auto.beewrite_rich_editor.8915aa4a", "📋 左侧插入列")).triggered.connect(
                 lambda: self._insert_col(t, -1)
             )
-            menu.addAction("📋 右侧插入列").triggered.connect(
+            menu.addAction(tr("auto.beewrite_rich_editor.6154eff2", "📋 右侧插入列")).triggered.connect(
                 lambda: t.appendColumns(1)
             )
             menu.addSeparator()
-            menu.addAction("❌ 删除当前行").triggered.connect(
+            menu.addAction(tr("auto.beewrite_rich_editor.8d3240d4", "❌ 删除当前行")).triggered.connect(
                 lambda: self._delete_row(t)
             )
-            menu.addAction("❌ 删除当前列").triggered.connect(
+            menu.addAction(tr("auto.beewrite_rich_editor.b43820ae", "❌ 删除当前列")).triggered.connect(
                 lambda: self._delete_col(t)
             )
             menu.addSeparator()
-            menu.addAction("🔗 合并单元格").triggered.connect(
+            menu.addAction(tr("auto.beewrite_rich_editor.09d684c7", "🔗 合并单元格")).triggered.connect(
                 lambda: self._merge_cells(t)
             )
-            menu.addAction("🔲 拆分单元格").triggered.connect(
+            menu.addAction(tr("auto.beewrite_rich_editor.14f02f54", "🔲 拆分单元格")).triggered.connect(
                 lambda: self._split_cell(t)
             )
             menu.addSeparator()
-            menu.addAction("🎨 单元格背景色").triggered.connect(
+            menu.addAction(tr("auto.beewrite_rich_editor.bedc41e8", "🎨 单元格背景色")).triggered.connect(
                 self._cell_bg
             )
-            menu.addAction("🖍️ 单元格文字色").triggered.connect(
+            menu.addAction(tr("auto.beewrite_rich_editor.e5d8c347", "🖍️ 单元格文字色")).triggered.connect(
                 self._cell_fg
             )
         menu.exec(event.globalPos())

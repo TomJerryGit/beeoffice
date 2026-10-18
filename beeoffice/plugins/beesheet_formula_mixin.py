@@ -17,6 +17,7 @@ from beeoffice.plugins.beesheet_commands import EditCellCommand
 from beeoffice.plugins.beesheet_utils import (
     col_index_to_name, col_name_to_index
 )
+from beeoffice.i18n import tr
 
 
 class FormulaMixin:
@@ -253,12 +254,12 @@ class FormulaMixin:
     def _show_function_reference(self):
         """函数参考对话框（双击插入）"""
         dlg = QDialog(self)
-        dlg.setWindowTitle("📚 函数参考（双击插入到当前单元格）")
+        dlg.setWindowTitle(tr("auto.beesheet_formula_mixin.7cf7ff1f", "📚 函数参考（双击插入到当前单元格）"))
         dlg.resize(600, 550)
         layout = QVBoxLayout(dlg)
 
         search = QLineEdit()
-        search.setPlaceholderText("搜索函数...")
+        search.setPlaceholderText(tr("auto.beesheet_formula_mixin.29668b10", "搜索函数..."))
         layout.addWidget(search)
 
         lst = QListWidget()
@@ -301,7 +302,7 @@ class FormulaMixin:
             idx = self.table_view.currentIndex()
             if not idx.isValid():
                 QMessageBox.information(
-                    dlg, "提示", "请先在表格中选中一个单元格"
+                    dlg, tr("auto.beesheet_formula_mixin.ab3656a9", "提示"), tr("auto.beesheet_formula_mixin.f4d94f7a", "请先在表格中选中一个单元格")
                 )
                 return
             self.formula_bar.setText(f"={name}(")
@@ -311,7 +312,7 @@ class FormulaMixin:
             dlg.accept()
         lst.itemDoubleClicked.connect(on_double_click)
 
-        tip = QLabel("💡 双击函数名插入到公式栏，光标会定位到括号内")
+        tip = QLabel(tr("auto.beesheet_formula_mixin.843a19f1", "💡 双击函数名插入到公式栏，光标会定位到括号内"))
         tip.setStyleSheet("color:#666; font-size:12px; padding:4px;")
         layout.addWidget(tip)
         dlg.exec()
@@ -319,12 +320,12 @@ class FormulaMixin:
     def _show_function_picker(self):
         """函数选择器（fx 按钮打开）"""
         dlg = QDialog(self)
-        dlg.setWindowTitle("ƒx 插入函数")
+        dlg.setWindowTitle(tr("auto.beesheet_formula_mixin.5a598b04", "ƒx 插入函数"))
         dlg.resize(620, 560)
         layout = QVBoxLayout(dlg)
 
         search = QLineEdit()
-        search.setPlaceholderText("搜索函数名或语法...")
+        search.setPlaceholderText(tr("auto.beesheet_formula_mixin.4d9c088f", "搜索函数名或语法..."))
         layout.addWidget(search)
 
         lst = QListWidget()
@@ -349,7 +350,7 @@ class FormulaMixin:
                     all_items.append(item)
         layout.addWidget(lst)
 
-        preview = QLabel("双击函数名插入到当前单元格的公式栏")
+        preview = QLabel(tr("auto.beesheet_formula_mixin.d68c58ae", "双击函数名插入到当前单元格的公式栏"))
         preview.setStyleSheet(
             "QLabel{background:#FFF8E1;color:#666;padding:8px;"
             "border:1px solid #FFE0B2;border-radius:4px;font-size:13px;}"
@@ -390,7 +391,7 @@ class FormulaMixin:
             idx = self.table_view.currentIndex()
             if not idx.isValid():
                 QMessageBox.information(
-                    dlg, "提示", "请先在表格中选中一个单元格"
+                    dlg, tr("auto.beesheet_formula_mixin.ab3656a9", "提示"), tr("auto.beesheet_formula_mixin.f4d94f7a", "请先在表格中选中一个单元格")
                 )
                 return
             self.formula_bar.setText(f"={name}(")
@@ -402,7 +403,7 @@ class FormulaMixin:
 
         bl = QHBoxLayout()
         bl.addStretch()
-        insert_btn = QPushButton("插入到当前单元格")
+        insert_btn = QPushButton(tr("auto.beesheet_formula_mixin.b48a4da0", "插入到当前单元格"))
         insert_btn.setStyleSheet(
             "QPushButton{background:#FFB300;color:#000;"
             "padding:6px 16px;border:none;border-radius:4px;"
@@ -417,7 +418,7 @@ class FormulaMixin:
         insert_btn.clicked.connect(do_insert)
         bl.addWidget(insert_btn)
 
-        close_btn = QPushButton("关闭")
+        close_btn = QPushButton(tr("auto.beesheet_formula_mixin.6c14bd7f", "关闭"))
         close_btn.clicked.connect(dlg.reject)
         bl.addWidget(close_btn)
         layout.addLayout(bl)
@@ -426,7 +427,7 @@ class FormulaMixin:
     def _show_fx_dropdown(self):
         """fx 按钮下拉菜单"""
         menu = QMenu(self)
-        common_menu = menu.addMenu("🔥 常用")
+        common_menu = menu.addMenu(tr("auto.beesheet_formula_mixin.25ad4e61", "🔥 常用"))
         for fn in ["SUM", "AVERAGE", "COUNT", "MAX", "MIN", "IF", "VLOOKUP"]:
             act = common_menu.addAction(fn)
             act.triggered.connect(
@@ -443,7 +444,7 @@ class FormulaMixin:
                             self._insert_function(f)
                     )
         menu.addSeparator()
-        menu.addAction("🔍 更多函数...").triggered.connect(
+        menu.addAction(tr("auto.beesheet_formula_mixin.a0aba974", "🔍 更多函数...")).triggered.connect(
             self._show_function_picker
         )
         menu.exec(self._fx_btn.mapToGlobal(self._fx_btn.rect().bottomLeft()))
@@ -453,7 +454,7 @@ class FormulaMixin:
         idx = self.table_view.currentIndex()
         if not idx.isValid():
             QMessageBox.information(
-                self, "提示", "请先在表格中选中一个单元格"
+                self, tr("auto.beesheet_formula_mixin.ab3656a9", "提示"), tr("auto.beesheet_formula_mixin.f4d94f7a", "请先在表格中选中一个单元格")
             )
             return
         self.formula_bar.setText(f"={name}(")
@@ -476,7 +477,7 @@ class FormulaMixin:
         if not indexes:
             cur = self.table_view.currentIndex()
             if not cur.isValid():
-                QMessageBox.information(self, "提示", "请选中要计算的数据")
+                QMessageBox.information(self, tr("auto.beesheet_formula_mixin.ab3656a9", "提示"), tr("auto.beesheet_formula_mixin.53c01b07", "请选中要计算的数据"))
                 return
             col = cur.column()
             row = cur.row() - 1
@@ -493,7 +494,7 @@ class FormulaMixin:
                 row -= 1
             if not probe:
                 QMessageBox.information(
-                    self, "提示", "当前单元格上方未找到可求和的数字"
+                    self, tr("auto.beesheet_formula_mixin.ab3656a9", "提示"), tr("auto.beesheet_formula_mixin.0aa3552f", "当前单元格上方未找到可求和的数字")
                 )
                 return
             indexes = [self.model.index(r, c) for r, c in probe]
@@ -600,6 +601,6 @@ class FormulaMixin:
                     )
                     return
         QMessageBox.information(
-            self, "📚 函数帮助",
-            "请先在公式栏输入 `=` 加函数名，然后按 F1。"
+            self, tr("auto.beesheet_formula_mixin.2006162c", "📚 函数帮助"),
+            tr("auto.beesheet_formula_mixin.557b40eb", "请先在公式栏输入 `=` 加函数名，然后按 F1。")
         )

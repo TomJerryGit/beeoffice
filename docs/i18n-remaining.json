@@ -1,7 +1,7 @@
 {
   "beeoffice\\app.py": [
     [
-      1004,
+      1013,
       "about",
       "<h2 style='color:#FFB300;'>🐝 蜜蜂办公 BeeOffice</h2><p><b> </b></p><p></p><br><p>：</p><p>：</p>"
     ],
@@ -11,7 +11,7 @@
       " - 🐝 蜜蜂办公"
     ],
     [
-      489,
+      498,
       "warning",
       "不支持的文件类型: "
     ]
@@ -25,34 +25,19 @@
   ],
   "beeoffice\\cloud_settings.py": [
     [
-      191,
+      94,
+      "QLabel",
+      "同步范围:"
+    ],
+    [
+      99,
+      "setToolTip",
+      "「已打开 + 最近」会同步所有打开的标签页和最近文件列表；\n「仅当前文档」只同步当前标签页。"
+    ],
+    [
+      219,
       "warning",
       "保存失败: "
-    ],
-    [
-      224,
-      "warning",
-      "WebDAV 连接失败：\n"
-    ],
-    [
-      241,
-      "warning",
-      "OneDrive 返回状态码: "
-    ],
-    [
-      243,
-      "warning",
-      "OneDrive 连接失败：\n"
-    ],
-    [
-      261,
-      "warning",
-      "Google Drive 返回状态码: "
-    ],
-    [
-      263,
-      "warning",
-      "Google Drive 连接失败：\n"
     ]
   ],
   "beeoffice\\commands.py": [
@@ -109,6 +94,33 @@
       113,
       "critical",
       "很抱歉，程序遇到了意外错误。\n\n错误详情已保存至：\n\n\n请将此文件发送给开发者以帮助改进。\n邮箱：1265338136@qq.com"
+    ]
+  ],
+  "beeoffice\\document_sync.py": [
+    [
+      82,
+      "warning",
+      "读取同步状态失败，将重新建立: "
+    ],
+    [
+      92,
+      "warning",
+      "保存同步状态失败: "
+    ],
+    [
+      148,
+      "warning",
+      "读取远端信息失败 : "
+    ],
+    [
+      389,
+      "warning",
+      "收集已打开文档失败: "
+    ],
+    [
+      380,
+      "warning",
+      "取当前文档失败: "
     ]
   ],
   "beeoffice\\i18n.py": [
@@ -192,14 +204,26 @@
   ],
   "beeoffice\\plugin_manager.py": [
     [
-      46,
+      113,
       "warning",
-      "插件目录不存在: "
+      "没有找到任何插件模块"
     ],
     [
-      112,
+      170,
       "warning",
       "插件已加载，跳过重复调用"
+    ]
+  ],
+  "beeoffice\\secret_store.py": [
+    [
+      101,
+      "warning",
+      "配置文件由 Windows DPAPI 加密，当前平台无法解密"
+    ],
+    [
+      90,
+      "warning",
+      "DPAPI 加密失败，回退 Base64: "
     ]
   ],
   "beeoffice\\tab_manager.py": [
@@ -214,7 +238,7 @@
       "所有支持格式 (*.md *.docx *.csv *.xlsx *.txt);;Excel (*.xlsx *.xls);;CSV (*.csv);;Word (*.docx);;Markdown (*.md);;文本 (*.txt)"
     ],
     [
-      181,
+      191,
       "setWindowTitle",
       " - 🐝 蜜蜂办公"
     ]
@@ -521,491 +545,156 @@
   ],
   "beeoffice\\plugins\\beesheet.py": [
     [
-      411,
-      "getOpenFileName",
-      "导入"
-    ],
-    [
-      412,
-      "getOpenFileName",
-      "所有支持格式 (*.csv *.xlsx *.xls *.txt);;所有 (*)"
-    ],
-    [
-      445,
+      450,
       "_set_status",
       "正在分块加载: "
     ],
     [
-      577,
+      582,
       "_set_status",
       "已加载： 行 ×  列"
     ],
     [
-      620,
+      625,
       "_set_status",
       "↩ 撤销(步)"
     ],
     [
-      630,
+      635,
       "_set_status",
       "↪ 重做(步)"
     ],
     [
-      641,
-      "_set_status",
-      "已排序"
-    ],
-    [
-      691,
+      731,
       "_set_status",
       "加载完成"
     ],
     [
-      780,
-      "setWindowTitle",
-      "🔍 定位"
-    ],
-    [
-      785,
-      "setPlaceholderText",
-      "例如：A1  或  B10:D20"
-    ],
-    [
-      809,
-      "QPushButton",
-      "定位"
-    ],
-    [
-      817,
-      "QPushButton",
-      "取消"
-    ],
-    [
-      863,
-      "warning",
-      "格式错误"
-    ],
-    [
-      864,
-      "warning",
-      "请输入有效的引用（如 A1、B10:D20）"
-    ],
-    [
-      874,
-      "getText",
-      "💬 自然语言生成公式"
-    ],
-    [
-      875,
+      928,
       "getText",
       "请输入中文指令：\n（）"
     ],
     [
-      916,
+      969,
       "_set_status",
       "✅ 已生成公式: "
     ],
     [
-      958,
+      1011,
       "_set_status",
       "✅ 筛选完成： 行"
     ],
     [
-      964,
-      "setWindowTitle",
-      "查找替换"
-    ],
-    [
-      972,
-      "QCheckBox",
-      "区分大小写"
-    ],
-    [
-      401,
+      406,
       "_set_status",
       "✅ 已填充"
     ],
     [
-      459,
+      464,
       "_set_status",
       "✅ 已加载:  行 ×  列"
     ],
     [
-      466,
-      "warning",
-      "加载失败"
-    ],
-    [
-      467,
-      "_set_status",
-      "加载失败"
-    ],
-    [
-      473,
-      "_set_status",
-      "已取消加载"
-    ],
-    [
-      487,
-      "_set_status",
-      "正在取消加载..."
-    ],
-    [
-      502,
+      507,
       "_set_status",
       "已加载文本:  行"
     ],
     [
-      562,
-      "question",
-      "提示"
-    ],
-    [
-      562,
+      567,
       "question",
       "文件有行，仅加载前20万行？"
     ],
     [
-      615,
-      "_set_status",
-      "无撤销"
-    ],
-    [
-      625,
-      "_set_status",
-      "无重做"
-    ],
-    [
-      720,
+      760,
       "setText",
       "计数: | 求和: | 平均: | 空值:"
     ],
     [
-      726,
+      766,
       "setText",
       "选中: | 空值:"
     ],
     [
-      754,
-      "setText",
-      "值：（空）"
-    ],
-    [
-      759,
+      812,
       "setText",
       "值："
     ],
     [
-      783,
-      "QLabel",
-      "输入单元格引用（如 A1、B10、A1:C20）："
-    ],
-    [
-      882,
-      "warning",
-      "无法解析"
-    ],
-    [
-      883,
+      936,
       "warning",
       "无法理解指令，请尝试：\n\n• 求和A1到A10\n• 平均值B列\n• 最大值A1到A5\n• 筛选大于100的行\n• 如果A1大于10就显示'高'\n• 合并A1和B1"
     ],
     [
-      903,
+      956,
       "information",
       "请手动在单元格输入 VLOOKUP 公式：\n\n=VLOOKUP(查找值, 表范围, 列号, FALSE)"
     ],
     [
-      908,
-      "information",
-      "提示"
-    ],
-    [
-      908,
-      "information",
-      "请先选择一个单元格"
-    ],
-    [
-      922,
-      "information",
-      "提示"
-    ],
-    [
-      922,
-      "information",
-      "请先导入数据"
-    ],
-    [
-      925,
-      "information",
-      "提示"
-    ],
-    [
-      925,
-      "information",
-      "筛选条件不完整"
-    ],
-    [
-      954,
-      "information",
-      "提示"
-    ],
-    [
-      954,
-      "information",
-      "筛选结果为空"
-    ],
-    [
-      996,
-      "setText",
-      "未找到"
-    ],
-    [
-      1021,
+      1074,
       "setText",
       "已替换处"
     ],
     [
-      1023,
-      "QPushButton",
-      "查找"
-    ],
-    [
-      1024,
-      "QPushButton",
-      "替换"
-    ],
-    [
-      1025,
-      "QPushButton",
-      "关闭"
-    ],
-    [
-      422,
-      "question",
-      "大文件"
-    ],
-    [
-      423,
+      428,
       "question",
       "文件大小  MB，是否使用分块加载？\n（推荐，可避免界面卡顿）"
     ],
     [
-      504,
-      "warning",
-      "导入失败"
-    ],
-    [
-      589,
-      "warning",
-      "导入失败"
-    ],
-    [
-      594,
-      "warning",
-      "导入失败"
-    ],
-    [
-      795,
-      "QLabel",
-      "或选择已定义的名称："
-    ],
-    [
-      847,
+      900,
       "_set_status",
       "✅ 已选中区域 "
     ],
     [
-      859,
+      912,
       "_set_status",
       "✅ 已跳转到 "
     ],
     [
-      861,
+      914,
       "_set_status",
       "⚠️ 超出范围："
-    ],
-    [
-      950,
-      "warning",
-      "筛选失败"
-    ],
-    [
-      994,
-      "setText",
-      "找到"
     ]
   ],
   "beeoffice\\plugins\\beesheet_audit_mixin.py": [
     [
-      102,
-      "setWindowTitle",
-      "📖 公式翻译器"
-    ],
-    [
-      127,
-      "QPushButton",
-      "📋 复制说明"
-    ],
-    [
-      133,
-      "QPushButton",
-      "关闭"
-    ],
-    [
-      196,
-      "setWindowTitle",
-      "⚠ 公式错误助手"
-    ],
-    [
-      236,
-      "QPushButton",
-      "📋 复制公式"
-    ],
-    [
-      240,
-      "QPushButton",
-      "✏️ 编辑公式"
-    ],
-    [
-      255,
-      "QPushButton",
-      "关闭"
-    ],
-    [
-      331,
-      "setWindowTitle",
-      "✓ Excel 兼容性检查"
-    ],
-    [
-      403,
-      "QPushButton",
-      "📋 导出报告"
-    ],
-    [
-      407,
-      "QPushButton",
-      "关闭"
-    ],
-    [
-      27,
-      "information",
-      "提示"
-    ],
-    [
-      27,
-      "information",
-      "当前单元格没有公式"
-    ],
-    [
-      36,
+      37,
       "_set_status",
       "📌 追踪引用： 个单元格（橙色高亮）"
     ],
     [
-      40,
-      "_set_status",
-      "该公式没有引用其他单元格"
-    ],
-    [
-      59,
+      60,
       "_set_status",
       "📌 追踪从属： 个单元格引用了 （橙色高亮）"
     ],
     [
-      63,
+      64,
       "_set_status",
       " 没有被任何公式引用"
     ],
     [
-      70,
-      "_set_status",
-      "已清除审计高亮"
-    ],
-    [
-      106,
-      "QLabel",
-      "<b>公式：</b>"
-    ],
-    [
-      115,
-      "QLabel",
-      "<b>中文说明：</b>"
-    ],
-    [
-      189,
-      "information",
-      "错误详情"
-    ],
-    [
-      190,
+      191,
       "information",
       "该单元格存在错误：\n\n\n\n（公式记录已丢失，无法显示详细原因）"
     ],
     [
-      213,
-      "QLabel",
-      "📝 原始公式："
-    ],
-    [
-      223,
-      "QLabel",
-      "💡 诊断与建议："
-    ],
-    [
-      339,
+      340,
       "setText",
       "<h2 style='color:#1B5E20;'>✅ 完美兼容</h2><p>共检查  项，全部通过。</p>"
     ],
     [
-      386,
-      "getSaveFileName",
-      "保存报告"
-    ],
-    [
-      386,
-      "getSaveFileName",
-      "兼容性报告.txt"
-    ],
-    [
-      386,
-      "getSaveFileName",
-      "文本 (*.txt)"
-    ],
-    [
-      97,
-      "information",
-      "提示"
-    ],
-    [
-      97,
-      "information",
-      "当前单元格没有公式"
-    ],
-    [
-      344,
+      345,
       "setText",
       "<h2 style='color:#B71C1C;'>❌ 发现  个问题</h2><p>警告  项，通过  项。</p>"
     ],
     [
-      349,
+      350,
       "setText",
       "<h2 style='color:#E65100;'>⚠️ 发现  个警告</h2><p>全部通过  项。</p>"
     ],
     [
-      398,
-      "information",
-      "成功"
-    ],
-    [
-      398,
+      399,
       "information",
       "已保存：\n"
-    ],
-    [
-      401,
-      "warning",
-      "失败"
     ]
   ],
   "beeoffice\\plugins\\beesheet_chart_mixin.py": [
@@ -1102,22 +791,22 @@
       "🔍 公式审计"
     ],
     [
-      138,
+      142,
       "_set_status",
       "📌 已冻结前  列"
     ],
     [
-      147,
+      156,
       "_set_status",
       "📌 已冻结前  行"
     ],
     [
-      182,
+      197,
       "_set_status",
       "✅ 已解冻所有行列"
     ],
     [
-      166,
+      175,
       "_set_status",
       "📌 已冻结  行 ×  列"
     ],
@@ -1603,246 +1292,38 @@
       "<b>分类：</b><br><br><b>语法：</b><code></code>"
     ]
   ],
+  "beeoffice\\plugins\\beesheet_macro_mixin.py": [
+    [
+      106,
+      "warning",
+      "宏回放：找不到工作表 "
+    ]
+  ],
   "beeoffice\\plugins\\beesheet_plugin.py": [
     [
-      34,
-      "register_command",
-      "蜜算：新建表格"
-    ],
-    [
-      35,
-      "register_command",
-      "创建一个新的蜜算表格"
-    ],
-    [
-      39,
-      "register_command",
-      "蜜算：导入数据"
-    ],
-    [
-      40,
-      "register_command",
-      "从 CSV/Excel 文件导入数据"
-    ],
-    [
-      44,
-      "register_command",
-      "蜜算：导出表格"
-    ],
-    [
-      45,
-      "register_command",
-      "将当前表格导出为 Excel"
-    ],
-    [
-      49,
-      "register_command",
-      "蜜算：生成图表"
-    ],
-    [
-      50,
-      "register_command",
-      "根据选中数据生成图表"
-    ],
-    [
-      54,
-      "register_command",
-      "蜜算：智能数据分析"
-    ],
-    [
-      55,
-      "register_command",
-      "对当前数据进行统计分析"
-    ],
-    [
-      59,
-      "register_command",
-      "蜜算：自然语言生成公式"
-    ],
-    [
-      60,
-      "register_command",
-      "用中文指令生成公式"
-    ],
-    [
-      64,
-      "register_command",
-      "蜜算：数据清洗"
-    ],
-    [
-      65,
-      "register_command",
-      "去除重复行、空值处理"
-    ],
-    [
-      69,
-      "register_command",
-      "蜜算：录制宏"
-    ],
-    [
-      70,
-      "register_command",
-      "开始/停止录制宏"
-    ],
-    [
-      74,
-      "register_command",
-      "蜜算：播放宏"
-    ],
-    [
-      75,
-      "register_command",
-      "执行已录制的宏"
-    ],
-    [
-      84,
+      85,
       "addTab",
       "📊 蜜算-"
     ],
     [
-      108,
-      "getOpenFileName",
-      "导入数据"
-    ],
-    [
-      109,
-      "getOpenFileName",
-      "表格文件 (*.csv *.xlsx *.xls);;CSV (*.csv);;Excel (*.xlsx *.xls);;所有文件 (*)"
-    ],
-    [
-      280,
-      "question",
-      "数据清洗"
-    ],
-    [
-      281,
+      282,
       "question",
       "发现  行重复数据，是否删除？"
     ],
     [
-      335,
-      "information",
-      "提示"
-    ],
-    [
-      126,
-      "information",
-      "提示"
-    ],
-    [
-      126,
-      "information",
-      "当前表格不支持导入功能"
-    ],
-    [
-      228,
-      "getText",
-      "自然语言生成公式"
-    ],
-    [
-      229,
-      "getText",
-      "输入指令（如：求和A1到A10）："
-    ],
-    [
-      276,
-      "information",
-      "提示"
-    ],
-    [
-      276,
-      "information",
-      "未发现重复行"
-    ],
-    [
-      296,
+      297,
       "set_global_status",
       "已删除  行重复数据"
     ],
     [
-      116,
-      "set_global_status",
-      "正在导入数据..."
-    ],
-    [
-      121,
+      122,
       "set_global_status",
       "已导入: "
     ],
     [
-      182,
-      "warning",
-      "生成图表失败"
-    ],
-    [
-      236,
-      "warning",
-      "无法解析"
-    ],
-    [
-      237,
-      "warning",
-      "无法理解指令，请尝试：求和A1到A10"
-    ],
-    [
-      251,
-      "warning",
-      "生成失败"
-    ],
-    [
-      299,
-      "warning",
-      "清洗失败"
-    ],
-    [
-      124,
-      "warning",
-      "导入失败"
-    ],
-    [
-      140,
-      "warning",
-      "导出失败"
-    ],
-    [
-      159,
-      "warning",
-      "生成图表失败"
-    ],
-    [
-      196,
-      "warning",
-      "分析失败"
-    ],
-    [
-      215,
-      "warning",
-      "生成失败"
-    ],
-    [
-      246,
+      247,
       "set_global_status",
       "已插入公式: "
-    ],
-    [
-      248,
-      "warning",
-      "提示"
-    ],
-    [
-      248,
-      "warning",
-      "请先选择一个单元格"
-    ],
-    [
-      313,
-      "warning",
-      "宏录制失败"
-    ],
-    [
-      328,
-      "warning",
-      "播放宏失败"
     ]
   ],
   "beeoffice\\plugins\\beesheet_rowcol_mixin.py": [
@@ -1894,32 +1375,32 @@
   ],
   "beeoffice\\plugins\\beesheet_style_mixin.py": [
     [
-      138,
+      150,
       "setWindowTitle",
       "设置单元格格式"
     ],
     [
-      154,
+      166,
       "QCheckBox",
       "千分位分隔符"
     ],
     [
-      176,
+      188,
       "_set_status",
       "格式已应用"
     ],
     [
-      248,
+      260,
       "_set_status",
       "✅ 已应用表格样式"
     ],
     [
-      250,
+      262,
       "_set_status",
       "已清除表格样式"
     ],
     [
-      224,
+      236,
       "addAction",
       "❌ 清除样式"
     ]
@@ -2018,159 +1499,24 @@
   ],
   "beeoffice\\plugins\\beeshow_ai_mixin.py": [
     [
-      79,
-      "setWindowTitle",
-      "🎭 图标库"
-    ],
-    [
-      181,
-      "getText",
-      "🤖 AI 生成大纲"
-    ],
-    [
-      181,
-      "getText",
-      "请输入演示主题:"
-    ],
-    [
-      188,
-      "getItem",
-      "🤖 AI 生成大纲"
-    ],
-    [
-      188,
-      "getItem",
-      "目标受众:"
-    ],
-    [
-      212,
-      "_set_status",
-      "🤖 正在生成大纲..."
-    ],
-    [
-      245,
+      246,
       "_set_status",
       "✅ 已生成  页大纲"
     ],
     [
-      277,
-      "_set_status",
-      "🖼️ 正在搜索配图..."
-    ],
-    [
-      300,
+      301,
       "_set_status",
       "✅ 已找到  张候选图"
     ],
     [
-      354,
-      "getOpenFileName",
-      "导入 Markdown"
-    ],
-    [
-      376,
-      "information",
-      "二维码分享"
-    ],
-    [
-      377,
+      378,
       "information",
       "此功能需要联网生成。\n可以将导出HTML上传到服务器后生成二维码。"
     ],
     [
-      155,
-      "_set_status",
-      "✅ 模板已应用"
-    ],
-    [
-      228,
-      "warning",
-      "生成失败"
-    ],
-    [
-      228,
-      "warning",
-      "AI 未返回有效大纲"
-    ],
-    [
-      229,
-      "_set_status",
-      "❌ 生成失败"
-    ],
-    [
-      265,
-      "information",
-      "提示"
-    ],
-    [
-      265,
-      "information",
-      "请先编写幻灯片内容"
-    ],
-    [
-      274,
-      "information",
-      "提示"
-    ],
-    [
-      274,
-      "information",
-      "当前页内容为空"
-    ],
-    [
-      290,
-      "information",
-      "提示"
-    ],
-    [
-      291,
+      292,
       "information",
       "未找到合适的配图。\n\n可在设置中配置 Unsplash / Pexels API Key 以获取更好的结果。"
-    ],
-    [
-      294,
-      "_set_status",
-      "⚠️ 未找到配图"
-    ],
-    [
-      340,
-      "_set_status",
-      "✅ 图片已插入"
-    ],
-    [
-      158,
-      "warning",
-      "应用失败"
-    ],
-    [
-      223,
-      "warning",
-      "生成失败"
-    ],
-    [
-      224,
-      "_set_status",
-      "❌ 生成失败"
-    ],
-    [
-      284,
-      "warning",
-      "搜索失败"
-    ],
-    [
-      285,
-      "_set_status",
-      "❌ 搜索失败"
-    ],
-    [
-      343,
-      "warning",
-      "插入失败"
-    ],
-    [
-      362,
-      "warning",
-      "导入失败"
     ]
   ],
   "beeoffice\\plugins\\beeshow_ai_service.py": [
@@ -2310,22 +1656,17 @@
   ],
   "beeoffice\\plugins\\beeshow_export_mixin.py": [
     [
-      377,
+      381,
       "information",
       "已保存: "
     ],
     [
-      534,
+      538,
       "information",
       "录制功能需要在全屏播放时自动记录幻灯片切换时间戳。\n按 F5 开始播放即可自动记录。"
     ],
     [
-      198,
-      "information",
-      "已保存: \n\n⚠️ 使用了保底方案，版式可能不精确。"
-    ],
-    [
-      515,
+      519,
       "information",
       "GIF 已保存至：\n"
     ],
@@ -2345,17 +1686,22 @@
       "出错：\n\n尝试旧方案..."
     ],
     [
-      415,
+      202,
+      "information",
+      "已保存: \n\n⚠️ 使用了保底方案，版式可能不精确。"
+    ],
+    [
+      419,
       "information",
       "已保存  张图片到:\n"
     ],
     [
-      420,
+      424,
       "warning",
       "成功  张，失败  张。\n目录: "
     ],
     [
-      292,
+      296,
       "information",
       "已保存: "
     ]
@@ -2738,194 +2084,14 @@
   ],
   "beeoffice\\plugins\\beeshow_plugin.py": [
     [
-      41,
-      "register_command",
-      "蜜演：新建幻灯片"
-    ],
-    [
-      42,
-      "register_command",
-      "创建一个新的蜜演演示文稿"
-    ],
-    [
-      46,
-      "register_command",
-      "蜜演：播放幻灯片"
-    ],
-    [
-      47,
-      "register_command",
-      "全屏播放当前演示文稿 (F5)"
-    ],
-    [
-      51,
-      "register_command",
-      "蜜演：从当前页播放"
-    ],
-    [
-      52,
-      "register_command",
-      "从当前幻灯片开始播放"
-    ],
-    [
-      56,
-      "register_command",
-      "蜜演：导出 PPTX"
-    ],
-    [
-      57,
-      "register_command",
-      "将当前演示文稿导出为 PowerPoint"
-    ],
-    [
-      61,
-      "register_command",
-      "蜜演：演讲备注"
-    ],
-    [
-      62,
-      "register_command",
-      "编辑当前幻灯片的演讲备注"
-    ],
-    [
-      66,
-      "register_command",
-      "蜜演：排练计时"
-    ],
-    [
-      67,
-      "register_command",
-      "开始/停止排练计时"
-    ],
-    [
-      71,
-      "register_command",
-      "蜜演：添加幻灯片"
-    ],
-    [
-      72,
-      "register_command",
-      "在当前演示文稿中新增一张幻灯片"
-    ],
-    [
-      76,
-      "register_command",
-      "蜜演：删除幻灯片"
-    ],
-    [
-      77,
-      "register_command",
-      "删除当前幻灯片"
-    ],
-    [
-      86,
+      87,
       "addTab",
       "🎥 蜜演-"
     ],
     [
-      309,
-      "question",
-      "删除幻灯片"
-    ],
-    [
-      310,
-      "question",
-      "确定要删除当前幻灯片吗？"
-    ],
-    [
-      329,
-      "information",
-      "提示"
-    ],
-    [
-      169,
-      "getSaveFileName",
-      "导出 PPTX"
-    ],
-    [
-      210,
-      "information",
-      "完成"
-    ],
-    [
-      210,
+      211,
       "information",
       "已导出:\n"
-    ],
-    [
-      211,
-      "set_global_status",
-      "PPTX 导出完成"
-    ],
-    [
-      213,
-      "warning",
-      "缺少依赖"
-    ],
-    [
-      214,
-      "warning",
-      "导出 PPTX 需要 python-pptx 库"
-    ],
-    [
-      217,
-      "warning",
-      "导出失败"
-    ],
-    [
-      281,
-      "warning",
-      "操作失败"
-    ],
-    [
-      293,
-      "set_global_status",
-      "已添加幻灯片"
-    ],
-    [
-      319,
-      "set_global_status",
-      "已删除幻灯片"
-    ],
-    [
-      125,
-      "warning",
-      "播放失败"
-    ],
-    [
-      140,
-      "warning",
-      "播放失败"
-    ],
-    [
-      159,
-      "warning",
-      "导出失败"
-    ],
-    [
-      231,
-      "warning",
-      "编辑失败"
-    ],
-    [
-      296,
-      "warning",
-      "添加失败"
-    ],
-    [
-      322,
-      "warning",
-      "删除失败"
-    ],
-    [
-      246,
-      "set_global_status",
-      "备注已保存"
-    ],
-    [
-      249,
-      "warning",
-      "编辑失败"
     ]
   ],
   "beeoffice\\plugins\\beeshow_pptx_engine.py": [
@@ -2935,12 +2101,7 @@
       "无幻灯片可导出"
     ],
     [
-      719,
-      "warning",
-      "第  页测量失败："
-    ],
-    [
-      743,
+      750,
       "warning",
       "字体嵌入异常（不影响导出）："
     ],
@@ -3252,79 +2413,79 @@
   ],
   "beeoffice\\plugins\\beewrite.py": [
     [
-      525,
+      538,
       "_set_status",
       "绑定失败: "
     ]
   ],
   "beeoffice\\plugins\\beewrite_ai_mixin.py": [
     [
-      80,
+      92,
       "_set_status",
       "✅ AI 续写完成"
     ],
     [
-      117,
+      129,
       "_set_status",
       "✅ AI 润色完成"
     ],
     [
-      151,
+      163,
       "_set_status",
       "✅ AI 总结已插入文末"
     ],
     [
-      186,
+      198,
       "_set_status",
       "✅ 已提取  个关键词"
     ],
     [
-      83,
+      95,
       "warning",
       "AI 续写失败"
     ],
     [
-      120,
+      132,
       "warning",
       "AI 润色失败"
     ],
     [
-      136,
+      148,
       "information",
       "提示"
     ],
     [
-      136,
+      148,
       "information",
       "文本太短，无需总结"
     ],
     [
-      142,
+      154,
       "_set_status",
       "⚠️ 无法生成摘要"
     ],
     [
-      154,
+      166,
       "warning",
       "AI 总结失败"
     ],
     [
-      170,
+      182,
       "information",
       "提示"
     ],
     [
-      170,
+      182,
       "information",
       "文本太短，无法提取关键词"
     ],
     [
-      176,
+      188,
       "_set_status",
       "⚠️ 未提取到关键词"
     ],
     [
-      190,
+      202,
       "warning",
       "AI 关键词提取失败"
     ],
@@ -3349,22 +2510,22 @@
       "🔑 提取关键词"
     ],
     [
-      100,
+      112,
       "information",
       "提示"
     ],
     [
-      100,
+      112,
       "information",
       "请先选中要润色的文本"
     ],
     [
-      110,
+      122,
       "information",
       "提示"
     ],
     [
-      110,
+      122,
       "information",
       "请先选中要润色的文本"
     ]
@@ -3632,267 +2793,77 @@
   ],
   "beeoffice\\plugins\\beewrite_export_mixin.py": [
     [
-      180,
-      "getSaveFileName",
-      "保存为 Markdown"
-    ],
-    [
-      182,
-      "getSaveFileName",
-      "Markdown 文件 (*.md);;所有文件 (*)"
-    ],
-    [
-      278,
-      "getSaveFileName",
-      "保存为 Word 文档"
-    ],
-    [
-      280,
-      "getSaveFileName",
-      "Word (*.docx);;所有文件 (*)"
-    ],
-    [
-      385,
-      "getSaveFileName",
-      "导出 PDF"
-    ],
-    [
-      385,
-      "getSaveFileName",
-      "文档.pdf"
-    ],
-    [
-      484,
-      "getSaveFileName",
-      "导出 DOCX"
-    ],
-    [
-      485,
-      "getSaveFileName",
-      "Word (*.docx);;所有文件 (*)"
-    ],
-    [
-      534,
-      "getSaveFileName",
-      "导出 DOCX（保留表格）"
-    ],
-    [
-      535,
-      "getSaveFileName",
-      "Word (*.docx);;所有文件 (*)"
-    ],
-    [
-      1167,
-      "getText",
-      "保存为模板"
-    ],
-    [
-      1167,
-      "getText",
-      "模板名称:"
-    ],
-    [
-      230,
+      231,
       "_set_status",
       "✅ 已保存为 Markdown："
     ],
     [
-      330,
+      331,
       "_set_status",
       "✅ 已保存为 Word 文档："
     ],
     [
-      518,
-      "information",
-      "提示"
-    ],
-    [
-      518,
-      "information",
-      "请先切换到所见即所得模式"
-    ],
-    [
-      543,
-      "information",
-      "成功"
-    ],
-    [
-      544,
+      545,
       "information",
       "已保存：\n\n\n是否打开？"
     ],
     [
-      241,
-      "warning",
-      "⚠️ 文件被占用"
-    ],
-    [
-      242,
+      243,
       "warning",
       "无法写入文件：\n\n\n该文件正在被其他程序打开。\n\n请关闭占用该文件的程序（如 WPS、Word、记事本）后重试。"
     ],
     [
-      251,
-      "warning",
-      "保存失败"
-    ],
-    [
-      251,
+      252,
       "warning",
       "无法保存文件：\n"
     ],
     [
-      341,
-      "question",
-      "⚠️ 文件被占用"
-    ],
-    [
-      342,
+      343,
       "question",
       "无法写入文件：\n\n\n该文件正在被其他程序（如 WPS、Word）打开。\n\n请选择操作：\n• 「是」 → 关闭占用程序后重试\n• 「否」 → 另存为新文件"
     ],
     [
-      375,
-      "warning",
-      "保存失败"
-    ],
-    [
-      375,
+      376,
       "warning",
       "无法保存 Word 文档：\n"
     ],
     [
-      403,
-      "information",
-      "成功"
-    ],
-    [
-      403,
+      404,
       "information",
       "已保存:\n"
     ],
     [
-      406,
-      "warning",
-      "失败"
-    ],
-    [
-      406,
-      "warning",
-      "需要 WeasyPrint"
-    ],
-    [
-      409,
-      "warning",
-      "导出失败"
-    ],
-    [
-      494,
-      "information",
-      "成功"
-    ],
-    [
-      495,
+      496,
       "information",
       "已保存:\n\n\n是否打开？"
     ],
     [
-      501,
-      "warning",
-      "失败"
-    ],
-    [
-      501,
-      "warning",
-      "无法生成"
-    ],
-    [
-      506,
-      "warning",
-      "⚠️ 文件被占用"
-    ],
-    [
-      507,
+      508,
       "warning",
       "无法写入文件：\n\n\n该文件正在被其他程序打开，请关闭后重试。"
     ],
     [
-      512,
-      "warning",
-      "导出失败"
-    ],
-    [
-      553,
-      "warning",
-      "⚠️ 文件被占用"
-    ],
-    [
-      554,
+      555,
       "warning",
       "无法写入文件：\n\n\n该文件正在被其他程序打开，请关闭后重试。"
     ],
     [
-      561,
-      "warning",
-      "导出失败"
-    ],
-    [
-      867,
+      868,
       "warning",
       "应用页面设置失败（使用默认值）: "
     ],
     [
-      1174,
-      "_set_status",
-      "模板已保存"
-    ],
-    [
-      1176,
-      "warning",
-      "失败"
-    ],
-    [
-      1176,
-      "warning",
-      "保存模板失败"
-    ],
-    [
-      1179,
-      "warning",
-      "失败"
-    ],
-    [
-      1179,
+      1180,
       "warning",
       "保存模板失败：\n"
     ],
     [
-      305,
-      "warning",
-      "失败"
-    ],
-    [
-      305,
-      "warning",
-      "无法生成 Word 文档"
-    ],
-    [
-      361,
-      "getSaveFileName",
-      "另存为"
-    ],
-    [
-      362,
-      "getSaveFileName",
-      "Word (*.docx);;所有文件 (*)"
-    ],
-    [
-      1148,
+      1149,
       "warning",
       "处理单元格图片失败: "
     ],
     [
-      1125,
+      1126,
       "warning",
       "设置单元格背景色失败: "
     ]
@@ -4028,154 +2999,14 @@
   ],
   "beeoffice\\plugins\\beewrite_image.py": [
     [
-      39,
-      "setWindowTitle",
-      "🖼️ 图片编辑"
-    ],
-    [
-      71,
-      "QLabel",
-      "（暂无图片）"
-    ],
-    [
-      83,
-      "QPushButton",
-      "📂 打开图片"
-    ],
-    [
-      87,
-      "QPushButton",
-      "🔄 重置"
-    ],
-    [
-      95,
-      "QGroupBox",
-      "调整"
-    ],
-    [
-      123,
-      "QCheckBox",
-      "保持宽高比"
-    ],
-    [
-      142,
-      "QCheckBox",
-      "水平翻转"
-    ],
-    [
-      146,
-      "QCheckBox",
-      "垂直翻转"
-    ],
-    [
-      154,
-      "QCheckBox",
-      "灰度"
-    ],
-    [
-      160,
-      "QCheckBox",
-      "反色"
-    ],
-    [
-      197,
-      "QPushButton",
-      "💾 保存为新文件"
-    ],
-    [
-      201,
-      "QPushButton",
-      "✅ 插入到文档"
-    ],
-    [
-      211,
-      "QPushButton",
-      "取消"
-    ],
-    [
-      220,
-      "getOpenFileName",
-      "选择图片"
-    ],
-    [
-      221,
-      "getOpenFileName",
-      "图片 (*.png *.jpg *.jpeg *.bmp *.gif *.webp);;所有 (*)"
-    ],
-    [
-      415,
-      "getSaveFileName",
-      "保存图片"
-    ],
-    [
-      416,
-      "getSaveFileName",
-      "PNG (*.png);;JPEG (*.jpg);;所有 (*)"
-    ],
-    [
-      55,
-      "warning",
-      "缺少依赖"
-    ],
-    [
-      56,
+      57,
       "warning",
       "图片编辑需要 Pillow 库：\npip install Pillow"
     ],
     [
-      113,
-      "QLabel",
-      "宽:"
-    ],
-    [
-      120,
-      "QLabel",
-      "高:"
-    ],
-    [
-      412,
-      "information",
-      "提示"
-    ],
-    [
-      412,
-      "information",
-      "请先打开图片"
-    ],
-    [
-      424,
-      "information",
-      "成功"
-    ],
-    [
-      424,
+      425,
       "information",
       "已保存：\n"
-    ],
-    [
-      431,
-      "information",
-      "提示"
-    ],
-    [
-      431,
-      "information",
-      "请先打开图片"
-    ],
-    [
-      246,
-      "warning",
-      "加载失败"
-    ],
-    [
-      426,
-      "warning",
-      "失败"
-    ],
-    [
-      443,
-      "warning",
-      "失败"
     ]
   ],
   "beeoffice\\plugins\\beewrite_link_mixin.py": [
@@ -4674,12 +3505,12 @@
   ],
   "beeoffice\\plugins\\beewrite_rich_editor.py": [
     [
-      1065,
+      1138,
       "setWindowTitle",
       "📋 插入表格"
     ],
     [
-      1075,
+      1148,
       "QCheckBox",
       "含表头"
     ],
@@ -4689,52 +3520,52 @@
       "图片加载失败: "
     ],
     [
-      1162,
+      1235,
       "addAction",
       "📋 上方插入行"
     ],
     [
-      1165,
+      1238,
       "addAction",
       "📋 下方插入行"
     ],
     [
-      1168,
+      1241,
       "addAction",
       "📋 左侧插入列"
     ],
     [
-      1171,
+      1244,
       "addAction",
       "📋 右侧插入列"
     ],
     [
-      1175,
+      1248,
       "addAction",
       "❌ 删除当前行"
     ],
     [
-      1178,
+      1251,
       "addAction",
       "❌ 删除当前列"
     ],
     [
-      1182,
+      1255,
       "addAction",
       "🔗 合并单元格"
     ],
     [
-      1185,
+      1258,
       "addAction",
       "🔲 拆分单元格"
     ],
     [
-      1189,
+      1262,
       "addAction",
       "🎨 单元格背景色"
     ],
     [
-      1192,
+      1265,
       "addAction",
       "🖍️ 单元格文字色"
     ]
@@ -5039,6 +3870,28 @@
       143,
       "question",
       "「」中的内容可能还没有保存。\n\n建议先导出为 PDF 或保存为 Markdown 文件。\n\n确定要关闭吗？"
+    ]
+  ],
+  "beeoffice\\plugins\\macro_recorder.py": [
+    [
+      126,
+      "warning",
+      "宏包含格式动作，但未提供处理回调，已跳过"
+    ],
+    [
+      140,
+      "warning",
+      "未知宏动作："
+    ],
+    [
+      133,
+      "warning",
+      "宏包含切换工作表，但未提供处理回调，已跳过"
+    ],
+    [
+      138,
+      "warning",
+      "回放到不存在的工作表："
     ]
   ],
   "beeoffice\\plugins\\memory_monitor.py": [
@@ -5364,6 +4217,43 @@
       419,
       "information",
       "「」是内置插件，不能删除源文件。\n\n如需停用，请使用右侧的「启用此插件」开关；\n内置插件文件位于：\n"
+    ]
+  ],
+  "beeoffice\\plugins\\sync_conflict_dialog.py": [
+    [
+      44,
+      "setWindowTitle",
+      "同步冲突"
+    ],
+    [
+      50,
+      "QLabel",
+      "发现  个冲突：本地和远端都被修改过。\n请选择每一项的处理方式；未处理的冲突会保持现状（两份都保留）。"
+    ],
+    [
+      73,
+      "QPushButton",
+      "关闭"
+    ],
+    [
+      89,
+      "setText",
+      "请先在列表里选中一个冲突"
+    ],
+    [
+      98,
+      "setText",
+      "已处理：（剩余  项）"
+    ],
+    [
+      107,
+      "setText",
+      "处理失败： 未生效，详见日志"
+    ],
+    [
+      103,
+      "setText",
+      "全部  个冲突已处理完毕，可以关闭了。"
     ]
   ],
   "beeoffice\\plugins\\variable_panel.py": [

@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QDialog, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
     QPushButton, QVBoxLayout,
 )
+from beeoffice.i18n import tr
 
 ACTION_LABELS = {
     "local": "保留本地",
@@ -41,7 +42,7 @@ class SyncConflictDialog(QDialog):
         self._details = list(details or [])
         self._resolved = 0
 
-        self.setWindowTitle("同步冲突")
+        self.setWindowTitle(tr("auto.sync_conflict_dialog.16b6d04e", "同步冲突"))
         self.resize(560, 340)
 
         layout = QVBoxLayout(self)
@@ -70,7 +71,7 @@ class SyncConflictDialog(QDialog):
             btn.clicked.connect(lambda _=False, a=action: self._apply(a))
             buttons.addWidget(btn)
         buttons.addStretch()
-        close_btn = QPushButton("关闭")
+        close_btn = QPushButton(tr("auto.sync_conflict_dialog.6c14bd7f", "关闭"))
         close_btn.clicked.connect(self.accept)
         buttons.addWidget(close_btn)
         layout.addLayout(buttons)
@@ -86,7 +87,7 @@ class SyncConflictDialog(QDialog):
     def _apply(self, action):
         item = self._list.currentItem()
         if item is None:
-            self._status.setText("请先在列表里选中一个冲突")
+            self._status.setText(tr("auto.sync_conflict_dialog.c026649d", "请先在列表里选中一个冲突"))
             return
 
         detail = item.data(Qt.UserRole)

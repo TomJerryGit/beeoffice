@@ -40,6 +40,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
 )
 from PySide6.QtCore import Qt
+from beeoffice.i18n import tr
 
 
 class HistoryMixin:
@@ -102,14 +103,14 @@ class HistoryMixin:
         """
         if not self._slide_history:
             QMessageBox.information(
-                self, "📜 版本历史",
+                self, tr("auto.beeshow_history_mixin.fe6e2c68", "📜 版本历史"),
                 "暂无历史版本。\n\n"
                 "每次编辑后会自动保存快照，最多保留 50 个。"
             )
             return
 
         dlg = QDialog(self)
-        dlg.setWindowTitle("📜 版本历史")
+        dlg.setWindowTitle(tr("auto.beeshow_history_mixin.fe6e2c68", "📜 版本历史"))
         dlg.resize(900, 560)
         layout = QVBoxLayout(dlg)
 
@@ -181,7 +182,7 @@ class HistoryMixin:
         # 底部按钮
         bl = QHBoxLayout()
 
-        btn_restore = QPushButton("↩ 恢复此版本")
+        btn_restore = QPushButton(tr("auto.beeshow_history_mixin.bc657d67", "↩ 恢复此版本"))
         btn_restore.setStyleSheet(
             "QPushButton{background:#FFB300;color:#000;"
             "padding:6px 16px;border:none;border-radius:4px;"
@@ -199,7 +200,7 @@ class HistoryMixin:
 
             snap = self._slide_history[idx]
             reply = QMessageBox.question(
-                dlg, "确认恢复",
+                dlg, tr("auto.beeshow_history_mixin.b537457e", "确认恢复"),
                 f"确定恢复到 {snap['timestamp']} 的版本吗？\n\n"
                 f"当前内容将被覆盖。\n"
                 f"（恢复后可通过再次编辑产生新快照）",
@@ -227,7 +228,7 @@ class HistoryMixin:
         bl.addWidget(btn_restore)
 
         # 删除单条
-        btn_delete = QPushButton("🗑 删除此版本")
+        btn_delete = QPushButton(tr("auto.beeshow_history_mixin.e14a3d33", "🗑 删除此版本"))
 
         def do_delete():
             item = lst.currentItem()
@@ -237,8 +238,8 @@ class HistoryMixin:
             if not (0 <= idx < len(self._slide_history)):
                 return
             reply = QMessageBox.question(
-                dlg, "确认删除",
-                "确定删除此历史版本吗？（不可恢复）",
+                dlg, tr("auto.beeshow_history_mixin.3c06abe1", "确认删除"),
+                tr("auto.beeshow_history_mixin.ceb09c85", "确定删除此历史版本吗？（不可恢复）"),
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -254,7 +255,7 @@ class HistoryMixin:
         bl.addStretch()
 
         # 清空所有
-        btn_clear = QPushButton("🧹 清空历史")
+        btn_clear = QPushButton(tr("auto.beeshow_history_mixin.a474364c", "🧹 清空历史"))
         btn_clear.setStyleSheet(
             "QPushButton{color:#B71C1C;border:1px solid #F44336;"
             "padding:6px 12px;border-radius:4px;}"
@@ -263,7 +264,7 @@ class HistoryMixin:
 
         def do_clear():
             reply = QMessageBox.question(
-                dlg, "确认清空",
+                dlg, tr("auto.beeshow_history_mixin.1cb22bad", "确认清空"),
                 f"确定清空全部 {len(self._slide_history)} "
                 f"个历史版本吗？（不可恢复）",
                 QMessageBox.Yes | QMessageBox.No,
@@ -273,13 +274,13 @@ class HistoryMixin:
                 return
             self._slide_history.clear()
             dlg.accept()
-            self._set_status("🧹 历史已清空", 2000)
+            self._set_status(tr("auto.beeshow_history_mixin.b136f90b", "🧹 历史已清空"), 2000)
 
         btn_clear.clicked.connect(do_clear)
         bl.addWidget(btn_clear)
 
         # 关闭
-        btn_close = QPushButton("关闭")
+        btn_close = QPushButton(tr("auto.beeshow_history_mixin.6c14bd7f", "关闭"))
         btn_close.clicked.connect(dlg.reject)
         bl.addWidget(btn_close)
 
@@ -294,7 +295,7 @@ class HistoryMixin:
         使用场景：误删内容后立刻 Ctrl+Z 式的补救。
         """
         if len(self._slide_history) < 2:
-            self._set_status("⚠️ 没有更早的版本", 2000)
+            self._set_status(tr("auto.beeshow_history_mixin.216dc3f6", "⚠️ 没有更早的版本"), 2000)
             return
 
         # 先保存当前内容

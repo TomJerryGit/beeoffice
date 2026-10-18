@@ -50,6 +50,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QTimer, Qt
 
 from beeoffice.plugins.beeshow_constants import SLIDE_THEMES, _PlayWindow
+from beeoffice.i18n import tr
 
 
 class PlayMixin:
@@ -270,19 +271,19 @@ class PlayMixin:
 
         # P1-12：无论是否有备注，都打开演讲者视图
         self._notes_window = QWidget()
-        self._notes_window.setWindowTitle("🎤 演讲者视图")
+        self._notes_window.setWindowTitle(tr("auto.beeshow_play_mixin.02288bd8", "🎤 演讲者视图"))
         layout = QVBoxLayout(self._notes_window)
 
         if any(self._speaker_notes):
             # 有备注：显示备注 + 下一页预览
-            layout.addWidget(QLabel("<h2>当前页备注</h2>"))
+            layout.addWidget(QLabel(tr("auto.beeshow_play_mixin.ed693724", "<h2>当前页备注</h2>")))
             self._current_note_label = QLabel(
                 self._speaker_notes[0] if self._speaker_notes else ""
             )
             self._current_note_label.setWordWrap(True)
             layout.addWidget(self._current_note_label)
 
-            layout.addWidget(QLabel("<h2>下一页</h2>"))
+            layout.addWidget(QLabel(tr("auto.beeshow_play_mixin.4fd93334", "<h2>下一页</h2>")))
             self._next_preview = QTextEdit()
             self._next_preview.setReadOnly(True)
             layout.addWidget(self._next_preview)
@@ -447,8 +448,8 @@ class PlayMixin:
         self._rehearsal_elapsed = 0
         self._rehearsal_timer.start(100)
         self._rehearsal_label.show()
-        self._rehearsal_label.setText("⏱ 排练: 00:00")
-        self._set_status("⏱ 排练计时开始", 2000)
+        self._rehearsal_label.setText(tr("auto.beeshow_play_mixin.d4bd9b14", "⏱ 排练: 00:00"))
+        self._set_status(tr("auto.beeshow_play_mixin.1c2912c3", "⏱ 排练计时开始"), 2000)
 
     def stop_rehearsal(self):
         """停止排练计时"""
@@ -472,7 +473,7 @@ class PlayMixin:
         self._rehearsal_start_time = None
         self.rehearsal_start_time = None
         self._rehearsal_elapsed = 0
-        self._rehearsal_label.setText("⏱ 排练: 00:00")
+        self._rehearsal_label.setText(tr("auto.beeshow_play_mixin.d4bd9b14", "⏱ 排练: 00:00"))
         self._rehearsal_label.hide()
 
     def _update_rehearsal_time(self):

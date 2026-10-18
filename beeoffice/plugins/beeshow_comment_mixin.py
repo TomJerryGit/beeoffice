@@ -49,6 +49,7 @@ from typing import Dict, List, Any
 from PySide6.QtWidgets import QInputDialog, QMessageBox
 
 from beeoffice.plugins.beeshow_comment_panel import CommentPanel
+from beeoffice.i18n import tr
 
 
 class CommentMixin:
@@ -76,7 +77,7 @@ class CommentMixin:
           5. 刷新面板
         """
         if not self._slides_html:
-            QMessageBox.information(self, "提示", "请先编写幻灯片内容")
+            QMessageBox.information(self, tr("auto.beeshow_comment_mixin.ab3656a9", "提示"), tr("auto.beeshow_comment_mixin.63565334", "请先编写幻灯片内容"))
             return
 
         if not (0 <= self._current_slide < len(self._slides_html)):
@@ -241,7 +242,7 @@ class CommentMixin:
         )
         self._sync_comments_to_editor()
         self._refresh_comment_panel()
-        self._set_status("✅ 评论已更新", 2000)
+        self._set_status(tr("auto.beeshow_comment_mixin.25e590f3", "✅ 评论已更新"), 2000)
 
     def _delete_comment(self, comment_id: int):
         """删除评论（带确认）"""
@@ -250,7 +251,7 @@ class CommentMixin:
             return
 
         reply = QMessageBox.question(
-            self, "删除评论",
+            self, tr("auto.beeshow_comment_mixin.a602a2cf", "删除评论"),
             f"确定删除这条评论吗？\n\n「{comment['text'][:50]}」",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
@@ -265,7 +266,7 @@ class CommentMixin:
 
         self._sync_comments_to_editor()
         self._refresh_comment_panel()
-        self._set_status("✅ 评论已删除", 2000)
+        self._set_status(tr("auto.beeshow_comment_mixin.34c04064", "✅ 评论已删除"), 2000)
 
     def _toggle_comment_resolved(self, comment_id: int):
         """切换已解决状态"""

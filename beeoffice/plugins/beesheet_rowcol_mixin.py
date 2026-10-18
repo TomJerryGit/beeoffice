@@ -37,6 +37,7 @@ from beeoffice.plugins.beesheet_utils import (
     adjust_formula_refs,
 )
 from beeoffice.plugins.beesheet_engine import FormulaEngine
+from beeoffice.i18n import tr
 
 
 class RowColMixin:
@@ -94,7 +95,7 @@ class RowColMixin:
         self.model._loaded_df = df
         self.model._total_cols = len(df.columns)
         self.model.layoutChanged.emit()
-        self._set_status("已在左侧插入列", 2000)
+        self._set_status(tr("auto.beesheet_rowcol_mixin.dd486659", "已在左侧插入列"), 2000)
 
     def _insert_col_right(self):
         """在当前列右侧插入一列空列"""
@@ -111,7 +112,7 @@ class RowColMixin:
         self.model._loaded_df = df
         self.model._total_cols = len(df.columns)
         self.model.layoutChanged.emit()
-        self._set_status("已在右侧插入列", 2000)
+        self._set_status(tr("auto.beesheet_rowcol_mixin.80e20469", "已在右侧插入列"), 2000)
 
     # ==================== 删除行/列 ====================
     def _delete_current_row(self):
@@ -121,7 +122,7 @@ class RowColMixin:
             return
         r = idx.row()
         if len(self.model._loaded_df) <= 1:
-            self._set_status("至少保留一行", 2000)
+            self._set_status(tr("auto.beesheet_rowcol_mixin.201a8dd2", "至少保留一行"), 2000)
             return
         self.model._loaded_df = self.model._loaded_df.drop(
             index=r).reset_index(drop=True)
@@ -135,7 +136,7 @@ class RowColMixin:
             return
         c = idx.column()
         if len(self.model._loaded_df.columns) <= 1:
-            self._set_status("至少保留一列", 2000)
+            self._set_status(tr("auto.beesheet_rowcol_mixin.95d3a0f0", "至少保留一列"), 2000)
             return
         self.model._loaded_df = self.model._loaded_df.drop(
             columns=[self.model._loaded_df.columns[c]]
@@ -159,7 +160,7 @@ class RowColMixin:
         self.table_view.setSpan(r1, c1, r2 - r1 + 1, c2 - c1 + 1)
         # 记录合并信息，供后续判断（如重复合并、取消合并）
         self._merged_cells[(r1, c1)] = (r2 - r1 + 1, c2 - c1 + 1)
-        self._set_status("已合并", 2000)
+        self._set_status(tr("auto.beesheet_rowcol_mixin.9c8acd3d", "已合并"), 2000)
 
     # ==================== 填充快捷键 ====================
     def _shortcut_fill_down(self):

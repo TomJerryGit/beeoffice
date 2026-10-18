@@ -35,6 +35,7 @@
 """
 from PySide6.QtWidgets import QMenu, QMessageBox, QHeaderView
 from PySide6.QtCore import Qt
+from beeoffice.i18n import tr
 
 
 class ContextMenuMixin:
@@ -46,38 +47,38 @@ class ContextMenuMixin:
         menu = QMenu(self)
 
         # ---------- 粘贴 ----------
-        menu.addAction("📋 粘贴").triggered.connect(self._smart_paste)
+        menu.addAction(tr("auto.beesheet_context_menu_mixin.6ef96092", "📋 粘贴")).triggered.connect(self._smart_paste)
         menu.addSeparator()
 
         # ---------- 插入行列 ----------
-        insert_menu = menu.addMenu("➕ 插入")
-        insert_menu.addAction("在上方插入行").triggered.connect(
+        insert_menu = menu.addMenu(tr("auto.beesheet_context_menu_mixin.b9fe0d8e", "➕ 插入"))
+        insert_menu.addAction(tr("auto.beesheet_context_menu_mixin.d1d0970b", "在上方插入行")).triggered.connect(
             self._insert_row_above)
-        insert_menu.addAction("在下方插入行").triggered.connect(
+        insert_menu.addAction(tr("auto.beesheet_context_menu_mixin.dda0d433", "在下方插入行")).triggered.connect(
             self._insert_row_below)
-        insert_menu.addAction("在左侧插入列").triggered.connect(
+        insert_menu.addAction(tr("auto.beesheet_context_menu_mixin.70956ed7", "在左侧插入列")).triggered.connect(
             self._insert_col_left)
-        insert_menu.addAction("在右侧插入列").triggered.connect(
+        insert_menu.addAction(tr("auto.beesheet_context_menu_mixin.941667a2", "在右侧插入列")).triggered.connect(
             self._insert_col_right)
 
         # ---------- 删除行列 ----------
-        delete_menu = menu.addMenu("➖ 删除")
-        delete_menu.addAction("删除当前行").triggered.connect(
+        delete_menu = menu.addMenu(tr("auto.beesheet_context_menu_mixin.a4fe7974", "➖ 删除"))
+        delete_menu.addAction(tr("auto.beesheet_context_menu_mixin.bdc0e99b", "删除当前行")).triggered.connect(
             self._delete_current_row)
-        delete_menu.addAction("删除当前列").triggered.connect(
+        delete_menu.addAction(tr("auto.beesheet_context_menu_mixin.eee6dec2", "删除当前列")).triggered.connect(
             self._delete_current_col)
 
         menu.addSeparator()
 
         # ---------- 单元格操作 ----------
-        menu.addAction("🔗 合并单元格").triggered.connect(self._merge_cells)
-        menu.addAction("🎨 设置单元格格式").triggered.connect(
+        menu.addAction(tr("auto.beesheet_context_menu_mixin.09d684c7", "🔗 合并单元格")).triggered.connect(self._merge_cells)
+        menu.addAction(tr("auto.beesheet_context_menu_mixin.4b38a5cd", "🎨 设置单元格格式")).triggered.connect(
             self._show_cell_format_dialog)
-        menu.addAction("📋 复制为Markdown").triggered.connect(
+        menu.addAction(tr("auto.beesheet_context_menu_mixin.b64b596f", "📋 复制为Markdown")).triggered.connect(
             self._copy_as_markdown)
-        menu.addAction("🖼️ 复制为图片").triggered.connect(
+        menu.addAction(tr("auto.beesheet_context_menu_mixin.26ad4c49", "🖼️ 复制为图片")).triggered.connect(
             self._copy_selection_as_image)
-        menu.addAction("💬 添加批注").triggered.connect(self._add_comment)
+        menu.addAction(tr("auto.beesheet_context_menu_mixin.9da9a5ab", "💬 添加批注")).triggered.connect(self._add_comment)
 
         menu.addSeparator()
 
@@ -86,7 +87,7 @@ class ContextMenuMixin:
         if cur.isValid():
             v = str(self.model.get_value(cur.row(), cur.column()))
             if v.startswith('#ERROR') or v.startswith('#N/A'):
-                menu.addAction("⚠ 查看错误详情").triggered.connect(
+                menu.addAction(tr("auto.beesheet_context_menu_mixin.33267109", "⚠ 查看错误详情")).triggered.connect(
                     lambda: self._show_error_helper(
                         (cur.row(), cur.column()), v
                     )
@@ -94,15 +95,15 @@ class ContextMenuMixin:
                 menu.addSeparator()
 
         # ---------- 公式审计 ----------
-        audit_menu = menu.addMenu("🔍 公式审计")
-        audit_menu.addAction("追踪引用单元格  Ctrl+[").triggered.connect(
+        audit_menu = menu.addMenu(tr("auto.beesheet_context_menu_mixin.924cc627", "🔍 公式审计"))
+        audit_menu.addAction(tr("auto.beesheet_context_menu_mixin.ad0aeec9", "追踪引用单元格  Ctrl+[")).triggered.connect(
             self._trace_precedents)
-        audit_menu.addAction("追踪从属单元格  Ctrl+]").triggered.connect(
+        audit_menu.addAction(tr("auto.beesheet_context_menu_mixin.aacbb61e", "追踪从属单元格  Ctrl+]")).triggered.connect(
             self._trace_dependents)
-        audit_menu.addAction("清除审计高亮").triggered.connect(
+        audit_menu.addAction(tr("auto.beesheet_context_menu_mixin.67bee2f8", "清除审计高亮")).triggered.connect(
             self._clear_audit)
         audit_menu.addSeparator()
-        audit_menu.addAction("📖 翻译公式").triggered.connect(
+        audit_menu.addAction(tr("auto.beesheet_context_menu_mixin.05d28cfe", "📖 翻译公式")).triggered.connect(
             self._translate_current_formula)
 
         menu.exec(pos)
@@ -111,15 +112,15 @@ class ContextMenuMixin:
     def _show_freeze_menu(self):
         """冻结菜单（由工具栏按钮触发）"""
         menu = QMenu(self)
-        menu.addAction("📌 冻结首行").triggered.connect(
+        menu.addAction(tr("auto.beesheet_context_menu_mixin.8e88da89", "📌 冻结首行")).triggered.connect(
             lambda: self._freeze_row(0))
-        menu.addAction("📌 冻结首列").triggered.connect(
+        menu.addAction(tr("auto.beesheet_context_menu_mixin.0366836d", "📌 冻结首列")).triggered.connect(
             lambda: self._freeze_column(0))
-        menu.addAction("📌 冻结到当前单元格").triggered.connect(
+        menu.addAction(tr("auto.beesheet_context_menu_mixin.83305557", "📌 冻结到当前单元格")).triggered.connect(
             self._freeze_cell)
-        menu.addAction("📌 冻结前3行").triggered.connect(
+        menu.addAction(tr("auto.beesheet_context_menu_mixin.82d35ff0", "📌 冻结前3行")).triggered.connect(
             lambda: self._freeze_row(2))
-        menu.addAction("📌 冻结前3列").triggered.connect(
+        menu.addAction(tr("auto.beesheet_context_menu_mixin.f70237cb", "📌 冻结前3列")).triggered.connect(
             lambda: self._freeze_column(2))
         menu.exec(self.sender().mapToGlobal(
             self.sender().rect().bottomLeft()))
@@ -194,4 +195,4 @@ class ContextMenuMixin:
             vh.setSectionResizeMode(i, QHeaderView.Interactive)
         hh.setStyleSheet("")
         self._update_status()
-        self._set_status("✅ 已解冻所有行列", 3000)
+        self._set_status(tr("auto.beesheet_context_menu_mixin.6069fde5", "✅ 已解冻所有行列"), 3000)

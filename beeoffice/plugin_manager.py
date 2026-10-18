@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import List, Dict, Any
 
 from beeoffice.plugin_base import Plugin, USER_PLUGIN_MARKER
+from beeoffice.i18n import tr
 
 
 class PluginManager:
@@ -110,7 +111,7 @@ class PluginManager:
         """
         names = self._collect_plugin_module_names()
         if not names:
-            logging.warning("没有找到任何插件模块")
+            logging.warning(tr("auto.plugin_manager.31ac7b76", "没有找到任何插件模块"))
             return
 
         skipped = 0
@@ -167,7 +168,7 @@ class PluginManager:
     def load_plugins(self) -> None:
         """加载所有已发现的插件（调用注册命令和生命周期钩子）"""
         if self._loaded:
-            logging.warning("插件已加载，跳过重复调用")
+            logging.warning(tr("auto.plugin_manager.003cda33", "插件已加载，跳过重复调用"))
             return
 
         for plugin in self.plugins:

@@ -35,6 +35,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from beeoffice.plugins.beeshow_constants import LAYOUTS, LAYOUT_CSS
+from beeoffice.i18n import tr
 
 
 class LayoutMixin:
@@ -49,7 +50,7 @@ class LayoutMixin:
         点击卡片 → 应用版式到当前幻灯片，关闭对话框。
         """
         dlg = QDialog(self)
-        dlg.setWindowTitle("📐 选择版式")
+        dlg.setWindowTitle(tr("auto.beeshow_layout_mixin.c87fbb8f", "📐 选择版式"))
         dlg.resize(640, 480)
         layout = QVBoxLayout(dlg)
 
@@ -83,7 +84,7 @@ class LayoutMixin:
         # 底部按钮
         bl = QHBoxLayout()
         bl.addStretch()
-        close_btn = QPushButton("关闭")
+        close_btn = QPushButton(tr("auto.beeshow_layout_mixin.6c14bd7f", "关闭"))
         close_btn.clicked.connect(dlg.reject)
         bl.addWidget(close_btn)
         layout.addLayout(bl)

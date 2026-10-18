@@ -157,6 +157,16 @@ def main(argv):
         path = ROOT / args.path
     src = path.read_text(encoding="utf-8")
 
+    # i18n 模块自身不能引入 tr（会形成循环导入）
+    if path.name in ("i18n.py", "__init__.py"):
+        print(f"跳过 {path.name}：该模块不能引用 tr")
+        return 0
+
+    # i18n 模块自身不能引入 tr（会形成循环导入）
+    if path.name in ("i18n.py", "__init__.py"):
+        print(f"跳过 {path.name}：该模块不能引用 tr")
+        return 0
+
     module = path.stem
     entries, mapping = collect(src, module)
     if not entries:

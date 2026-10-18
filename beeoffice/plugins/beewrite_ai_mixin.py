@@ -22,6 +22,7 @@
 import logging
 
 from PySide6.QtWidgets import QMenu, QMessageBox
+from beeoffice.i18n import tr
 
 
 # ==================== AIMixin ====================
@@ -34,10 +35,10 @@ class AIMixin:
     def _show_ai_menu(self):
         """弹出 AI 辅助菜单"""
         menu = QMenu(self)
-        menu.addAction("✍️ 续写").triggered.connect(self._ai_continue)
-        menu.addAction("✨ 润色").triggered.connect(self._ai_polish)
-        menu.addAction("📝 总结").triggered.connect(self._ai_summarize)
-        menu.addAction("🔑 提取关键词").triggered.connect(self._ai_keywords)
+        menu.addAction(tr("auto.beewrite_ai_mixin.866d27d6", "✍️ 续写")).triggered.connect(self._ai_continue)
+        menu.addAction(tr("auto.beewrite_ai_mixin.0d557228", "✨ 润色")).triggered.connect(self._ai_polish)
+        menu.addAction(tr("auto.beewrite_ai_mixin.e65d7465", "📝 总结")).triggered.connect(self._ai_summarize)
+        menu.addAction(tr("auto.beewrite_ai_mixin.6c712767", "🔑 提取关键词")).triggered.connect(self._ai_keywords)
         menu.exec(self._ai_btn.mapToGlobal(
             self._ai_btn.rect().bottomLeft()
         ))
@@ -89,10 +90,10 @@ class AIMixin:
             addition = self._strip_echoed_context(context, result)
             cursor.insertText(addition)
 
-            self._set_status("✅ AI 续写完成", 3000)
+            self._set_status(tr("auto.beewrite_ai_mixin.9ff81cf0", "✅ AI 续写完成"), 3000)
         except Exception as e:
             logging.error(f"AI 续写失败: {e}")
-            QMessageBox.warning(self, "AI 续写失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_ai_mixin.495a45e7", "AI 续写失败"), str(e))
 
     # ==================================================================
     # AI 润色
@@ -109,7 +110,7 @@ class AIMixin:
                 cursor = self.rich_editor.textCursor()
                 if not cursor.hasSelection():
                     QMessageBox.information(
-                        self, "提示", "请先选中要润色的文本"
+                        self, tr("auto.beewrite_ai_mixin.ab3656a9", "提示"), tr("auto.beewrite_ai_mixin.e91e0829", "请先选中要润色的文本")
                     )
                     return
                 selected = cursor.selectedText()
@@ -119,17 +120,17 @@ class AIMixin:
                 cursor = self.markdown_editor.textCursor()
                 if not cursor.hasSelection():
                     QMessageBox.information(
-                        self, "提示", "请先选中要润色的文本"
+                        self, tr("auto.beewrite_ai_mixin.ab3656a9", "提示"), tr("auto.beewrite_ai_mixin.e91e0829", "请先选中要润色的文本")
                     )
                     return
                 selected = cursor.selectedText()
                 polished = AIAssist.polish_text(selected)
                 cursor.insertText(polished)
 
-            self._set_status("✅ AI 润色完成", 3000)
+            self._set_status(tr("auto.beewrite_ai_mixin.69385b54", "✅ AI 润色完成"), 3000)
         except Exception as e:
             logging.error(f"AI 润色失败: {e}")
-            QMessageBox.warning(self, "AI 润色失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_ai_mixin.a6ef5e04", "AI 润色失败"), str(e))
 
     # ==================================================================
     # AI 总结
@@ -145,13 +146,13 @@ class AIMixin:
             text = self.content()
             if len(text) < 100:
                 QMessageBox.information(
-                    self, "提示", "文本太短，无需总结"
+                    self, tr("auto.beewrite_ai_mixin.ab3656a9", "提示"), tr("auto.beewrite_ai_mixin.737235e2", "文本太短，无需总结")
                 )
                 return
 
             summary = AIAssist.summarize_text(text, max_sentences=3)
             if not summary:
-                self._set_status("⚠️ 无法生成摘要", 3000)
+                self._set_status(tr("auto.beewrite_ai_mixin.f3dcb35f", "⚠️ 无法生成摘要"), 3000)
                 return
 
             summary_md = f"\n\n## AI 总结\n\n{summary}\n"
@@ -160,10 +161,10 @@ class AIMixin:
             else:
                 self.markdown_editor.appendPlainText(summary_md)
 
-            self._set_status("✅ AI 总结已插入文末", 3000)
+            self._set_status(tr("auto.beewrite_ai_mixin.1b77d493", "✅ AI 总结已插入文末"), 3000)
         except Exception as e:
             logging.error(f"AI 总结失败: {e}")
-            QMessageBox.warning(self, "AI 总结失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_ai_mixin.7d6733f5", "AI 总结失败"), str(e))
 
     # ==================================================================
     # AI 关键词提取
@@ -179,13 +180,13 @@ class AIMixin:
             text = self.content()
             if len(text) < 50:
                 QMessageBox.information(
-                    self, "提示", "文本太短，无法提取关键词"
+                    self, tr("auto.beewrite_ai_mixin.ab3656a9", "提示"), tr("auto.beewrite_ai_mixin.b6abb666", "文本太短，无法提取关键词")
                 )
                 return
 
             keywords = AIAssist.extract_keywords(text, top_n=5)
             if not keywords:
-                self._set_status("⚠️ 未提取到关键词", 3000)
+                self._set_status(tr("auto.beewrite_ai_mixin.4989ee5a", "⚠️ 未提取到关键词"), 3000)
                 return
 
             kw_md = "\n\n## 关键词\n\n" + "、".join(keywords) + "\n"
@@ -199,4 +200,4 @@ class AIMixin:
             )
         except Exception as e:
             logging.error(f"AI 关键词提取失败: {e}")
-            QMessageBox.warning(self, "AI 关键词提取失败", str(e))
+            QMessageBox.warning(self, tr("auto.beewrite_ai_mixin.8f7775df", "AI 关键词提取失败"), str(e))

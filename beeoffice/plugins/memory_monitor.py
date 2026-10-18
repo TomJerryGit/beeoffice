@@ -5,11 +5,12 @@ from PySide6.QtWidgets import (
     QPushButton, QProgressBar
 )
 from PySide6.QtCore import QTimer, Qt
+from beeoffice.i18n import tr
 
 class MemoryMonitor(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("🐝 内存监控")
+        self.setWindowTitle(tr("auto.memory_monitor.2a4d9efd", "🐝 内存监控"))
         self.setMinimumWidth(380)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         
@@ -20,15 +21,15 @@ class MemoryMonitor(QDialog):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(10)
 
-        title = QLabel("📊 内存使用情况")
+        title = QLabel(tr("auto.memory_monitor.19efb576", "📊 内存使用情况"))
         title.setStyleSheet("font-weight: bold; font-size: 15px; color: #FF8F00;")
         layout.addWidget(title)
 
-        self.current_label = QLabel("当前: -- MB")
+        self.current_label = QLabel(tr("auto.memory_monitor.f57b360d", "当前: -- MB"))
         self.current_label.setStyleSheet("font-size: 20px; font-weight: bold;")
         layout.addWidget(self.current_label)
 
-        self.peak_label = QLabel("峰值: -- MB")
+        self.peak_label = QLabel(tr("auto.memory_monitor.95439aed", "峰值: -- MB"))
         self.peak_label.setStyleSheet("color: #888;")
         layout.addWidget(self.peak_label)
 
@@ -38,20 +39,20 @@ class MemoryMonitor(QDialog):
         self.progress.setTextVisible(True)
         layout.addWidget(self.progress)
 
-        self.trend_label = QLabel("趋势: 监测中...")
+        self.trend_label = QLabel(tr("auto.memory_monitor.01f84f88", "趋势: 监测中..."))
         self.trend_label.setStyleSheet("color: #666; font-size: 12px;")
         layout.addWidget(self.trend_label)
 
         btn_layout = QHBoxLayout()
-        gc_btn = QPushButton("🗑️ 手动垃圾回收")
+        gc_btn = QPushButton(tr("auto.memory_monitor.f4c8592e", "🗑️ 手动垃圾回收"))
         gc_btn.clicked.connect(self._manual_gc)
         btn_layout.addWidget(gc_btn)
 
-        reset_btn = QPushButton("🔄 重置统计")
+        reset_btn = QPushButton(tr("auto.memory_monitor.bdcdbf28", "🔄 重置统计"))
         reset_btn.clicked.connect(self._reset)
         btn_layout.addWidget(reset_btn)
 
-        close_btn = QPushButton("关闭")
+        close_btn = QPushButton(tr("auto.memory_monitor.6c14bd7f", "关闭"))
         close_btn.clicked.connect(self.close)
         btn_layout.addWidget(close_btn)
         layout.addLayout(btn_layout)
@@ -66,7 +67,7 @@ class MemoryMonitor(QDialog):
             import psutil
             mb = psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024
         except ImportError:
-            self.current_label.setText("需要安装 psutil")
+            self.current_label.setText(tr("auto.memory_monitor.4fd5c135", "需要安装 psutil"))
             return
 
         if mb > self._peak:
@@ -106,7 +107,7 @@ class MemoryMonitor(QDialog):
                 self.trend_label.setText(f"✅ 趋势: 下降 {diff:.1f} MB/10s")
                 self.trend_label.setStyleSheet("color: #4CAF50; font-size: 12px;")
             else:
-                self.trend_label.setText("✅ 趋势: 稳定")
+                self.trend_label.setText(tr("auto.memory_monitor.b3cfa623", "✅ 趋势: 稳定"))
                 self.trend_label.setStyleSheet("color: #666; font-size: 12px;")
 
     def _manual_gc(self):
@@ -119,9 +120,9 @@ class MemoryMonitor(QDialog):
         self._history = []
         # 不调 _update()，避免立刻把 _peak 更新为当前内存。
         # 只清空显示，等下一次定时器触发再刷新。
-        self.current_label.setText("当前: -- MB")
-        self.peak_label.setText("峰值: 0.0 MB")
-        self.trend_label.setText("趋势: 监测中...")
+        self.current_label.setText(tr("auto.memory_monitor.f57b360d", "当前: -- MB"))
+        self.peak_label.setText(tr("auto.memory_monitor.9df14a4e", "峰值: 0.0 MB"))
+        self.trend_label.setText(tr("auto.memory_monitor.01f84f88", "趋势: 监测中..."))
         self.progress.setValue(0)
 
     def closeEvent(self, event):

@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from beeoffice.plugins.beesheet_dialogs import PivotTableDialog
+from beeoffice.i18n import tr
 
 
 class ChartMixin:
@@ -40,7 +41,7 @@ class ChartMixin:
         """弹出图表类型选择对话框，用户选择后调用 _generate_chart"""
         sel = self.table_view.selectionModel().selection()
         if not sel:
-            QMessageBox.information(self, "提示", "请先选中数据")
+            QMessageBox.information(self, tr("auto.beesheet_chart_mixin.ab3656a9", "提示"), tr("auto.beesheet_chart_mixin.1b9519cd", "请先选中数据"))
             return
         dlg = QDialog(self)
         layout = QVBoxLayout(dlg)
@@ -118,7 +119,7 @@ class ChartMixin:
         elif chart_type == 'pie' and data:
             pie_data = [abs(x) for x in (data[0] if data else [])]
             if sum(pie_data) == 0:
-                QMessageBox.information(self, "提示", "饼图数据全为零")
+                QMessageBox.information(self, tr("auto.beesheet_chart_mixin.ab3656a9", "提示"), tr("auto.beesheet_chart_mixin.3118d931", "饼图数据全为零"))
                 plt.close(fig)
                 return
             ax.pie(pie_data,
@@ -148,7 +149,7 @@ class ChartMixin:
         canvas = FigureCanvasQTAgg(fig)
         layout.addWidget(canvas)
         layout.addWidget(QPushButton(
-            "保存图片", clicked=lambda: self._save_chart(fig, dlg)
+            tr("auto.beesheet_chart_mixin.a927c749", "保存图片"), clicked=lambda: self._save_chart(fig, dlg)
         ))
         dlg.resize(650, 480)
         dlg.setAttribute(Qt.WA_DeleteOnClose)
@@ -158,18 +159,18 @@ class ChartMixin:
     def _save_chart(self, fig, parent):
         """将 matplotlib figure 保存为 PNG"""
         path, _ = QFileDialog.getSaveFileName(
-            parent, "保存", "图表.png", "PNG (*.png)"
+            parent, tr("auto.beesheet_chart_mixin.fadf24db", "保存"), tr("auto.beesheet_chart_mixin.4999c234", "图表.png"), "PNG (*.png)"
         )
         if path:
             fig.savefig(path, dpi=150, bbox_inches='tight')
-            self._set_status("已保存", 3000)
+            self._set_status(tr("auto.beesheet_chart_mixin.cdfab96f", "已保存"), 3000)
 
     # ==================== 数据透视表 ====================
     def _show_pivot_table(self):
         """打开数据透视表对话框，在新标签页生成结果"""
         df = self.model.df
         if df is None or df.empty:
-            QMessageBox.information(self, "提示", "当前表格没有数据")
+            QMessageBox.information(self, tr("auto.beesheet_chart_mixin.ab3656a9", "提示"), tr("auto.beesheet_chart_mixin.2e9899f6", "当前表格没有数据"))
             return
 
         # 过滤掉全空行
@@ -179,7 +180,7 @@ class ChartMixin:
             ), axis=1
         )]
         if df_clean.empty:
-            QMessageBox.information(self, "提示", "当前表格没有有效数据")
+            QMessageBox.information(self, tr("auto.beesheet_chart_mixin.ab3656a9", "提示"), tr("auto.beesheet_chart_mixin.4d978bfc", "当前表格没有有效数据"))
             return
 
         dlg = PivotTableDialog(df_clean, self)
@@ -193,7 +194,7 @@ class ChartMixin:
         # 在新标签页生成
         parent = self._find_main_window()
         if not parent or not hasattr(parent, 'tab_manager'):
-            QMessageBox.warning(self, "提示", "无法创建新标签页")
+            QMessageBox.warning(self, tr("auto.beesheet_chart_mixin.ab3656a9", "提示"), tr("auto.beesheet_chart_mixin.3e498b13", "无法创建新标签页"))
             return
 
         # 延迟 import 避免循环依赖

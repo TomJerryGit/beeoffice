@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QTextCursor, QTextDocument, QTextCharFormat, QColor
 from PySide6.QtCore import Qt
+from beeoffice.i18n import tr
 
 
 class FindReplaceBar(QWidget):
@@ -31,26 +32,26 @@ class FindReplaceBar(QWidget):
 
         # ---- 查找行 ----
         row1 = QHBoxLayout()
-        row1.addWidget(QLabel("🔍 查找:"))
+        row1.addWidget(QLabel(tr("auto.find_replace.e1acea7e", "🔍 查找:")))
 
         self.find_input = QLineEdit()
-        self.find_input.setPlaceholderText("输入要查找的内容...")
+        self.find_input.setPlaceholderText(tr("auto.find_replace.1d0a7eb7", "输入要查找的内容..."))
         self.find_input.setMinimumWidth(200)
         self.find_input.returnPressed.connect(self.find_next)
         self.find_input.textChanged.connect(self._on_search_text_changed)
         row1.addWidget(self.find_input, 1)
 
-        self.btn_prev = QPushButton("↑ 上一个")
+        self.btn_prev = QPushButton(tr("auto.find_replace.943de353", "↑ 上一个"))
         self.btn_prev.clicked.connect(self.find_prev)
         row1.addWidget(self.btn_prev)
 
-        self.btn_next = QPushButton("↓ 下一个")
+        self.btn_next = QPushButton(tr("auto.find_replace.ebca443f", "↓ 下一个"))
         self.btn_next.clicked.connect(self.find_next)
         row1.addWidget(self.btn_next)
 
         self.btn_close = QPushButton("✕")
         self.btn_close.setFixedWidth(30)
-        self.btn_close.setToolTip("关闭查找栏 (Esc)")
+        self.btn_close.setToolTip(tr("auto.find_replace.2ddd8da9", "关闭查找栏 (Esc)"))
         self.btn_close.clicked.connect(self.hide)
         row1.addWidget(self.btn_close)
 
@@ -58,17 +59,17 @@ class FindReplaceBar(QWidget):
 
         # ---- 替换行 ----
         row2 = QHBoxLayout()
-        row2.addWidget(QLabel("📝 替换:"))
+        row2.addWidget(QLabel(tr("auto.find_replace.945df3b3", "📝 替换:")))
 
         self.replace_input = QLineEdit()
-        self.replace_input.setPlaceholderText("输入替换内容...")
+        self.replace_input.setPlaceholderText(tr("auto.find_replace.f5cb1cf7", "输入替换内容..."))
         row2.addWidget(self.replace_input, 1)
 
-        self.btn_replace = QPushButton("替换")
+        self.btn_replace = QPushButton(tr("auto.find_replace.855241c2", "替换"))
         self.btn_replace.clicked.connect(self.replace_one)
         row2.addWidget(self.btn_replace)
 
-        self.btn_replace_all = QPushButton("全部替换")
+        self.btn_replace_all = QPushButton(tr("auto.find_replace.601f0a9a", "全部替换"))
         self.btn_replace_all.clicked.connect(self.replace_all)
         row2.addWidget(self.btn_replace_all)
 
@@ -77,13 +78,13 @@ class FindReplaceBar(QWidget):
         # ---- 选项行 ----
         row3 = QHBoxLayout()
 
-        self.case_check = QCheckBox("区分大小写")
+        self.case_check = QCheckBox(tr("auto.find_replace.e6f5345b", "区分大小写"))
         row3.addWidget(self.case_check)
 
-        self.word_check = QCheckBox("全字匹配")
+        self.word_check = QCheckBox(tr("auto.find_replace.d17c5c51", "全字匹配"))
         row3.addWidget(self.word_check)
 
-        self.regex_check = QCheckBox("正则表达式")
+        self.regex_check = QCheckBox(tr("auto.find_replace.46e5b8bc", "正则表达式"))
         self.regex_check.stateChanged.connect(self._on_regex_changed)
         row3.addWidget(self.regex_check)
 
@@ -117,7 +118,7 @@ class FindReplaceBar(QWidget):
             editor = self._find_editor_from_parent()
             if editor is None:
                 QMessageBox.information(
-                    self, "提示", "当前文档不支持查找替换"
+                    self, tr("auto.find_replace.ab3656a9", "提示"), tr("auto.find_replace.0e25c092", "当前文档不支持查找替换")
                 )
                 return
         self._editor = editor
@@ -159,10 +160,10 @@ class FindReplaceBar(QWidget):
         """切换到正则模式时给出提示"""
         if self.regex_check.isChecked():
             self.find_input.setPlaceholderText(
-                "输入正则表达式，如 \\d+ 或 [A-Z]+"
+                tr("auto.find_replace.1861405e", "输入正则表达式，如 \\d+ 或 [A-Z]+")
             )
         else:
-            self.find_input.setPlaceholderText("输入要查找的内容...")
+            self.find_input.setPlaceholderText(tr("auto.find_replace.1d0a7eb7", "输入要查找的内容..."))
 
     def _get_search_text(self):
         """获取当前查找文本"""
@@ -214,11 +215,11 @@ class FindReplaceBar(QWidget):
             # 从头再找一次
             match = pattern.search(content, 0)
             if not match:
-                self.result_label.setText("未找到")
+                self.result_label.setText(tr("auto.find_replace.df5ccaf0", "未找到"))
                 self._clear_selection_highlight()
                 return
             else:
-                self.result_label.setText("已循环到开头")
+                self.result_label.setText(tr("auto.find_replace.09d2dd87", "已循环到开头"))
 
         # 选中匹配内容
         self._select_range(match.start(), match.end())
@@ -249,10 +250,10 @@ class FindReplaceBar(QWidget):
             # 从头查找全部，取最后一个
             all_matches = list(pattern.finditer(content))
             if not all_matches:
-                self.result_label.setText("未找到")
+                self.result_label.setText(tr("auto.find_replace.df5ccaf0", "未找到"))
                 return
             match = all_matches[-1]
-            self.result_label.setText("已循环到结尾")
+            self.result_label.setText(tr("auto.find_replace.2afda7f7", "已循环到结尾"))
         else:
             match = matches[-1]
 
@@ -309,7 +310,7 @@ class FindReplaceBar(QWidget):
 
         # 替换
         cursor.insertText(replace_text)
-        self.result_label.setText("已替换 1 处")
+        self.result_label.setText(tr("auto.find_replace.87ceeae0", "已替换 1 处"))
         # 继续查找下一个
         self.find_next()
 
@@ -334,7 +335,7 @@ class FindReplaceBar(QWidget):
         # 统计匹配数
         matches = list(pattern.finditer(content))
         if not matches:
-            self.result_label.setText("未找到")
+            self.result_label.setText(tr("auto.find_replace.df5ccaf0", "未找到"))
             return
 
         count = len(matches)

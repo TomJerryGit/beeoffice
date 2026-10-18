@@ -17,6 +17,7 @@ from datetime import datetime
 from PySide6.QtWidgets import QWidget, QMessageBox, QFileDialog
 
 from beeoffice.plugin_base import Plugin
+from beeoffice.i18n import tr
 
 
 class BeeWritePlugin(Plugin):
@@ -40,48 +41,48 @@ class BeeWritePlugin(Plugin):
     def register_commands(self, palette):
         """注册蜜写相关命令到命令面板"""
         palette.register_command(
-            "蜜写：新建文档",
-            "创建一个新的蜜写 Markdown 文档",
+            tr("auto.beewrite_plugin.f9ab0865", "蜜写：新建文档"),
+            tr("auto.beewrite_plugin.5056560c", "创建一个新的蜜写 Markdown 文档"),
             self.new_document
         )
         palette.register_command(
-            "蜜写：新建 Word 文档",
-            "创建一个默认的 Word 文档",
+            tr("auto.beewrite_plugin.1f485e9f", "蜜写：新建 Word 文档"),
+            tr("auto.beewrite_plugin.74ea3d23", "创建一个默认的 Word 文档"),
             self.new_word_document
         )
         palette.register_command(
-            "蜜写：导出 DOCX",
-            "将当前蜜写文档导出为 Word",
+            tr("auto.beewrite_plugin.4cf7aaf6", "蜜写：导出 DOCX"),
+            tr("auto.beewrite_plugin.3e31bbe2", "将当前蜜写文档导出为 Word"),
             self.export_docx
         )
         palette.register_command(
-            "蜜写：导出 PDF",
-            "将当前蜜写文档导出为 PDF",
+            tr("auto.beewrite_plugin.46d4b376", "蜜写：导出 PDF"),
+            tr("auto.beewrite_plugin.53de0ddf", "将当前蜜写文档导出为 PDF"),
             self.export_pdf
         )
         palette.register_command(
-            "蜜写：导出 HTML",
-            "将当前蜜写文档导出为 HTML",
+            tr("auto.beewrite_plugin.9ef7b2a4", "蜜写：导出 HTML"),
+            tr("auto.beewrite_plugin.22929e46", "将当前蜜写文档导出为 HTML"),
             self.export_html
         )
         palette.register_command(
-            "蜜写：插入目录",
-            "根据标题自动生成目录",
+            tr("auto.beewrite_plugin.c57e0cd9", "蜜写：插入目录"),
+            tr("auto.beewrite_plugin.41e5a21a", "根据标题自动生成目录"),
             self.generate_toc
         )
         palette.register_command(
-            "蜜写：AI 续写",
-            "基于当前文本续写内容",
+            tr("auto.beewrite_plugin.ffc7f3ab", "蜜写：AI 续写"),
+            tr("auto.beewrite_plugin.e0491102", "基于当前文本续写内容"),
             self.ai_continue
         )
         palette.register_command(
-            "蜜写：AI 润色",
-            "润色选中文本",
+            tr("auto.beewrite_plugin.80ca3236", "蜜写：AI 润色"),
+            tr("auto.beewrite_plugin.25ad557f", "润色选中文本"),
             self.ai_polish
         )
         palette.register_command(
-            "蜜写：AI 总结",
-            "总结当前文档",
+            tr("auto.beewrite_plugin.e37ace27", "蜜写：AI 总结"),
+            tr("auto.beewrite_plugin.ffdbfeb6", "总结当前文档"),
             self.ai_summarize
         )
 
@@ -109,7 +110,7 @@ class BeeWritePlugin(Plugin):
         self.parent.tab_manager.addTab(editor, f"📝 Word-{timestamp}")
         self.parent.tab_manager.setCurrentWidget(editor)
         if hasattr(self.parent, "set_global_status"):
-            self.parent.set_global_status("Word 文档已创建", 5000)
+            self.parent.set_global_status(tr("auto.beewrite_plugin.144c6308", "Word 文档已创建"), 5000)
         return editor
 
     # ---------- 获取当前编辑器 ----------
@@ -180,7 +181,7 @@ class BeeWritePlugin(Plugin):
             except Exception as e:
                 logging.error(f"插入目录失败: {e}")
                 QMessageBox.warning(
-                    self.parent, "插入目录失败", str(e)
+                    self.parent, tr("auto.beewrite_plugin.29689db4", "插入目录失败"), str(e)
                 )
         else:
             self._warn("当前编辑器不支持生成目录")
@@ -250,7 +251,7 @@ class BeeWritePlugin(Plugin):
             cursor = active.textCursor()
             if not cursor.hasSelection():
                 _QMB.information(
-                    self.parent, "提示", "请先选中要润色的文本"
+                    self.parent, tr("auto.beewrite_plugin.ab3656a9", "提示"), tr("auto.beewrite_plugin.e91e0829", "请先选中要润色的文本")
                 )
                 return
             polished = AIAssist.polish_text(cursor.selectedText())
@@ -283,7 +284,7 @@ class BeeWritePlugin(Plugin):
                     else "")
             if len(text) < 100:
                 _QMB.information(
-                    self.parent, "提示", "文本太短，无需总结"
+                    self.parent, tr("auto.beewrite_plugin.ab3656a9", "提示"), tr("auto.beewrite_plugin.737235e2", "文本太短，无需总结")
                 )
                 return
             summary = AIAssist.summarize_text(text)
@@ -302,7 +303,7 @@ class BeeWritePlugin(Plugin):
     def _warn(self, message: str):
         """统一提示"""
         from PySide6.QtWidgets import QMessageBox
-        QMessageBox.information(self.parent, "提示", message)
+        QMessageBox.information(self.parent, tr("auto.beewrite_plugin.ab3656a9", "提示"), message)
 
     # ---------- 生命周期 ----------
     def on_close(self):

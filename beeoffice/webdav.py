@@ -14,6 +14,7 @@ from PySide6.QtCore import Qt
 
 from beeoffice.plugins.webdav_sync import WebDAVConfig
 from beeoffice.async_task import AsyncTaskManager
+from beeoffice.i18n import tr
 
 
 def show_webdav_settings(parent):
@@ -23,7 +24,7 @@ def show_webdav_settings(parent):
     """
     config = WebDAVConfig()
     dlg = QDialog(parent)
-    dlg.setWindowTitle("☁️ WebDAV 设置")
+    dlg.setWindowTitle(tr("auto.webdav.2d9894f5", "☁️ WebDAV 设置"))
     dlg.resize(420, 260)
     form = QFormLayout(dlg)
 
@@ -42,20 +43,20 @@ def show_webdav_settings(parent):
     form.addRow("密码:", pwd)
 
     # 自动同步
-    auto = QCheckBox("启动时自动同步")
+    auto = QCheckBox(tr("auto.webdav.e4bdc666", "启动时自动同步"))
     auto.setChecked(config.auto_sync)
     form.addRow(auto)
 
     # 启用
-    enabled = QCheckBox("启用 WebDAV 同步")
+    enabled = QCheckBox(tr("auto.webdav.7693437d", "启用 WebDAV 同步"))
     enabled.setChecked(config.enabled)
     form.addRow(enabled)
 
     # 按钮
     btns = QDialogButtonBox()
-    save_btn = QPushButton("保存")
-    test_btn = QPushButton("测试连接")
-    cancel_btn = QPushButton("取消")
+    save_btn = QPushButton(tr("auto.webdav.fadf24db", "保存"))
+    test_btn = QPushButton(tr("auto.webdav.10b7d8ec", "测试连接"))
+    cancel_btn = QPushButton(tr("auto.webdav.4d0b4688", "取消"))
     btns.addButton(save_btn, QDialogButtonBox.AcceptRole)
     btns.addButton(test_btn, QDialogButtonBox.ActionRole)
     btns.addButton(cancel_btn, QDialogButtonBox.RejectRole)
@@ -66,7 +67,7 @@ def show_webdav_settings(parent):
         text_url = url.text().strip()
         # 校验 URL
         if text_url and not (text_url.startswith("http://") or text_url.startswith("https://")):
-            QMessageBox.warning(dlg, "错误", "地址必须以 http:// 或 https:// 开头")
+            QMessageBox.warning(dlg, tr("auto.webdav.b859c7be", "错误"), tr("auto.webdav.6f7b037c", "地址必须以 http:// 或 https:// 开头"))
             return
         config.url = text_url
         config.username = user.text().strip()
@@ -74,13 +75,13 @@ def show_webdav_settings(parent):
         config.auto_sync = auto.isChecked()
         config.enabled = enabled.isChecked()
         config.save()
-        QMessageBox.information(dlg, "已保存", "WebDAV 设置已保存")
+        QMessageBox.information(dlg, tr("auto.webdav.cdfab96f", "已保存"), tr("auto.webdav.6bbe8892", "WebDAV 设置已保存"))
         dlg.accept()
 
     def test_connection():
         """测试连接"""
         if not url.text().strip():
-            QMessageBox.warning(dlg, "提示", "请先填写地址")
+            QMessageBox.warning(dlg, tr("auto.webdav.ab3656a9", "提示"), tr("auto.webdav.c0d8905a", "请先填写地址"))
             return
         try:
             from webdav3.client import Client
@@ -90,9 +91,9 @@ def show_webdav_settings(parent):
                 "webdav_password": pwd.text(),
             })
             client.check()
-            QMessageBox.information(dlg, "成功", "连接成功！")
+            QMessageBox.information(dlg, tr("auto.webdav.51991a5d", "成功"), tr("auto.webdav.7ae0ea69", "连接成功！"))
         except Exception as e:
-            QMessageBox.warning(dlg, "失败", f"连接失败：\n{e}")
+            QMessageBox.warning(dlg, tr("auto.webdav.3e3c8068", "失败"), f"连接失败：\n{e}")
 
     save_btn.clicked.connect(save_config)
     test_btn.clicked.connect(test_connection)
@@ -108,21 +109,21 @@ def sync_now(parent):
     """
     config = WebDAVConfig()
     if not config.enabled:
-        QMessageBox.information(parent, "提示", "请先配置并启用 WebDAV")
+        QMessageBox.information(parent, tr("auto.webdav.ab3656a9", "提示"), tr("auto.webdav.abf804ca", "请先配置并启用 WebDAV"))
         return
     if not config.url:
-        QMessageBox.information(parent, "提示", "WebDAV 地址未配置")
+        QMessageBox.information(parent, tr("auto.webdav.ab3656a9", "提示"), tr("auto.webdav.253a128f", "WebDAV 地址未配置"))
         return
 
     # 防止重复同步
     worker_ref = getattr(parent, '_sync_worker', None)
     if worker_ref is not None and worker_ref.isRunning():
-        QMessageBox.information(parent, "提示", "同步正在进行中")
+        QMessageBox.information(parent, tr("auto.webdav.ab3656a9", "提示"), tr("auto.webdav.8a6b5672", "同步正在进行中"))
         return
 
     # 进度对话框
     progress_dlg = QProgressDialog("正在同步...", "取消", 0, 100, parent)
-    progress_dlg.setWindowTitle("WebDAV 同步")
+    progress_dlg.setWindowTitle(tr("auto.webdav.936653fe", "WebDAV 同步"))
     progress_dlg.setWindowModality(Qt.WindowModal)
     progress_dlg.setMinimumDuration(0)
     progress_dlg.setValue(0)
@@ -158,10 +159,10 @@ def _on_sync_finished(parent, progress_dlg, success, msg):
         pass
     parent._sync_worker = None
     if success:
-        QMessageBox.information(parent, "完成", msg)
+        QMessageBox.information(parent, tr("auto.webdav.33246f6a", "完成"), msg)
         if hasattr(parent, 'set_global_status'):
             parent.set_global_status(msg, 3000)
     else:
-        QMessageBox.warning(parent, "警告", msg)
+        QMessageBox.warning(parent, tr("auto.webdav.5521e368", "警告"), msg)
         if hasattr(parent, 'set_global_status'):
-            parent.set_global_status("同步失败", 3000)
+            parent.set_global_status(tr("auto.webdav.a8f14c99", "同步失败"), 3000)

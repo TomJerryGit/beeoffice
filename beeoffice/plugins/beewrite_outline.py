@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QFont
+from beeoffice.i18n import tr
 
 
 class OutlinePanel(QWidget):
@@ -37,7 +38,7 @@ class OutlinePanel(QWidget):
 
         # 标题栏
         header = QHBoxLayout()
-        title_label = QLabel("📑 大纲")
+        title_label = QLabel(tr("auto.beewrite_outline.a73823a5", "📑 大纲"))
         title_label.setStyleSheet(
             "QLabel{font-size:13px;font-weight:bold;color:#E65100;}"
         )
@@ -46,7 +47,7 @@ class OutlinePanel(QWidget):
 
         btn_refresh = QPushButton("🔄")
         btn_refresh.setFixedWidth(28)
-        btn_refresh.setToolTip("刷新大纲")
+        btn_refresh.setToolTip(tr("auto.beewrite_outline.ba98cd21", "刷新大纲"))
         btn_refresh.clicked.connect(self.refresh)
         header.addWidget(btn_refresh)
 
@@ -63,7 +64,7 @@ class OutlinePanel(QWidget):
 
         # 搜索框
         self._search_edit = QLineEdit()
-        self._search_edit.setPlaceholderText("搜索标题...")
+        self._search_edit.setPlaceholderText(tr("auto.beewrite_outline.f50b8f61", "搜索标题..."))
         self._search_edit.setStyleSheet(
             "QLineEdit{border:1px solid #DDD;border-radius:3px;"
             "padding:4px 8px;font-size:12px;}"
@@ -93,7 +94,7 @@ class OutlinePanel(QWidget):
         bottom_bar = QHBoxLayout()
         bottom_bar.setSpacing(2)
 
-        btn_expand = QPushButton("展开全部")
+        btn_expand = QPushButton(tr("auto.beewrite_outline.64edd632", "展开全部"))
         btn_expand.setStyleSheet(
             "QPushButton{border:1px solid #DDD;padding:3px 6px;"
             "border-radius:3px;font-size:11px;}"
@@ -102,7 +103,7 @@ class OutlinePanel(QWidget):
         btn_expand.clicked.connect(self._expand_all)
         bottom_bar.addWidget(btn_expand)
 
-        btn_collapse = QPushButton("折叠全部")
+        btn_collapse = QPushButton(tr("auto.beewrite_outline.734d3c4d", "折叠全部"))
         btn_collapse.setStyleSheet(
             "QPushButton{border:1px solid #DDD;padding:3px 6px;"
             "border-radius:3px;font-size:11px;}"
@@ -114,7 +115,7 @@ class OutlinePanel(QWidget):
         layout.addLayout(bottom_bar)
 
         # 底部提示
-        tip = QLabel("💡 单击标题跳转")
+        tip = QLabel(tr("auto.beewrite_outline.cc6c0ab6", "💡 单击标题跳转"))
         tip.setStyleSheet(
             "QLabel{color:#999;font-size:10px;padding:2px;}"
         )
@@ -270,14 +271,14 @@ class OutlinePanel(QWidget):
             return
         menu = QMenu(self)
 
-        jump_action = menu.addAction("📍 跳转到此处")
+        jump_action = menu.addAction(tr("auto.beewrite_outline.3753253e", "📍 跳转到此处"))
         jump_action.triggered.connect(
             lambda: self._on_item_clicked(item, 0)
         )
 
         menu.addSeparator()
 
-        expand_action = menu.addAction("⬇️ 展开此项")
+        expand_action = menu.addAction(tr("auto.beewrite_outline.bd929746", "⬇️ 展开此项"))
         expand_action.triggered.connect(item.setExpanded)
 
         menu.exec(self._tree.mapToGlobal(pos))

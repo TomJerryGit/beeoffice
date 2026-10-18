@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
+from beeoffice.i18n import tr
 
 
 class StyleMixin:
@@ -147,7 +148,7 @@ class StyleMixin:
     def _show_cell_format_dialog(self):
         """打开"设置单元格格式"对话框"""
         dlg = QDialog(self)
-        dlg.setWindowTitle("设置单元格格式")
+        dlg.setWindowTitle(tr("auto.beesheet_style_mixin.6c2df6ba", "设置单元格格式"))
         dlg.resize(400, 200)
         layout = QVBoxLayout(dlg)
         form = QFormLayout()
@@ -163,7 +164,7 @@ class StyleMixin:
         decimals.setValue(2)
         form.addRow("小数位数:", decimals)
 
-        separator = QCheckBox("千分位分隔符")
+        separator = QCheckBox(tr("auto.beesheet_style_mixin.061b7e6f", "千分位分隔符"))
         form.addRow(separator)
 
         layout.addLayout(form)
@@ -185,7 +186,7 @@ class StyleMixin:
         self._apply_format_to_selection('number_format', num_type)
         self._apply_format_to_selection('decimals', decimals)
         dlg.accept()
-        self._set_status("格式已应用", 3000)
+        self._set_status(tr("auto.beesheet_style_mixin.7065ed93", "格式已应用"), 3000)
 
     # ==================== 表格整体样式 ====================
     def _show_style_menu(self):
@@ -233,7 +234,7 @@ class StyleMixin:
             )
 
         menu.addSeparator()
-        menu.addAction("❌ 清除样式").triggered.connect(
+        menu.addAction(tr("auto.beesheet_style_mixin.07ca0dad", "❌ 清除样式")).triggered.connect(
             lambda: self._apply_table_style(None)
         )
         menu.exec(self.sender().mapToGlobal(
@@ -257,6 +258,6 @@ class StyleMixin:
             )
 
         if style:
-            self._set_status("✅ 已应用表格样式", 2000)
+            self._set_status(tr("auto.beesheet_style_mixin.74b6868c", "✅ 已应用表格样式"), 2000)
         else:
-            self._set_status("已清除表格样式", 2000)
+            self._set_status(tr("auto.beesheet_style_mixin.7c785004", "已清除表格样式"), 2000)

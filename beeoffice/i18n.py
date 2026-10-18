@@ -49,18 +49,25 @@ class I18nManager:
         return False
 
     def get(self, key: str, default: str = None) -> str:
-        """获取翻译文本"""
-        # 优先使用当前语言
-        if self._current_lang in self._translations:
-            value = self._translations[self._current_lang].get(key)
-            if value:
-                return value
-        # 回退到默认语言
-        value = self._default_translations.get(key)
+        """
+        获取翻译文本。
+
+        回退顺序（v5.3 修正）：
+            当前语言 → **调用方给的默认值** → en_US → 键名
+
+        为什么不能先回退 en_US：
+            本项目的中文默认值写在代码里（`tr("k", "中文")`），
+            zh_CN.json 只覆盖少数需要改写的条目。
+            若先回退 en_US，中文用户会在绝大多数新增文案上看到英文——
+            方向完全反了。英文用户因为 en_US 是全量的，不受影响。
+        """
+        value = self._translations.get(self._current_lang, {}).get(key)
         if value:
             return value
-        # 返回默认值或键名
-        return default if default is not None else key
+        if default is not None:
+            return default
+        value = self._default_translations.get(key)
+        return value if value else key
 
     @property
     def current_language(self) -> str:

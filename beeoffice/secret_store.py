@@ -22,6 +22,7 @@ import ctypes
 import logging
 import sys
 from ctypes import wintypes
+from beeoffice.i18n import tr
 
 _IS_WINDOWS = sys.platform == "win32"
 
@@ -98,7 +99,7 @@ def unprotect(token: str) -> str:
 
     if token.startswith(PREFIX_DPAPI):
         if not _IS_WINDOWS:
-            logging.warning("配置文件由 Windows DPAPI 加密，当前平台无法解密")
+            logging.warning(tr("auto.secret_store.b5f56b03", "配置文件由 Windows DPAPI 加密，当前平台无法解密"))
             return ""
         try:
             raw = base64.b64decode(token[len(PREFIX_DPAPI):])

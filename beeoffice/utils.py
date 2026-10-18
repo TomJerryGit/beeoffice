@@ -5,6 +5,7 @@ import sys
 import platform
 import logging
 from pathlib import Path
+from beeoffice.i18n import tr
 
 
 def get_memory_usage() -> float:
@@ -17,7 +18,7 @@ def get_memory_usage() -> float:
         process = psutil.Process(os.getpid())
         return process.memory_info().rss / 1024 / 1024
     except ImportError:
-        logging.warning("未安装 psutil，无法获取内存使用")
+        logging.warning(tr("auto.utils.1fa7999b", "未安装 psutil，无法获取内存使用"))
         return -1
     except Exception as e:
         logging.error(f"获取内存使用失败: {e}")

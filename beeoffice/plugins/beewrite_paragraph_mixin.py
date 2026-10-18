@@ -40,6 +40,7 @@ from PySide6.QtGui import (
     QTextBlockFormat,
     QTextListFormat,
 )
+from beeoffice.i18n import tr
 
 
 # ==================== 常量 ====================
@@ -63,18 +64,18 @@ class ParagraphMixin:
         """字符底纹 / 字符边框设置对话框"""
         if self._edit_mode != "rich_text":
             QMessageBox.information(
-                self, "提示", "请先切换到所见即所得模式"
+                self, tr("auto.beewrite_paragraph_mixin.ab3656a9", "提示"), tr("auto.beewrite_paragraph_mixin.09b3badd", "请先切换到所见即所得模式")
             )
             return
 
         dlg = QDialog(self)
-        dlg.setWindowTitle("▦ 字符底纹")
+        dlg.setWindowTitle(tr("auto.beewrite_paragraph_mixin.40e4a6af", "▦ 字符底纹"))
         dlg.resize(360, 260)
         layout = QVBoxLayout(dlg)
         form = QFormLayout()
 
         # ---------- 背景色 ----------
-        bg_btn = QPushButton("选择背景色")
+        bg_btn = QPushButton(tr("auto.beewrite_paragraph_mixin.5bd1333a", "选择背景色"))
         bg_color = {"value": None}
 
         def pick_bg():
@@ -91,7 +92,7 @@ class ParagraphMixin:
         form.addRow("底纹色:", bg_btn)
 
         # ---------- 文字色 ----------
-        fg_btn = QPushButton("选择文字色")
+        fg_btn = QPushButton(tr("auto.beewrite_paragraph_mixin.1589ddbd", "选择文字色"))
         fg_color = {"value": None}
 
         def pick_fg():
@@ -108,17 +109,17 @@ class ParagraphMixin:
         form.addRow("文字色:", fg_btn)
 
         # ---------- 加粗 / 下划线 ----------
-        bold_check = QCheckBox("加粗")
+        bold_check = QCheckBox(tr("auto.beewrite_paragraph_mixin.f670b2ad", "加粗"))
         form.addRow(bold_check)
 
-        underline_check = QCheckBox("下划线")
+        underline_check = QCheckBox(tr("auto.beewrite_paragraph_mixin.9bc18ae5", "下划线"))
         form.addRow(underline_check)
 
         layout.addLayout(form)
 
         # ---------- 提示 ----------
         tip = QLabel(
-            "💡 提示：Qt 富文本不支持字符边框，底纹/颜色会立即生效。"
+            tr("auto.beewrite_paragraph_mixin.ef29b058", "💡 提示：Qt 富文本不支持字符边框，底纹/颜色会立即生效。")
         )
         tip.setStyleSheet(
             "QLabel{color:#666;font-size:12px;padding:8px;"
@@ -136,7 +137,7 @@ class ParagraphMixin:
             cursor = self.rich_editor.textCursor()
             if not cursor.hasSelection():
                 QMessageBox.information(
-                    dlg, "提示", "请先选中要设置的文字"
+                    dlg, tr("auto.beewrite_paragraph_mixin.ab3656a9", "提示"), tr("auto.beewrite_paragraph_mixin.1eaaa547", "请先选中要设置的文字")
                 )
                 return
             cursor.beginEditBlock()
@@ -153,7 +154,7 @@ class ParagraphMixin:
                 cursor.mergeCharFormat(fmt)
             finally:
                 cursor.endEditBlock()
-            self._set_status("✅ 字符底纹已应用", 2000)
+            self._set_status(tr("auto.beewrite_paragraph_mixin.a7d3cc7d", "✅ 字符底纹已应用"), 2000)
             dlg.accept()
 
         btns.accepted.connect(on_ok)
@@ -168,12 +169,12 @@ class ParagraphMixin:
         """段落格式设置对话框"""
         if self._edit_mode != "rich_text":
             QMessageBox.information(
-                self, "提示", "请先切换到所见即所得模式"
+                self, tr("auto.beewrite_paragraph_mixin.ab3656a9", "提示"), tr("auto.beewrite_paragraph_mixin.09b3badd", "请先切换到所见即所得模式")
             )
             return
 
         dlg = QDialog(self)
-        dlg.setWindowTitle("¶ 段落格式")
+        dlg.setWindowTitle(tr("auto.beewrite_paragraph_mixin.6c638dc4", "¶ 段落格式"))
         dlg.resize(420, 500)
         layout = QVBoxLayout(dlg)
         form = QFormLayout()
@@ -261,7 +262,7 @@ class ParagraphMixin:
         # ---------- 段落底纹 / 边框 ----------
         shade_form = QFormLayout()
 
-        para_bg_btn = QPushButton("选择段落底纹色")
+        para_bg_btn = QPushButton(tr("auto.beewrite_paragraph_mixin.62e2b074", "选择段落底纹色"))
         para_bg_color = {"value": None}
 
         def pick_para_bg():
@@ -420,7 +421,7 @@ class ParagraphMixin:
         finally:
             cursor.endEditBlock()
 
-        self._set_status("✅ 段落格式已应用", 2000)
+        self._set_status(tr("auto.beewrite_paragraph_mixin.569491c8", "✅ 段落格式已应用"), 2000)
 
     # ==================================================================
     # 多级列表菜单
@@ -429,37 +430,37 @@ class ParagraphMixin:
         """多级列表菜单"""
         if self._edit_mode != "rich_text":
             QMessageBox.information(
-                self, "提示", "请先切换到所见即所得模式"
+                self, tr("auto.beewrite_paragraph_mixin.ab3656a9", "提示"), tr("auto.beewrite_paragraph_mixin.09b3badd", "请先切换到所见即所得模式")
             )
             return
         menu = QMenu(self)
-        menu.addAction("1. 数字 (1.)").triggered.connect(
+        menu.addAction(tr("auto.beewrite_paragraph_mixin.fbc8b5c0", "1. 数字 (1.)")).triggered.connect(
             lambda: self._apply_multilist_style("decimal")
         )
-        menu.addAction("1) 括号数字").triggered.connect(
+        menu.addAction(tr("auto.beewrite_paragraph_mixin.574311a0", "1) 括号数字")).triggered.connect(
             lambda: self._apply_multilist_style("paren")
         )
-        menu.addAction("① 圆圈数字").triggered.connect(
+        menu.addAction(tr("auto.beewrite_paragraph_mixin.f206c91e", "① 圆圈数字")).triggered.connect(
             lambda: self._apply_multilist_style("circled")
         )
-        menu.addAction("Ⅰ. 罗马数字").triggered.connect(
+        menu.addAction(tr("auto.beewrite_paragraph_mixin.f26761f2", "Ⅰ. 罗马数字")).triggered.connect(
             lambda: self._apply_multilist_style("roman")
         )
-        menu.addAction("A. 大写字母").triggered.connect(
+        menu.addAction(tr("auto.beewrite_paragraph_mixin.6e55e336", "A. 大写字母")).triggered.connect(
             lambda: self._apply_multilist_style("upper_alpha")
         )
-        menu.addAction("a. 小写字母").triggered.connect(
+        menu.addAction(tr("auto.beewrite_paragraph_mixin.0d05b405", "a. 小写字母")).triggered.connect(
             lambda: self._apply_multilist_style("lower_alpha")
         )
         menu.addSeparator()
-        menu.addAction("⬆️ 提升级别 (Shift+Tab)").triggered.connect(
+        menu.addAction(tr("auto.beewrite_paragraph_mixin.f54646da", "⬆️ 提升级别 (Shift+Tab)")).triggered.connect(
             self._multilist_promote
         )
-        menu.addAction("⬇️ 降低级别 (Tab)").triggered.connect(
+        menu.addAction(tr("auto.beewrite_paragraph_mixin.a1736781", "⬇️ 降低级别 (Tab)")).triggered.connect(
             self._multilist_demote
         )
         menu.addSeparator()
-        menu.addAction("❌ 取消列表").triggered.connect(
+        menu.addAction(tr("auto.beewrite_paragraph_mixin.8668326b", "❌ 取消列表")).triggered.connect(
             self._multilist_remove
         )
 
@@ -509,7 +510,7 @@ class ParagraphMixin:
         finally:
             cursor.endEditBlock()
 
-        self._set_status("✅ 已应用多级列表样式", 2000)
+        self._set_status(tr("auto.beewrite_paragraph_mixin.10f1890f", "✅ 已应用多级列表样式"), 2000)
 
     # ==================================================================
     # 多级列表级别调整

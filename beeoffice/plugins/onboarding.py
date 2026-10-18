@@ -2,6 +2,7 @@
 from PySide6.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout
 from PySide6.QtCore import Qt, QRect, Signal
 from PySide6.QtGui import QPainter, QColor, QPen, QFont
+from beeoffice.i18n import tr
 
 
 class OnboardingStep:
@@ -82,7 +83,7 @@ class OnboardingOverlay(QWidget):
         layout.addWidget(desc_label)
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
-        skip_btn = QPushButton("跳过")
+        skip_btn = QPushButton(tr("auto.onboarding.31a98593", "跳过"))
         skip_btn.setStyleSheet("QPushButton{background:transparent;border:none;color:#999;font-size:12px}QPushButton:hover{color:#666}")
         skip_btn.clicked.connect(self._skip_all)
         btn_layout.addWidget(skip_btn)
