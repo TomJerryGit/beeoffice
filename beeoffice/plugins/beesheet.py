@@ -81,6 +81,7 @@ from beeoffice.plugins.beesheet_context_menu_mixin import ContextMenuMixin
 from beeoffice.plugins.beesheet_rowcol_mixin import RowColMixin
 from beeoffice.plugins.beesheet_ui_mixin import UIMixin
 from beeoffice.plugins.beesheet_macro_mixin import MacroMixin
+from beeoffice.plugins.beesheet_frozen_mixin import FrozenRowMixin
 from beeoffice.i18n import tr
 
 
@@ -95,6 +96,7 @@ class BeeSheetView(
     RowColMixin,
     UIMixin,
     MacroMixin,
+    FrozenRowMixin,
     QWidget,
 ):
     """蜜算主视图（组装层）"""
@@ -734,11 +736,24 @@ class BeeSheetView(
         在状态标签上显示消息
         :param msg: 消息文本
         :param timeout: 超时自动清空（毫秒），0 表示不自动清空
+
+        v5.2：改用挂在控件上的单个 QTimer，不再用 `QTimer.singleShot`。
+        原因有两个：
+          1. singleShot 的回调在控件销毁后仍会触发，
+             抛 `Internal C++ object already deleted`（Qt6 下可能直接 abort）；
+          2. 连续调用会堆积多个定时器，旧的会把新消息提前清掉。
         """
         self.status_label.setText(msg)
+        timer = getattr(self, "_status_timer", None)
+        if timer is None:
+            timer = QTimer(self)
+            timer.setSingleShot(True)
+            timer.timeout.connect(lambda: self.status_label.setText(""))
+            self._status_timer = timer
         if timeout > 0:
-            QTimer.singleShot(timeout,
-                              lambda: self.status_label.setText(""))
+            timer.start(timeout)
+        else:
+            timer.stop()
 
     def _update_info_panel(self):
         """刷新底部信息面板（坐标 / 值 / 公式 / 批注）"""

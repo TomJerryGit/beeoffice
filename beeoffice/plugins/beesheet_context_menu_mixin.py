@@ -33,7 +33,7 @@
       self._merge_cells / self._add_comment  ← RowColMixin / 主文件
   - 冻结行列的实际视觉分隔线通过 QHeaderView 的 StyleSheet 实现
 """
-from PySide6.QtWidgets import QMenu, QMessageBox
+from PySide6.QtWidgets import QMenu, QMessageBox, QHeaderView
 from PySide6.QtCore import Qt
 
 
@@ -143,6 +143,11 @@ class ContextMenuMixin:
         for i in range(self._frozen_rows):
             self.table_view.verticalHeader().setSectionResizeMode(
                 i, QHeaderView.Fixed)
+        # P1-18：只改 resizeMode 只是"锁住行高"，滚动时照样被顶走。
+        # 首行是最常用场景，这里真正浮一个只显示第 0 行的视图。
+        install = getattr(self, "_install_frozen_row", None)
+        if row == 0 and install is not None:
+            install()
         self._update_status()
         self._set_status(f"📌 已冻结前 {self._frozen_rows} 行", 3000)
 
@@ -171,6 +176,9 @@ class ContextMenuMixin:
         """解除所有冻结的行列"""
         self._frozen_rows = 0
         self._frozen_cols = 0
+        remove = getattr(self, "_remove_frozen_row", None)
+        if remove is not None:
+            remove()
         hh = self.table_view.horizontalHeader()
         vh = self.table_view.verticalHeader()
         for i in range(self.model.columnCount()):
