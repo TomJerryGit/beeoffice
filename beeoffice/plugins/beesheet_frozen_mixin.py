@@ -65,6 +65,50 @@ class _SingleRowProxy(QAbstractProxyModel):
         return self.createIndex(0, source_index.column())
 
 
+class _SingleColumnProxy(QAbstractProxyModel):
+    """
+    只暴露源模型第 column 列的代理模型（列冻结用，O(1)）。
+
+    与 _SingleRowProxy 对称：行数跟随源模型，列数固定为 1。
+    """
+
+    def __init__(self, source=None, column=0, parent=None):
+        super().__init__(parent)
+        self._column = column
+        if source is not None:
+            self.setSourceModel(source)
+
+    def rowCount(self, parent=QModelIndex()):
+        if self.sourceModel() is None:
+            return 0
+        return self.sourceModel().rowCount()
+
+    def columnCount(self, parent=QModelIndex()):
+        if self.sourceModel() is None:
+            return 0
+        return 1 if self.sourceModel().columnCount() > self._column else 0
+
+    def index(self, row, column, parent=QModelIndex()):
+        if column != 0 or self.sourceModel() is None:
+            return QModelIndex()
+        return self.createIndex(row, column)
+
+    def parent(self, index):
+        return QModelIndex()
+
+    def mapToSource(self, proxy_index):
+        if not proxy_index.isValid() or self.sourceModel() is None:
+            return QModelIndex()
+        return self.sourceModel().index(
+            proxy_index.row(), self._column
+        )
+
+    def mapFromSource(self, source_index):
+        if not source_index.isValid():
+            return QModelIndex()
+        return self.createIndex(source_index.row(), 0)
+
+
 class _ViewportWatcher(QObject):
     """viewport 尺寸变化时重新贴合冻结行视图。"""
 
@@ -75,6 +119,7 @@ class _ViewportWatcher(QObject):
     def eventFilter(self, obj, event):
         if event.type() == QEvent.Resize:
             self._view._sync_frozen_geometry()
+            self._view._sync_frozen_column_geometry()
         return False
 
 
@@ -182,5 +227,105 @@ class FrozenRowMixin:
             return
         try:
             view.horizontalHeader().resizeSection(index, new)
+        except Exception:
+            pass
+
+    # ==================== 列冻结（与行冻结对称） ====================
+    def _install_frozen_column(self):
+        """创建并显示冻结列视图（幂等）。"""
+        try:
+            if getattr(self, "_frozen_column_view", None) is not None:
+                self._sync_frozen_column_geometry()
+                self._sync_frozen_rows()
+                self._frozen_column_view.show()
+                return
+
+            table = self.table_view
+            proxy = _SingleColumnProxy(self.model, column=0, parent=self)
+            self._frozen_column_proxy = proxy
+
+            view = QTableView(table.viewport())
+            view.setModel(proxy)
+            view.setFocusPolicy(Qt.NoFocus)
+            view.setSelectionMode(QTableView.NoSelection)
+            view.setEditTriggers(QTableView.NoEditTriggers)
+            view.horizontalHeader().hide()
+            view.verticalHeader().hide()
+            view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            view.setFrameShape(QTableView.NoFrame)
+            view.setStyleSheet(
+                "QTableView { border-right: 2px solid #FFB300;"
+                " background: palette(base); }"
+            )
+            self._frozen_column_view = view
+
+            # 纵向滚动同步（主表动，冻结列跟着动）
+            table.verticalScrollBar().valueChanged.connect(
+                view.verticalScrollBar().setValue
+            )
+            # 行高同步
+            table.verticalHeader().sectionResized.connect(
+                self._on_main_row_resized
+            )
+            # 数据变化时重绘
+            self.model.dataChanged.connect(
+                lambda *a: view.viewport().update()
+            )
+            self.model.modelReset.connect(
+                lambda *a: view.viewport().update()
+            )
+
+            self._sync_frozen_rows()
+            self._sync_frozen_column_geometry()
+            view.show()
+        except Exception as e:
+            logging.error(f"冻结首列失败: {e}")
+
+    def _remove_frozen_column(self):
+        view = getattr(self, "_frozen_column_view", None)
+        if view is None:
+            return
+        try:
+            view.hide()
+            view.setParent(None)
+            view.deleteLater()
+        except Exception:
+            pass
+        self._frozen_column_view = None
+
+    def _sync_frozen_column_geometry(self):
+        view = getattr(self, "_frozen_column_view", None)
+        if view is None:
+            return
+        try:
+            table = self.table_view
+            vp = table.viewport()
+            col_w = table.columnWidth(0) if table.model() else 80
+            view.setGeometry(0, 0, max(col_w, 20), vp.height())
+            view.raise_()
+        except Exception:
+            pass
+
+    def _sync_frozen_rows(self):
+        """把主表的行高复制给冻结列视图。"""
+        view = getattr(self, "_frozen_column_view", None)
+        if view is None:
+            return
+        try:
+            header = self.table_view.verticalHeader()
+            frozen_header = view.verticalHeader()
+            rows = min(self.model.rowCount(), 200)   # 只同步可见规模，够用且不卡
+            for r in range(rows):
+                frozen_header.resizeSection(r, header.sectionSize(r))
+        except Exception:
+            pass
+
+    def _on_main_row_resized(self, index, old, new):
+        view = getattr(self, "_frozen_column_view", None)
+        if view is None:
+            return
+        try:
+            view.verticalHeader().resizeSection(index, new)
         except Exception:
             pass

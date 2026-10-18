@@ -134,6 +134,10 @@ class ContextMenuMixin:
         self.table_view.horizontalHeader().setStyleSheet(
             "QHeaderView::section:last { border-right: 3px solid #FFB300; }"
         )
+        # P1-18：与行冻结对称——首列真正浮一个只显示第 0 列的视图
+        install = getattr(self, "_install_frozen_column", None)
+        if column == 0 and install is not None:
+            install()
         self._update_status()
         self._set_status(f"📌 已冻结前 {self._frozen_cols} 列", 3000)
 
@@ -179,6 +183,9 @@ class ContextMenuMixin:
         remove = getattr(self, "_remove_frozen_row", None)
         if remove is not None:
             remove()
+        remove_col = getattr(self, "_remove_frozen_column", None)
+        if remove_col is not None:
+            remove_col()
         hh = self.table_view.horizontalHeader()
         vh = self.table_view.verticalHeader()
         for i in range(self.model.columnCount()):
