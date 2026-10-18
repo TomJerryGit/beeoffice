@@ -527,11 +527,9 @@ class RichTextEditor(QTextEdit):
             # 修复：重建引用时用的是 setLeftMargin(20)，回写却判断 >30，
             # 于是引用永远识别不回来；同时正文带 "▎ " 前缀，需要剥掉。
             if bf.leftMargin() >= 10:
-                quote_text = text
-                if quote_text.startswith("▎ "):
-                    quote_text = quote_text[2:]
-                elif quote_text.startswith("▎"):
-                    quote_text = quote_text[1:]
+                quote_text = self._inline_to_md(
+                    block, strip_lead="▎", keep_italic=False
+                )
                 md.append("> " + quote_text)
                 block = block.next()
                 continue
@@ -545,26 +543,12 @@ class RichTextEditor(QTextEdit):
                     if tl.format().style() != QTextListFormat.ListDecimal
                     else "1."
                 )
-                md.append(f"{indent}{marker} {text}")
+                md.append(f"{indent}{marker} {self._inline_to_md(block)}")
                 block = block.next()
                 continue
 
-            # 普通段落
-            # 修复：含超链接的段落按 fragment 序列化，保留 [文本](URL)
-            link_md = self._block_with_links_to_md(block)
-            if link_md is not None:
-                md.append(link_md)
-                block = block.next()
-                continue
-
-            prefix = suffix = ""
-            if cf.fontWeight() == QFont.Bold:
-                prefix += "**"
-                suffix = "**" + suffix
-            if cf.fontItalic():
-                prefix += "*"
-                suffix = "*" + suffix
-            md.append(prefix + text + suffix)
+            # 普通段落：按 fragment 序列化，保留粗体/斜体/删除线/行内代码/链接
+            md.append(self._inline_to_md(block))
             block = block.next()
 
         # 去掉文首连续空行
@@ -615,6 +599,95 @@ class RichTextEditor(QTextEdit):
             logging.error(f"解析段落超链接失败: {e}")
             return None
         return "".join(parts) if has_link else None
+
+    # ==================================================================
+    # 行内格式序列化
+    # ==================================================================
+    def _inline_to_md(self, block, strip_lead: str = "",
+                      keep_italic: bool = True) -> str:
+        """
+        按 fragment 序列化段落内的行内格式。
+
+        修复：原实现用 `block.text()` 整体加 `**`，且只看**第一个字符**的格式，
+        所以「正文里有 **粗体**、*斜体* 和 `code`」这种混合行内格式
+        在切回 Markdown 时会被整段抹平——只有整段同格式才勉强保留。
+        引用块和列表更是完全按纯文本输出。
+
+        :param strip_lead: 需要在序列化**之前**剥掉的视觉前缀（引用块的 "▎"）。
+            必须在包标记之前剥，否则会变成 `**▎ 引用**`，前缀卡在标记里面。
+        :param keep_italic: 是否把斜体写成 `*`。
+            引用块整体是斜体样式，那是**视觉样式**不是用户强调，
+            写回 `*` 会让引用在第一次往返就被改写；此时传 False。
+        """
+        try:
+            it = block.begin()
+            parts = []
+            first = True
+            while not it.atEnd():
+                frag = it.fragment()
+                if frag.isValid():
+                    text = frag.text()
+                    if first and strip_lead:
+                        if text.startswith(strip_lead + " "):
+                            text = text[len(strip_lead) + 1:]
+                        elif text.startswith(strip_lead):
+                            text = text[len(strip_lead):]
+                    first = False
+                    if text:
+                        parts.append(
+                            self._wrap_inline(
+                                text, frag.charFormat(),
+                                keep_italic=keep_italic,
+                            )
+                        )
+                it += 1
+            return "".join(parts) if parts else block.text()
+        except Exception as e:
+            logging.error(f"序列化行内格式失败: {e}")
+            return block.text()
+
+    @staticmethod
+    def _wrap_inline(text: str, cf, keep_italic: bool = True) -> str:
+        """给单个 fragment 的文本套上对应的 Markdown 标记。"""
+        # 纯空白不要包标记，否则会产出 `** **` 这种坏掉的语法
+        if not text.strip():
+            return text
+
+        href = ""
+        bold = italic = strike = False
+        is_code = False
+        try:
+            href = cf.anchorHref() or ""
+            bold = cf.fontWeight() >= QFont.Bold
+            italic = cf.fontItalic() if keep_italic else False
+            strike = cf.fontStrikeOut()
+            families = cf.fontFamilies() or []
+            if not isinstance(families, (list, tuple)):
+                families = [str(families)]
+            is_code = any(
+                ("Consolas" in str(f)) or ("Mono" in str(f))
+                or ("Courier" in str(f))
+                for f in families
+            )
+        except Exception:
+            pass
+
+        out = text
+        if is_code:
+            # 行内代码内部不再叠加其它标记，否则反引号里出现 ** 更难读
+            out = f"`{out}`"
+        else:
+            if strike:
+                out = f"~~{out}~~"
+            if bold and italic:
+                out = f"***{out}***"
+            elif bold:
+                out = f"**{out}**"
+            elif italic:
+                out = f"*{out}*"
+        if href:
+            out = f"[{out}]({href})"
+        return out
 
     @staticmethod
     def _split_md_row(line):

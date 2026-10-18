@@ -18,6 +18,7 @@ BeeOffice PyInstaller 打包配置（参考模板）
   - 若使用更低版本 Python（3.9/3.10），请核对 PyInstaller 参数兼容性
   - 打包耗时约 3~10 分钟，视机器性能而定
 """
+import os
 import sys
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_submodules
@@ -133,6 +134,27 @@ excludes = [
     "matplotlib.backends.backend_wx",
     "matplotlib.backends.backend_wxagg",
 ]
+
+
+# ==================== 精简版（拆分蜜演） ====================
+# 背景：Qt6WebEngineCore.dll 单个就 194MB，加上 locales/resources 约 250MB，
+#      占了整个 605MB 包体的四成。
+# 用法：$env:BEEOFFICE_LITE=1; python -m PyInstaller beeoffice.spec
+# 结果：主包约 350MB；蜜演不可用，插件加载时会被跳过（plugin_manager 容错），
+#      其余三个模块完全正常。
+LITE = os.environ.get("BEEOFFICE_LITE", "").strip().lower() in ("1", "true", "yes")
+if LITE:
+    hiddenimports = [h for h in hiddenimports if "WebEngine" not in h]
+    excludes += [
+        "PySide6.QtWebEngineWidgets",
+        "PySide6.QtWebEngineCore",
+        "PySide6.QtWebEngine",
+        "PySide6.QtWebEngineQuick",
+        "PySide6.QtWebChannel",
+        "PySide6.QtPdf",
+        "PySide6.QtQuick",
+    ]
+    print("   + 模式:      精简版（不含蜜演 / WebEngine）")
 
 
 # ==================== Analysis ====================

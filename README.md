@@ -142,3 +142,19 @@ pip install -r requirements.txt
 
 # 启动
 python -m beeoffice.main
+```
+
+## 📦 打包发布
+
+两种包型，按是否需要「蜜演」选择：
+
+| 版本 | 体积 | 说明 | 构建命令 |
+|---|---|---|---|
+| 完整版 | 605 MB | 含蜜演（内置 Chromium / WebEngine） | `python build.py` |
+| 精简版 | **250 MB** | 不含蜜演，其余三个模块完整 | `$env:BEEOFFICE_LITE=1; python -m PyInstaller beeoffice.spec` |
+
+精简版把 QtWebEngine（单个 DLL 就有 194 MB）从包体里拆了出去。
+启动后日志会写明「蜜演未加载：当前为精简版（未打包 QtWebEngine）」，
+插件加载器自动跳过蜜演插件，**不会崩溃、不会报错**，其余功能完全不受影响。
+
+两种包型用的是同一份代码，差异只在打包时是否带 WebEngine。

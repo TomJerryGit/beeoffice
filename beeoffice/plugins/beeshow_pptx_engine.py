@@ -716,7 +716,14 @@ class PPTXEngine:
             full_html = self._wrap_html(html_fragment, theme_css, bg_color)
             ms = self.measurer.measure(full_html)
             if ms.error:
-                logging.warning(f"第 {i+1} 页测量失败：{ms.error}")
+                # 测量失败意味着这一页的版式一定是错的（文字位置、图片尺寸全部退化）。
+                # 原来的行为是"记一条 warning 然后继续生成并返回 True"，
+                # 用户拿到的是一个能打开、但排版错乱的文件——比直接失败更糟。
+                # 现在首错即中止，交由上层回退到图片版导出。
+                logging.error(
+                    f"PPTX 导出中止：第 {i+1}/{len(slides_html)} 页测量失败：{ms.error}"
+                )
+                return False
             measured_slides.append(ms)
 
         # 生成 PPTX

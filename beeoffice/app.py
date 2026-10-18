@@ -405,6 +405,15 @@ class BeeApp(QMainWindow):
             self.plugin_manager.load_plugins()
 
             self._register_plugin_menus()
+
+            # 精简版（BEEOFFICE_LITE）不含 QtWebEngine，蜜演插件会因
+            # ImportError 被跳过。这里显式说明，避免用户以为程序坏了。
+            names = " ".join(str(getattr(p, "name", "")) for p in self.plugins)
+            if "beeshow" not in names.lower() and "蜜演" not in names:
+                logging.info(
+                    "蜜演未加载：当前为精简版（未打包 QtWebEngine），"
+                    "其余模块不受影响"
+                )
         except Exception as e:
             logging.error(f"加载插件失败: {e}")
 

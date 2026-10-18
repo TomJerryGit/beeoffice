@@ -45,6 +45,7 @@ def _silence_dialogs():
 
 def main(argv):
     quick = "--quick" in argv
+    lite = "--lite" in argv
     results = []
 
     def check(name, fn):
@@ -76,7 +77,10 @@ def main(argv):
         return 1
 
     def check_plugins():
-        assert len(window.plugins) >= 4, f"只发现 {len(window.plugins)} 个插件"
+        minimum = 3 if lite else 4
+        assert len(window.plugins) >= minimum, (
+            f"只发现 {len(window.plugins)} 个插件（期望 ≥{minimum}）"
+        )
         return f"{len(window.plugins)} 个"
 
     check("插件数量", check_plugins)
@@ -121,7 +125,10 @@ def main(argv):
         assert show is not None and hasattr(show, "_slides_html")
         return "已就绪"
 
-    check("新建蜜演演示", new_show)
+    if lite:
+        print("  · 精简版：跳过蜜演检查")
+    else:
+        check("新建蜜演演示", new_show)
 
     # ---- PDF 批注 ----
     def new_pdf():
