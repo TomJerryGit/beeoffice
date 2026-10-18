@@ -333,6 +333,14 @@ def setup_menus(main_window):
     pdf_action = tools_menu.addAction(tr("cmd.pdf_annotator", "PDF 批注"))
     pdf_action.triggered.connect(lambda: main_window._open_pdf_annotator())
 
+    # ---- PDF 页面工具（合并/提取/删除/旋转/拆分）----
+    pdf_pages_action = tools_menu.addAction(
+        tr("pdf.pages.command", "PDF：页面工具")
+    )
+    pdf_pages_action.triggered.connect(
+        lambda: main_window._open_pdf_pages()
+    )
+
     # ==================== 视图菜单 ====================
     view_menu = menu_bar.addMenu(tr("menu.view", "视图"))
 

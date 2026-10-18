@@ -1111,6 +1111,18 @@ class BeeApp(QMainWindow):
     # ==================================================================
     # PDF 批注
     # ==================================================================
+    def _open_pdf_pages(self):
+        """打开 PDF 页面工具（合并/提取/删除/旋转/拆分）。"""
+        from beeoffice.plugins.pdf_pages_dialog import PdfPagesDialog
+
+        dialog = PdfPagesDialog(self)
+        dialog.setAttribute(Qt.WA_DeleteOnClose)
+        self._pdf_pages_dialog = dialog      # 防止被垃圾回收
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+        return dialog
+
     def _open_pdf_annotator(self, filepath=None):
         from beeoffice.plugins.pdf_annotator import PDFAnnotator
 

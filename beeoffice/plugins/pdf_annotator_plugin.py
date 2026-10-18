@@ -68,6 +68,25 @@ class PDFAnnotatorPlugin(Plugin):
             tr("auto.pdf_annotator_plugin.a75e982f", "关闭所有已打开的 PDF 批注窗口"),
             self.close_all_annotators
         )
+        palette.register_command(
+            tr("pdf.pages.command", "PDF：页面工具"),
+            tr("pdf.pages.command_desc",
+               "合并 / 提取 / 删除 / 旋转 / 拆分 PDF 页面"),
+            self.open_pages_dialog
+        )
+
+    # ---------- 页面工具（阶段四 P0-1） ----------
+    def open_pages_dialog(self):
+        """打开页面工具对话框（合并/提取/删除/旋转/拆分）。"""
+        from beeoffice.plugins.pdf_pages_dialog import PdfPagesDialog
+
+        dialog = PdfPagesDialog(self.parent)
+        dialog.setAttribute(Qt.WA_DeleteOnClose)
+        self._pages_dialog = dialog      # 防止被垃圾回收
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+        return dialog
 
     # ---------- 打开 PDF ----------
     def open_pdf_dialog(self):

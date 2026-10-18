@@ -1,8 +1,8 @@
 # i18n 走查报告
 
-- 代码中的 tr() key：**1446**
+- 代码中的 tr() key：**1493**
 - **英文缺失（会回退中文）：0**
-- 可对照条目：**1446**
+- 可对照条目：**1493**
 - 同一中文多种译法：**0**
 - 同一英文对应多个中文：**11**
 
@@ -125,7 +125,7 @@ Close the program using it (e.g. WPS, Word, Notepad) and try again.
 - 导出 HTML → Export HTML
 - 导出 HTML → Export HTML
 
-### Save（50 条）
+### Save（51 条）
 - ✅ 已保存: {path} → ✅ Saved: {path}
 - ✅ 已保存为 Markdown：{0} → ✅ Saved as Markdown: {0}
 - ✅ 已保存为 Word 文档：{0} → ✅ Saved as Word document: {0}
@@ -134,10 +134,10 @@ Close the program using it (e.g. WPS, Word, Notepad) and try again.
 - 保存 → Save
 - 保存 → Save
 - 保存 (Ctrl+S) → Save (Ctrl+S)
+- 保存为 → Save as
 - 保存为 Markdown → Save as Markdown
 - 保存为 Markdown 文档 (Ctrl+S) → Save as a Markdown document (Ctrl+S)
 - 保存为 Word 文档 → Save as Word Document
-- 保存为 Word 文档 (Ctrl+S) → Save as a Word document (Ctrl+S)
 
 ### Document（12 条）
 - # 新建文档\n\n在此输入内容... → # New Document
@@ -1549,6 +1549,53 @@ Type your content here... |
 | onboarding | 第 {0}/{1} 步 | Step {0}/{1} |
 | onboarding | 跳过 | Skip |
 | onedrive | OneDrive access_token 为空 | OneDrive access_token is empty |
+| pdf | PDF 页面工具 | PDF Page Tools |
+| pdf | PDF：页面工具 | PDF: Page Tools |
+| pdf | _合并 | _merged |
+| pdf | _已处理 | _processed |
+| pdf | 上移 | Move up |
+| pdf | 下移 | Move down |
+| pdf | 例如 1-3,5,8-（留空表示全部） | e.g. 1-3,5,8- (leave empty for all) |
+| pdf | 保存为 | Save as |
+| pdf | 共 {n} 页 | {n} pages |
+| pdf | 关闭 | Close |
+| pdf | 删除页面 | Delete pages |
+| pdf | 合并 / 提取 / 删除 / 旋转 / 拆分 PDF 页面 | Merge / extract / delete / rotate / split PDF pages |
+| pdf | 合并文件 | Merge files |
+| pdf | 处理失败：{e} | Failed: {e} |
+| pdf | 多段用分号分隔，例如 1-3;5;8- | Separate ranges with semicolons, e.g. 1-3;5;8- |
+| pdf | 完成 | Done |
+| pdf | 完成：{n} 页 → {path} | Done: {n} pages → {path} |
+| pdf | 完成：剩余 {n} 页 → {path} | Done: {n} pages remaining → {path} |
+| pdf | 完成：旋转 {n} 页 → {path} | Done: rotated {n} pages → {path} |
+| pdf | 完成：生成 {n} 个文件 → {path} | Done: created {n} files → {path} |
+| pdf | 待合并文件（按顺序）： | Files to merge (in order): |
+| pdf | 执行 | Run |
+| pdf | 拆分文件 | Split file |
+| pdf | 拆分方式： | Split by: |
+| pdf | 按范围拆分 | Split by ranges |
+| pdf | 提取页面 | Extract pages |
+| pdf | 操作： | Action: |
+| pdf | 旋转角度： | Angle: |
+| pdf | 旋转页面 | Rotate pages |
+| pdf | 无法打开 | Could not open |
+| pdf | 每 N 页一个文件 | One file per N pages |
+| pdf | 每份页数： | Pages per file: |
+| pdf | 每页一个文件 | One file per page |
+| pdf | 浏览… | Browse… |
+| pdf | 添加 | Add |
+| pdf | 源文件： | Source: |
+| pdf | 移除 | Remove |
+| pdf | 缺少信息 | Missing information |
+| pdf | 请先选择源文件 | Choose a source file first |
+| pdf | 请先选择输出位置 | Choose an output location first |
+| pdf | 请填写拆分范围 | Enter the ranges to split by |
+| pdf | 请至少添加两个 PDF 文件 | Add at least two PDF files |
+| pdf | 输出： | Output: |
+| pdf | 选择 PDF | Choose a PDF |
+| pdf | 选择要合并的 PDF | Choose PDFs to merge |
+| pdf | 选择输出文件夹 | Choose an output folder |
+| pdf | 页码范围： | Page range: |
 | pdf_annotator | 保存已批注 PDF | Save Annotated PDF |
 | pdf_annotator | 保存成功 | Saved successfully |
 | pdf_annotator | 已保存至：\n{p} | Saved to:

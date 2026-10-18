@@ -271,6 +271,57 @@ def _f1(ctx):
     return "ok"
 
 
+@check("PDF", "页面工具：合并/提取/删除/旋转/拆分")
+def _f2(ctx):
+    import tempfile
+    from pathlib import Path
+
+    import fitz
+
+    from beeoffice.plugins import pdf_pages
+
+    tmp = Path(tempfile.mkdtemp())
+    src = tmp / "a.pdf"
+    doc = fitz.open()
+    for t in ("p1", "p2", "p3"):
+        doc.new_page(width=200, height=200).insert_text((20, 40), t)
+    doc.save(str(src))
+    doc.close()
+
+    assert pdf_pages.page_count(src) == 3
+    merged = tmp / "m.pdf"
+    assert pdf_pages.merge_pdfs([src, src], merged) == 6
+    extracted = tmp / "e.pdf"
+    assert pdf_pages.extract_pages(src, "2", extracted) == 1
+    deleted = tmp / "d.pdf"
+    assert pdf_pages.delete_pages(src, "1", deleted) == 2
+    rotated = tmp / "r.pdf"
+    assert pdf_pages.rotate_pages(src, "1", 90, rotated) == 1
+    parts = pdf_pages.split_every(src, 2, tmp / "chunks")
+    assert len(parts) == 2
+    return "5 项操作"
+
+
+@check("PDF", "页面工具命令已注册")
+def _f3(ctx):
+    """用假面板收集注册结果：不依赖应用是否已构建好真实面板。"""
+    from beeoffice.plugins.pdf_annotator_plugin import PDFAnnotatorPlugin
+
+    class _FakePalette:
+        def __init__(self):
+            self.titles = []
+
+        def register_command(self, title, desc="", callback=None):
+            self.titles.append(title)
+
+    pal = _FakePalette()
+    PDFAnnotatorPlugin().register_commands(pal)
+    assert any("页面工具" in t or "Page Tools" in t for t in pal.titles), (
+        f"没有注册页面工具命令，实际：{pal.titles}"
+    )
+    return f"{len(pal.titles)} 条命令"
+
+
 # ======================================================================
 # 云同步 / 设置 / 国际化
 # ======================================================================
