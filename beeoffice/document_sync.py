@@ -40,6 +40,8 @@ class SyncReport:
         self.conflicts = []
         self.skipped = []
         self.failed = []
+        # 冲突详情：[{local, remote, remote_copy, key}]，供界面展示与处理
+        self.conflict_details = []
 
     def summary(self) -> str:
         return (
@@ -245,6 +247,12 @@ class DocumentSync:
         try:
             if self.adapter.download(remote, str(target)):
                 report.conflicts.append(str(local))
+                report.conflict_details.append({
+                    "local": str(local),
+                    "remote": remote,
+                    "remote_copy": str(target),
+                    "key": str(local.resolve()),
+                })
             else:
                 report.failed.append(str(local))
         except Exception as e:
@@ -278,6 +286,53 @@ class DocumentSync:
         self._state = state
         self._save_state(state)
         return report
+
+    def resolve_conflict(self, detail: dict, action: str) -> bool:
+        """
+        处理一个同步冲突。
+
+        :param detail: `SyncReport.conflict_details` 里的一项
+        :param action:
+            · "local"  —— 采用本地版本：把本地重新上传覆盖远端
+            · "remote" —— 采用远端版本：用冲突副本覆盖本地
+            · "both"   —— 两个都留：保持现状（本地 + .remote-时间戳 副本）
+        :return: 是否成功
+
+        "both" 不需要动文件，只把状态基线更新成当前值，
+        这样下一次同步不会再把它判成冲突。
+        """
+        local = Path(detail["local"])
+        remote = detail["remote"]
+        copy = Path(detail["remote_copy"])
+        key = detail.get("key") or str(local.resolve())
+
+        try:
+            if action == "local":
+                if not self._upload(local, remote):
+                    return False
+            elif action == "remote":
+                if not copy.exists():
+                    logging.error(f"冲突副本不存在: {copy}")
+                    return False
+                copy.replace(local)
+                try:
+                    copy.unlink()
+                except OSError:
+                    pass
+            elif action == "both":
+                pass
+            else:
+                logging.error(f"未知的冲突处理动作: {action}")
+                return False
+
+            self._state[key] = self._new_record(local, remote)
+            self._save_state(self._state)
+            return True
+        except Exception as e:
+            logging.error(f"处理冲突失败 {local}: {e}")
+            return False
+
+
 
 
 def collect_documents(window, scope: str = "recent") -> list:
@@ -343,3 +398,4 @@ def collect_documents(window, scope: str = "recent") -> list:
 
     return paths
 
+    # ---------- 冲突处理（阶段三 #7） ----------

@@ -1187,6 +1187,8 @@ class BeeApp(QMainWindow):
         self.set_global_status(tr("msg.syncing", "正在同步..."), 0)
 
         def sync_files():
+            conflicts = []
+            sync_ref = []
             local_dir = Path.home() / ".beeoffice_data"
             remote_dir = "/beeoffice"
             local_dir.mkdir(parents=True, exist_ok=True)
@@ -1216,11 +1218,14 @@ class BeeApp(QMainWindow):
                 )
                 docs = collect_documents(self, scope)
                 if docs:
-                    report = DocumentSync(storage).sync(docs)
+                    sync = DocumentSync(storage)
+                    report = sync.sync(docs)
                     doc_summary = report.summary()
                     if report.failed:
                         success = False
                     logging.info(f"文档同步：{doc_summary}")
+                    conflicts.extend(report.conflict_details)
+                    sync_ref.append(sync)
             except Exception as e:
                 logging.error(f"文档同步失败: {e}")
                 success = False
@@ -1230,15 +1235,32 @@ class BeeApp(QMainWindow):
                 if success
                 else tr("msg.sync_partial_failed", "部分文件同步失败")
             )
-            return success, (f"{base}（{doc_summary}）" if doc_summary else base)
+            return (
+                success,
+                (f"{base}（{doc_summary}）" if doc_summary else base),
+                (sync_ref[0] if sync_ref else None),
+                conflicts,
+            )
 
         def on_result(result):
-            success, msg = result
+            success, msg, sync, conflicts = result
             if success:
                 QMessageBox.information(self, tr("msg.success", "完成"), msg)
             else:
                 QMessageBox.warning(self, tr("msg.warning", "警告"), msg)
             self.set_global_status(msg, 3000)
+
+            # 有冲突就给出处理入口，而不是让用户自己去翻文件管理器
+            if conflicts and sync is not None:
+                try:
+                    from beeoffice.plugins.sync_conflict_dialog import (
+                        show_conflicts,
+                    )
+                    self._conflict_dialog = show_conflicts(
+                        sync, conflicts, self
+                    )
+                except Exception as e:
+                    logging.error(f"打开冲突处理窗口失败: {e}")
 
         def on_error(err):
             logging.error(f"同步失败: {err}")
