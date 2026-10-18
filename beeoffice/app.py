@@ -1204,11 +1204,30 @@ class BeeApp(QMainWindow):
                     logging.error(f"上传失败 {file}: {e}")
                     success = False
 
-            return success, (
+            # P1-37：用户文档此前完全没被同步（只传了配置/模板）。
+            # 现在把「已打开的 + 最近列表」里的文档做双向同步。
+            doc_summary = ""
+            try:
+                from beeoffice.document_sync import (
+                    DocumentSync, collect_documents,
+                )
+                docs = collect_documents(self)
+                if docs:
+                    report = DocumentSync(storage).sync(docs)
+                    doc_summary = report.summary()
+                    if report.failed:
+                        success = False
+                    logging.info(f"文档同步：{doc_summary}")
+            except Exception as e:
+                logging.error(f"文档同步失败: {e}")
+                success = False
+
+            base = (
                 tr("msg.sync_success", "同步完成")
                 if success
                 else tr("msg.sync_partial_failed", "部分文件同步失败")
             )
+            return success, (f"{base}（{doc_summary}）" if doc_summary else base)
 
         def on_result(result):
             success, msg = result
