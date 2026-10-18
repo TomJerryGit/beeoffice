@@ -262,11 +262,23 @@ class BeeWriteEditor(
         self._update_timer.setSingleShot(True)
         self._update_timer.timeout.connect(self._smart_refresh)
 
+        # 内容变化信号做 300ms 防抖（P1-26）。
+        # 原实现每次按键都 emit contentChanged，下游拿到信号就会
+        # 把整篇文档序列化一遍（富文本 → Markdown），长文档打字明显卡顿。
+        # 这里把连续输入合并成一次通知；content() 本身仍是按需计算，
+        # 所以不会丢数据，只是把"通知"从每键一次降到停手后一次。
+        self._content_signal_timer = QTimer(self)
+        self._content_signal_timer.setSingleShot(True)
+        self._content_signal_timer.setInterval(300)
+        self._content_signal_timer.timeout.connect(
+            lambda: self.contentChanged.emit()
+        )
+
         self.markdown_editor.textChanged.connect(
             self._on_markdown_text_changed
         )
         self.rich_editor.textChanged.connect(
-            lambda: self.contentChanged.emit()
+            self._content_signal_timer.start
         )
 
         # 状态栏更新
@@ -506,7 +518,8 @@ class BeeWriteEditor(
     def _on_markdown_text_changed(self):
         """Markdown 内容变化：防抖刷新 + 大纲延迟刷新"""
         self._update_timer.start(300)
-        self.contentChanged.emit()
+        # P1-26：内容变化通知同样走防抖，避免每次按键都整篇序列化
+        self._content_signal_timer.start()
         if self._outline_panel.isVisible():
             if not hasattr(self, "_outline_refresh_timer"):
                 self._outline_refresh_timer = QTimer(self)

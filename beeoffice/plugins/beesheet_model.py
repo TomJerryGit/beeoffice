@@ -370,6 +370,12 @@ class SheetDataModel(QAbstractTableModel):
             self._full_df.iloc[r, c] = value
         if r >= self._real_rows:
             self._real_rows = r + 1
+        # 宏录制（P1-29）：只在录制态才有实际开销，否则是一次属性检查
+        try:
+            from beeoffice.plugins.macro_recorder import RECORDER
+            RECORDER.record_set(r, c, value)
+        except Exception:
+            pass
         self.dataChanged.emit(index, index)
         return True
 
