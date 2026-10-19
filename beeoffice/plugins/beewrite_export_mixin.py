@@ -95,6 +95,7 @@ from beeoffice.plugins.image_utils import (
     iter_image_formats,
     iter_block_images,
 )
+from beeoffice.utils import atomic_replace
 
 
 # ==================== 常量 ====================
@@ -202,8 +203,12 @@ class ExportMixin:
           - 保存失败时不更新 _current_file_path（避免状态污染）
         """
         try:
-            with open(path, 'w', encoding='utf-8') as f:
-                f.write(self.content())
+            # P0 止血：Markdown 也走"临时文件 + 原子替换" —— 写到一半失败不会
+            # 把原文件截断。这里不用 atomic_write_text（它吞掉异常返回 bool），
+            # 而是直接用 atomic_replace，让 PermissionError 保持原样抛给下面的
+            # "文件被占用" 友好提示分支。
+            with atomic_replace(path) as tmp_path:
+                tmp_path.write_text(self.content(), encoding="utf-8")
 
             # 保存批注
             base = Path(path).with_suffix('')
@@ -1233,7 +1238,10 @@ class ExportMixin:
             block = block.next()
 
         # 保存（若文件被占用，会在此处抛 PermissionError）
-        doc.save(path)
+        # P0 止血：先写同目录临时文件再原子替换（审计 §4.3 G2）。
+        # 目标文件被占用时 os.replace 同样会抛 PermissionError，由上层友好提示。
+        with atomic_replace(path) as tmp_path:
+            doc.save(str(tmp_path))
 
     def _count_document_images(self) -> int:
         """

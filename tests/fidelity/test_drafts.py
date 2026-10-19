@@ -192,4 +192,6 @@ def test_saved_document_clears_its_draft():
     """成功保存后要丢掉草稿（否则每次启动都提示"有未保存内容"）。"""
     source = (ROOT / "beeoffice" / "app.py").read_text(encoding="utf-8")
     assert "draft = getattr(widget, \"_draft_path\", None)" in source
-    assert "_drafts.discard(draft)" in source
+    assert "drafts_mod.discard(draft)" in source
+    # 定义 + 自动保存成功路径 + 手动保存成功路径 都要用到它
+    assert source.count("_discard_draft_for(") >= 3

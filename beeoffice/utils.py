@@ -6,6 +6,7 @@ import json
 import uuid
 import platform
 import logging
+from contextlib import contextmanager
 from pathlib import Path
 
 
@@ -148,6 +149,56 @@ def atomic_write_json(path, obj, indent: int = 2) -> bool:
         logging.error(f"JSON 序列化失败（目标文件未改动） {path}: {e}")
         return False
     return atomic_write_text(path, text)
+
+
+@contextmanager
+def atomic_replace(target):
+    """
+    给"必须由第三方库按路径保存"的场景提供**原子覆盖**。
+
+    背景（P0 止血，审计 §4.3 G2）：
+      `python-docx` / `openpyxl` / `python-pptx` 的 `save(path)` 都是直接
+      以写模式打开目标文件。若写到一半崩溃/断电/磁盘满，目标文件会被留成
+      半份（OOXML 本质是 zip，半份等于坏文件）；而 `utils.atomic_write_text`
+      只适用于"我们自己写文本"的场景，救不了库的 `save()`。
+
+    用法::
+
+        with atomic_replace(target) as tmp:
+            doc.save(str(tmp))          # 库只会看到临时路径
+
+    实现要点：
+      * 临时文件与目标**同目录、同扩展名**（`openpyxl`/pandas 会按扩展名选引擎，
+        改成 `.tmp` 会直接报 "No engine for filetype"）；
+      * 正常退出后 `os.replace` 原子替换；任何异常都会删除临时文件并把异常
+        **继续抛给调用方**（由调用方决定提示方式），目标文件保持原样；
+      * 不用 `tempfile.mkstemp()`：项目已实测它在不可写目录下可能无限期阻塞
+        （见 `atomic_write_text` 的说明），这里用独占创建的普通文件。
+
+    :param target: 目标路径（文件或目录均可，目录会被创建）
+    """
+    target = Path(target)
+    tmp_path = target.parent / (
+        f".{target.stem}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp{target.suffix}"
+    )
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        # "x" 独占创建：名字带 pid+uuid，正常不会撞；撞了也应快速失败而不是覆盖
+        with open(tmp_path, "x", encoding="utf-8"):
+            pass
+        yield tmp_path
+        try:
+            with open(tmp_path, "rb") as f:
+                os.fsync(f.fileno())
+        except OSError:
+            pass
+        os.replace(tmp_path, target)
+    except BaseException:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
 
 
 def get_app_data_dir() -> Path:

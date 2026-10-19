@@ -20,6 +20,7 @@ from PySide6.QtCore import Qt, QPoint, QRect
 from beeoffice.plugins.beesheet_commands import (
     EditCellCommand, SortCommand, TrimCommand
 )
+from beeoffice.utils import atomic_replace
 
 
 class DataMixin:
@@ -119,7 +120,12 @@ class DataMixin:
         P1（本刀）：写完再**贴一遍视图侧格式**（加粗/斜体/下划线/对齐/数字格式、
         合并、批注、条件格式）。两条写入路径共用同一个后处理函数，
         避免"改了一个、另一个没改"。
+
+        P0 止血（审计 §4.3 G2）：两条写入路径 + 样式后处理全部先写到
+        **同目录临时文件**，最后 `os.replace` 原子替换。这样中途崩溃/磁盘满
+        不会把用户原工作簿留成半份 zip；失败时原文件保持不变。
         """
+        target = Path(path)
         try:
             df = self._get_export_df()
             sheet_name = getattr(self, "_active_sheet_name", "") or "Sheet1"
@@ -128,24 +134,26 @@ class DataMixin:
             # 之前写进去的图表等结构都没了 → 图表规格必须**全部重写**；
             # 而更新源工作簿时结构天然保留 → 只写还没写过的规格（否则叠加）。
             fresh_file = True
-            if workbook is not None and workbook.sheets:
-                from beeoffice.plugins.beesheet_workbook import (
-                    sync_active_sheet,
-                    write_workbook,
+            with atomic_replace(target) as tmp_path:
+                tmp = str(tmp_path)
+                if workbook is not None and workbook.sheets:
+                    from beeoffice.plugins.beesheet_workbook import (
+                        sync_active_sheet,
+                        write_workbook,
+                    )
+
+                    name = getattr(self, "_active_sheet_name", "") \
+                        or workbook.active
+                    sync_active_sheet(workbook, name, df)
+                    write_workbook(workbook, tmp)
+                    sheet_name = name
+                    fresh_file = False
+                else:
+                    df.to_excel(tmp, index=False, sheet_name=sheet_name)
+
+                self._apply_view_styles_to(
+                    tmp, sheet_name, len(df), fresh_file=fresh_file
                 )
-
-                name = getattr(self, "_active_sheet_name", "") \
-                    or workbook.active
-                sync_active_sheet(workbook, name, df)
-                write_workbook(workbook, path)
-                sheet_name = name
-                fresh_file = False
-            else:
-                df.to_excel(path, index=False, sheet_name=sheet_name)
-
-            self._apply_view_styles_to(
-                path, sheet_name, len(df), fresh_file=fresh_file
-            )
             return True
         except Exception as e:  # noqa: BLE001
             logging.error(f"[蜜算] 写 xlsx 失败 {path}: {e}")

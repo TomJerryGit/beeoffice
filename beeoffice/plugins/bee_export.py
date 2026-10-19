@@ -39,6 +39,7 @@ from beeoffice.plugins.image_utils import (
     normalize_image_ref,
     resolve_image_path,
 )
+from beeoffice.utils import atomic_replace
 
 # ==================== 可选依赖导入 ====================
 try:
@@ -1304,7 +1305,10 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
         apply_paragraph_styles(doc, paragraph_styles, style_definitions)
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-        doc.save(output_path)
+        # P0 止血：先写同目录临时文件再原子替换 —— 写到一半崩溃不会把
+        # 用户原有的 docx 留成半份（审计 §4.3 G2）。
+        with atomic_replace(output_path) as tmp_path:
+            doc.save(str(tmp_path))
         return True
     except Exception as e:
         logging.error(f"DOCX 导出失败: {e}")
@@ -2652,7 +2656,8 @@ def export_html_to_docx(html_content, output_path, base_dir=None):
         doc = Document()
         _write_html_to_docx(soup, doc, base_dir=base_dir)
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-        doc.save(output_path)
+        with atomic_replace(output_path) as tmp_path:
+            doc.save(str(tmp_path))
         return True
     except Exception as e:
         logging.error(f"HTML→DOCX 失败: {e}")

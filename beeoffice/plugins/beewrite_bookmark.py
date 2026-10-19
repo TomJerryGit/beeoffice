@@ -69,14 +69,13 @@ class BookmarkManager:
             self._bookmarks = dict(data)
 
     def save_to_file(self, path):
-        try:
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(self._bookmarks, f,
-                          ensure_ascii=False, indent=2)
+        # P0 止血：旁挂 JSON 也原子写（写到一半崩溃不会留下坏文件）
+        from beeoffice.utils import atomic_write_json
+
+        if atomic_write_json(path, self._bookmarks):
             return True
-        except Exception as e:
-            logging.error(f"书签保存失败: {e}")
-            return False
+        logging.error(f"书签保存失败: {path}")
+        return False
 
     def load_from_file(self, path):
         try:

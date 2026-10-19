@@ -465,37 +465,42 @@ class BeeApp(QMainWindow):
             )
 
     def _autosave(self):
-        widget = self.tab_manager.currentWidget()
-        if widget is None:
-            return
-        if not (hasattr(widget, "save") and self._has_unsaved_changes(widget)):
-            return
-        # P0-5：**没有文件路径**的"新建文档"最怕崩溃 —— 它既没被 save() 写盘，
-        # 也不在任何恢复路径上。这里先留一份草稿（占位），再按原有逻辑返回。
-        if not getattr(widget, "_current_file_path", None):
-            self._write_draft_for(widget)
-            return
+        """
+        自动保存：**遍历所有标签**（P0 止血，审计 §4.3 G3）。
 
-        try:
-            # R6：覆盖保存前先留一份（备份失败会静默，不阻断保存）
-            self._backup_before_save(widget, reason="before_save")
-            if widget.save():
-                self.set_global_status(tr("msg.autosave_done", "已自动保存"), 3000)
-                # P0-5：已经安全落盘 → 草稿可以丢了
-                draft = getattr(widget, "_draft_path", None)
-                if draft:
-                    from beeoffice import drafts as _drafts
-                    _drafts.discard(draft)
-                    widget._draft_path = None
-                try:
-                    self.tab_manager._tab_initial_content[id(widget)] = (
-                        self._get_widget_content(widget)
-                    )
-                    self.tab_manager._mark_saved(widget)
-                except Exception as e:
-                    logging.error(f"更新自动保存状态失败: {e}")
-        except Exception as e:
-            logging.error(f"自动保存失败: {e}")
+        原实现只取 `currentWidget()`：后台标签的未保存修改既不会自动保存，
+        也不会进草稿 —— 叠加"关窗不检查未保存"就会静默丢数据。
+        """
+        saved_any = False
+        for index in range(self.tab_manager.count()):
+            widget = self.tab_manager.widget(index)
+            if widget is None or not hasattr(widget, "save"):
+                continue
+            try:
+                if not self._has_unsaved_changes(widget):
+                    continue
+                # P0-5：没有文件路径的"新建文档"最怕崩溃 —— 它既没被 save()
+                # 写盘，也不在任何恢复路径上。这里先留一份草稿。
+                if not getattr(widget, "_current_file_path", None):
+                    self._write_draft_for(widget)
+                    continue
+                # R6：覆盖保存前先留一份（备份失败会静默，不阻断保存）
+                self._backup_before_save(widget, reason="before_save")
+                if widget.save():
+                    saved_any = True
+                    # P0-5：已经安全落盘 → 草稿可以丢了
+                    self._discard_draft_for(widget)
+                    try:
+                        self.tab_manager._tab_initial_content[id(widget)] = (
+                            self._get_widget_content(widget)
+                        )
+                        self.tab_manager._mark_saved(widget)
+                    except Exception as e:
+                        logging.error(f"更新自动保存状态失败: {e}")
+            except Exception as e:
+                logging.error(f"自动保存失败: {e}")
+        if saved_any:
+            self.set_global_status(tr("msg.autosave_done", "已自动保存"), 3000)
 
     # ==================== P0-5：草稿（崩溃恢复的读取端）====================
     def _draft_kind_for(self, widget) -> str:
@@ -547,6 +552,22 @@ class BeeApp(QMainWindow):
             drafts_mod.discard(previous)
         widget._draft_path = path
         return True
+
+    def _discard_draft_for(self, widget) -> None:
+        """文档已安全落盘后丢弃它的草稿（失败只记日志，不影响保存）。"""
+        draft = getattr(widget, "_draft_path", None)
+        if not draft:
+            return
+        try:
+            from beeoffice import drafts as drafts_mod
+
+            drafts_mod.discard(draft)
+        except Exception as e:  # noqa: BLE001 - 清草稿失败不该影响主流程
+            logging.error(f"清理草稿失败 {draft}: {e}")
+        try:
+            widget._draft_path = None
+        except Exception:
+            pass
 
     def _check_recoverable_drafts(self, force: bool = False) -> None:
         """
@@ -1068,33 +1089,47 @@ class BeeApp(QMainWindow):
     # ==================================================================
     # 保存
     # ==================================================================
-    def _save_current(self):
-        widget = self.tab_manager.currentWidget()
-        if widget is None:
-            return
+    def _save_widget(self, widget) -> bool:
+        """
+        保存**任意标签**（不限于当前页）—— 供 Ctrl+S、自动保存、关闭前确认复用。
 
+        :return: 是否确实保存成功（另存为被取消 / 保存失败都返回 False）
+        """
+        if widget is None:
+            return False
         if hasattr(widget, "save"):
             try:
                 # R6：**手动保存（Ctrl+S）同样要先留一份** ——
                 # 保存是直接覆盖，用户手滑写坏就没救了。
                 self._backup_before_save(widget, reason="before_save")
-                if widget.save():
-                    try:
-                        self.tab_manager._mark_saved(widget)
-                    except Exception:
-                        pass
-                    # 保存成功后同步标签标题
-                    path = getattr(widget, "_current_file_path", None)
-                    if path:
-                        self.sync_tab_title(widget, path)
-                    self.status_label.setText(tr("msg.saved", "已保存"))
-                else:
-                    self.status_label.setText(tr("msg.save_failed", "保存失败"))
-            except Exception as e:
+                if not widget.save():
+                    return False
+                try:
+                    self.tab_manager._mark_saved(widget)
+                except Exception:
+                    pass
+                # 保存成功后同步标签标题 + 丢掉草稿
+                path = getattr(widget, "_current_file_path", None)
+                if path:
+                    self.sync_tab_title(widget, path)
+                self._discard_draft_for(widget)
+                return True
+            except Exception as e:  # noqa: BLE001 - 保存异常要给用户可见的失败
                 logging.error(f"保存失败: {e}")
-                self.status_label.setText(tr("msg.save_failed", "保存失败"))
-        elif hasattr(widget, "_export_xlsx"):
+                return False
+        if hasattr(widget, "_export_xlsx"):
             widget._export_xlsx()
+            return bool(getattr(widget, "_current_file_path", None))
+        return False
+
+    def _save_current(self):
+        widget = self.tab_manager.currentWidget()
+        if widget is None:
+            return
+        if self._save_widget(widget):
+            self.status_label.setText(tr("msg.saved", "已保存"))
+        else:
+            self.status_label.setText(tr("msg.save_failed", "保存失败"))
 
     def _save_as_current(self):
         widget = self.tab_manager.currentWidget()
@@ -1864,7 +1899,115 @@ class BeeApp(QMainWindow):
     # ==================================================================
     # 关闭
     # ==================================================================
+    def _dirty_tabs(self):
+        """
+        返回"有未保存修改、且参与未保存检查"的标签列表 `[(index, widget)]`。
+
+        `_tab_initial_content` 里没有记录的控件（分屏容器等）不参与检查；
+        值为 None 的按既有约定视为"不支持检查"（与 TabManager 一致）。
+        """
+        dirty = []
+        tm = self.tab_manager
+        for index in range(tm.count()):
+            widget = tm.widget(index)
+            if widget is None:
+                continue
+            try:
+                initial = tm._tab_initial_content.get(id(widget), "")
+            except Exception:
+                initial = ""
+            if initial is None:
+                continue
+            try:
+                if self._has_unsaved_changes(widget):
+                    dirty.append((index, widget))
+            except Exception as e:  # noqa: BLE001 - 单个控件判断失败不阻塞关闭流程
+                logging.error(f"检查标签未保存状态失败: {e}")
+        return dirty
+
+    def _ask_close_tab(self, widget, title: str, has_path: bool) -> str:
+        """
+        关闭前询问单个标签怎么处理。
+
+        **独立成方法**是为了可测试（测试直接替换它，不必弹出模态框）。
+
+        :return: ``"save"`` / ``"discard"`` / ``"cancel"``
+        """
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Warning)
+        box.setWindowTitle("关闭 BeeOffice")
+        if has_path:
+            box.setText(f"「{title}」有未保存的修改。")
+            box.setInformativeText("关闭前要保存吗？")
+        else:
+            box.setText(f"「{title}」尚未保存到文件。")
+            box.setInformativeText(
+                "选择「不保存」会保留一份草稿，下次启动仍可恢复；"
+                "选择「取消」则不关闭窗口。"
+            )
+        save_btn = box.addButton("保存", QMessageBox.AcceptRole)
+        discard_btn = box.addButton("不保存", QMessageBox.DestructiveRole)
+        box.addButton("取消", QMessageBox.RejectRole)
+        box.setDefaultButton(save_btn)
+        box.exec()
+        clicked = box.clickedButton()
+        if clicked is save_btn:
+            return "save"
+        if clicked is discard_btn:
+            return "discard"
+        # 包括点右上角关闭（无 clickedButton）——一律按"取消"处理
+        return "cancel"
+
+    def _confirm_close_all_tabs(self) -> bool:
+        """
+        关闭主窗口前的**未保存兜底**（P0 止血，审计 §4.3 G1）。
+
+        原 `closeEvent` 只停定时器、存设置、关插件 —— 不遍历标签做未保存检查。
+        用户点 X/Alt+F4 时，最近一次自动保存之后的修改会**静默丢失**
+        （实测：无任何弹窗、草稿目录为空）。
+
+        现在：逐个询问（保存 / 不保存 / 取消）；
+          * 选「保存」→ 调 `_save_widget`，失败（含另存为取消）则**中止关闭**；
+          * 选「不保存」且文档没有路径 → 关闭前写一份草稿，下次启动可恢复；
+          * 选「取消」或对话框被直接关闭 → 中止关闭。
+
+        :return: True = 可以关闭；False = 用户取消/保存失败，应中止
+        """
+        for index, widget in self._dirty_tabs():
+            try:
+                self.tab_manager.setCurrentIndex(index)
+                title = self.tab_manager.tabText(index)
+                path = getattr(widget, "_current_file_path", None)
+                choice = self._ask_close_tab(widget, title, bool(path))
+                if choice == "cancel":
+                    return False
+                if choice == "save":
+                    if not self._save_widget(widget):
+                        QMessageBox.warning(
+                            self, "保存失败",
+                            f"「{title}」没有保存成功，已取消关闭。\n\n"
+                            "请检查文件是否被占用/目录是否可写，或改用「另存为」。",
+                        )
+                        return False
+                elif not path:
+                    # 用户选择放弃：对"从未保存到文件"的文档保留草稿兜底
+                    self._write_draft_for(widget)
+            except Exception as e:  # noqa: BLE001 - 兜底异常时宁可中止关闭
+                logging.exception(f"关闭前处理标签失败: {e}")
+                return False
+        return True
+
     def closeEvent(self, event):
+        # P0 止血（审计 §4.3 G1）：先做未保存检查，用户取消则**不关闭**
+        try:
+            if not self._confirm_close_all_tabs():
+                event.ignore()
+                return
+        except Exception as e:  # noqa: BLE001 - 检查失败时中止关闭，避免丢数据
+            logging.exception(f"关闭前的未保存检查失败: {e}")
+            event.ignore()
+            return
+
         try:
             self.autosave_timer.stop()
         except Exception:

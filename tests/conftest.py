@@ -224,10 +224,17 @@ def app(qtbot, temp_settings, monkeypatch):
     monkeypatch.setattr(BeeApp, "_check_auto_sync", lambda self: None)
 
     window = BeeApp()
+    # P0 止血：closeEvent 现在会做未保存检查（可能弹模态框）。
+    # 默认让测试窗口关闭时不弹框（避免 pytest-qt 在 teardown 关窗时挂住）；
+    # 需要测试真实关闭逻辑的用例请显式换回类方法，例如：
+    #     monkeypatch.setattr(app, "_confirm_close_all_tabs",
+    #                         lambda: BeeApp._confirm_close_all_tabs(app))
+    window._confirm_close_all_tabs = lambda: True
     qtbot.addWidget(window)
     yield window
 
     try:
+        window._confirm_close_all_tabs = lambda: True
         window.close()
     except Exception:
         pass
@@ -249,6 +256,7 @@ def app_with_plugins(qtbot, temp_settings):
     from beeoffice.app import BeeApp
 
     window = BeeApp()
+    window._confirm_close_all_tabs = lambda: True
     qtbot.addWidget(window)
 
     # 等待 _lazy_load_modules 执行（singleShot 50ms，留 150ms 余量）
@@ -257,6 +265,7 @@ def app_with_plugins(qtbot, temp_settings):
     yield window
 
     try:
+        window._confirm_close_all_tabs = lambda: True
         window.close()
     except Exception:
         pass
