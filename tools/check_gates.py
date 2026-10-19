@@ -244,6 +244,12 @@ GATES = [
         "曾经：自动保存只覆盖已有文件路径的文档 → 新建文档崩溃即整份丢失（有写无读）",
     ),
     Gate(
+        "i18n-complete",
+        "语言包完整：代码里 tr() 用到的 key 在 zh_CN/en_US 都存在且占位符一致",
+        "tests/fidelity/test_i18n.py",
+        "曾经：en_US 缺 53 个 key → 切英文后界面冒出中文（回退到代码默认值）",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",
