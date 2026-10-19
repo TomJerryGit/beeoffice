@@ -6,6 +6,26 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ---
+## [Unreleased]
+
+**阶段③工具与报告**（不改变产品行为，尚未打包）：
+
+### 新增工具
+- `tools/pipelines/build_jobs.py`：把目录变成 `beecmd batch` 任务清单的**流水线模板**，
+  支持三种：`md-pdf`（批量转 PDF，可带词元级 verify）、`beshow`（批量转蜜演文稿）、
+  `sheet-merge`（多表汇总）。6 条单测 `tests/unit/test_pipeline_jobs.py`；
+  实测三模板分别 2/2、2/2、1/1 成功，审计流水落盘（见 `docs/模板-三个自动化流水线.md`）。
+- `tools/fidelity_report.py`：保真度**报告生成器**（区别于检查器 `fidelity_corpus.py`）：
+  按"已知类别/未知类别"分类差异，逐文件给出文字丢失率、空段落解释与增加项，
+  输出 Markdown + JSON；只有未知类别/异常时 exit 1。
+  首份报告：7 份真实文档 + 9 份压力语料（其中 1 份 pptx 跳过往返），未知类别 0
+  （见 `docs/保真基线-真实7份与压力9份.md`）。
+
+### 说明
+- 模板①受限：`.docx` → PDF 仍不支持，只覆盖 Markdown 源；
+- 模板③只产出 `.beshow`，`.pptx` 导出仍依赖 GUI/WebEngine；
+- 真实语料仍只有 7 份（目标 50 份），需要用户提供脱敏样本。
+---
 ## [5.0.13] - 2026-10-19
 
 **P1 正确性/体验版**：公式引擎兼容 Excel 常用写法、首次打开 DOCX 提速数倍，
