@@ -152,7 +152,7 @@ def _make_window():
     return window
 
 
-@pytest.mark.parametrize("name", ["老文档.doc", "幻灯片.pptx", "book.xlsm"])
+@pytest.mark.parametrize("name", ["老文档.doc", "book.xlsm"])
 def test_unsupported_extension_shows_message_and_skips_recent(
         tmp_path, monkeypatch, name):
     """

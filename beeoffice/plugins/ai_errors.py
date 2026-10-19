@@ -51,6 +51,18 @@ _NOT_A_ROUTE_HINTS = (
 )
 
 
+def _has_status(text: str, code: int) -> bool:
+    """
+    判断错误文本里是否出现了**状态码**（而不是碰巧包含这几个数字）。
+
+    ⚠️ 实测坑：原先直接 `"404" in text` —— 于是 `localhost:4040` 的**拒连**
+    也会被当成 HTTP 404（还把用户引向"地址不对"）。改成按数字边界匹配。
+    """
+    import re
+
+    return re.search(rf"(?<!\d){code}(?!\d)", text or "") is not None
+
+
 def _looks_like_model_missing(body: str, status: Optional[int]) -> bool:
     lowered = (body or "").lower()
     if any(hint in lowered for hint in _MODEL_MISSING_HINTS):
@@ -93,8 +105,8 @@ def explain_ai_error(
         or "127.0.0.1" in (api_base or "")
 
     # ---------- 401 / 403：Key 或权限 ----------
-    if status in (401, 403) or "401" in text or "403" in text \
-            or "unauthorized" in combined:
+    if status in (401, 403) or _has_status(text, 401) \
+            or _has_status(text, 403) or "unauthorized" in combined:
         if local:
             return ("本地服务拒绝了请求（HTTP 401/403）。"
                     "Ollama 一般不需要 Key，请把『API Key』留空重试。")
@@ -102,7 +114,7 @@ def explain_ai_error(
                 "请检查 Key 是否填对、账户是否有余额。")
 
     # ---------- 404：**先看响应体**再下结论 ----------
-    if status == 404 or "404" in text:
+    if status == 404 or _has_status(text, 404):
         if _looks_like_model_missing(body, status):
             return (
                 f"模型「{model or '（未填）'}」在该服务上不存在（HTTP 404）。\n"
@@ -129,7 +141,7 @@ def explain_ai_error(
                    if local else ""))
 
     # ---------- 429：限流/额度 ----------
-    if status == 429 or "429" in text:
+    if status == 429 or _has_status(text, 429):
         return "请求太频繁或额度用尽（HTTP 429）：稍后再试，或检查账户余额。"
 
     # ---------- 连不上本地服务 ----------

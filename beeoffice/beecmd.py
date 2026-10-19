@@ -669,6 +669,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         return EXIT_ERROR
     except KeyboardInterrupt:
         return EXIT_ERROR
+    except Exception as e:  # noqa: BLE001 - 未预料的错误也要**干净**报错，别甩 traceback
+        # 实测：损坏的 .pptx 会抛 python-pptx 的 PackageNotFoundError，
+        # 原先直接 traceback 甩给用户（exit 1 但体验很差）。
+        print(f"❌ 处理失败：{type(e).__name__}: {e}", file=sys.stderr)
+        print("   （如果是 .pptx，请确认文件完好、未被加密/占用）",
+              file=sys.stderr)
+        return EXIT_ERROR
     parser.print_help()
     return EXIT_ERROR
 

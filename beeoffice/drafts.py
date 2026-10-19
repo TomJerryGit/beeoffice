@@ -45,10 +45,20 @@ DEFAULT_MAX_AGE_DAYS = 7
 
 
 def drafts_dir() -> Path:
-    """草稿根目录（可用 `BEEOFFICE_DRAFT_DIR` 覆盖，测试/便携部署用）。"""
+    """
+    草稿根目录（可用 `BEEOFFICE_DRAFT_DIR` 覆盖，测试/便携部署用）。
+
+    ⚠️ **绝不抛异常**：home 只读、或路径被一个同名文件占住时，
+    创建目录会失败。原先这里直接 `mkdir()` → 启动时的草稿检查会抛
+    `FileExistsError`/`PermissionError`（实测过），把"恢复"变成"启动报错"。
+    现在失败就返回路径本身，调用方（`list_drafts`/`record`）各自容错。
+    """
     override = os.environ.get("BEEOFFICE_DRAFT_DIR", "").strip()
     root = Path(override) if override else Path.home() / ".beeoffice_drafts"
-    root.mkdir(parents=True, exist_ok=True)
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass          # 目录不可用 → 后续读取/写入各自兜底，不在初始化时炸
     return root
 
 
@@ -91,8 +101,8 @@ def meta_path(draft: Path) -> Path:
 
 
 def record(draft: Path, *, kind: str, title: str = "",
-           source: str = "", created: Optional[float] = None) -> None:
-    """写元信息（原子写）。"""
+           source: str = "", created: Optional[float] = None) -> bool:
+    """写元信息（原子写）。写不了（只读目录/磁盘满）返回 False，**不抛异常**。"""
     payload = {
         "kind": kind,
         "title": title,
@@ -101,8 +111,16 @@ def record(draft: Path, *, kind: str, title: str = "",
     }
     target = meta_path(Path(draft))
     tmp = target.with_name(target.name + ".tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-    os.replace(tmp, target)
+    try:
+        tmp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        os.replace(tmp, target)
+        return True
+    except OSError:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+        return False
 
 
 def discard(draft) -> bool:
@@ -121,12 +139,16 @@ def discard(draft) -> bool:
 
 def list_drafts(max_age_days: Optional[float] = None) -> List[DraftEntry]:
     """
-    列出草稿（按创建时间倒序）。
+    列出草稿（按创建时间倒序）。目录不可用/读不了时返回**空列表**，不抛异常。
 
     :param max_age_days: 只返回这个天数以内的（None = 全部）
     """
     entries: List[DraftEntry] = []
-    for path in drafts_dir().glob("draft-*"):
+    try:
+        candidates = list(drafts_dir().glob("draft-*"))
+    except OSError:
+        return entries
+    for path in candidates:
         if path.name.endswith(META_SUFFIX) or path.suffix == ".tmp":
             continue
         if not path.is_file():

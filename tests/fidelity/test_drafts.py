@@ -84,6 +84,38 @@ def test_discard_removes_file_and_meta(draft_dir):
     assert draft_dir.list_drafts() == []
 
 
+# ==================== 审计补充：目录不可用时**不许抛异常** ====================
+
+def test_drafts_dir_survives_when_path_is_blocked(monkeypatch, tmp_path):
+    """
+    **审计发现（高危）**：`drafts_dir()` 原先直接 `mkdir()` →
+    当草稿路径被一个**同名文件**占住（或 home 只读）时抛
+    `FileExistsError` / `PermissionError`，而启动时的草稿检查会因此报错 ——
+    "恢复功能"反而变成"启动报错"。
+    """
+    from beeoffice import drafts
+
+    blocker = tmp_path / "blocked"
+    blocker.write_text("我是一个文件，不是目录", encoding="utf-8")
+    monkeypatch.setenv("BEEOFFICE_DRAFT_DIR", str(blocker))
+
+    assert drafts.drafts_dir() == blocker          # 不抛异常
+    assert drafts.list_drafts() == []               # 读不到 = 空列表
+    assert drafts.record(blocker / "draft-doc-x.md", kind="doc") is False
+    assert drafts.cleanup_stale() == 0
+
+
+def test_record_returns_false_when_unwritable(draft_dir, tmp_path):
+    """写元信息失败要**返回 False**，不能抛（草稿写不进去也不该影响编辑）。"""
+    ro = tmp_path / "ro"
+    ro.mkdir()
+    target = ro / "draft-doc-x.md"
+    target.write_text("内容", encoding="utf-8")
+    # 用一个位于不存在目录的 meta 路径 → 写失败
+    missing = ro / "nope" / "draft-doc-y.md"
+    assert draft_dir.record(missing, kind="doc") is False
+
+
 def test_broken_meta_does_not_hide_the_draft(draft_dir):
     """元信息坏了也不能让草稿消失（否则用户的内容就"看不见"了）。"""
     path = draft_dir.new_draft_path("show")

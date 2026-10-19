@@ -337,3 +337,35 @@ def test_table_source_to_pdf_is_honestly_rejected(sheet_file, capsys, tmp_path):
     err = capsys.readouterr().err
     assert "只支持 Markdown" in err or "尚未支持" in err, err
     assert not (tmp_path / "x.pdf").exists(), "不支持时不该产出文件"
+
+
+# ==================== 审计补充：损坏的 .pptx 要**干净报错** ====================
+
+def test_broken_pptx_gives_clean_error_without_traceback(tmp_path):
+    """
+    **审计发现（中危）**：损坏的 `.pptx` 会抛 python-pptx 的
+    `PackageNotFoundError`，原先在 CLI 里**直接甩 traceback**（exit 1 但很难看）。
+    现在必须：退出码 1 + 一句人话 + **没有 traceback**。
+    """
+    broken = tmp_path / "broken.pptx"
+    broken.write_bytes(b"this is not a zip")
+    stderr_file = tmp_path / "stderr.txt"
+
+    script = (
+        "import sys\n"
+        f"sys.path.insert(0, {str(ROOT)!r})\n"
+        "from beeoffice import beecmd\n"
+        f"sys.exit(beecmd.main(['convert', {str(broken)!r}, '--to',"
+        f" 'beshow', '-o', {str(tmp_path / 'out.beshow')!r}]))\n"
+    )
+    with stderr_file.open("w", encoding="utf-8") as handle:
+        completed = subprocess.run(
+            [sys.executable, "-c", script], stderr=handle,
+            stdout=subprocess.DEVNULL, timeout=180,
+            env={**__import__("os").environ, "PYTHONPATH": str(ROOT)},
+        )
+
+    stderr_text = stderr_file.read_text(encoding="utf-8", errors="replace")
+    assert completed.returncode == 1
+    assert "Traceback" not in stderr_text, f"仍有 traceback：{stderr_text[:300]}"
+    assert "处理失败" in stderr_text or "❌" in stderr_text, stderr_text[:300]
