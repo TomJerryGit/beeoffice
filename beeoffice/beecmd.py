@@ -35,6 +35,14 @@
   * 字符串/数字/空值按 pandas 语义处理；列不一致时取并集，缺列留空
 * `batch` 支持 `{"op": "merge", "srcs": [...], "out": "...", ...}`
 
+## v0.3 追加（纯 Python，零 Qt）
+* `ai`：对文本文件执行**任务式 AI**（`summarize` / `polish` / `keywords` / `continue`）
+  * 配置顺序：命令行参数 > `BEEOFFICE_AI_*` 环境变量 > 应用「AI 设置」；
+  * 本地 Ollama 示例：`--api-base http://127.0.0.1:11434/v1 --model llama3.2`（无需 Key）；
+  * **诚实性**：AI 不可用/调用失败时直接报错退出，绝不拿本地规则冒充 AI；
+    成功时标出来源（模型名）与耗时，可写 JSON 元信息；
+* `batch` 支持 `{"op": "ai", "task": "summarize", "src": "...", "out": "..."}`。
+
 ## 退出码（便于脚本判断）
 * `0` 成功
 * `1` 出错（参数/IO/不支持的转换）
@@ -60,7 +68,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 #: 支持的表格输入扩展名
 SHEET_INPUTS = (".xlsx", ".xls", ".csv", ".json", ".md", ".html", ".htm")
@@ -649,6 +657,127 @@ def _compare_text(a: Path, b: Path) -> Tuple[int, List[dict]]:
     return sum(missing.values()) + sum(extra.values()), samples
 
 
+# ==================== 命令：ai（v0.3：本地/云端 AI 任务）====================
+
+#: CLI 支持的 AI 任务 → (提示词构造函数名, 默认 max_tokens)
+AI_TASKS = {
+    "summarize": ("build_summarize_prompt", 800),
+    "polish": ("build_polish_prompt", 1200),
+    "keywords": ("build_keywords_prompt", 200),
+    "continue": ("build_continue_prompt", 600),
+}
+
+
+def _resolve_ai_config(model: str, api_base: str, api_key: str,
+                       timeout: int) -> Dict[str, str]:
+    """
+    解析 AI 配置：**显式参数 > 环境变量 > 应用设置**。
+
+    环境变量（便于服务器/流水线）：
+      `BEEOFFICE_AI_API_BASE` / `BEEOFFICE_AI_MODEL` / `BEEOFFICE_AI_API_KEY`
+    """
+    import os
+
+    try:
+        from beeoffice.settings import AppSettings
+
+        settings = AppSettings()
+    except Exception:  # noqa: BLE001 - 设置文件不可用时只靠参数/环境变量
+        settings = None
+
+    base = (api_base or os.environ.get("BEEOFFICE_AI_API_BASE", "")
+            or getattr(settings, "ai_api_base", "") or "")
+    mdl = (model or os.environ.get("BEEOFFICE_AI_MODEL", "")
+           or getattr(settings, "ai_model", "") or "")
+    key = (api_key or os.environ.get("BEEOFFICE_AI_API_KEY", "")
+           or getattr(settings, "ai_api_key", "") or "")
+    return {
+        "api_base": base.strip(),
+        "model": mdl.strip(),
+        "api_key": key.strip(),
+        "timeout": int(timeout) if timeout else 0,
+    }
+
+
+def cmd_ai(task: str, src: str, out: Optional[str] = None,
+           model: str = "", api_base: str = "", api_key: str = "",
+           timeout: int = 0, max_points: int = 5, count: int = 8,
+           length: int = 160, meta_json: Optional[str] = None) -> int:
+    """
+    对文本文件执行一次 AI 任务（总结 / 润色 / 关键词 / 续写）。
+
+    **诚实性约束**（与 GUI 的 AI 纪律一致）：
+      * 没配置好 AI（无地址/模型、云端无 Key）→ 直接失败并说明原因，**绝不**用本地
+        规则冒充 AI 输出；
+      * 调用失败 → 打印可照做的错误说明，退出码 1，不写输出文件；
+      * 成功 → 输出文件 + 来源标注（`AI 生成（模型名）`），可选 JSON 元信息。
+    """
+    import time
+
+    from beeoffice.plugins import ai_client as ai_mod
+
+    src_path = Path(src)
+    if not src_path.is_file():
+        raise BeecmdError(f"源文件不存在: {src}")
+    if task not in AI_TASKS:
+        raise BeecmdError(
+            f"不支持的 AI 任务 {task!r}；可选: {', '.join(sorted(AI_TASKS))}"
+        )
+    text = src_path.read_text(encoding="utf-8-sig", errors="replace").strip()
+    if not text:
+        raise BeecmdError(f"源文件为空: {src}")
+
+    prompt_name, max_tokens = AI_TASKS[task]
+    builders = {
+        "build_summarize_prompt": lambda t: ai_mod.build_summarize_prompt(
+            t, max_points=max_points),
+        "build_polish_prompt": ai_mod.build_polish_prompt,
+        "build_keywords_prompt": lambda t: ai_mod.build_keywords_prompt(
+            t, count=count),
+        "build_continue_prompt": lambda t: ai_mod.build_continue_prompt(
+            t, length_hint=length),
+    }
+    prompt = builders[prompt_name](text)
+
+    cfg = _resolve_ai_config(model, api_base, api_key, timeout)
+    client = ai_mod.AIClient(cfg)
+    if not client.available:
+        raise BeecmdError(
+            f"AI 不可用：{client.unavailable_reason()}\n"
+            "  本地 Ollama 示例：--api-base http://127.0.0.1:11434/v1 "
+            "--model llama3.2（无需 Key）"
+        )
+
+    started = time.perf_counter()
+    ok, result = client.chat(prompt, max_tokens=max_tokens)
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    if not ok:
+        raise BeecmdError(f"AI 调用失败：{client.last_error}")
+
+    out_path = Path(out) if out else src_path.with_name(
+        f"{src_path.stem}.{task}.md"
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(result.rstrip() + "\n", encoding="utf-8")
+    print(f"✅ AI {task} 完成（{client.describe_source()}，"
+          f"{elapsed_ms / 1000:.1f} s）→ {out_path}")
+
+    if meta_json:
+        meta = {
+            "tool": "beecmd", "version": __version__, "op": "ai",
+            "task": task, "src": str(src_path), "out": str(out_path),
+            "model": cfg["model"], "api_base": cfg["api_base"],
+            "source": client.last_source, "elapsed_ms": round(elapsed_ms, 1),
+        }
+        meta_path = Path(meta_json)
+        meta_path.parent.mkdir(parents=True, exist_ok=True)
+        meta_path.write_text(
+            json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        print(f"   元信息: {meta_path}")
+    return EXIT_OK
+
+
 # ==================== 命令：batch ====================
 
 def cmd_batch(jobs_file: str, audit: Optional[str] = None) -> int:
@@ -684,6 +813,19 @@ def cmd_batch(jobs_file: str, audit: Optional[str] = None) -> int:
                     mode=job.get("mode", "append"),
                     source_column=job.get("source_column", "来源文件"),
                     sheet_name=job.get("sheet_name", "汇总"),
+                )
+            elif op == "ai":
+                code = cmd_ai(
+                    job.get("task", "summarize"), job["src"],
+                    out=job.get("out"),
+                    model=job.get("model", ""),
+                    api_base=job.get("api_base", ""),
+                    api_key=job.get("api_key", ""),
+                    timeout=int(job.get("timeout", 0) or 0),
+                    max_points=int(job.get("max_points", 5)),
+                    count=int(job.get("count", 8)),
+                    length=int(job.get("length", 160)),
+                    meta_json=job.get("meta"),
                 )
             elif op == "verify":
                 code = cmd_verify(job["src"], job["artifact"],
@@ -755,6 +897,27 @@ def build_parser() -> argparse.ArgumentParser:
     p_merge.add_argument("--sheet-name", default="汇总",
                          help="append 模式的输出工作表名（默认：汇总）")
 
+    p_ai = sub.add_parser(
+        "ai", help="对文本文件执行 AI 任务（总结/润色/关键词/续写）"
+    )
+    p_ai.add_argument("task", choices=sorted(AI_TASKS),
+                      help="AI 任务：summarize/polish/keywords/continue")
+    p_ai.add_argument("src", help="输入文本文件（.md/.txt 等）")
+    p_ai.add_argument("-o", "--out", help="输出文件（默认 <源名>.<任务>.md）")
+    p_ai.add_argument("--model", default="", help="模型名（本地 Ollama 例：llama3.2）")
+    p_ai.add_argument("--api-base", default="",
+                      help="OpenAI 兼容地址（本地：http://127.0.0.1:11434/v1）")
+    p_ai.add_argument("--api-key", default="", help="云端服务 Key（本地不需要）")
+    p_ai.add_argument("--timeout", type=int, default=0,
+                      help="超时秒数（0 = 按本地/云端自动）")
+    p_ai.add_argument("--max-points", type=int, default=5,
+                      help="summarize 的要点条数上限")
+    p_ai.add_argument("--count", type=int, default=8,
+                      help="keywords 的关键词个数")
+    p_ai.add_argument("--length", type=int, default=160,
+                      help="continue 的续写字数提示")
+    p_ai.add_argument("--meta", help="把调用元信息写入 JSON")
+
     p_verify = sub.add_parser("verify", help="对比源文件与产物，输出 JSON 报告")
     p_verify.add_argument("src")
     p_verify.add_argument("artifact")
@@ -783,6 +946,14 @@ def main(argv: Optional[List[str]] = None) -> int:
             )
         if args.command == "verify":
             return cmd_verify(args.src, args.artifact, args.report)
+        if args.command == "ai":
+            return cmd_ai(
+                args.task, args.src, out=args.out,
+                model=args.model, api_base=args.api_base,
+                api_key=args.api_key, timeout=args.timeout,
+                max_points=args.max_points, count=args.count,
+                length=args.length, meta_json=args.meta,
+            )
         if args.command == "batch":
             return cmd_batch(args.jobs, args.audit)
     except BeecmdError as e:

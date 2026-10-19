@@ -115,7 +115,28 @@ python -m beeoffice.beecmd merge 一月.csv 二月.csv -o 一季度汇总.xlsx
   `{"op": "merge", "srcs": ["1月.xlsx", "2月.xlsx"], "out": "汇总.xlsx"}`
 - 回归：`tests/fidelity/test_beecmd_merge.py`（8 条），门禁 `beecmd-merge`。
 
-## 6. 边界（如实说明）
+## 6. 本地 AI 任务：`beecmd ai`（v0.3）
+
+同一套"无 GUI、可审计"的形态也能调用**本地 Ollama**：
+
+```powershell
+$env:PYTHONPATH='D:\beeofficeV'
+python -m beeoffice.beecmd ai summarize 经营摘要.md `
+  --api-base http://127.0.0.1:11434/v1 --model llama3.2 `
+  --out AI总结.md --meta ai_meta.json --max-points 4
+```
+
+本机实测（llama3.2，CPU 推理）：
+
+```
+✅ AI summarize 完成（AI 生成（llama3.2），49.6 s）→ AI总结.md
+```
+
+- 失败/未配置 → 退出码 1 且**不写输出文件**（不拿本地规则冒充 AI）；
+- `--meta` 记录 model/api_base/source/耗时；`batch` 支持 `{"op": "ai", ...}`；
+- 详见 [本地AI任务化-CLI.md](本地AI任务化-CLI.md)，回归 `tests/fidelity/test_beecmd_ai.py`（7 条）。
+
+## 7. 边界（如实说明）
 
 - PDF 转换依赖 Qt 打印路径；无字体环境下**产物可生成但文字不可提取**，
   因此本示例没有对 PDF 做 `verify`（`beecmd verify` 会如实返回"不可判定"退出码 3）。

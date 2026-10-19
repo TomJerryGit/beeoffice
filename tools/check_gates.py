@@ -238,6 +238,12 @@ GATES = [
         "路线图 P1-2 模板②：每月一张表 → 汇总一张；服务器/容器可跑",
     ),
     Gate(
+        "beecmd-ai",
+        "本地/云端 AI 任务：成功写产物+元信息、失败不写文件、batch 审计、零 Qt",
+        "tests/fidelity/test_beecmd_ai.py",
+        "阶段③：AI 不能只活在 GUI 按钮里；不可用时必须报错而不是拿本地规则冒充",
+    ),
+    Gate(
         "pptx-import",
         "打开 .pptx：文字/层级/备注保留，图片表格给损失清单，绝不覆盖原 pptx",
         "tests/fidelity/test_pptx_import.py",
