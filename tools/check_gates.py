@@ -250,6 +250,12 @@ GATES = [
         "曾经：en_US 缺 53 个 key → 切英文后界面冒出中文（回退到代码默认值）",
     ),
     Gate(
+        "error-hygiene",
+        "新增模块禁裸 except / 宽泛 except 必须标注 / 不许静默吞异常",
+        "tests/fidelity/test_error_hygiene.py",
+        "审计 §2.7：仓库有 170 处宽泛 except，曾掩盖真实异常（空文档假成功、函数漏定义）",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",

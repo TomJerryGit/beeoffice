@@ -476,15 +476,18 @@ def _add_embedded_font_list(
         existing_ids = [
             int(m) for m in re.findall(r'Id="rId(\d+)"', content)
         ]
-        # 这里简单处理：用固定 rId（因为不在同一文件）
-        # 实际需与 rels 文件对应，为简化，使用顺序号
-        # 生产环境应读取 rels 文件确认真实 rId
+        # ⚠️ 审计发现（F841）：原先算出 `existing_ids` 却**没用**，
+        # 而下面固定用 `rId{100 + i}` → 若目标文件里已有 rId100+ 就会**撞号**，
+        # PowerPoint 可能报"文件需要修复"。现在从"现有最大 rId + 1"开始编，
+        # 没有冲突时行为与原来一致（100 起）。
+        # 注：仍不读 rels 文件，只保证**不与本文件里已出现的 rId 冲突**。
         font_xml = "<p:embeddedFontLst>"
-        for i, (name, _) in enumerate(font_entries, 1):
+        next_id = (max(existing_ids) + 1) if existing_ids else 100
+        for i, (name, _) in enumerate(font_entries):
             font_xml += (
                 f'<p:embeddedFont>'
                 f'<p:font typeface="{name}"/>'
-                f'<p:regular r:id="rId{100 + i}"/>'
+                f'<p:regular r:id="rId{next_id + i}"/>'
                 f'</p:embeddedFont>'
             )
         font_xml += "</p:embeddedFontLst>"

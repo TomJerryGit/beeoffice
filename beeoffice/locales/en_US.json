@@ -184,6 +184,7 @@
   "cmd.add_to_sync": "Add current document to sync folder",
   "cmd.backup_now": "Back up now",
   "cmd.refresh_pivot": "Refresh pivot table",
+  "cmd.restore_drafts": "Restore unsaved content…",
   "dialog.export_pdf": "Export PDF",
   "dialog.export_report": "Export report",
   "dialog.export_word": "Export Word",

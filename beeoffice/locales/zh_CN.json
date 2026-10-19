@@ -184,6 +184,7 @@
   "cmd.add_to_sync": "把当前文档加入同步目录",
   "cmd.backup_now": "立即备份当前文件",
   "cmd.refresh_pivot": "刷新透视表",
+  "cmd.restore_drafts": "恢复未保存的内容…",
   "dialog.export_pdf": "导出 PDF",
   "dialog.export_report": "导出报告",
   "dialog.export_word": "导出 Word",

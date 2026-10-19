@@ -131,7 +131,13 @@ def _read_slide_texts(slide, content: SlideContent) -> None:
 
 
 def _count_unsupported(slide, content: SlideContent, result: PptxImport) -> None:
-    """统计**无法保留**的元素，写进损失报告（不假装搬得过去）。"""
+    """
+    统计**无法保留**的元素，写进损失报告（不假装搬得过去）。
+
+    审计补充：原先只统计 图片/表格/图表，而文档里还写着"SmartArt、组合形状、
+    超链接目标不保留" —— **说明与数据口径不一致**。现在一并统计
+    （组合形状、SmartArt/图示、超链接），让清单与说明对得上。
+    """
     from pptx.enum.shapes import MSO_SHAPE_TYPE
 
     for shape in slide.shapes:
@@ -148,6 +154,26 @@ def _count_unsupported(slide, content: SlideContent, result: PptxImport) -> None
         elif getattr(shape, "has_chart", False):
             content.charts += 1
             result.losses["图表"] = result.losses.get("图表", 0) + 1
+        elif shape_type == getattr(MSO_SHAPE_TYPE, "GROUP", None):
+            result.losses["组合形状"] = result.losses.get("组合形状", 0) + 1
+        elif shape_type in (
+            getattr(MSO_SHAPE_TYPE, "DIAGRAM", None),
+            getattr(MSO_SHAPE_TYPE, "IGX_GRAPHIC", None),
+        ):
+            result.losses["SmartArt/图示"] = (
+                result.losses.get("SmartArt/图示", 0) + 1
+            )
+        # 超链接目标（文字保留、链接丢失）
+        try:
+            if getattr(shape, "has_text_frame", False):
+                for paragraph in shape.text_frame.paragraphs:
+                    for run in paragraph.runs:
+                        if getattr(run.hyperlink, "address", None):
+                            result.losses["超链接目标"] = (
+                                result.losses.get("超链接目标", 0) + 1
+                            )
+        except Exception as exc:  # noqa: BLE001 - 取不到链接不算致命，但要留痕
+            logging.debug(f"[pptx] 第 {content.index} 页读超链接失败: {exc}")
 
 
 def render_deck(imported: PptxImport) -> str:

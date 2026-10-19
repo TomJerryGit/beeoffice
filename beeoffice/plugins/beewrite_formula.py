@@ -249,11 +249,11 @@ class FormulaDialog(QDialog):
         }
         color = color_map.get(self._color_combo.currentText(), "#000000")
 
-        # 渲染
+        # 渲染（`fig.text` 有副作用：把文字画进图里，所以只看调用、不接返回值）
         fig = plt.figure(figsize=(6, 1.2), dpi=dpi)
         fig.patch.set_alpha(0)
 
-        text = fig.text(
+        fig.text(
             0.5, 0.5, f"${latex}$",
             fontsize=fontsize,
             ha="center", va="center",

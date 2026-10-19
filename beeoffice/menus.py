@@ -300,6 +300,18 @@ def setup_menus(main_window):
 
     tools_menu.addSeparator()
 
+    # ---- 恢复未保存的内容（P0-5 的手动入口）----
+    # 审计发现 `_check_recoverable_drafts(force=True)` 没有任何调用方（死参数）：
+    # 启动弹框一旦点了"否"，此前的草稿就再也找不到了。这里补一个菜单入口。
+    restore_drafts_action = tools_menu.addAction(
+        tr("cmd.restore_drafts", "恢复未保存的内容…")
+    )
+    restore_drafts_action.triggered.connect(
+        lambda: main_window._check_recoverable_drafts(force=True)
+    )
+
+    tools_menu.addSeparator()
+
     # ---- 蜜算专项 ----
     analyze_action = tools_menu.addAction(
         tr("cmd.analyze_sheet", "智能数据分析")

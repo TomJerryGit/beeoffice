@@ -270,7 +270,6 @@ class SheetPrintMixin:
         # 这个 off-by-one 是被既有测试 `..._truncation_on_last_page` 抓到的。
         rownum_w = natural[0] if natural else 0.0
         natural_headers = natural[1:]
-        total_w = sum(natural) or 1.0
         rows = data["rows"]
         # ⚠️ **第一页还要画标题**（工作表名），高度 ≈ 表头高度。
         # 必须把它算进"内容总高"——否则 ① 缩放会按偏小的高度算 →
