@@ -58,8 +58,8 @@ __version__ = "0.1.0"
 SHEET_INPUTS = (".xlsx", ".xls", ".csv", ".json", ".md", ".html", ".htm")
 #: 支持的输出格式
 SHEET_OUTPUTS = ("xlsx", "csv", "json", "md", "html")
-#: 文稿格式
-DECK_INPUTS = (".md",)
+#: 文稿格式（pptx 走**导入**：文字/层级/备注保留，其余出损失报告）
+DECK_INPUTS = (".md", ".pptx")
 DECK_OUTPUTS = ("beshow",)
 
 EXIT_OK, EXIT_ERROR, EXIT_MISMATCH, EXIT_INCONCLUSIVE = 0, 1, 2, 3
@@ -189,7 +189,24 @@ def _is_blank(value) -> bool:
 # ==================== 演示文稿 ====================
 
 def _write_deck(src: Path, out: Path) -> Path:
+    """
+    Markdown / `.pptx` → 蜜演文稿（`.beshow`）。
+
+    `.pptx` 走 `beeshow_pptx_import` 的导入路径（**文字/层级/备注保留，
+    图片/表格/图表/版式不保留**），并把损失清单打印出来 —— 不假装搬得过去。
+    """
     from beeoffice.plugins.beeshow_doc import save_deck
+
+    if src.suffix.lower() == ".pptx":
+        from beeoffice.plugins.beeshow_pptx_import import (
+            import_pptx, loss_summary,
+        )
+
+        imported, markdown = import_pptx(src)
+        if not save_deck(str(out), markdown):
+            raise BeecmdError(f"写 {out} 失败（.beshow 保存返回 False）")
+        print(f"📄 已导入 {imported.slide_count} 页；{loss_summary(imported)}")
+        return out
 
     # 用 utf-8-sig：Windows 上 Notepad/PowerShell 写的文件常带 BOM
     text = src.read_text(encoding="utf-8-sig")

@@ -232,6 +232,12 @@ GATES = [
         "曾经：所有能力绑在 GUI 上，无法被脚本/服务调用（战略缺口 §5.2）",
     ),
     Gate(
+        "pptx-import",
+        "打开 .pptx：文字/层级/备注保留，图片表格给损失清单，绝不覆盖原 pptx",
+        "tests/fidelity/test_pptx_import.py",
+        "曾经：蜜演只能开 .beshow，别人发来的 .pptx 直接打不开（P0-1 门槛项）",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",

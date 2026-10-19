@@ -71,7 +71,10 @@ TEXT_EXTENSIONS = (".md", ".txt")
 SHEET_EXTENSIONS = (".csv", ".xlsx", ".xls")
 #: P0 剩余项：蜜演文稿扩展名（`.beshow`，内容是 Markdown + 一行标记）
 #: —— 在这之前蜜演**没有可保存的文件格式**，做完的稿子关掉就改不了。
-SHOW_EXTENSIONS = (".beshow",)
+#: P0-1（2026-10-19）：`.pptx` 也可打开 —— **导入**成蜜演文稿
+#: （文字/层级/备注保留，图片/表格/图表/版式不保留，打开时给损失清单；
+#:  保存时必须另存为 `.beshow`，**绝不覆盖原始 pptx**）。
+SHOW_EXTENSIONS = (".beshow", ".pptx")
 AUTOSAVE_INTERVAL_MS = 5 * 60 * 1000
 CTRL_LONG_PRESS_SECONDS = 1.0
 RESTORE_SESSION_DELAY_MS = 100
@@ -798,7 +801,11 @@ class BeeApp(QMainWindow):
                 self, tr("msg.failed", "失败"), "无法创建演示文稿标签页"
             )
             return
-        if not widget.open_deck(path):
+        # P0-1：.pptx 走**导入**（文字/层级/备注保留，其余给损失清单）
+        if Path(path).suffix.lower() == ".pptx":
+            if not widget.open_pptx(path):
+                return
+        elif not widget.open_deck(path):
             return
         self.set_global_status(
             tr("msg.opened", "已打开：{name}").format(

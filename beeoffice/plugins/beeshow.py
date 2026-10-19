@@ -41,6 +41,7 @@ v5.2 B1 新增 Mixin：
 """
 
 import logging
+from pathlib import Path
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
 from PySide6.QtCore import QTimer, Signal
@@ -227,6 +228,49 @@ class BeeShowView(
             logging.warning(f"[蜜演] 刷新预览失败（已忽略）: {e}")
         self._current_file_path = str(path)
         self._sync_tab_title(str(path))
+        return True
+
+    def open_pptx(self, path) -> bool:
+        """
+        **导入 `.pptx`**（P0-1：「打开别人的 PPT」）。
+
+        纯转换在 `beeshow_pptx_import.py`（无 Qt），这里只做界面接线：
+        读入编辑器 → 刷新预览 → **不把当前路径设成 .pptx**（保存时必须另存为 `.beshow`，
+        绝不覆盖用户的原始 PPT）→ 有损失时**如实弹一份损失清单**。
+
+        :return: 成功 True；解析失败 False（**不静默变成空文稿**）
+        """
+        from PySide6.QtWidgets import QMessageBox
+
+        from beeoffice.plugins.beeshow_pptx_import import import_pptx, loss_summary
+
+        try:
+            imported, markdown = import_pptx(path)
+        except Exception as e:  # noqa: BLE001 - 解析失败要给可操作提示
+            QMessageBox.warning(
+                self, "导入失败",
+                f"无法读取 {Path(path).name}：\n{e}\n\n"
+                "（.pptx 导入需要 python-pptx：pip install python-pptx）",
+            )
+            return False
+
+        self._editor.setPlainText(markdown)
+        try:
+            self._update_preview()
+        except Exception as e:  # noqa: BLE001
+            logging.warning(f"[蜜演] 刷新预览失败（已忽略）: {e}")
+
+        # ⚠️ 不设 _current_file_path：源文件是 .pptx，本编辑器**不能**写回它。
+        # 保存时走"另存为"，用户自己选 .beshow 路径 —— 这条是数据安全红线。
+        self._current_file_path = None
+        self._sync_tab_title(f"{Path(path).stem}（从 PPT 导入）")
+
+        if imported.has_losses():
+            QMessageBox.information(
+                self, "已导入（部分元素未保留）",
+                loss_summary(imported)
+                + "\n\n保存时会提示另存为 .beshow 文稿；原 .pptx 不会被改动。",
+            )
         return True
 
     def set_current_file_path(self, path):
