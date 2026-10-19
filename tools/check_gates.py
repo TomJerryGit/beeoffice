@@ -238,6 +238,12 @@ GATES = [
         "曾经：蜜演只能开 .beshow，别人发来的 .pptx 直接打不开（P0-1 门槛项）",
     ),
     Gate(
+        "draft-recovery",
+        "崩溃恢复：未保存内容写草稿、启动时可恢复、保存后清理",
+        "tests/fidelity/test_drafts.py",
+        "曾经：自动保存只覆盖已有文件路径的文档 → 新建文档崩溃即整份丢失（有写无读）",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",

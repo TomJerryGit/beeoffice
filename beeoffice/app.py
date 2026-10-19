@@ -174,6 +174,8 @@ class BeeApp(QMainWindow):
         for _msec, _slot in (
             (50, self._lazy_load_modules),
             (RESTORE_SESSION_DELAY_MS, self._restore_session),
+            # P0-5：会话恢复之后再检查草稿（同一次启动里都能看到）
+            (RESTORE_SESSION_DELAY_MS + 400, self._check_recoverable_drafts),
             (FIRST_RUN_CHECK_DELAY_MS, self._check_first_run),
             (3000, self._check_auto_sync),
         ):
@@ -468,12 +470,10 @@ class BeeApp(QMainWindow):
             return
         if not (hasattr(widget, "save") and self._has_unsaved_changes(widget)):
             return
-        # ⚠️ **必须**有"当前文件"才自动保存：
-        # 蜜算/蜜演也是这一轮才有 `save()`，而它们的 `save()` 在没有当前文件时
-        # 会退化成"另存为"（弹文件对话框）—— 自动保存每 5 分钟弹一次对话框
-        # 是灾难。守卫放在这里，对所有模块都成立：
-        # **自动保存只写回"已有文件"，绝不替用户决定路径。**
+        # P0-5：**没有文件路径**的"新建文档"最怕崩溃 —— 它既没被 save() 写盘，
+        # 也不在任何恢复路径上。这里先留一份草稿（占位），再按原有逻辑返回。
         if not getattr(widget, "_current_file_path", None):
+            self._write_draft_for(widget)
             return
 
         try:
@@ -481,6 +481,12 @@ class BeeApp(QMainWindow):
             self._backup_before_save(widget, reason="before_save")
             if widget.save():
                 self.set_global_status(tr("msg.autosave_done", "已自动保存"), 3000)
+                # P0-5：已经安全落盘 → 草稿可以丢了
+                draft = getattr(widget, "_draft_path", None)
+                if draft:
+                    from beeoffice import drafts as _drafts
+                    _drafts.discard(draft)
+                    widget._draft_path = None
                 try:
                     self.tab_manager._tab_initial_content[id(widget)] = (
                         self._get_widget_content(widget)
@@ -490,6 +496,102 @@ class BeeApp(QMainWindow):
                     logging.error(f"更新自动保存状态失败: {e}")
         except Exception as e:
             logging.error(f"自动保存失败: {e}")
+
+    # ==================== P0-5：草稿（崩溃恢复的读取端）====================
+    def _draft_kind_for(self, widget) -> str:
+        """按能力判断控件类型（草稿用原生扩展名，恢复时走既有打开分流）。"""
+        if hasattr(widget, "_write_xlsx"):
+            return "sheet"
+        if hasattr(widget, "_write_deck"):
+            return "show"
+        if hasattr(widget, "content"):
+            return "doc"
+        return ""
+
+    def _write_draft_for(self, widget) -> bool:
+        """
+        把"有未保存改动、但没有文件路径"的内容写成草稿。
+
+        草稿就是**草稿目录里带原生扩展名的真实文件**（`.md`/`.xlsx`/`.beshow`），
+        所以恢复时可以复用 `_open_recent()` 的既有分流，不新增格式。
+        每个控件只保留**最新一份**（旧的删掉，避免目录里堆一堆）。
+        """
+        kind = self._draft_kind_for(widget)
+        if not kind:
+            return False
+        from beeoffice import drafts as drafts_mod
+
+        path = drafts_mod.new_draft_path(kind)
+        try:
+            if kind == "sheet":
+                ok = bool(widget._write_xlsx(str(path)))
+            elif kind == "show":
+                ok = bool(widget._write_deck(str(path)))
+            else:
+                path.write_text(widget.content() or "", encoding="utf-8")
+                ok = True
+        except Exception as e:  # noqa: BLE001 - 草稿失败不能影响编辑
+            logging.error(f"写草稿失败: {e}")
+            drafts_mod.discard(path)
+            return False
+        if not ok:
+            drafts_mod.discard(path)
+            return False
+
+        source = getattr(widget, "_current_file_path", None) or ""
+        title = Path(source).stem if source else "未命名"
+        drafts_mod.record(path, kind=kind, title=title, source=str(source))
+
+        previous = getattr(widget, "_draft_path", None)
+        if previous and str(previous) != str(path):
+            drafts_mod.discard(previous)
+        widget._draft_path = path
+        return True
+
+    def _check_recoverable_drafts(self, force: bool = False) -> None:
+        """
+        启动时（或从菜单手动）检查上次会话遗留的草稿，让用户决定恢复/保留。
+
+        **只提示，不自动恢复** —— 自动开一堆标签比丢内容更烦人。
+        """
+        from PySide6.QtWidgets import QMessageBox
+
+        from beeoffice import drafts as drafts_mod
+
+        entries = drafts_mod.list_drafts(
+            max_age_days=drafts_mod.DEFAULT_MAX_AGE_DAYS
+        )
+        if not entries:
+            if force:
+                QMessageBox.information(
+                    self, "恢复未保存的内容",
+                    "没有可恢复的草稿。\n\n"
+                    "草稿会在「有未保存改动的文档」每 5 分钟自动保存时写入，"
+                    f"保留 {drafts_mod.DEFAULT_MAX_AGE_DAYS} 天。",
+                )
+            return
+
+        preview = "\n".join(f"· {drafts_mod.describe(e)}" for e in entries[:8])
+        more = "" if len(entries) <= 8 else f"\n… 等共 {len(entries)} 条"
+        answer = QMessageBox.question(
+            self, "发现未保存的内容",
+            f"上次会话有 {len(entries)} 份未保存的内容：\n\n{preview}{more}\n\n"
+            "现在恢复它们吗？（恢复后会作为新文件打开，草稿随即清理）",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        restored = 0
+        for entry in entries:
+            try:
+                self._open_recent(str(entry.path))
+                drafts_mod.discard(entry.path)
+                restored += 1
+            except Exception as e:  # noqa: BLE001 - 单条恢复失败不影响其它
+                logging.error(f"恢复草稿失败 {entry.path}: {e}")
+        self.set_global_status(f"已恢复 {restored} 份草稿", 5000)
 
     def _has_unsaved_changes(self, widget):
         try:
