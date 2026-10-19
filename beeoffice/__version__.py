@@ -16,7 +16,7 @@ README 的版本徽章与 CHANGELOG 的最新条目由 `tools/sync_version.py` �
 本文件原先内嵌了 v5.0.1~v5.0.7 的补丁说明，与 CHANGELOG 重复、且必然漏更新。）
 """
 
-__version__ = "5.0.14"
+__version__ = "5.0.15"
 __author__ = "TomJerryGit"
 __email__ = "1265338136@qq.com"
 __slogan__ = "百花寻觅，酿得甜蜜。"

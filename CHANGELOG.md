@@ -6,9 +6,10 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ---
-## [Unreleased]
+## [5.0.15] - 2026-10-19
 
-**AI 表格清洗（`beecmd` v0.4）**：
+**AI 表格清洗版（`beecmd` v0.4）**：新增"AI 出计划、确定性执行、可回滚"的表格清洗；
+不改变 GUI 行为。GUI 安装包按设计不含 `beecmd`/`tools`。
 
 ### 新增
 - `beecmd clean`：**AI 出计划、确定性执行、可回滚**的表格清洗。
