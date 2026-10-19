@@ -244,6 +244,12 @@ GATES = [
         "阶段③：AI 不能只活在 GUI 按钮里；不可用时必须报错而不是拿本地规则冒充",
     ),
     Gate(
+        "i18n-ratchet",
+        "硬编码中文文案只许减少、不许增加（i18n 债务棘轮）",
+        "tests/fidelity/test_i18n_ratchet.py",
+        "分析报告 §2.3：tr 覆盖率约 11%；在决策前先阻止新增硬编码",
+    ),
+    Gate(
         "pptx-import",
         "打开 .pptx：文字/层级/备注保留，图片表格给损失清单，绝不覆盖原 pptx",
         "tests/fidelity/test_pptx_import.py",

@@ -11,6 +11,12 @@
 **阶段③工具与报告**（不改变产品行为，尚未打包）：
 
 ### 新增工具
+- `tools/i18n_audit.py`：**硬编码中文文案棘轮**。统计引号外中文串（排除 docstring /
+  `tr()` 参数 / 日志 / 控制台），与 `tools/i18n_baseline.json` 比较，
+  **只许减少、不许增加**。当前基线 **3700 处 / 117 文件**（Top：
+  `beesheet_data_mixin` 216、`beesheet_ui_mixin` 214、`beesheet_audit_mixin` 128）。
+  新增报告 `docs/i18n-现状与硬编码棘轮.md`（含 Top 文件与"tr 化 vs 中文优先"两条路线）。
+  回归：`tests/unit/test_i18n_audit.py` 6 条 + 门禁 `i18n-ratchet`（第 44 项门禁）。
 - `beecmd ai`（CLI v0.3）：**本地/云端 AI 任务** —— `summarize` / `polish` /
   `keywords` / `continue` / **`extract`（条款抽取，严格 JSON）** /
   **`outline`（演示大纲）** 六个任务，可脚本调用、可写 JSON 元信息；
