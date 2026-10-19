@@ -217,14 +217,22 @@ WPS365 增速 **+60.8%**，个人订阅只有 **+15.2%** —— 说明它**不�
 
 ### 5.2 Headless CLI + Python SDK（**当前完全缺失，这是最大缺口**）
 现状：所有能力都绑在 GUI 上，无法被脚本/服务调用。
-要新建 `beecmd`：
+
+**✅ 2026-10-19 已落地 `beecmd` v0**（`beeoffice/beecmd.py`，纯 Python、**零 Qt**）：
 ```
-beecmd convert a.docx --to pdf --report fidelity.json
-beecmd sheet import big.xlsx --verify --save-as out.xlsx
-beecmd deck build outline.md --out deck.beshow
-beecmd batch jobs/*.yaml --parallel 4 --audit audit.jsonl
+python -m beeoffice.beecmd info    表.xlsx
+python -m beeoffice.beecmd convert 表.xlsx --to csv -o 表.csv
+python -m beeoffice.beecmd convert 表.csv --to xlsx -o 表.xlsx
+python -m beeoffice.beecmd convert 讲稿.md --to beshow -o 讲稿.beshow
+python -m beeoffice.beecmd verify  表.xlsx 表.csv --report 报告.json
+python -m beeoffice.beecmd batch   jobs.json --audit audit.jsonl
 ```
-**验收线**：同一份文件，GUI 与 CLI 产出的**字节级/语义级一致**（可用现有门禁验证）。
+已验证：xlsx↔csv/json/md/html **往返零差异**（逐格对比）；`verify` 精确报出
+差异格子（如 `R1C3: 1.5 → 9.99`）并以**退出码 2** 区分；`batch` 失败不中断整批、
+**失败也写审计流水**；表格路径**不 import PySide6**（子进程验证）；
+BOM 容忍（真实踩过的坑）。测试 15 条 / 门禁 `beecmd`。
+
+**v0.1 待接**（依赖 Qt offscreen）：`md ↔ docx`、`→ pdf`（复用既有打印引擎）。
 
 ### 5.3 本地 AI **任务化**（而非聊天框）
 现状：AI 是"续写/润色/总结"几个按钮。

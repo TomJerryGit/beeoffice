@@ -226,6 +226,12 @@ GATES = [
         "曾经：预设写死 qwen2.5/llama3.1/gemma2，用户机器上通常一个都没装 → 一测就 404",
     ),
     Gate(
+        "beecmd",
+        "无界面 CLI：表格互转零差异、verify 报差异、batch 审计、零 Qt 约束",
+        "tests/fidelity/test_beecmd.py",
+        "曾经：所有能力绑在 GUI 上，无法被脚本/服务调用（战略缺口 §5.2）",
+    ),
+    Gate(
         "print-invariant",
         "打印：排版计划 == 实际页数",
         "tests/fidelity/test_beesheet_print.py tests/fidelity/test_beeshow_print.py",
