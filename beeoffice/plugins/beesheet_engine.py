@@ -29,6 +29,17 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 
+# ==================== v5.0.12：Excel 兼容语义辅助 ====================
+class _FormulaError(Exception):
+    """公式求值已经**明确失败**（如函数返回 #N/A）——不要再退化成返回公式文本。"""
+
+
+#: 字符串字面量（单/双引号，支持反斜杠转义）
+_STRING_LITERAL_RE = re.compile(r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'')
+#: 函数调用（取最内层：参数里不含括号，由内向外迭代替换）
+_FUNC_CALL_RE = re.compile(r'([A-Za-z_][A-Za-z0-9_.]*)\s*\(([^()]*)\)')
+
+
 class FormulaEngine:
     """公式引擎：解析并计算 Excel 风格公式"""
 
@@ -56,13 +67,24 @@ class FormulaEngine:
                     expr_stripped = ref.upper()
                     break
         if '!' in expr_stripped:
-            return cls._eval_sheet_ref(expr_stripped, model)
+            # v5.0.12：`!=` 不是跨表引用 —— 先把引号外的 `!=` 去掉再判断，
+            # 否则 `=IF(A1!=2,…)` 会被误送进 _eval_sheet_ref（报"跨表引用不可用"）。
+            probe = cls._transform_outside_strings(
+                expr_stripped, lambda seg: seg.replace("!=", "")
+            )
+            if '!' in probe:
+                return cls._eval_sheet_ref(expr_stripped, model)
         # v5.1 B1fix：\(.+\) → \((.*)\)，允许空参数（如 =SUM() / =XMATCH()）
         # 空参数会走 _func 分支，由具体函数决定返回 #ERROR 还是默认值
-        m = re.match(r'^(\w+)\((.*)\)$', expr_stripped, re.IGNORECASE)
-        if m:
-            return cls._func(m.group(1).upper(),
-                             cls._substitute_named(m.group(2), model), model)
+        # v5.0.12：必须做**括号配对**检查 —— 原来的贪婪正则会把
+        # `=SUM(A1:A2)+SUM(B1:B2)` 误判成"一个 SUM 调用"（args 里带 `)+SUM(`），
+        # 于是返回 0（审计 §3.3 L3 的静默错值之一）。
+        parts = cls._single_call_parts(expr_stripped)
+        if parts:
+            return cls._func(
+                parts[0].upper(),
+                cls._substitute_named(parts[1], model), model,
+            )
         ref = cls._ref(expr_stripped.upper())
         if ref:
             return model.get_value(ref[0], ref[1])
@@ -72,14 +94,160 @@ class FormulaEngine:
             pass
 
         # v5.0.5：算术表达式（A1+A2、A1*2、1/A1 等）
+        # v5.0.12：函数结果参与四则运算（SUM(A1:A8)/2、SUM()+SUM()）原先会
+        # 因为"整串不是函数调用"而退化成返回公式文本 / 静默返回 0
+        # （审计 §3.3 L3）。现在先替换函数调用，再做 AST 白名单求值。
         try:
-            return cls._safe_eval(expr_stripped, model)
+            return cls._eval_arithmetic(expr_stripped, model)
         except ZeroDivisionError:
             raise
+        except _FormulaError as e:
+            raise ValueError(str(e)) from None
         except Exception:
             pass
 
         return expr_stripped
+
+    # ==================== v5.0.12：表达式求值 ====================
+    @classmethod
+    def _eval_arithmetic(cls, expr, model):
+        """先求出表达式里的函数调用，再把结果交给 AST 白名单求值。"""
+        return cls._safe_eval(cls._substitute_functions(expr, model), model)
+
+    @staticmethod
+    def _transform_outside_strings(text, transform):
+        """
+        只对**引号外**的片段调用 `transform`，字符串字面量原样保留。
+
+        为什么需要它：Excel 公式里既有字符串常量（`"A1=1"`），也有真正的
+        运算符/单元格引用。粗暴的 `str.replace` / `re.sub` 会把字符串里的
+        `=`、`A1` 也改掉（例如 `="A1"` 会被当成单元格引用）。
+        """
+        out = []
+        pos = 0
+        for m in _STRING_LITERAL_RE.finditer(text):
+            out.append(transform(text[pos:m.start()]))
+            out.append(m.group(0))
+            pos = m.end()
+        out.append(transform(text[pos:]))
+        return "".join(out)
+
+    @staticmethod
+    def _normalize_operator_segment(segment: str) -> str:
+        """把 Excel 运算符转成 Python：`<>` → `!=`、单个 `=` → `==`。"""
+        segment = segment.replace("<>", "!=")
+        out = []
+        for i, ch in enumerate(segment):
+            if ch != "=":
+                out.append(ch)
+                continue
+            prev = segment[i - 1] if i > 0 else ""
+            nxt = segment[i + 1] if i + 1 < len(segment) else ""
+            # 已经是 <= / >= / != / == 的一部分，原样保留
+            # ⚠️ 不能写 `prev in "<>=!"`：空串也满足 `in`，会把行首的 `=` 原样留下
+            if (prev and prev in "<>=!") or nxt == "=":
+                out.append(ch)
+            else:
+                out.append("==")
+        return "".join(out)
+
+    @staticmethod
+    def _single_call_parts(expr):
+        """
+        若整个表达式恰好是**一次** `FUNC(args)` 调用（括号配对到最后一位），
+        返回 `(函数名, 参数字符串)`；否则返回 None。
+
+        为什么需要：`re.match(r'^\\w+\\((.*)\\)$')` 是贪婪的，会把
+        `SUM(A1:A2)+SUM(B1:B2)` 匹配成"SUM 调用"，参数里带着 `)+SUM(`，
+        进而静默算成 0（审计 §3.3 L3）。这里按字符扫描做严格的配对判断。
+        """
+        m = re.match(r'^([A-Za-z_][A-Za-z0-9_.]*)\s*\(', expr)
+        if not m:
+            return None
+        name = m.group(1)
+        start = m.end() - 1              # 指向第一个 '('
+        depth = 0
+        quote = ""
+        escaped = False
+        for i in range(start, len(expr)):
+            ch = expr[i]
+            if quote:
+                if escaped:
+                    escaped = False
+                elif ch == "\\":
+                    escaped = True
+                elif ch == quote:
+                    quote = ""
+                continue
+            if ch in ('"', "'"):
+                quote = ch
+            elif ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth == 0:
+                    if i == len(expr) - 1:
+                        return name, expr[start + 1:i]
+                    return None
+        return None
+
+    @classmethod
+    def _normalize_excel_operators(cls, text: str) -> str:
+        """
+        Excel 条件写法 → Python 条件表达式（只在引号外生效）。
+
+        修审计 §3.3 L2：`=IF(A1=1,…)`、`=IF(A1<>2,…)`、`=AND(A1=1,B1=2)`
+        原先直接 #ERROR（`_safe_eval` 只接受 Python 的 `==`/`!=`）。
+        这是从 Excel 粘贴公式时最常见的写法，必须兼容。
+        """
+        return cls._transform_outside_strings(
+            text, cls._normalize_operator_segment
+        )
+
+    @classmethod
+    def _substitute_functions(cls, expr: str, model) -> str:
+        """
+        把表达式里的 `FUNC(args)` 就地求出并替换成字面量（由内向外）。
+
+        修审计 §3.3 L3：`=SUM(A1:A8)/2`、`=SUM(A1:A8)+1`、
+        `=SUM()+SUM()` 等"函数结果参与运算"的表达式现在能算出数值，
+        而不是显示公式文本 / 静默返回 0。
+
+        只替换**引号外**的函数调用（`="SUM(A1)"` 是字符串常量，不能动）。
+        """
+        text = expr
+        for _ in range(50):
+            changed = [False]
+
+            def _replace(segment: str) -> str:
+                m = _FUNC_CALL_RE.search(segment)
+                if not m:
+                    return segment
+                name = m.group(1).upper()
+                args = cls._substitute_named(m.group(2), model)
+                try:
+                    value = cls._func(name, args, model)
+                except Exception as e:  # noqa: BLE001 - 转成明确的公式求值失败
+                    raise _FormulaError(f"{name} 求值失败: {e}") from None
+                changed[0] = True
+                if isinstance(value, bool):
+                    literal = "True" if value else "False"
+                elif value is None:
+                    literal = "0"
+                elif isinstance(value, (int, float, np.integer, np.floating)):
+                    literal = repr(value)
+                elif isinstance(value, str):
+                    if value.startswith("#"):
+                        raise _FormulaError(value)
+                    literal = repr(value)
+                else:
+                    literal = repr(value)
+                return f"{segment[:m.start()]}({literal}){segment[m.end():]}"
+
+            text = cls._transform_outside_strings(text, _replace)
+            if not changed[0]:
+                return text
+        raise _FormulaError("公式嵌套过深或无法解析")
 
     @classmethod
     def _eval_sheet_ref(cls, expr, model):
@@ -119,9 +287,10 @@ class FormulaEngine:
         # 兜底：整体形如 FUNC(args) 时交给白名单函数分派器。
         # 跨表求和 =SUM(S!A1:B1) 会被替换成 SUM(7,8)，而 _safe_eval 不允许调用
         # 白名单外的函数名，因此必须在安全求值失败后走这一支。
-        m = re.match(r'^(\w+)\((.+)\)$', new_expr, re.IGNORECASE)
-        if m:
-            return cls._func(m.group(1).upper(), m.group(2), model)
+        # v5.0.12：同样要求括号配对，避免把 `SUM(7,8)+SUM(9,10)` 误判成单调用。
+        parts = cls._single_call_parts(new_expr)
+        if parts:
+            return cls._func(parts[0].upper(), parts[1], model)
 
         # 其余情况回到通用求值；此时不应再残留跨表标记，避免无限递归
         if '!' in new_expr:
@@ -592,7 +761,14 @@ class FormulaEngine:
 
         # 匹配形如 A1 / $A$1 / AA12（1~3 个字母）
         ref_pattern = r'\$?[A-Za-z]{1,3}\$?\d+'
-        expr_with_values = _re.sub(ref_pattern, replace_ref, expr)
+        # v5.0.12：只替换**引号外**的引用（`="A1"` 是字符串，不是引用）
+        expr_with_values = FormulaEngine._transform_outside_strings(
+            expr, lambda seg: _re.sub(ref_pattern, replace_ref, seg)
+        )
+        # v5.0.12：Excel 条件写法 → Python（单 = / <> / !=），修 IF/AND/OR
+        expr_with_values = FormulaEngine._normalize_excel_operators(
+            expr_with_values
+        )
 
         # 2. AST 白名单校验
         try:
@@ -1099,7 +1275,25 @@ class FormulaEngine:
     @classmethod
     def _round(cls, a, m):
         p = cls._args(a)
-        return round(float(cls._av(p[0], m)), int(cls._av(p[1], m))) if len(p) >= 2 else "#ERROR"
+        if len(p) < 2:
+            return "#ERROR"
+        # v5.0.12：第一个参数改用 _eval_arg，支持 ROUND(SUM(...)/4, 0)
+        # 这类"函数结果参与运算"的常见写法；同时改用 Excel 的
+        # "四舍五入（.5 远离零）"语义 —— Python 内置 round() 是银行家舍入，
+        # ROUND(2.5,0) 会得到 2，与 Excel 的 3 不一致。
+        try:
+            from decimal import ROUND_HALF_UP, Decimal
+
+            value = float(cls._eval_arg(p[0], m))
+            digits = int(cls._av(p[1], m))
+            quantum = Decimal(1).scaleb(-digits)
+            return float(
+                Decimal(str(value)).quantize(
+                    quantum, rounding=ROUND_HALF_UP
+                )
+            )
+        except (TypeError, ValueError):
+            return "#ERROR"
 
     @classmethod
     def _roundup(cls, a, m):
