@@ -234,6 +234,15 @@ BOM 容忍（真实踩过的坑）。测试 15 条 / 门禁 `beecmd`。
 
 **v0.1 待接**（依赖 Qt offscreen）：`md ↔ docx`、`→ pdf`（复用既有打印引擎）。
 
+**✅ 2026-10-19 v0.1 也已落地**：
+```
+python -m beeoffice.beecmd convert 报告.md --to docx -o 报告.docx   # 有内容，词元级 verify 零差异
+python -m beeoffice.beecmd convert 报告.md --to pdf  -o 报告.pdf    # ≥1 页
+python -m beeoffice.beecmd verify  报告.md 报告.pdf                 # 文本提取不到时退出码 3「不可判定」
+```
+`verify` 的文本模式是**词元级**（PDF/Word 换行与 Markdown 不同，逐行比会误报）。
+尚未接：`docx → md`、`表格 → pdf`（无单点 API，已明确拒绝而不是产出空文件）。
+
 ### 5.3 本地 AI **任务化**（而非聊天框）
 现状：AI 是"续写/润色/总结"几个按钮。
 要改成：**可组合的任务**（表格清洗、合同条款抽取、演示大纲生成、校对），

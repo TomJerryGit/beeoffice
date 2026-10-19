@@ -17,15 +17,23 @@
 * `verify`：把转换产物与源文件**逐格对比**，输出 JSON 报告
 * `batch`：按 JSON 任务清单批量执行，写 `audit.jsonl` 审计流水
 
-**明确不在 v0**（不要假装有）：
-* `md ↔ docx`、任何 `→ pdf`：这些依赖 Qt 富文本/打印引擎，
-  需要 `QT_QPA_PLATFORM=offscreen`（v0.1 再接，接法已探明：见 `docs/` 与既有打印测试）
+## v0.1 追加（需要 Qt，自动用 offscreen）
+* `convert 文稿.md --to docx`：经蜜写的富文本编辑器写 Word
+* `convert 文稿.md --to pdf`：经蜜写的打印引擎出 PDF
+* `verify 文稿.md 文稿.docx / .pdf`：把产物里的文本与源 Markdown 做**词元级**比对
+  （PDF/Word 的文本提取会有换行差异，逐行比会误报，所以比词元集合）
+
+**明确不在 v0.1**（不要假装有）：
+* `docx → md`（蜜写的 docx 载入是带异步与"附加内容"的完整流程，没有单点 API）
+* `表格 → pdf`（蜜算的打印导出挂在视图上，需要先把数据装进模型）
 * 并行执行（Qt 的 offscreen 初始化在多线程里不稳；串行更诚实）
 
 ## 退出码（便于脚本判断）
 * `0` 成功
 * `1` 出错（参数/IO/不支持的转换）
 * `2` `verify` 发现不一致
+* `3` `verify` **不可判定**（例如 PDF 文本提取为空：本机无字体或产物是空白页 ——
+  这是"不知道"，不是"通过"，也不是"不一致"）
 
 ## 用法
     python -m beeoffice.beecmd convert 表.xlsx --to csv -o 表.csv
@@ -54,7 +62,7 @@ SHEET_OUTPUTS = ("xlsx", "csv", "json", "md", "html")
 DECK_INPUTS = (".md",)
 DECK_OUTPUTS = ("beshow",)
 
-EXIT_OK, EXIT_ERROR, EXIT_MISMATCH = 0, 1, 2
+EXIT_OK, EXIT_ERROR, EXIT_MISMATCH, EXIT_INCONCLUSIVE = 0, 1, 2, 3
 
 
 class BeecmdError(RuntimeError):
@@ -190,6 +198,84 @@ def _write_deck(src: Path, out: Path) -> Path:
     return out
 
 
+# ==================== 文稿：md → docx / pdf（v0.1，需要 Qt）====================
+
+#: 视为"文稿源"的扩展名（目前只有 Markdown —— docx→md 没有单点 API，见模块文档）
+DOC_SOURCES = (".md", ".markdown", ".txt")
+#: 需要 Qt 的输出格式
+QT_OUTPUTS = ("docx", "pdf")
+
+_QT_APP = None
+
+
+def _ensure_qt():
+    """
+    惰性初始化 Qt（**只在文稿/PDF 路径**用到，表格路径保持零 Qt）。
+
+    默认把平台设成 `offscreen`：CLI 不需要真窗口，服务器/CI 也能跑。
+    用户显式设过 `QT_QPA_PLATFORM` 就尊重他的设置。
+    """
+    global _QT_APP
+    if _QT_APP is not None:
+        return _QT_APP
+    import os
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    try:
+        from PySide6.QtWidgets import QApplication
+    except Exception as e:  # noqa: BLE001
+        raise BeecmdError(
+            f"文稿/PDF 转换需要 PySide6（当前环境不可用：{e}）。\n"
+            "表格类转换（xlsx/csv/json/md/html）不需要 Qt，可以照常使用。"
+        ) from e
+    _QT_APP = QApplication.instance() or QApplication([])
+    return _QT_APP
+
+
+def _convert_doc(src: Path, fmt: str, out: Path) -> Path:
+    """
+    用蜜写的编辑器件把 Markdown 变成 docx / pdf（与 GUI 同一套代码）。
+
+    实测要点（都踩过）：
+    * 用 **`set_content()`**（GUI 与测试里的正规入口）而不是 `rich_editor.set_markdown()`
+      —— 后者只喂内部编辑器，`_write_docx` 在 markdown 模式下取的是
+      `get_rendered_content()`，会写出**空文档**（我踩过，`_write_docx` 还返回 True）；
+    * 需要 `show()` + `resize()`：打印/导出依赖布局。
+
+    ⚠️ **PDF 的文本内容在本机无法验证**：offscreen 下 Qt 报
+    `QFontDatabase: Cannot find font directory`，文字渲染不出来 →
+    产物页数正常但**提取不到文本**。所以 `verify` 对 PDF 会返回"不可判定"（退出码 3），
+    而不是假装通过或假装失败。
+    """
+    app = _ensure_qt()
+    from beeoffice.plugins.beewrite import BeeWriteEditor
+
+    text = src.read_text(encoding="utf-8-sig")
+    editor = BeeWriteEditor()
+    editor.resize(900, 1200)
+    editor.show()
+    app.processEvents()
+    try:
+        editor.set_content(text)
+        app.processEvents()
+        if fmt == "docx":
+            ok = editor._write_docx(str(out))
+            if ok is False:
+                raise BeecmdError(f"写 {out} 失败（_write_docx 返回 False）")
+        elif fmt == "pdf":
+            # MRO 里 DocMixin 在 ExportMixin 之前 → 这个 export_pdf 收 path
+            ok = editor.export_pdf(str(out))
+            if not ok:
+                raise BeecmdError(f"写 {out} 失败（export_pdf 返回假）")
+        else:  # pragma: no cover - 由调用方保证
+            raise BeecmdError(f"不支持的文稿输出格式: {fmt}")
+    finally:
+        editor.close()
+        editor.deleteLater()
+        app.processEvents()   # 没有事件循环时也让 deleteLater 生效
+    return out
+
+
 # ==================== 命令：convert ====================
 
 def cmd_convert(src: str, to: str, out: Optional[str],
@@ -204,6 +290,14 @@ def cmd_convert(src: str, to: str, out: Optional[str],
 
     if fmt == "beshow":
         _write_deck(src_path, out_path)
+    elif fmt in QT_OUTPUTS:
+        if src_path.suffix.lower() not in DOC_SOURCES:
+            raise BeecmdError(
+                f"{fmt} 输出 v0.1 只支持 Markdown 源（{', '.join(DOC_SOURCES)}），"
+                f"收到 {src_path.suffix}。\n"
+                "表格→PDF、docx→md 尚未支持（见模块文档的 v0.2 待办）。"
+            )
+        _convert_doc(src_path, fmt, out_path)
     else:
         workbook = _read_sheet_table(src_path, sheet)
         _write_sheet(workbook, fmt, out_path, sheet)
@@ -283,13 +377,28 @@ def cmd_verify(src: str, artifact: str, report: Optional[str] = None) -> int:
     result["ok"] = mismatches == 0
     result["checked_at"] = _dt.datetime.now().isoformat(timespec="seconds")
 
+    # PDF/Word 提取不到文本 → "不可判定"，既不报通过也不报失败
+    if (result["mode"] == "text"
+            and art_path.suffix.lower() in (".pdf", ".docx")
+            and not _tokens(_extract_text(art_path))):
+        result["inconclusive"] = True
+        result["note"] = (
+            "产物里提取不到任何文本：本机可能没有字体（offscreen 渲染）"
+            "或产物是空白页。请人工打开确认 —— 这是『不知道』，不是『通过』。"
+        )
+
     text = json.dumps(result, ensure_ascii=False, indent=2)
     if report:
         Path(report).write_text(text, encoding="utf-8")
-        print(f"{'✅' if result['ok'] else '❌'} 报告已写入 {report}"
-              f"（不一致 {mismatches} 处）")
+        mark = ("⚠️" if result.get("inconclusive") else
+                ("✅" if result["ok"] else "❌"))
+        print(f"{mark} 报告已写入 {report}"
+              f"（不一致 {mismatches} 处"
+              + ("；不可判定" if result.get("inconclusive") else "") + "）")
     else:
         print(text)
+    if result.get("inconclusive"):
+        return EXIT_INCONCLUSIVE
     return EXIT_OK if result["ok"] else EXIT_MISMATCH
 
 
@@ -374,22 +483,61 @@ def _compare_frames(a, b) -> Tuple[int, List[dict]]:
     return count, samples
 
 
-def _compare_text(a: Path, b: Path) -> Tuple[int, List[dict]]:
-    def norm_lines(p: Path) -> List[str]:
-        text = p.read_text(encoding="utf-8", errors="replace")
-        return [ln.strip() for ln in text.splitlines() if ln.strip()]
+def _extract_text(path: Path) -> str:
+    """
+    从不同文件类型取出**纯文本**（供文本比对）。
 
-    la, lb = norm_lines(a), norm_lines(b)
-    count = 0
+    * `.docx`：python-docx（段落 + 表格单元格）
+    * `.pdf`：PyMuPDF（逐页取文本）
+    * 其它：按文本读（UTF-8，容忍 BOM）
+    """
+    suffix = path.suffix.lower()
+    if suffix == ".docx":
+        from docx import Document
+
+        doc = Document(str(path))
+        parts = [p.text for p in doc.paragraphs]
+        for table in doc.tables:
+            for row in table.rows:
+                parts.append("\t".join(cell.text for cell in row.cells))
+        return "\n".join(parts)
+    if suffix == ".pdf":
+        import fitz
+
+        with fitz.open(str(path)) as pdf:
+            return "\n".join(page.get_text() for page in pdf)
+    return path.read_text(encoding="utf-8-sig", errors="replace")
+
+
+def _tokens(text: str) -> List[str]:
+    """
+    切成**词元**：英文/数字按连续片段，中文按**单个汉字**。
+
+    为什么不用逐行比：PDF/Word 提取出来的换行与源 Markdown 完全不同
+    （一段话可能被拆成几行、也可能被合并），逐行比会大面积误报。
+    """
+    import re
+
+    return re.findall(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]", text)
+
+
+def _compare_text(a: Path, b: Path) -> Tuple[int, List[dict]]:
+    """词元级比对：报告"源有产物没有"与"产物有源没有"的数量与样例。"""
+    from collections import Counter
+
+    tok_a = _tokens(_extract_text(a))
+    tok_b = _tokens(_extract_text(b))
+    counter_a, counter_b = Counter(tok_a), Counter(tok_b)
+
+    missing = counter_a - counter_b      # 源里有、产物里缺
+    extra = counter_b - counter_a        # 产物里多出来
     samples: List[dict] = []
-    for i in range(max(len(la), len(lb))):
-        left = la[i] if i < len(la) else ""
-        right = lb[i] if i < len(lb) else ""
-        if left != right:
-            count += 1
+    for kind, counter in (("missing_in_artifact", missing),
+                          ("extra_in_artifact", extra)):
+        for token, count in list(counter.items())[:10]:
             if len(samples) < 20:
-                samples.append({"line": i + 1, "src": left, "artifact": right})
-    return count, samples
+                samples.append({"kind": kind, "token": token, "count": count})
+    return sum(missing.values()) + sum(extra.values()), samples
 
 
 # ==================== 命令：batch ====================
@@ -424,8 +572,8 @@ def cmd_batch(jobs_file: str, audit: Optional[str] = None) -> int:
             else:
                 raise BeecmdError(f"未知 op: {op!r}（只支持 convert / verify）")
             ok = code in (EXIT_OK, EXIT_MISMATCH)
-            # verify 的不一致不算"执行失败"，但要从 ok 里体现出来
-            if code == EXIT_MISMATCH:
+            # verify 的不一致 / 不可判定都不算"执行成功"
+            if code in (EXIT_MISMATCH, EXIT_INCONCLUSIVE):
                 ok = False
         except Exception as e:  # noqa: BLE001 - 单条失败不中断整批
             code, ok = EXIT_ERROR, False
@@ -467,7 +615,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_convert = sub.add_parser("convert", help="转换文件格式")
     p_convert.add_argument("src", help="源文件")
     p_convert.add_argument("--to", required=True,
-                           help="目标格式：xlsx/csv/json/md/html/beshow")
+                           help="目标格式：xlsx/csv/json/md/html/beshow"
+                                "（+ v0.1: docx/pdf，仅限 Markdown 源）")
     p_convert.add_argument("-o", "--out", help="输出路径（默认同名换扩展名）")
     p_convert.add_argument("--sheet", help="指定工作表（表格转 csv/md/html 时用）")
 
