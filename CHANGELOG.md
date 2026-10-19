@@ -12,12 +12,16 @@
 
 ### 新增工具
 - `beecmd ai`（CLI v0.3）：**本地/云端 AI 任务** —— `summarize` / `polish` /
-  `keywords` / `continue` 四个任务，可脚本调用、可写 JSON 元信息；
+  `keywords` / `continue` / **`extract`（条款抽取，严格 JSON）** /
+  **`outline`（演示大纲）** 六个任务，可脚本调用、可写 JSON 元信息；
   配置顺序为命令行 > `BEEOFFICE_AI_*` 环境变量 > 应用「AI 设置」；
   本地 Ollama 无需 Key。**实测**（本机 `llama3.2` CPU 推理）：
-  300 字经营摘要 → 49.6 s 返回 4 条要点，来源标记 `ai`，元信息记录耗时/模型。
+  300 字摘要 → 49.6 s 出 4 条要点；演示大纲 → 74.6 s；条款抽取 → 65.0 s
+  （首次输出 JSON 不合法 → 自动修复重试一次后通过）。
+  结构化任务有契约：`extract` 必须是合法 JSON、`outline` 必须有 `# 标题`，
+  不合规保存 `.raw.txt` 并失败（`--no-retry` 可关自动修复）；
   失败/未配置 → 退出码 1 且不写输出文件（不拿本地规则冒充 AI）；零 Qt。
-  新增 7 条测试 + 门禁 `beecmd-ai`。
+  新增 **15 条**测试 + 门禁 `beecmd-ai`。
 - `tools/pipelines/build_jobs.py`：把目录变成 `beecmd batch` 任务清单的**流水线模板**，
   支持三种：`md-pdf`（批量转 PDF，可带词元级 verify）、`beshow`（批量转蜜演文稿）、
   `sheet-merge`（多表汇总）。6 条单测 `tests/unit/test_pipeline_jobs.py`；

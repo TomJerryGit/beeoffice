@@ -132,9 +132,20 @@ python -m beeoffice.beecmd ai summarize 经营摘要.md `
 ✅ AI summarize 完成（AI 生成（llama3.2），49.6 s）→ AI总结.md
 ```
 
+六个任务：`summarize / polish / keywords / continue / extract / outline`。
+结构化任务示例（真实调用：大纲 74.6 s、条款抽取 65.0 s）：
+
+```powershell
+python -m beeoffice.beecmd ai outline 经营摘要.md -o 演示大纲.md --slides 5 ...   # # 标题 + --- 分页
+python -m beeoffice.beecmd convert 演示大纲.md --to beshow -o 演示大纲.beshow      # 接蜜演
+python -m beeoffice.beecmd ai extract 经营摘要.md -o 条款.json --limit 5 ...       # 严格 JSON（带 quote）
+```
+
 - 失败/未配置 → 退出码 1 且**不写输出文件**（不拿本地规则冒充 AI）；
-- `--meta` 记录 model/api_base/source/耗时；`batch` 支持 `{"op": "ai", ...}`；
-- 详见 [本地AI任务化-CLI.md](本地AI任务化-CLI.md)，回归 `tests/fidelity/test_beecmd_ai.py`（7 条）。
+- `extract` 必须是合法 JSON、`outline` 必须有 `# 标题`；不合规自动修复重试一次
+  （`--no-retry` 可关），仍不合规保存 `.raw.txt` 并失败；
+- `--meta` 记录 model/api_base/source/耗时/attempts；`batch` 支持 `{"op": "ai", ...}`；
+- 详见 [本地AI任务化-CLI.md](本地AI任务化-CLI.md)，回归 `tests/fidelity/test_beecmd_ai.py`（15 条）。
 
 ## 7. 边界（如实说明）
 

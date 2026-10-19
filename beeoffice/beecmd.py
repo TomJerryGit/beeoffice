@@ -36,10 +36,12 @@
 * `batch` 支持 `{"op": "merge", "srcs": [...], "out": "...", ...}`
 
 ## v0.3 追加（纯 Python，零 Qt）
-* `ai`：对文本文件执行**任务式 AI**（`summarize` / `polish` / `keywords` / `continue`）
+* `ai`：对文本文件执行**任务式 AI**（`summarize` / `polish` / `keywords` /
+  `continue` / `extract` 条款抽取 / `outline` 演示大纲）
   * 配置顺序：命令行参数 > `BEEOFFICE_AI_*` 环境变量 > 应用「AI 设置」；
   * 本地 Ollama 示例：`--api-base http://127.0.0.1:11434/v1 --model llama3.2`（无需 Key）；
   * **诚实性**：AI 不可用/调用失败时直接报错退出，绝不拿本地规则冒充 AI；
+    `extract` 输出必须是合法 JSON、`outline` 必须有标题行，否则保存 raw 并失败；
     成功时标出来源（模型名）与耗时，可写 JSON 元信息；
 * `batch` 支持 `{"op": "ai", "task": "summarize", "src": "...", "out": "..."}`。
 
@@ -665,7 +667,45 @@ AI_TASKS = {
     "polish": ("build_polish_prompt", 1200),
     "keywords": ("build_keywords_prompt", 200),
     "continue": ("build_continue_prompt", 600),
+    "extract": ("build_extract_prompt", 900),
+    "outline": ("build_outline_prompt", 900),
 }
+
+
+def _strip_code_fence(text: str) -> str:
+    """去掉模型偶尔自带的 ``` 代码围栏。"""
+    stripped = text.strip()
+    if not stripped.startswith("```"):
+        return stripped
+    lines = stripped.splitlines()[1:]
+    if lines and lines[-1].strip() == "```":
+        lines = lines[:-1]
+    return "\n".join(lines).strip()
+
+
+def _postprocess_ai(task: str, result: str) -> str:
+    """
+    按任务校验/规范化模型输出（**不合格就失败，不写结果文件**）。
+
+    * `extract`：必须是合法 JSON（数组或对象）——否则"结构化抽取"是假的；
+    * `outline`：必须至少有一行 `# 标题`（否则不是大纲）；
+    * 其余任务：原样返回。
+    """
+    if task == "extract":
+        raw = _strip_code_fence(result)
+        try:
+            data = json.loads(raw)
+        except Exception as e:  # noqa: BLE001 - 统一转成可读失败
+            raise ValueError(f"模型输出不是合法 JSON（{e}）") from None
+        if not isinstance(data, (list, dict)):
+            raise ValueError("JSON 顶层应为数组或对象")
+        return json.dumps(data, ensure_ascii=False, indent=2)
+    if task == "outline":
+        raw = _strip_code_fence(result)
+        if not any(line.lstrip().startswith("#") for line in raw.splitlines()):
+            raise ValueError("大纲没有任何 `# 标题` 行")
+        return raw
+    return result.rstrip()
 
 
 def _resolve_ai_config(model: str, api_base: str, api_key: str,
@@ -702,14 +742,18 @@ def _resolve_ai_config(model: str, api_base: str, api_key: str,
 def cmd_ai(task: str, src: str, out: Optional[str] = None,
            model: str = "", api_base: str = "", api_key: str = "",
            timeout: int = 0, max_points: int = 5, count: int = 8,
-           length: int = 160, meta_json: Optional[str] = None) -> int:
+           length: int = 160, limit: int = 10, slides: int = 8,
+           retry: bool = True,
+           meta_json: Optional[str] = None) -> int:
     """
-    对文本文件执行一次 AI 任务（总结 / 润色 / 关键词 / 续写）。
+    对文本文件执行一次 AI 任务（总结 / 润色 / 关键词 / 续写 / 抽取 / 大纲）。
 
     **诚实性约束**（与 GUI 的 AI 纪律一致）：
       * 没配置好 AI（无地址/模型、云端无 Key）→ 直接失败并说明原因，**绝不**用本地
         规则冒充 AI 输出；
       * 调用失败 → 打印可照做的错误说明，退出码 1，不写输出文件；
+      * `extract` 输出必须能解析为 JSON、`outline` 必须有标题行 —— 不满足就
+        保存原始输出到 `<out>.raw.txt` 并失败，**不把不合规内容当结果**；
       * 成功 → 输出文件 + 来源标注（`AI 生成（模型名）`），可选 JSON 元信息。
     """
     import time
@@ -736,6 +780,10 @@ def cmd_ai(task: str, src: str, out: Optional[str] = None,
             t, count=count),
         "build_continue_prompt": lambda t: ai_mod.build_continue_prompt(
             t, length_hint=length),
+        "build_extract_prompt": lambda t: ai_mod.build_extract_prompt(
+            t, limit=limit),
+        "build_outline_prompt": lambda t: ai_mod.build_outline_prompt(
+            t, slides=slides),
     }
     prompt = builders[prompt_name](text)
 
@@ -750,17 +798,56 @@ def cmd_ai(task: str, src: str, out: Optional[str] = None,
 
     started = time.perf_counter()
     ok, result = client.chat(prompt, max_tokens=max_tokens)
-    elapsed_ms = (time.perf_counter() - started) * 1000
     if not ok:
         raise BeecmdError(f"AI 调用失败：{client.last_error}")
 
+    attempts = 1
+    post_error = None
+    try:
+        payload = _postprocess_ai(task, result)
+    except ValueError as e:
+        payload = None
+        post_error = e
+
+    # 结构化任务（extract/outline）允许**一次**格式修复重试：
+    # 小模型（如 llama3.2）经常差一个括号/少个标题，直接失败对用户体验太差；
+    # 但绝不把修不好的内容当结果写盘。
+    if payload is None and retry and task in ("extract", "outline"):
+        repair = (
+            ai_mod.build_extract_repair_prompt(result) if task == "extract"
+            else ai_mod.build_outline_repair_prompt(result)
+        )
+        ok2, result2 = client.chat(repair, max_tokens=max_tokens)
+        attempts = 2
+        if ok2:
+            result = result2
+            try:
+                payload = _postprocess_ai(task, result)
+                post_error = None
+            except ValueError as e:  # noqa: PERF203 - 单次重试，保持可读
+                post_error = e
+        else:
+            post_error = ValueError(f"格式修复重试失败：{client.last_error}")
+
+    elapsed_ms = (time.perf_counter() - started) * 1000
     out_path = Path(out) if out else src_path.with_name(
         f"{src_path.stem}.{task}.md"
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(result.rstrip() + "\n", encoding="utf-8")
+    if payload is None:
+        raw_path = out_path.with_name(out_path.name + ".raw.txt")
+        try:
+            raw_path.write_text(result, encoding="utf-8")
+        except OSError:
+            raw_path = None
+        hint = f"；原始输出已保存到 {raw_path}" if raw_path else ""
+        retried = "（已重试 1 次）" if attempts > 1 else ""
+        raise BeecmdError(f"{post_error}{retried}{hint}；未写结果文件")
+
+    out_path.write_text(payload + "\n", encoding="utf-8")
+    retry_note = "，重试后通过" if attempts > 1 else ""
     print(f"✅ AI {task} 完成（{client.describe_source()}，"
-          f"{elapsed_ms / 1000:.1f} s）→ {out_path}")
+          f"{elapsed_ms / 1000:.1f} s{retry_note}）→ {out_path}")
 
     if meta_json:
         meta = {
@@ -768,6 +855,7 @@ def cmd_ai(task: str, src: str, out: Optional[str] = None,
             "task": task, "src": str(src_path), "out": str(out_path),
             "model": cfg["model"], "api_base": cfg["api_base"],
             "source": client.last_source, "elapsed_ms": round(elapsed_ms, 1),
+            "attempts": attempts,
         }
         meta_path = Path(meta_json)
         meta_path.parent.mkdir(parents=True, exist_ok=True)
@@ -825,6 +913,9 @@ def cmd_batch(jobs_file: str, audit: Optional[str] = None) -> int:
                     max_points=int(job.get("max_points", 5)),
                     count=int(job.get("count", 8)),
                     length=int(job.get("length", 160)),
+                    limit=int(job.get("limit", 10)),
+                    slides=int(job.get("slides", 8)),
+                    retry=bool(job.get("retry", True)),
                     meta_json=job.get("meta"),
                 )
             elif op == "verify":
@@ -916,6 +1007,12 @@ def build_parser() -> argparse.ArgumentParser:
                       help="keywords 的关键词个数")
     p_ai.add_argument("--length", type=int, default=160,
                       help="continue 的续写字数提示")
+    p_ai.add_argument("--limit", type=int, default=10,
+                      help="extract 的抽取条数上限")
+    p_ai.add_argument("--slides", type=int, default=8,
+                      help="outline 的目标页数")
+    p_ai.add_argument("--no-retry", action="store_true",
+                      help="extract/outline 格式不合格时不自动重试一次")
     p_ai.add_argument("--meta", help="把调用元信息写入 JSON")
 
     p_verify = sub.add_parser("verify", help="对比源文件与产物，输出 JSON 报告")
@@ -952,7 +1049,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                 model=args.model, api_base=args.api_base,
                 api_key=args.api_key, timeout=args.timeout,
                 max_points=args.max_points, count=args.count,
-                length=args.length, meta_json=args.meta,
+                length=args.length, limit=args.limit, slides=args.slides,
+                retry=not args.no_retry,
+                meta_json=args.meta,
             )
         if args.command == "batch":
             return cmd_batch(args.jobs, args.audit)

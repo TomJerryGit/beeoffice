@@ -313,3 +313,55 @@ def build_keywords_prompt(text: str, count: int = 8) -> str:
         "一行输出，不要解释。\n\n"
         f"【文档】\n{text.strip()}"
     )
+
+
+def build_extract_prompt(text: str, limit: int = 10) -> str:
+    """
+    条款/关键信息抽取提示：**要求严格 JSON + 原文引用**。
+
+    为什么强调 quote：任务化 AI 的卖点是"可核对"。没有原文摘录，
+    用户无法判断模型是不是编的 —— 这条约束把"可审计"落到了提示词里。
+    """
+    return (
+        f"请从下面的文档中抽取最多 {limit} 条关键信息/条款，输出**严格的 JSON 数组**。"
+        "每个元素必须包含字段："
+        "title（简短标题）、value（结论/金额/期限等值）、"
+        "quote（原文摘录，必须逐字来自文档）。"
+        "只输出 JSON，不要解释、不要 Markdown 代码块、不要任何多余文字。\n\n"
+        f"【文档】\n{text.strip()}"
+    )
+
+
+def build_outline_prompt(text: str, slides: int = 8) -> str:
+    """
+    演示大纲提示：输出可直接喂给 `.beshow`/Markdown 的页结构。
+
+    `.beshow` 的页分隔符与项目既有实现一致（单独一行 `---`）。
+    """
+    return (
+        f"请把下面的文档整理成一份约 {slides} 页的演示大纲（Markdown）。"
+        "每一页用 `# 标题` 开头，下面最多 4 条 `- 要点`；"
+        "页与页之间用单独一行 `---` 分隔。"
+        "只输出大纲正文，不要解释、不要代码块。\n\n"
+        f"【文档】\n{text.strip()}"
+    )
+
+
+def build_extract_repair_prompt(raw: str) -> str:
+    """把模型上一次不合法的 JSON 输出"修"成严格 JSON（只用于一次重试）。"""
+    return (
+        "下面是一次「条款抽取」的输出，但它不是合法 JSON。"
+        "请把它改写为**严格合法的 JSON 数组**：每个元素含 title/value/quote 三个字段；"
+        "只输出 JSON 本身，不要解释、不要 Markdown 代码块。\n\n"
+        f"【上一次输出】\n{raw.strip()}"
+    )
+
+
+def build_outline_repair_prompt(raw: str) -> str:
+    """把上一次没有标题行的大纲输出修成带 `# 标题` / `---` 的 Markdown。"""
+    return (
+        "下面是一份「演示大纲」的输出，但它缺少 `# 标题` 行。"
+        "请改写为 Markdown 大纲：每页以 `# 标题` 开头，页间用单独一行 `---` 分隔；"
+        "只输出大纲正文。\n\n"
+        f"【上一次输出】\n{raw.strip()}"
+    )

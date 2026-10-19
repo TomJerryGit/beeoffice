@@ -87,6 +87,58 @@ class _BrokenClient(_FakeClient):
         return False, self.last_error
 
 
+class _JsonClient(_FakeClient):
+    """返回合法 JSON 数组（extract 任务用）。"""
+
+    def chat(self, prompt, system=None, max_tokens=1200):
+        self.prompt = prompt
+        return True, ('[{"title": "收入", "value": "1200 万元",'
+                      ' "quote": "营业收入 1200 万元"}]')
+
+
+class _BadJsonClient(_FakeClient):
+    """返回不合法的"结构化"输出（必须被拒绝，不能当结果写盘）。"""
+
+    def chat(self, prompt, system=None, max_tokens=1200):
+        self.prompt = prompt
+        return True, "这不是 JSON，只是一段解释文字。"
+
+
+class _OutlineClient(_FakeClient):
+    """返回带标题与页分隔符的大纲（outline 任务用）。"""
+
+    def chat(self, prompt, system=None, max_tokens=1200):
+        self.prompt = prompt
+        return True, "# 季度汇报\n\n- 收入增长 20%\n\n---\n\n# 风险\n\n- 回款周期 75 天"
+
+
+class _BadOutlineClient(_FakeClient):
+    """没有任何 `# 标题` 的输出（必须被拒绝）。"""
+
+    def chat(self, prompt, system=None, max_tokens=1200):
+        self.prompt = prompt
+        return True, "收入增长 20%，成本下降 5%。"
+
+
+class _RetryClient(_FakeClient):
+    """第一次返回坏 JSON，第二次（格式修复）返回合法 JSON。"""
+
+    calls = 0
+
+    def chat(self, prompt, system=None, max_tokens=1200):
+        self.prompt = prompt
+        _RetryClient.calls += 1
+        if _RetryClient.calls == 1:
+            return True, '["title":"收入","value":1200]'
+        return True, '[{"title": "收入", "value": "1200", "quote": "营业收入 1200 万元"}]'
+
+
+class _AlwaysBadJsonClient(_FakeClient):
+    def chat(self, prompt, system=None, max_tokens=1200):
+        self.prompt = prompt
+        return True, '["title":"收入"'
+
+
 @pytest.fixture
 def fake_ai(monkeypatch):
     from beeoffice.plugins import ai_client as ai_mod
@@ -176,8 +228,134 @@ def test_ai_rejects_empty_source(tmp_path, fake_ai, capsys):
     assert "为空" in capsys.readouterr().err
 
 
-# ==================== 3. batch 支持 ai ====================
+# ==================== 2.5 extract / outline 的任务契约 ====================
 
+def _patch_client(monkeypatch, cls):
+    from beeoffice.plugins import ai_client as ai_mod
+
+    monkeypatch.setattr(ai_mod, "AIClient", cls)
+
+
+def test_ai_extract_valid_json(sample_md, tmp_path, monkeypatch, capsys):
+    _patch_client(monkeypatch, _JsonClient)
+    out = tmp_path / "条款.json"
+    code = _run([
+        "ai", "extract", str(sample_md), "--out", str(out),
+        "--model", "fake-model", "--api-base", "http://127.0.0.1:11434/v1",
+    ])
+    assert code == 0
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data[0]["title"] == "收入"
+    assert "quote" in data[0]
+    assert "AI extract 完成" in capsys.readouterr().out
+
+
+def test_ai_extract_invalid_json_is_rejected(sample_md, tmp_path,
+                                             monkeypatch, capsys):
+    """模型没按 JSON 输出 → 保存 raw、退出 1，**不能把解释文字当结果**。"""
+    _patch_client(monkeypatch, _BadJsonClient)
+    out = tmp_path / "条款.json"
+    code = _run([
+        "ai", "extract", str(sample_md), "--out", str(out),
+        "--model", "fake-model", "--api-base", "http://127.0.0.1:11434/v1",
+    ])
+    assert code == 1
+    assert not out.exists(), "不合法的 JSON 不能写进结果文件"
+    raw = tmp_path / "条款.json.raw.txt"
+    assert raw.is_file() and "不是 JSON" in raw.read_text(encoding="utf-8")
+    assert "合法 JSON" in capsys.readouterr().err
+
+
+def test_ai_extract_prompt_contains_quote_requirement(sample_md, tmp_path,
+                                                      monkeypatch):
+    _patch_client(monkeypatch, _JsonClient)
+    out = tmp_path / "条款.json"
+    assert _run([
+        "ai", "extract", str(sample_md), "--out", str(out),
+        "--model", "m", "--api-base", "http://127.0.0.1:11434/v1",
+        "--limit", "3",
+    ]) == 0
+    prompt = _JsonClient.instances[-1].prompt
+    assert "quote" in prompt and "季度报告" in prompt
+    assert "最多 3 条" in prompt
+
+
+def test_ai_outline_valid(sample_md, tmp_path, monkeypatch, capsys):
+    _patch_client(monkeypatch, _OutlineClient)
+    out = tmp_path / "大纲.md"
+    code = _run([
+        "ai", "outline", str(sample_md), "--out", str(out),
+        "--model", "m", "--api-base", "http://127.0.0.1:11434/v1",
+        "--slides", "6",
+    ])
+    assert code == 0
+    text = out.read_text(encoding="utf-8")
+    assert "# 季度汇报" in text and "---" in text
+    assert "6 页" in _OutlineClient.instances[-1].prompt
+
+
+def test_ai_outline_without_headings_is_rejected(sample_md, tmp_path,
+                                                 monkeypatch, capsys):
+    _patch_client(monkeypatch, _BadOutlineClient)
+    out = tmp_path / "大纲.md"
+    code = _run([
+        "ai", "outline", str(sample_md), "--out", str(out),
+        "--model", "m", "--api-base", "http://127.0.0.1:11434/v1",
+    ])
+    assert code == 1
+    assert not out.exists()
+    assert (tmp_path / "大纲.md.raw.txt").is_file()
+    assert "大纲" in capsys.readouterr().err
+
+
+def test_ai_extract_retries_once_on_bad_json(sample_md, tmp_path,
+                                             monkeypatch, capsys):
+    """小模型第一次 JSON 不合法 → 自动修复重试一次，成功则写结果并记 attempts=2。"""
+    _patch_client(monkeypatch, _RetryClient)
+    _RetryClient.calls = 0
+    out = tmp_path / "条款.json"
+    meta = tmp_path / "meta.json"
+    code = _run([
+        "ai", "extract", str(sample_md), "--out", str(out),
+        "--meta", str(meta),
+        "--model", "m", "--api-base", "http://127.0.0.1:11434/v1",
+    ])
+    assert code == 0, capsys.readouterr().err
+    assert _RetryClient.calls == 2
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data[0]["quote"]
+    payload = json.loads(meta.read_text(encoding="utf-8"))
+    assert payload["attempts"] == 2
+    assert "重试后通过" in capsys.readouterr().out
+
+
+def test_ai_extract_retry_still_bad_saves_raw_and_fails(sample_md, tmp_path,
+                                                        monkeypatch, capsys):
+    _patch_client(monkeypatch, _AlwaysBadJsonClient)
+    out = tmp_path / "条款.json"
+    code = _run([
+        "ai", "extract", str(sample_md), "--out", str(out),
+        "--model", "m", "--api-base", "http://127.0.0.1:11434/v1",
+    ])
+    assert code == 1
+    assert not out.exists()
+    assert (tmp_path / "条款.json.raw.txt").is_file()
+    err = capsys.readouterr().err
+    assert "已重试 1 次" in err
+
+
+def test_ai_extract_no_retry_flag(sample_md, tmp_path, monkeypatch, capsys):
+    _patch_client(monkeypatch, _AlwaysBadJsonClient)
+    out = tmp_path / "条款.json"
+    code = _run([
+        "ai", "extract", str(sample_md), "--out", str(out), "--no-retry",
+        "--model", "m", "--api-base", "http://127.0.0.1:11434/v1",
+    ])
+    assert code == 1
+    assert "已重试" not in capsys.readouterr().err
+
+
+# ==================== 3. batch 支持 ai ====================
 def test_batch_supports_ai(sample_md, tmp_path, fake_ai):
     out = tmp_path / "batch_out.md"
     audit = tmp_path / "audit.jsonl"
