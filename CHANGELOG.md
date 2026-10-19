@@ -28,6 +28,11 @@
   基线 3700/117 → **3599/116**；GUI 侧棘轮不变。
 - `beecmd clean` 填充缺失值时先转 object，避免 pandas incompatible-dtype
   FutureWarning（未来版本会变成错误）。
+
+### 工程
+- 新增 `beecmd-clean` 门禁后，干净 worktree 验证：**45/45 门禁 PASS**、
+  **全量 `fidelity+unit` 1467 passed / 4 skipped / 0 failed**（134.9 s，
+  commit `ba07f72`；日志 `_ptmp/analysis/gates_clean_45b.log` / `pytest_clean_full3.log`）。
 ---
 ## [5.0.14] - 2026-10-19
 
