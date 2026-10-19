@@ -232,6 +232,12 @@ GATES = [
         "曾经：所有能力绑在 GUI 上，无法被脚本/服务调用（战略缺口 §5.2）",
     ),
     Gate(
+        "beecmd-merge",
+        "多表汇总：append 并集/sheets 去重/批次审计/零 Qt",
+        "tests/fidelity/test_beecmd_merge.py",
+        "路线图 P1-2 模板②：每月一张表 → 汇总一张；服务器/容器可跑",
+    ),
+    Gate(
         "pptx-import",
         "打开 .pptx：文字/层级/备注保留，图片表格给损失清单，绝不覆盖原 pptx",
         "tests/fidelity/test_pptx_import.py",

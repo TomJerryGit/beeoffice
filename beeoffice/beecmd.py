@@ -28,6 +28,13 @@
 * `表格 → pdf`（蜜算的打印导出挂在视图上，需要先把数据装进模型）
 * 并行执行（Qt 的 offscreen 初始化在多线程里不稳；串行更诚实）
 
+## v0.2 追加（纯 Python，仍然零 Qt）
+* `merge`：**多表汇总** —— 把多个 xlsx/csv/json/md/html 合并成一个 xlsx
+  * `append`（默认）：按列名对齐、纵向追加，并追加一列「来源文件」
+  * `sheets`：每个输入文件的每个工作表放进同一个工作簿
+  * 字符串/数字/空值按 pandas 语义处理；列不一致时取并集，缺列留空
+* `batch` 支持 `{"op": "merge", "srcs": [...], "out": "...", ...}`
+
 ## 退出码（便于脚本判断）
 * `0` 成功
 * `1` 出错（参数/IO/不支持的转换）
@@ -41,6 +48,7 @@
     python -m beeoffice.beecmd convert 讲稿.md --to beshow -o 讲稿.beshow
     python -m beeoffice.beecmd info 表.xlsx
     python -m beeoffice.beecmd verify 表.xlsx 表.csv --report 报告.json
+    python -m beeoffice.beecmd merge 1月.xlsx 2月.xlsx 3月.xlsx -o 一季度汇总.xlsx
     python -m beeoffice.beecmd batch jobs.json --audit audit.jsonl
 """
 from __future__ import annotations
@@ -52,7 +60,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 #: 支持的表格输入扩展名
 SHEET_INPUTS = (".xlsx", ".xls", ".csv", ".json", ".md", ".html", ".htm")
@@ -352,6 +360,90 @@ def cmd_info(src: str) -> int:
     return EXIT_OK
 
 
+# ==================== 命令：merge（v0.2：多表汇总）====================
+
+def _unique_sheet_name(name: str, used: set) -> str:
+    """工作表名去重（Excel 限制 31 字符；重名时追加 `_2`/`_3`）。"""
+    base = (str(name).strip() or "Sheet")[:31]
+    candidate = base
+    index = 2
+    while candidate in used:
+        suffix = f"_{index}"
+        candidate = (base[:31 - len(suffix)] + suffix)
+        index += 1
+    used.add(candidate)
+    return candidate
+
+
+def cmd_merge(sources, out: str, mode: str = "append",
+              source_column: str = "来源文件",
+              sheet_name: str = "汇总") -> int:
+    """
+    多表汇总（v0.2）：把多个表格文件合并为一个 `.xlsx`。
+
+    **append**（默认）：按列名纵向叠加，并在最前面加一列「来源文件」。
+      适合"1 月.xlsx / 2 月.xlsx / 3 月.xlsx → 一季度汇总.xlsx"这类
+      小公司最常见的汇总需求；列不一致时取并集，缺列留空。
+
+    **sheets**：把每个输入文件的每个工作表放进同一个工作簿（名冲突自动加后缀）。
+
+    :return: 退出码（成功 0；参数/IO 错误抛 BeecmdError → main 转成 1）
+    """
+    import pandas as pd
+
+    if not isinstance(sources, (list, tuple)) or len(sources) < 2:
+        raise BeecmdError("merge 至少需要 2 个输入文件")
+    paths = [Path(s) for s in sources]
+    for path in paths:
+        if not path.is_file():
+            raise BeecmdError(f"源文件不存在: {path}")
+    out_path = Path(out)
+    if out_path.suffix.lower() != ".xlsx":
+        raise BeecmdError(
+            f"merge 只输出 .xlsx（收到 {out_path.suffix or '无扩展名'}）"
+        )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    mode = (mode or "append").lower()
+    if mode not in ("append", "sheets"):
+        raise BeecmdError(f"不支持的 merge 模式 {mode!r}（可选 append/sheets）")
+
+    if mode == "append":
+        frames = []
+        for path in paths:
+            df = _read_sheet_table(path).sheets[0].df.copy()
+            if source_column in df.columns:
+                raise BeecmdError(
+                    f"输入 {path.name} 已有列「{source_column}」，"
+                    "请用 --source-column 换一个名字"
+                )
+            df.insert(0, source_column, path.name)
+            frames.append(df)
+        merged = pd.concat(frames, ignore_index=True, sort=False)
+        workbook = _make_workbook([(sheet_name or "汇总", merged)])
+        detail = f"{len(paths)} 个文件 / {len(merged)} 行"
+    else:
+        used = set()
+        sheets = []
+        for path in paths:
+            source_wb = _read_sheet_table(path)
+            multi = len(source_wb.sheets) > 1
+            for index, sheet in enumerate(source_wb.sheets):
+                base = (f"{path.stem}-{sheet.name}"
+                        if multi else path.stem)
+                sheets.append(
+                    (_unique_sheet_name(base or f"Sheet{index + 1}", used),
+                     sheet.df)
+                )
+        workbook = _make_workbook(sheets)
+        total_rows = sum(int(len(df)) for _, df in sheets)
+        detail = f"{len(paths)} 个文件 / {len(sheets)} 个工作表 / {total_rows} 行"
+
+    _write_sheet(workbook, "xlsx", out_path, None)
+    print(f"✅ 已汇总 {detail} → {out_path}（{mode}）")
+    return EXIT_OK
+
+
 # ==================== 命令：verify ====================
 
 def cmd_verify(src: str, artifact: str, report: Optional[str] = None) -> int:
@@ -583,11 +675,21 @@ def cmd_batch(jobs_file: str, audit: Optional[str] = None) -> int:
             if op == "convert":
                 code = cmd_convert(job["src"], job["to"],
                                    job.get("out"), job.get("sheet"))
+            elif op == "merge":
+                srcs = job.get("srcs") or job.get("src")
+                if isinstance(srcs, str):
+                    srcs = [srcs]
+                code = cmd_merge(
+                    srcs or [], job["out"],
+                    mode=job.get("mode", "append"),
+                    source_column=job.get("source_column", "来源文件"),
+                    sheet_name=job.get("sheet_name", "汇总"),
+                )
             elif op == "verify":
                 code = cmd_verify(job["src"], job["artifact"],
                                   job.get("report"))
             else:
-                raise BeecmdError(f"未知 op: {op!r}（只支持 convert / verify）")
+                raise BeecmdError(f"未知 op: {op!r}（只支持 convert / merge / verify）")
             ok = code in (EXIT_OK, EXIT_MISMATCH)
             # verify 的不一致 / 不可判定都不算"执行成功"
             if code in (EXIT_MISMATCH, EXIT_INCONCLUSIVE):
@@ -640,6 +742,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_info = sub.add_parser("info", help="读出一个文件的工作表与尺寸")
     p_info.add_argument("src")
 
+    p_merge = sub.add_parser(
+        "merge", help="多表汇总：把多个表格文件合并成一个 xlsx"
+    )
+    p_merge.add_argument("srcs", nargs="+", help="源文件（至少 2 个）")
+    p_merge.add_argument("-o", "--out", required=True, help="输出 xlsx 路径")
+    p_merge.add_argument("--mode", choices=["append", "sheets"],
+                         default="append",
+                         help="append=按列纵向追加（默认）；sheets=每个表一个工作表")
+    p_merge.add_argument("--source-column", default="来源文件",
+                         help="append 模式追加的来源列名（默认：来源文件）")
+    p_merge.add_argument("--sheet-name", default="汇总",
+                         help="append 模式的输出工作表名（默认：汇总）")
+
     p_verify = sub.add_parser("verify", help="对比源文件与产物，输出 JSON 报告")
     p_verify.add_argument("src")
     p_verify.add_argument("artifact")
@@ -660,6 +775,12 @@ def main(argv: Optional[List[str]] = None) -> int:
             return cmd_convert(args.src, args.to, args.out, args.sheet)
         if args.command == "info":
             return cmd_info(args.src)
+        if args.command == "merge":
+            return cmd_merge(
+                args.srcs, args.out, mode=args.mode,
+                source_column=args.source_column,
+                sheet_name=args.sheet_name,
+            )
         if args.command == "verify":
             return cmd_verify(args.src, args.artifact, args.report)
         if args.command == "batch":
