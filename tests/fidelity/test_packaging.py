@@ -120,3 +120,71 @@ def test_get_version_reads_real_version():
 
     version = module.get_version()
     assert version and version != "0.0.0", f"读到的版本号是 {version!r}"
+
+
+# ==================== R11：打包版"已加载 0 个插件" ====================
+
+def test_builtin_plugin_manifest_matches_source_tree():
+    """
+    **R11 的护栏**：静态清单必须与实际 `*_plugin.py` 一致。
+
+    插件发现依赖扫目录，而 PyInstaller 产物里没有 `.py` 文件 →
+    打包版 `discover_plugins()` 打一行警告就返回 → **0 个插件**，
+    真实功能（`pdf_annotator_plugin` = PDF 批注）就丢了。
+    修法之一是静态清单兜底；这条测试保证**加插件时忘了改清单会被拦住**。
+    """
+    from beeoffice.plugin_manager import BUILTIN_PLUGIN_MODULES
+
+    plugins_dir = ROOT / "beeoffice" / "plugins"
+    actual = sorted(p.stem for p in plugins_dir.glob("*_plugin.py"))
+    assert sorted(BUILTIN_PLUGIN_MODULES) == actual, (
+        f"静态清单与源码树不一致：\n"
+        f"  清单: {sorted(BUILTIN_PLUGIN_MODULES)}\n"
+        f"  实际: {actual}"
+    )
+
+
+def test_plugin_discovery_falls_back_to_manifest_when_frozen(tmp_path):
+    """
+    **R11 的核心回归**：打包版没有 `plugins` 目录时，
+    仍必须加载出全部内置插件（而不是静默 0 个）。
+    """
+    from beeoffice import plugin_manager
+
+    manager = plugin_manager.PluginManager(None)
+    manager.plugins_path = tmp_path / "no_such_plugins"   # 模拟打包产物
+
+    names = manager.iter_plugin_module_names()
+    assert sorted(names) == sorted(plugin_manager.BUILTIN_PLUGIN_MODULES), names
+    assert manager.last_discovery_stats.get("source") == "builtin-manifest"
+
+    manager.discover_plugins()
+    expected = len(plugin_manager.BUILTIN_PLUGIN_MODULES)
+    assert len(manager.plugins) == expected, (
+        f"打包模式应加载 {expected} 个插件，实际 {len(manager.plugins)} 个"
+    )
+    assert "PDF 批注" in {p.name for p in manager.plugins}
+
+
+def test_plugin_path_is_frozen_aware(monkeypatch, tmp_path):
+    """`_resolve_plugins_path()` 要跟着 `sys._MEIPASS` 走（与 tech_words 同一教训）。"""
+    import importlib
+    import sys as _sys
+
+    bundle = tmp_path / "bundle"
+    plugins = bundle / "beeoffice" / "plugins"
+    plugins.mkdir(parents=True)
+    (plugins / "dummy_plugin.py").write_text("class X: pass\n", encoding="utf-8")
+
+    monkeypatch.setattr(_sys, "frozen", True, raising=False)
+    monkeypatch.setattr(_sys, "_MEIPASS", str(bundle), raising=False)
+
+    import beeoffice.plugin_manager as pm
+
+    importlib.reload(pm)
+    try:
+        resolved = pm.PluginManager._resolve_plugins_path()
+        assert str(bundle) in str(resolved), f"没走 _MEIPASS：{resolved}"
+    finally:
+        monkeypatch.undo()
+        importlib.reload(pm)

@@ -34,6 +34,27 @@ PLUGIN_FILENAME_SUFFIX = "_plugin"
 #: 这里只**读取文件文本**，不执行模块，因此不会拉起依赖。
 PLUGIN_SOURCE_MARKER = "(Plugin)"
 
+#: **内置插件模块清单（静态兜底）**。
+#:
+#: ⚠️ 为什么需要它（打包版"已加载 0 个插件"的真根因，生产能力评估 R11）：
+#: 插件发现靠 `pkgutil.iter_modules([plugins_path])` **扫目录**，
+#: 而 PyInstaller 的产物里**没有 `.py` 文件**（模块都在压缩的 PYZ 里）——
+#: 于是 `plugins_path` 不存在 → `discover_plugins()` 打一行警告就返回 → **0 个插件**。
+#: 后果是真实功能丢失：`pdf_annotator_plugin`（PDF 标注）在打包版里就没了。
+#:
+#: 注意：插件模块**确实**被打进包了（`beeoffice.spec` 里有
+#: `collect_submodules("beeoffice.plugins")`），所以按名字 `import_module` 是可行的，
+#: 缺的只是"怎么知道该 import 哪些名字"。
+#:
+#: 本清单与源码树的一致性由测试保证（`tests/fidelity/test_packaging.py`
+#: 会断言它 == 实际存在的 `*_plugin.py`），所以**加插件时忘了改这里会被测试拦住**。
+BUILTIN_PLUGIN_MODULES = (
+    "beewrite_plugin",
+    "beesheet_plugin",
+    "beeshow_plugin",
+    "pdf_annotator_plugin",
+)
+
 
 class PluginManager:
     """插件管理器"""
@@ -46,23 +67,54 @@ class PluginManager:
         self.plugins: List[Plugin] = []          # 插件实例列表
         self.plugin_info: List[Dict[str, Any]] = []  # 插件元信息列表
         self._loaded = False
-        self.plugins_path = Path(__file__).parent / "plugins"
+        self.plugins_path = self._resolve_plugins_path()
         # 最近一次发现过程的统计（供测试与诊断使用）
         self.last_discovery_stats: Dict[str, Any] = {}
+
+    @staticmethod
+    def _resolve_plugins_path() -> Path:
+        """
+        插件目录位置（**冻结感知**，与 `tech_words_path` 同样的教训）。
+
+        * 源码运行：`beeoffice/plugins`
+        * 打包运行：先问 `get_resource_path()`（= `sys._MEIPASS`），
+          若产物里没有该目录则回退到源码相对路径（后面会走静态清单兜底）。
+        """
+        try:
+            from beeoffice.utils import get_resource_path
+
+            resolved = Path(get_resource_path("beeoffice/plugins"))
+            if resolved.exists():
+                return resolved
+        except Exception as e:  # noqa: BLE001 - 解析失败就用下面的相对路径
+            logging.debug(f"[插件] 资源路径解析失败: {e}")
+        return Path(__file__).parent / "plugins"
 
     # ---------- 发现插件 ----------
     def iter_plugin_module_names(self) -> List[str]:
         """
-        扫描 plugins 包，返回**可能是插件**的模块短名（全程不 import）。
+        返回**可能是插件**的模块短名（源码模式下扫目录、全程不 import）。
 
         判断依据（两个廉价信号）：
           1. 文件名以 `_plugin` 结尾 —— 本项目内置插件的约定；
           2. 其余模块读源码找 `(Plugin)` 子类声明 —— 避免插件作者换文件名被漏掉。
 
-        以 _ 开头的模块（__init__ 等）一律跳过。
+        **目录不可用时**（打包版没有 `.py` 文件）→ 返回 `BUILTIN_PLUGIN_MODULES`
+        静态清单（模块本身已被 `collect_submodules` 打进包，按名字 import 即可）。
         """
         if not self.plugins_path.exists():
-            return []
+            self.last_discovery_stats = {
+                "scanned": len(BUILTIN_PLUGIN_MODULES),
+                "candidates": len(BUILTIN_PLUGIN_MODULES),
+                "skipped": 0,
+                "source": "builtin-manifest",
+                "path": str(self.plugins_path),
+            }
+            logging.info(
+                "[插件] 插件目录不可用（打包版正常现象），改用内置清单: %s",
+                ", ".join(BUILTIN_PLUGIN_MODULES),
+            )
+            return list(BUILTIN_PLUGIN_MODULES)
 
         candidates: List[str] = []
         scanned = 0
@@ -101,16 +153,19 @@ class PluginManager:
 
         只 import 候选插件模块（见 iter_plugin_module_names），
         不再为了找插件而把整个 plugins 目录 import 一遍。
-        """
-        if not self.plugins_path.exists():
-            logging.warning(f"插件目录不存在: {self.plugins_path}")
-            return
 
+        ⚠️ **不要**在这里因为"目录不存在"就提前 return ——
+        打包版（PyInstaller 产物）里本来就没有 `.py` 文件，
+        那样会静默变成 **0 个插件**（真实发生过的 R11）。
+        目录不可用时由 `iter_plugin_module_names()` 返回内置清单，
+        模块本身是 `collect_submodules` 打进包的，按名字 import 即可。
+        """
         names = self.iter_plugin_module_names()
         logging.debug(
             f"插件扫描：共 {self.last_discovery_stats.get('scanned', 0)} 个模块，"
             f"候选 {len(names)} 个，跳过 "
             f"{self.last_discovery_stats.get('skipped', 0)} 个实现模块"
+            f"（来源: {self.last_discovery_stats.get('source', 'directory')}）"
         )
 
         for short_name in names:
