@@ -51,6 +51,9 @@
 - 干净 worktree（只含已跟踪文件 + 7 份真实语料）验证：**44/44 门禁 PASS**、
   **全量 `fidelity+unit` 1461 passed / 4 skipped / 0 failed**（351.9 s），
   补上"干净环境全绿"的基线（此前只在被 `test+files/` 污染的脏工作区跑过）。
+- 发行：`BeeOffice-v5.0.14-windows.zip`（224.7 MB，3128 条目，
+  sha256 `14789185850ae3856b49fd1913b50c3ec6427c81c8330dcfd287fb3c71b9d3e6`），
+  tag `v5.0.14` = `b5b3529`；GUI 安装包按设计**不含** `beecmd`/`tools`。
 ---
 ## [5.0.13] - 2026-10-19
 
