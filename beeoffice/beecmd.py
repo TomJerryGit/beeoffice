@@ -902,30 +902,24 @@ def _load_table_df(src: Path, sheet: Optional[str] = None):
 
 def _json_value(value):
     """把单元格值转成可 JSON 化的值（numpy 类型/NaN → 字符串/None）。"""
-    try:
-        import pandas as pd
+    import pandas as pd
 
-        if value is None or (isinstance(value, float) and pd.isna(value)):
-            return None
-        if hasattr(value, "item") and not isinstance(value, (str, bytes)):
-            value = value.item()
-    except Exception:  # noqa: BLE001
-        pass
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    if hasattr(value, "item") and not isinstance(value, (str, bytes)):
+        value = value.item()
     if isinstance(value, (int, float, bool, str)) or value is None:
         return value
     return str(value)
 
 
 def _cell_is_blank(value) -> bool:
+    import pandas as pd
+
     if value is None:
         return True
-    try:
-        import pandas as pd
-
-        if bool(pd.isna(value)):
-            return True
-    except Exception:  # noqa: BLE001
-        pass
+    if bool(pd.isna(value)):
+        return True
     return isinstance(value, str) and not value.strip()
 
 

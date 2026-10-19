@@ -22,6 +22,12 @@
     首轮计划不合法→修复）输出 2 行干净表；报告 `original_untouched=true`。
   - 新增 6 条测试 + 门禁 `beecmd-clean`（第 45 项）。
   - 详见 `docs/AI表格清洗-CLI.md`。
+
+### 调整
+- i18n 棘轮排除 `beeoffice/beecmd.py`（CLI 控制台文案，不是 GUI locale）：
+  基线 3700/117 → **3599/116**；GUI 侧棘轮不变。
+- `beecmd clean` 填充缺失值时先转 object，避免 pandas incompatible-dtype
+  FutureWarning（未来版本会变成错误）。
 ---
 ## [5.0.14] - 2026-10-19
 

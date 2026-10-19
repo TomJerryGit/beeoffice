@@ -1,12 +1,11 @@
 {
-  "total": 3700,
+  "total": 3599,
   "by_file": {
     "beeoffice/__version__.py": 1,
     "beeoffice/ai_settings.py": 22,
     "beeoffice/app.py": 43,
     "beeoffice/backup.py": 1,
     "beeoffice/backup_center.py": 39,
-    "beeoffice/beecmd.py": 101,
     "beeoffice/cloud_settings.py": 25,
     "beeoffice/cloud_sync/engine.py": 17,
     "beeoffice/cloud_sync/googledrive.py": 1,
@@ -119,7 +118,7 @@
     "beeoffice/templates.py": 35,
     "beeoffice/utils.py": 1
   },
-  "generated_at": "2026-10-19 16:45",
-  "commit": "adb5ef8",
-  "note": "硬编码中文文案棘轮基线；只许减少。更新方式：python tools/i18n_audit.py --write-baseline"
+  "generated_at": "2026-10-19 18:00",
+  "commit": "0801cc0",
+  "note": "硬编码中文文案棘轮基线；只许减少。更新方式：python tools/i18n_audit.py --write-baseline。beecmd.py（CLI 控制台文案）不参与 GUI i18n 棘轮。"
 }

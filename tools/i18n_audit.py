@@ -38,6 +38,10 @@ ROOT = Path(__file__).resolve().parent.parent
 PACKAGE = ROOT / "beeoffice"
 BASELINE = ROOT / "tools" / "i18n_baseline.json"
 
+#: 不参与 GUI i18n 棘轮的文件（CLI 控制台输出，不是 QTranslator 文案；
+#: beecmd 的中文是"命令行输出"，要翻译也应该走 CLI 自己的文案表，而不是 GUI locale）
+EXCLUDED_FILES = {"beeoffice/beecmd.py"}
+
 #: 含 CJK 统一表意文字（够用；扩展区/兼容区不常见于界面）
 _CJK_RE = re.compile(r"[\u4e00-\u9fff]")
 
@@ -99,6 +103,15 @@ def scan(root: Path = PACKAGE) -> dict:
         if "__pycache__" in path.parts:
             continue
         try:
+            rel = str(path.relative_to(ROOT if ROOT in path.parents
+                                       else Path(root).parent))
+        except ValueError:
+            rel = str(path)
+        # 统一成 POSIX 分隔符：基线在 Windows/Linux 上必须可比
+        rel = rel.replace("\\", "/")
+        if rel in EXCLUDED_FILES:
+            continue
+        try:
             source = path.read_text(encoding="utf-8", errors="replace")
             tree = ast.parse(source)
         except Exception:  # noqa: BLE001 - 语法坏的文件跳过并提示
@@ -114,13 +127,6 @@ def scan(root: Path = PACKAGE) -> dict:
             if _CJK_RE.search(node.value):
                 count += 1
         if count:
-            try:
-                rel = str(path.relative_to(ROOT if ROOT in path.parents
-                                           else Path(root).parent))
-            except ValueError:
-                rel = str(path)
-            # 统一成 POSIX 分隔符：基线在 Windows/Linux 上必须可比
-            rel = rel.replace("\\", "/")
             by_file[rel] = count
             total += count
     return {"total": total, "by_file": by_file}
@@ -200,7 +206,8 @@ def build_report(result: dict, baseline: dict) -> str:
         f"> 生成时间：{_dt.datetime.now().strftime('%Y-%m-%d %H:%M')} · "
         f"代码基线：`{_git_commit()}`",
         "> 工具：`tools/i18n_audit.py`（统计**引号外中文串**，排除 docstring/"
-        "`tr()` 参数/日志；口径偏保守，见工具文档）",
+        "`tr()` 参数/日志；`beecmd.py` 为 CLI 控制台文案，不参与 GUI 棘轮）",
+        "> 口径偏保守，见工具文档",
         "",
         "## 0. 一页结论",
         "",
