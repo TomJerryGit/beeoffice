@@ -250,6 +250,12 @@ GATES = [
         "分析报告 §2.3：tr 覆盖率约 11%；在决策前先阻止新增硬编码",
     ),
     Gate(
+        "beecmd-clean",
+        "AI 表格清洗：AI 只出计划、确定性执行、计划可复跑/原始文件不动",
+        "tests/fidelity/test_beecmd_table_clean.py",
+        "阶段③：表格清洗要有结构化输出与可审计（行列号）改动记录，而不是模型直接改表",
+    ),
+    Gate(
         "pptx-import",
         "打开 .pptx：文字/层级/备注保留，图片表格给损失清单，绝不覆盖原 pptx",
         "tests/fidelity/test_pptx_import.py",

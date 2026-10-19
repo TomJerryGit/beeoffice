@@ -45,6 +45,14 @@
     成功时标出来源（模型名）与耗时，可写 JSON 元信息；
 * `batch` 支持 `{"op": "ai", "task": "summarize", "src": "...", "out": "..."}`。
 
+## v0.4 追加（纯 Python，零 Qt）
+* `clean`：**AI 表格清洗**（AI 只出"清洗计划 JSON"，实际修改由确定性代码执行）
+  * `--plan 计划.json` 可跳过 AI、按已有计划复跑（**可回滚**）；
+  * 计划白名单：trim_whitespace / drop_empty_rows / drop_duplicate_rows /
+    normalize_column_names / fill_missing / drop_rows_with_missing；
+  * 计划严格 JSON、列必须存在；不合规自动修复重试一次；原始文件绝不修改；
+  * 输出清洗后 `.xlsx` + 计划 JSON + 报告 JSON（每项操作改了几处、样例行列号）。
+
 ## 退出码（便于脚本判断）
 * `0` 成功
 * `1` 出错（参数/IO/不支持的转换）
@@ -70,7 +78,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 #: 支持的表格输入扩展名
 SHEET_INPUTS = (".xlsx", ".xls", ".csv", ".json", ".md", ".html", ".htm")
@@ -866,6 +874,381 @@ def cmd_ai(task: str, src: str, out: Optional[str] = None,
     return EXIT_OK
 
 
+# ==================== 命令：clean（v0.4：AI 表格清洗，可回滚）====================
+
+#: 允许的清洗操作（**白名单**：模型只能选这些，实际修改由本工具执行）
+TABLE_CLEAN_OPS = (
+    "trim_whitespace",
+    "drop_empty_rows",
+    "drop_duplicate_rows",
+    "normalize_column_names",
+    "fill_missing",
+    "drop_rows_with_missing",
+)
+
+
+def _load_table_df(src: Path, sheet: Optional[str] = None):
+    """读表格第一张表（或指定表）为 `(DataFrame, 表名)`。"""
+    workbook = _read_sheet_table(src)
+    if sheet:
+        target = workbook.get(sheet)
+        if target is None:
+            names = [s.name for s in workbook.sheets]
+            raise BeecmdError(f"没有工作表 {sheet!r}；可选: {names}")
+    else:
+        target = workbook.sheets[0]
+    return target.df.copy(), target.name
+
+
+def _json_value(value):
+    """把单元格值转成可 JSON 化的值（numpy 类型/NaN → 字符串/None）。"""
+    try:
+        import pandas as pd
+
+        if value is None or (isinstance(value, float) and pd.isna(value)):
+            return None
+        if hasattr(value, "item") and not isinstance(value, (str, bytes)):
+            value = value.item()
+    except Exception:  # noqa: BLE001
+        pass
+    if isinstance(value, (int, float, bool, str)) or value is None:
+        return value
+    return str(value)
+
+
+def _cell_is_blank(value) -> bool:
+    if value is None:
+        return True
+    try:
+        import pandas as pd
+
+        if bool(pd.isna(value)):
+            return True
+    except Exception:  # noqa: BLE001
+        pass
+    return isinstance(value, str) and not value.strip()
+
+
+def _table_profile(df, sample_rows: int = 20) -> dict:
+    """给模型看的表格概况（**不带全表数据**；行数/列类型/缺失/重复/样本）。"""
+    columns = []
+    for col in df.columns:
+        series = df[col]
+        samples = [
+            _json_value(v) for v in series.head(5).tolist()
+            if not _cell_is_blank(v)
+        ][:3]
+        columns.append({
+            "name": str(col),
+            "dtype": str(series.dtype),
+            "missing": int(series.isna().sum()),
+            "samples": samples,
+        })
+    sample = []
+    for _, row in df.head(sample_rows).iterrows():
+        sample.append({str(c): _json_value(row[c]) for c in df.columns})
+    return {
+        "rows": int(len(df)),
+        "cols": len(df.columns),
+        "duplicate_rows": int(df.duplicated().sum()),
+        "columns": columns,
+        "sample_rows": sample,
+    }
+
+
+def build_table_clean_prompt(profile: dict) -> str:
+    """让模型输出**清洗计划 JSON**（实际修改由确定性代码执行）。"""
+    return (
+        "你是表格清洗助手。根据给出的表格概况，输出一个**严格的 JSON**清洗计划。\n"
+        "允许的操作（只能选这些）：\n"
+        '- {"op": "trim_whitespace"}：去掉所有文本单元格首尾空白\n'
+        '- {"op": "drop_empty_rows"}：删除整行为空的行\n'
+        '- {"op": "drop_duplicate_rows"}：删除完全重复的行（保留第一行）\n'
+        '- {"op": "normalize_column_names"}：清理列名空白/空列名\n'
+        '- {"op": "fill_missing", "column": "列名", "value": 填充值}：填充指定列缺失值\n'
+        '- {"op": "drop_rows_with_missing", "column": "列名"}：删除指定列缺失的行\n'
+        "要求：operations 必须是数组；fill_missing/drop_rows_with_missing 必须含 column；"
+        "fill_missing 必须含 value；只输出 JSON，不要解释、不要 Markdown 代码块。\n\n"
+        f"【表格概况】\n{json.dumps(profile, ensure_ascii=False)}"
+    )
+
+
+def build_table_repair_prompt(raw: str) -> str:
+    """表格清洗计划不合法时的修复提示（只重试一次）。"""
+    return (
+        "下面是一次「表格清洗计划」的输出，但它不是合法 JSON 或不符合约定。"
+        "请改写成严格合法的 JSON 对象：{\"operations\": [...]}，"
+        "操作只能是 trim_whitespace / drop_empty_rows / drop_duplicate_rows / "
+        "normalize_column_names / fill_missing / drop_rows_with_missing。"
+        "只输出 JSON。\n\n"
+        f"【上一次输出】\n{raw.strip()}"
+    )
+
+
+def _validate_clean_plan(plan, df) -> dict:
+    """校验模型/用户给的计划：白名单 op、必填字段、列必须存在。"""
+    if not isinstance(plan, dict):
+        raise BeecmdError("清洗计划必须是 JSON 对象")
+    operations = plan.get("operations")
+    if not isinstance(operations, list) or not operations:
+        raise BeecmdError("清洗计划缺少非空 operations 数组")
+    columns = [str(c) for c in df.columns]
+    normalized = []
+    for index, op in enumerate(operations, 1):
+        if not isinstance(op, dict):
+            raise BeecmdError(f"清洗计划第 {index} 项不是对象")
+        name = str(op.get("op", "")).strip()
+        if name not in TABLE_CLEAN_OPS:
+            raise BeecmdError(
+                f"清洗计划第 {index} 项 op 不支持: {name!r}；"
+                f"可选: {', '.join(TABLE_CLEAN_OPS)}"
+            )
+        item = {"op": name}
+        if name in ("fill_missing", "drop_rows_with_missing"):
+            column = str(op.get("column", "")).strip()
+            if column not in columns:
+                raise BeecmdError(
+                    f"清洗计划第 {index} 项列不存在: {column!r}；可选: {columns}"
+                )
+            item["column"] = column
+        if name == "fill_missing":
+            if "value" not in op:
+                raise BeecmdError(f"清洗计划第 {index} 项 fill_missing 缺少 value")
+            item["value"] = op["value"]
+        normalized.append(item)
+    return {"operations": normalized}
+
+
+def _apply_clean_plan(df, operations):
+    """按计划**确定性**执行清洗；返回 `(清洗后 df, 操作记录)`。"""
+    records = []
+    for op in operations:
+        name = op["op"]
+        changed = 0
+        samples = []
+        if name == "trim_whitespace":
+            for col in df.columns:
+                if df[col].dtype != object:
+                    continue
+                cells = []
+                for idx, value in df[col].items():
+                    if isinstance(value, str) and value != value.strip():
+                        cells.append((idx, value, value.strip()))
+                for idx, before, after in cells:
+                    df.at[idx, col] = after
+                changed += len(cells)
+                samples += [
+                    {"row": int(idx), "column": str(col),
+                     "before": before, "after": after}
+                    for idx, before, after in cells[:10]
+                ]
+        elif name == "drop_empty_rows":
+            mask = df.apply(
+                lambda row: all(_cell_is_blank(v) for v in row), axis=1
+            )
+            dropped = int(mask.sum())
+            df = df[~mask].reset_index(drop=True)
+            changed = dropped
+        elif name == "drop_duplicate_rows":
+            dup = df.duplicated(keep="first")
+            changed = int(dup.sum())
+            df = df[~dup].reset_index(drop=True)
+        elif name == "normalize_column_names":
+            new_names = []
+            used = set()
+            for index, col in enumerate(df.columns, 1):
+                name_text = str(col).strip()
+                if not name_text:
+                    name_text = f"列{index}"
+                candidate = name_text
+                suffix = 2
+                while candidate in used:
+                    candidate = f"{name_text}_{suffix}"
+                    suffix += 1
+                used.add(candidate)
+                new_names.append(candidate)
+                if candidate != str(col):
+                    changed += 1
+            df.columns = new_names
+        elif name == "fill_missing":
+            col = op["column"]
+            value = op.get("value")
+            mask = df[col].map(_cell_is_blank)
+            filled = int(mask.sum())
+            for idx in df.index[mask]:
+                samples.append({
+                    "row": int(idx), "column": col,
+                    "before": _json_value(df.at[idx, col]),
+                    "after": _json_value(value),
+                })
+            # 数值列里填字符串（如 "0"）会触发 pandas 的 incompatible-dtype
+            # FutureWarning（未来版本直接报错）；先转 object 再赋值，行为稳定。
+            if filled and isinstance(value, str) and df[col].dtype != object:
+                df[col] = df[col].astype(object)
+            if filled:
+                df.loc[mask, col] = value
+            changed = filled
+        elif name == "drop_rows_with_missing":
+            col = op["column"]
+            mask = df[col].map(_cell_is_blank)
+            changed = int(mask.sum())
+            df = df[~mask].reset_index(drop=True)
+        records.append({
+            "op": name, "changed": changed, "samples": samples[:10],
+        })
+    return df, records
+
+
+def _clean_plan_blocked(message: str, raw_path: Path, retried: bool):
+    """统一下线格式：报告错误 + 原始输出位置（不写清洗产物）。"""
+    hint = f"；原始输出已保存到 {raw_path}"
+    return BeecmdError(
+        f"{message}{'（已重试 1 次）' if retried else ''}{hint}；未写清洗结果"
+    )
+
+
+def cmd_clean(src: str, out: str, sheet: Optional[str] = None,
+              plan_file: Optional[str] = None, report: Optional[str] = None,
+              api_base: str = "", model: str = "", api_key: str = "",
+              timeout: int = 0, sample_rows: int = 20,
+              retry: bool = True) -> int:
+    """
+    **AI 表格清洗**（v0.4）：AI 只产出"清洗计划 JSON"，实际修改由确定性代码执行。
+
+    * `--plan 计划.json`：跳过 AI，按已有计划执行（**可回滚/可复跑**）；
+    * 否则：读表 → 生成概况 → 让模型给计划（严格 JSON，不合规修复重试一次）→
+      校验白名单/列存在 → 确定性执行 → 写清洗后 xlsx + 计划 + 报告；
+    * 原始文件**绝不修改**；报告记录每项操作改了几处、样例行列号。
+    """
+    import time
+
+    src_path = Path(src)
+    if not src_path.is_file():
+        raise BeecmdError(f"源文件不存在: {src}")
+    out_path = Path(out)
+    if out_path.suffix.lower() != ".xlsx":
+        raise BeecmdError(f"清洗输出只支持 .xlsx（收到 {out_path.suffix or '无扩展名'}）")
+
+    df, sheet_name = _load_table_df(src_path, sheet)
+    rows_before, cols_before = int(len(df)), [str(c) for c in df.columns]
+    plan_source = "plan-file"
+    attempts = 0
+    elapsed_ms = 0.0
+
+    if plan_file:
+        try:
+            plan = json.loads(
+                Path(plan_file).read_text(encoding="utf-8-sig")
+            )
+        except Exception as e:  # noqa: BLE001
+            raise BeecmdError(f"清洗计划不是合法 JSON: {e}") from None
+        validated = _validate_clean_plan(plan, df)
+    else:
+        from beeoffice.plugins import ai_client as ai_mod
+
+        cfg = _resolve_ai_config(model, api_base, api_key, timeout)
+        client = ai_mod.AIClient(cfg)
+        if not client.available:
+            raise BeecmdError(
+                f"AI 不可用：{client.unavailable_reason()}\n"
+                "  只做确定性清洗请先用 --plan 提供计划文件；"
+                "本地 Ollama 示例：--api-base http://127.0.0.1:11434/v1 --model llama3.2"
+            )
+        prompt = build_table_clean_prompt(_table_profile(df, sample_rows))
+        started = time.perf_counter()
+        ok, result = client.chat(prompt, max_tokens=900)
+        if not ok:
+            raise BeecmdError(f"AI 调用失败：{client.last_error}")
+        attempts = 1
+        plan_source = "ai"
+        raw_path = out_path.with_name(out_path.name + ".plan.raw.txt")
+        try:
+            plan = json.loads(_strip_code_fence(result))
+            validated = _validate_clean_plan(plan, df)
+        except (json.JSONDecodeError, BeecmdError) as first_error:
+            validated = None
+            if retry:
+                repair = build_table_repair_prompt(result)
+                ok2, result2 = client.chat(repair, max_tokens=900)
+                attempts = 2
+                if ok2:
+                    try:
+                        plan = json.loads(_strip_code_fence(result2))
+                        validated = _validate_clean_plan(plan, df)
+                        result = result2
+                    except (json.JSONDecodeError, BeecmdError) as second_error:
+                        try:
+                            raw_path.write_text(result2, encoding="utf-8")
+                        except OSError:
+                            pass
+                        raise _clean_plan_blocked(
+                            f"清洗计划不合法：{second_error}", raw_path, True
+                        ) from None
+                else:
+                    try:
+                        raw_path.write_text(result, encoding="utf-8")
+                    except OSError:
+                        pass
+                    raise _clean_plan_blocked(
+                        f"格式修复重试失败：{client.last_error}", raw_path, True
+                    ) from None
+            else:
+                try:
+                    raw_path.write_text(result, encoding="utf-8")
+                except OSError:
+                    pass
+                raise _clean_plan_blocked(
+                    f"清洗计划不合法：{first_error}", raw_path, False
+                ) from None
+        elapsed_ms = (time.perf_counter() - started) * 1000
+
+    cleaned, records = _apply_clean_plan(
+        df.copy(), validated["operations"]
+    )
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    from beeoffice.utils import atomic_replace
+
+    with atomic_replace(out_path) as tmp_path:
+        _write_sheet(
+            _make_workbook([(sheet_name, cleaned)]),
+            "xlsx", tmp_path, None,
+        )
+
+    plan_path = out_path.with_name(out_path.name + ".plan.json")
+    plan_path.parent.mkdir(parents=True, exist_ok=True)
+    plan_path.write_text(
+        json.dumps(validated, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    report_path = Path(report) if report else \
+        out_path.with_name(out_path.name + ".report.json")
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_payload = {
+        "tool": "beecmd", "version": __version__, "op": "clean",
+        "src": str(src_path), "out": str(out_path), "sheet": sheet_name,
+        "rows_before": rows_before, "rows_after": int(len(cleaned)),
+        "columns_before": cols_before,
+        "columns_after": [str(c) for c in cleaned.columns],
+        "plan_source": plan_source, "model": model,
+        "api_base": api_base, "attempts": attempts,
+        "elapsed_ms": round(elapsed_ms, 1),
+        "operations": records,
+        "original_untouched": True,
+        "plan_file": str(plan_path),
+    }
+    report_path.write_text(
+        json.dumps(report_payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    total_changes = sum(r["changed"] for r in records)
+    print(f"✅ 清洗完成（{plan_source}，{len(records)} 项操作 / {total_changes} 处修改）"
+          f"：行 {rows_before}→{len(cleaned)} → {out_path}")
+    print(f"   计划: {plan_path}")
+    print(f"   报告: {report_path}")
+    return EXIT_OK
+
+
 # ==================== 命令：batch ====================
 
 def cmd_batch(jobs_file: str, audit: Optional[str] = None) -> int:
@@ -988,6 +1371,25 @@ def build_parser() -> argparse.ArgumentParser:
     p_merge.add_argument("--sheet-name", default="汇总",
                          help="append 模式的输出工作表名（默认：汇总）")
 
+    p_clean = sub.add_parser(
+        "clean", help="AI 表格清洗：AI 出计划、确定性执行、可回滚"
+    )
+    p_clean.add_argument("src", help="源表格（xlsx/xls/csv/json/md/html）")
+    p_clean.add_argument("-o", "--out", required=True, help="清洗后 xlsx 路径")
+    p_clean.add_argument("--sheet", help="指定工作表（默认第一张）")
+    p_clean.add_argument("--plan", help="已有的清洗计划 JSON（跳过 AI，可复跑/回滚）")
+    p_clean.add_argument("--report", help="清洗报告 JSON（默认 <out>.report.json）")
+    p_clean.add_argument("--model", default="", help="模型名（本地 Ollama 例：llama3.2）")
+    p_clean.add_argument("--api-base", default="",
+                         help="OpenAI 兼容地址（本地：http://127.0.0.1:11434/v1）")
+    p_clean.add_argument("--api-key", default="", help="云端服务 Key（本地不需要）")
+    p_clean.add_argument("--timeout", type=int, default=0,
+                         help="超时秒数（0 = 按本地/云端自动）")
+    p_clean.add_argument("--sample-rows", type=int, default=20,
+                         help="送给模型的样本行数（默认 20）")
+    p_clean.add_argument("--no-retry", action="store_true",
+                         help="计划不合格时不自动修复重试")
+
     p_ai = sub.add_parser(
         "ai", help="对文本文件执行 AI 任务（总结/润色/关键词/续写）"
     )
@@ -1052,6 +1454,15 @@ def main(argv: Optional[List[str]] = None) -> int:
                 length=args.length, limit=args.limit, slides=args.slides,
                 retry=not args.no_retry,
                 meta_json=args.meta,
+            )
+        if args.command == "clean":
+            return cmd_clean(
+                args.src, args.out, sheet=args.sheet,
+                plan_file=args.plan, report=args.report,
+                api_base=args.api_base, model=args.model,
+                api_key=args.api_key, timeout=args.timeout,
+                sample_rows=args.sample_rows,
+                retry=not args.no_retry,
             )
         if args.command == "batch":
             return cmd_batch(args.jobs, args.audit)

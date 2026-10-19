@@ -6,6 +6,23 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ---
+## [Unreleased]
+
+**AI 表格清洗（`beecmd` v0.4）**：
+
+### 新增
+- `beecmd clean`：**AI 出计划、确定性执行、可回滚**的表格清洗。
+  - AI 只输出 `{"operations":[...]}`（白名单：去空白/删空行/删重复行/列名规范化/
+    填缺失/按列删缺失）；实际单元格修改由本工具执行；
+  - `--plan` 可跳过 AI 按已有计划复跑；原始文件绝不修改；输出
+    `<out>.plan.json` + `<out>.report.json`（逐项 changed 与样例行列号）；
+  - 计划严格 JSON、列必须存在；不合规自动修复重试一次，仍不合规则保存
+    `.plan.raw.txt` 并失败（不写清洗结果）；
+  - 本机实测（Ollama `llama3.2`，CPU）：6 行脏 CSV → 46.5 s（`attempts=2`，
+    首轮计划不合法→修复）输出 2 行干净表；报告 `original_untouched=true`。
+  - 新增 6 条测试 + 门禁 `beecmd-clean`（第 45 项）。
+  - 详见 `docs/AI表格清洗-CLI.md`。
+---
 ## [5.0.14] - 2026-10-19
 
 **阶段③工程版**：把"可编程、可审计、本地 AI"落成可运行的工具链 ——
