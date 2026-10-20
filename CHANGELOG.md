@@ -47,6 +47,10 @@
   的大文件，并在报告中写明跳过原因。
 - `tests/fidelity/test_corpus.py`：用户语料 fixture 同步 8 MB 护栏；xlsx 不再误跑
   `text_chars` 断言。
+- `tests/fidelity/test_fidelity_report.py`：新语料里有带目录域（86 个 `toc_field`）的
+  真实文档，检测器**正确**报 medium 级提示；旧断言"所有 corpus 文档零误报"因此假失败。
+  现改为：只对**逐项验证过零丢失的 7 份**断言零输出；新语料的能力降级另用
+  `test_toc_degradation_is_medium_not_prompt` 钉住（报 medium、不弹窗）。
 - 报告 [保真报告-50份真实语料.md](docs/保真报告-50份真实语料.md)：用户投放
   64 个文件 → **41 份可做 OOXML 往返**（18 份跳过：16 pptx 无导入路径 + 2 份大 xlsx），
   **未知类别 0**；差异仍是 `paragraphs`/`text_chars`/`fields` 三类已知项。
