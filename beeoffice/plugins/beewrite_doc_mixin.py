@@ -363,6 +363,12 @@ class DocMixin:
                 setattr(self, f"_docx_{key}", extras[key])
                 applied += 1
 
+        # 每个分节各自的页眉/页脚（2026-10-20）：多分节文档可能只有最后一节
+        # 放页码；只保留"最佳一个部件"会把页码合并到第一节、前几节凭空多出页码。
+        if extras.get("section_parts"):
+            self._docx_section_parts = list(extras["section_parts"])
+            applied += 1
+
         # 表格合并信息（Markdown 表格语法表达不了，故绕开 Markdown 传递）
         if extras.get("table_merges"):
             self._docx_table_merges = list(extras["table_merges"])
@@ -402,6 +408,7 @@ class DocMixin:
             "footer_text": getattr(self, "_docx_footer_text", ""),
             "header_xml": getattr(self, "_docx_header_xml", ""),
             "footer_xml": getattr(self, "_docx_footer_xml", ""),
+            "section_parts": getattr(self, "_docx_section_parts", []),
             "table_merges": getattr(self, "_docx_table_merges", []),
             "nested_tables": getattr(self, "_docx_nested_tables", []),
             "sections": getattr(self, "_docx_sections", []),

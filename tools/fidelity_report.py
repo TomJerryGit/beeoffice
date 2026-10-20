@@ -227,6 +227,9 @@ def main(argv=None) -> int:
                     help="同时跑 tools/fidelity_corpus_gen.py 生成的压力语料")
     ap.add_argument("--report", help="输出 Markdown 报告路径")
     ap.add_argument("--json", help="输出 JSON 路径")
+    ap.add_argument("--max-size-mb", type=float, default=0,
+                    help="跳过超过该大小的文件（0=不限制；20 万行 xlsx 的 "
+                         "Markdown 往返不可行，建议 8）")
     args = ap.parse_args(argv)
 
     real_dirs = args.dirs or [str(DEFAULT_REAL_DIR)]
@@ -250,7 +253,20 @@ def main(argv=None) -> int:
             jobs.append(("stress", path, workdir / "stress"))
 
     results = []
+    max_bytes = int(args.max_size_mb * 1024 * 1024) if args.max_size_mb else 0
     for profile, path, root in jobs:
+        size = path.stat().st_size
+        if max_bytes and size > max_bytes:
+            print(f"  ↷ 跳过（{size / 1024 / 1024:.1f} MB > "
+                  f"{args.max_size_mb:g} MB）{path.name}", flush=True)
+            results.append({
+                "name": path.name, "size": size, "error": "",
+                "skipped": f"超过 --max-size-mb {args.max_size_mb:g} MB 上限"
+                           "（大表 Markdown 往返不可行）",
+                "rows": [], "profile": profile, "empty_paragraphs": None,
+                "before": {"features": {}}, "after": {"features": {}},
+            })
+            continue
         root.mkdir(parents=True, exist_ok=True)
         print(f"  正在测 {path.name} ...", flush=True)
         r = run_one(path, root)

@@ -463,6 +463,7 @@ class ExportMixin:
                     footer_text=extras.get("footer_text"),
                     header_xml=extras.get("header_xml", ""),
                     footer_xml=extras.get("footer_xml", ""),
+                    section_parts=extras.get("section_parts"),
                     table_merges=extras.get("table_merges"),
                     nested_tables=extras.get("nested_tables"),
                     sections=extras.get("sections"),

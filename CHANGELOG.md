@@ -25,6 +25,32 @@
   `beecmd.main()` 现在先执行 `_make_console_safe()`（`errors="replace"`，保留原编码）；
   新增 2 条测试 + 门禁 `beecmd-console`（第 **46** 项）。
   这是打包冒烟发现的真 bug，不是假绿。
+
+---
+
+**50 份用户语料保真 + 多分节页脚修复 + 测试基建**：
+
+### 修复
+- **多分节 DOCX 页脚丢失**（50 份用户语料撞出）：`测试文档_5万字.docx` 有 3 节，
+  前两节页脚为空、第 3 节放页码域；原实现只看第 1 节，往返后
+  `footer_parts 2 → 1` 且前两节凭空出现页码。
+  `read_docx_extras()` 现在记录每个分节的页眉/页脚部件（`section_parts`），
+  `apply_header_footer()` 逐节还原；实测 `footer_parts 2 → 2`、页码只在第 3 节；
+  GUI 的 Markdown 导出路径（`beewrite_export_mixin`）同样传入。
+- **全量测试会卡死**：干净 worktree 跑 `test_p0_shortcut_fixes` 时，
+  `qtbot.wait` 进入事件循环，App 启动读取**用户 home 的草稿目录**并弹模态框
+  `QMessageBox.question` → 900 s 超时。`tests/conftest.py` 新增 autouse fixture，
+  把 `BEEOFFICE_DRAFT_DIR` 指到每个测试的 tmp_path（测试结果不再依赖开发机环境）。
+
+### 工具与测试
+- `tools/fidelity_report.py --max-size-mb`：跳过 20 万行 xlsx 等"Markdown 往返不可行"
+  的大文件，并在报告中写明跳过原因。
+- `tests/fidelity/test_corpus.py`：用户语料 fixture 同步 8 MB 护栏；xlsx 不再误跑
+  `text_chars` 断言。
+- 报告 [保真报告-50份真实语料.md](docs/保真报告-50份真实语料.md)：用户投放
+  64 个文件 → **41 份可做 OOXML 往返**（18 份跳过：16 pptx 无导入路径 + 2 份大 xlsx），
+  **未知类别 0**；差异仍是 `paragraphs`/`text_chars`/`fields` 三类已知项。
+- 独立 `beecmd.exe` 打包与 GBK 控制台修复见下文（同日完成）。
 ---
 ## [5.0.15] - 2026-10-19
 

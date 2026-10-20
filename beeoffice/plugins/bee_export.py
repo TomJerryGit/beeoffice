@@ -1116,18 +1116,69 @@ def read_docx_extras(docx_path):
 
         # 页眉/页脚**部件 XML**：优先整段搬运，以保留域（页码）与内容控件
         # （python-docx 不进入 w:sdt，文字提取会得到空串）。
-        header_xml = footer_xml = ""
-        try:
-            if not section.header.is_linked_to_previous:
-                candidate = _serialize_part(section.header)
-                if candidate and not _part_has_external_refs(candidate):
-                    header_xml = candidate
-            if not section.footer.is_linked_to_previous:
-                candidate = _serialize_part(section.footer)
-                if candidate and not _part_has_external_refs(candidate):
-                    footer_xml = candidate
-        except Exception as e:
-            logging.debug(f"序列化页眉页脚失败，退回文字: {e}")
+        #
+        # ⚠️ 多分节文档：不能只看 sections[0]。实测 `测试文档_5万字.docx` 有 3 节，
+        # 前两节页脚是空的、**第 3 节才放页码域** —— 只看第一节会选中空页脚，
+        # 往返后 `footer_parts 3 → 0`（2026-10-20 由 50 份用户语料撞出）。
+        # 现在逐节扫描，优先挑"带域（fldChar/instrText）或文字最多"的部件；
+        # 多个分节各自不同页脚的情况仍只能保留一个（已知边界，报告里如实写）。
+        def _pick_part_xml(part_kind: str) -> str:
+            best = ""
+            best_score = -1
+            fallback = ""
+            for sec in doc.sections:
+                part = getattr(
+                    sec, "header" if part_kind == "header" else "footer"
+                )
+                try:
+                    if part.is_linked_to_previous:
+                        continue
+                except Exception:  # noqa: BLE001 - 个别节的 part 不可访问
+                    continue
+                try:
+                    candidate = _serialize_part(part)
+                except Exception as e:  # noqa: BLE001
+                    logging.debug(f"序列化 {part_kind} 失败: {e}")
+                    continue
+                if not candidate or _part_has_external_refs(candidate):
+                    continue
+                if not fallback:
+                    fallback = candidate
+                text = _text(part)
+                has_field = (
+                    "fldChar" in candidate or "instrText" in candidate
+                )
+                score = (10 if has_field else 0) + min(len(text), 50)
+                if score > best_score:
+                    best = candidate
+                    best_score = score
+            return best or fallback
+
+        header_xml = _pick_part_xml("header")
+        footer_xml = _pick_part_xml("footer")
+
+        # 每个分节的页眉/页脚部件（2026-10-20：50 份用户语料撞出多分节页脚差异）。
+        # 单独记录"哪一节有什么"，导出时逐节还原；linked=True 表示"继承上一节"。
+        section_parts = []
+        for sec in doc.sections:
+            entry = {}
+            for part_kind in ("header", "footer"):
+                part = getattr(sec, part_kind)
+                try:
+                    linked = bool(part.is_linked_to_previous)
+                except Exception:  # noqa: BLE001
+                    linked = True
+                xml = ""
+                if not linked:
+                    try:
+                        candidate = _serialize_part(part)
+                        if candidate and not _part_has_external_refs(candidate):
+                            xml = candidate
+                    except Exception as e:  # noqa: BLE001
+                        logging.debug(f"序列化分节{part_kind}失败: {e}")
+                entry[f"{part_kind}_linked"] = linked
+                entry[f"{part_kind}_xml"] = xml
+            section_parts.append(entry)
 
         extras = {
             "paper": paper or "A4",
@@ -1142,6 +1193,7 @@ def read_docx_extras(docx_path):
             "footer_text": _text(section.footer),
             "header_xml": header_xml,
             "footer_xml": footer_xml,
+            "section_parts": section_parts,
             "table_merges": _read_table_merges(doc),
             "nested_tables": _read_nested_tables(doc),
             "sections": _read_sections(doc),
@@ -1212,16 +1264,21 @@ def _part_has_external_refs(xml: str) -> bool:
 
 
 def apply_header_footer(doc, header_text=None, footer_text=None,
-                        header_xml="", footer_xml=""):
+                        header_xml="", footer_xml="", section_parts=None):
     """
     写回页眉/页脚。
 
     **优先按 XML 搬运**（`header_xml`/`footer_xml`）—— 这样域（页码）与内容控件
     都能保留；仅在部件含关系引用（图片）或解析失败时退回"只写文字"。
 
+    `section_parts`（2026-10-20 新增）：每个分节各自的页眉/页脚记录，
+    逐节还原 —— 修复"多分节文档里第 3 节才有页码，往返后被合并到第 1 节、
+    前两节凭空多出页码"的问题。为 None 时保持旧的"只写第 1 节"行为。
+
     空字符串视为"不写"，避免把用户原本没有的页眉变成空段落。
     """
-    if not any((header_text, footer_text, header_xml, footer_xml)):
+    if not any((header_text, footer_text, header_xml, footer_xml,
+                section_parts)):
         return False
 
     from docx.oxml import parse_xml
@@ -1229,6 +1286,38 @@ def apply_header_footer(doc, header_text=None, footer_text=None,
     section = doc.sections[0]
     applied = False
 
+    # ---- 逐节还原（新路径）----
+    if section_parts:
+        for index, entry in enumerate(section_parts):
+            if index >= len(doc.sections):
+                break
+            sec = doc.sections[index]
+            for attr in ("header", "footer"):
+                try:
+                    part = getattr(sec, attr)
+                    linked = bool(entry.get(f"{attr}_linked", True))
+                    xml = entry.get(f"{attr}_xml", "")
+                    if linked:
+                        part.is_linked_to_previous = True
+                        continue
+                    part.is_linked_to_previous = False
+                    if xml:
+                        wrapper = parse_xml(
+                            f"<w:root {_PART_NAMESPACES}>{xml}</w:root>"
+                        )
+                        element = part._element
+                        for child in list(element):
+                            element.remove(child)
+                        for child in wrapper:
+                            element.append(child)
+                    applied = True
+                except Exception as e:  # noqa: BLE001 - 单节失败不应中断导出
+                    logging.warning(
+                        f"写入第 {index + 1} 节{attr}失败: {e}"
+                    )
+        return applied
+
+    # ---- 旧的单节路径 ----
     for attr, xml, text in (
         ("header", header_xml, header_text),
         ("footer", footer_xml, footer_text),
@@ -1273,7 +1362,7 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
                    sections=None, bookmarks=None,
                    header_xml="", footer_xml="",
                    paragraph_styles=None, style_definitions=None,
-                   nested_tables=None):
+                   nested_tables=None, section_parts=None):
     """
     Markdown 导出为 DOCX 文件
 
@@ -1334,6 +1423,7 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
         apply_header_footer(
             doc, header_text, footer_text,
             header_xml=header_xml, footer_xml=footer_xml,
+            section_parts=section_parts,
         )
 
         # 表格合并（保真度阶段 A 最后一项）：Markdown 表格语法表达不了合并，

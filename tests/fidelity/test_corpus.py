@@ -221,8 +221,14 @@ def user_results(tmp_path_factory):
     """
     if not USER_CORPUS.is_dir():
         pytest.skip("没有用户语料目录")
-    files = [p for p in iter_files([str(USER_CORPUS)])
-             if p.suffix.lower() in (".docx", ".xlsx")]
+    # 大文件护栏：20 万行 xlsx 的 Markdown 往返不可行（本会话实测会卡 20+ 分钟），
+    # 跳过并在报告里如实说明；同口径见 tools/fidelity_report.py --max-size-mb。
+    max_bytes = 8 * 1024 * 1024
+    files = [
+        p for p in iter_files([str(USER_CORPUS)])
+        if p.suffix.lower() in (".docx", ".xlsx")
+        and p.stat().st_size <= max_bytes
+    ]
     if not files:
         pytest.skip("用户语料目录里还没有文件（放脱敏的真实文件即可）")
     workdir = tmp_path_factory.mktemp("corpus_user")
@@ -265,6 +271,9 @@ def test_user_doc_text_loss_is_small(user_results):
     problems = {}
     for name, result in user_results.items():
         if result["error"] or result["skipped"]:
+            continue
+        # .xlsx 探测特征不同（没有 text_chars），不属于本断言的对象
+        if "text_chars" not in result["before"]["features"]:
             continue
         before = result["before"]["features"]["text_chars"]
         after = result["after"]["features"]["text_chars"]

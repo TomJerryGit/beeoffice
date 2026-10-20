@@ -56,6 +56,24 @@ if str(PROJECT_ROOT) not in sys.path:
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 
+# ==================== 草稿目录隔离（2026-10-20 实测事故）====================
+# 事故：干净 worktree 全量跑 `test_p0_shortcut_fixes.py::test_sheet_ctrl_z_and_y_reach_the_view`
+# 时，`qtbot.wait(50)` 进入 Qt 事件循环，App 启动时的 `_check_recoverable_drafts`
+# 发现**用户主目录 ~/.beeoffice_drafts 里有可恢复草稿**，弹出 QMessageBox.question
+# → 模态框阻塞事件循环 → pytest-timeout 900s 超时（整轮测试卡死）。
+#
+# 根因不是产品 bug，而是**测试没有隔离用户级草稿目录**：开发机/CI 的 home 里
+# 可能有上一次运行留下的草稿，导致测试结果依赖环境。
+# `drafts.drafts_dir()` 早就支持 `BEEOFFICE_DRAFT_DIR` 覆盖，这里在**每个测试**
+# 里指到 tmp_path：测试内记录的草稿仍可用，测试之间互不影响，也不碰真实 home。
+@pytest.fixture(autouse=True)
+def _isolate_draft_dir(tmp_path, monkeypatch):
+    draft_dir = tmp_path / "beeoffice_drafts"
+    draft_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("BEEOFFICE_DRAFT_DIR", str(draft_dir))
+    return draft_dir
+
+
 # ==================== 应用级 fixture ====================
 
 @pytest.fixture(scope="session")
