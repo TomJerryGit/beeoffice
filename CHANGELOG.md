@@ -72,8 +72,8 @@
 
 ### 工程
 - 干净 worktree（只含已跟踪文件 + 用户 64 文件语料）最终验证：
-  **46/46 门禁 PASS**（12.6 分钟）、**全量 `fidelity+unit` 1474 passed /
-  4 skipped / 0 failed**（545.2 s，commit `988097f`）。
+  **46/46 门禁 PASS**（commit `14acc5a`）、**全量 `fidelity+unit` 1478 passed /
+  4 skipped / 0 failed**（990.96 s，commit `c48035a`）。
 - 独立 `beecmd.exe` 打包与 GBK 控制台修复见下文（同日完成）。
 ---
 ## [5.0.15] - 2026-10-19
