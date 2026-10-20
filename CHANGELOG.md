@@ -41,6 +41,15 @@
   5 条单测 `tests/unit/test_verify_release.py`；已在 `v5.0.16` 上实跑通过
   （sha256 `6b01f6ca…`，JSON `_ptmp/analysis/release_v5.0.16.json`）。
 
+### 新增（外部验证辅助）
+- `tools/validation_kit.py`：**外部验证证据采集器**。在目标机器上运行
+  `beecmd.exe`（merge/convert/clean/ai），自动记录命令、退出码、stdout/stderr、
+  耗时、输入/输出文件 SHA-256 与大小，生成 `evidence.json` / `evidence.md`
+  （`--zip` 可打包回传）。5 条单测；已用独立 `beecmd.exe` 做 merge 演示
+  （exit 0，17.39 s，证据三件套生成）。
+- `docs/外部验证-操作手册.md`：最后一道门槛的操作步骤、手工版命令、回传清单与
+  判定标准（含"无 Python 机器"的手工留痕方式）。
+
 ### 已知限制
 - 2 份 16.9 MB / 20 万行 xlsx 的**结构化写入往返**实测 >20 分钟仍未完成，
   因此 50 份语料报告按 `--max-size-mb 8` 跳过；超大表建议用流式/数据库工具核对，
