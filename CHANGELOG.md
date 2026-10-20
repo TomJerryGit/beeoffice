@@ -79,6 +79,10 @@
   **46/46 门禁 PASS**（commit `14acc5a`）、**全量 `fidelity+unit` 1478 passed /
   4 skipped / 0 failed**（990.96 s，commit `c48035a`）。
 - 独立 `beecmd.exe` 打包与 GBK 控制台修复见下文（同日完成）。
+- 发行：`BeeOffice-v5.0.16-windows.zip`（224.7 MB，3128 条目，
+  sha256 `6b01f6ca5d6394964048a7a9c72081886deb44f2e3f59f31ab676b6220c013ec`），
+  tag `v5.0.16` = `2b20fba`；GUI 安装包按设计**不含** `beecmd`/`tools`，
+  独立 CLI 包见 `release-archive/cli/`。
 ---
 ## [5.0.15] - 2026-10-19
 
