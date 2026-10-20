@@ -88,7 +88,8 @@ def test_report_contains_verdict_and_top_files():
     report = build_report(result, {"total": 3})
     assert "未通过" in report or "❌" in report or "增加" in report
     assert "`a.py`" in report
-    assert "两条路线" in report
+    # 2026-10-20 已决策（路线 B）；断言从"两条路线"改为"决策 + 中文优先"
+    assert "决策" in report and "中文优先" in report
 
 
 def test_baseline_file_is_valid_snapshot():
