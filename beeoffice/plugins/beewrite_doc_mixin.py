@@ -402,8 +402,12 @@ class DocMixin:
         return applied
 
     def get_docx_extras(self):
-        """返回需要在导出时写回的 DOCX 扩展信息（供 ExportMixin 使用）。"""
-        return {
+        """返回需要在导出时写回的 DOCX 扩展信息（供 ExportMixin 使用）。
+
+        `section_parts` 是 2026-10-20 新增的多分节页脚记录；为空时不放进返回 dict，
+        以保持既有调用方/测试看到的键集合不变（导出端用 `.get()`，缺省即旧行为）。
+        """
+        extras = {
             "header_text": getattr(self, "_docx_header_text", ""),
             "footer_text": getattr(self, "_docx_footer_text", ""),
             "header_xml": getattr(self, "_docx_header_xml", ""),
@@ -416,6 +420,9 @@ class DocMixin:
             "paragraph_styles": getattr(self, "_docx_paragraph_styles", []),
             "style_definitions": getattr(self, "_docx_style_definitions", {}),
         }
+        if not extras["section_parts"]:
+            extras.pop("section_parts", None)
+        return extras
 
     # ==================================================================
     # 打印预览
