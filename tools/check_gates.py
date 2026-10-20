@@ -256,6 +256,12 @@ GATES = [
         "阶段③：表格清洗要有结构化输出与可审计（行列号）改动记录，而不是模型直接改表",
     ),
     Gate(
+        "beecmd-console",
+        "GBK 控制台不因 emoji 崩溃（PyInstaller 独立 exe 实测事故）",
+        "tests/fidelity/test_beecmd_console_encoding.py",
+        "外部用户 Windows 默认 cp936：print(✅) 抛 UnicodeEncodeError，命令成功却 exit 1",
+    ),
+    Gate(
         "pptx-import",
         "打开 .pptx：文字/层级/备注保留，图片表格给损失清单，绝不覆盖原 pptx",
         "tests/fidelity/test_pptx_import.py",

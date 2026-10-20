@@ -1423,7 +1423,25 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _make_console_safe():
+    """
+    让控制台输出在 **GBK 代码页** 下也不因 emoji 崩溃。
+
+    实测（PyInstaller 独立 exe，Windows 默认 cp936 控制台）：
+    `print("✅ …")` 抛 `UnicodeEncodeError: 'gbk' codec can't encode character
+    '\\u2705'`，导致**所有命令在最后一行输出时失败**（exit 1）——
+    功能其实已经完成，但用户看到"失败"。这里把 stdout/stderr 的
+    errors 改成 replace（保留原编码），emoji 变成 `?` 而不是崩。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
+
 def main(argv: Optional[List[str]] = None) -> int:
+    _make_console_safe()
     parser = build_parser()
     args = parser.parse_args(argv)
     try:

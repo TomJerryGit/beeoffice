@@ -6,6 +6,26 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ---
+## [Unreleased]
+
+**独立命令行包（`beecmd.exe`）**：
+
+### 新增
+- `tools/build_cli.py` + `tools/beecmd_entry.py`：用 PyInstaller 打**独立 `beecmd.exe`**
+  （onefile，零 Qt，77.5 MB；ZIP 76.8 MB）。
+  冒烟矩阵 **8/8 exit 0**（version / convert×2 / verify / merge / clean / beshow / ai，
+  AI 用本地 Ollama `llama3.2` 65.0 s）；ZIP sha256
+  `aab09dc326f9dfbcdf01db63c494581db1affcd8e64fa4abda145bbb467f8739`，
+  归档 `release-archive/cli/`。详见 `docs/beecmd-独立命令行包.md`。
+- 新增 4 条打包器单测 `tests/unit/test_build_cli.py`。
+
+### 修复
+- **GBK 控制台崩溃**：独立 exe 在 Windows 默认 cp936 控制台下，成功输出
+  `print("✅ …")` 抛 `UnicodeEncodeError`，命令实际完成却 exit 1。
+  `beecmd.main()` 现在先执行 `_make_console_safe()`（`errors="replace"`，保留原编码）；
+  新增 2 条测试 + 门禁 `beecmd-console`（第 **46** 项）。
+  这是打包冒烟发现的真 bug，不是假绿。
+---
 ## [5.0.15] - 2026-10-19
 
 **AI 表格清洗版（`beecmd` v0.4）**：新增"AI 出计划、确定性执行、可回滚"的表格清洗；
