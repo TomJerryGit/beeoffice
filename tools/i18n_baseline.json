@@ -1,5 +1,5 @@
 {
-  "total": 3599,
+  "total": 3598,
   "by_file": {
     "beeoffice/__version__.py": 1,
     "beeoffice/ai_settings.py": 22,
@@ -17,7 +17,7 @@
     "beeoffice/crash_handler.py": 8,
     "beeoffice/drafts.py": 5,
     "beeoffice/main.py": 1,
-    "beeoffice/menus.py": 8,
+    "beeoffice/menus.py": 7,
     "beeoffice/mobile.py": 26,
     "beeoffice/plugin_base.py": 3,
     "beeoffice/plugins/ai_assist.py": 107,
@@ -118,7 +118,7 @@
     "beeoffice/templates.py": 35,
     "beeoffice/utils.py": 1
   },
-  "generated_at": "2026-10-19 18:00",
-  "commit": "0801cc0",
-  "note": "硬编码中文文案棘轮基线；只许减少。更新方式：python tools/i18n_audit.py --write-baseline。beecmd.py（CLI 控制台文案）不参与 GUI i18n 棘轮。"
+  "generated_at": "2026-10-20 14:20",
+  "commit": "52096c4",
+  "note": "硬编码中文文案棘轮基线；只许减少。2026-10-20 已决策中文优先（移除语言切换入口），beecmd.py 不计入。"
 }

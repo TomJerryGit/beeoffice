@@ -133,7 +133,9 @@ class AppSettings:
         self.open_tabs = data.get("open_tabs", [])
         self.theme = data.get("theme", "light")
         self.accent_color = data.get("accent_color", "amber")
-        self.language = data.get("language", "zh_CN")
+        # i18n 决策（2026-10-20）：中文优先 —— 固定 zh_CN，忽略旧配置里的其他语言。
+        # 字段保留是为了配置向后兼容（以及未来 tr 化后重新启用）。
+        self.language = "zh_CN"
         self.has_completed_onboarding = data.get("has_completed_onboarding", False)
         self.recent_commands = data.get("recent_commands", [])
 

@@ -52,8 +52,23 @@
   现改为：只对**逐项验证过零丢失的 7 份**断言零输出；新语料的能力降级另用
   `test_toc_degradation_is_medium_not_prompt` 钉住（报 medium、不弹窗）。
 - 报告 [保真报告-50份真实语料.md](docs/保真报告-50份真实语料.md)：用户投放
-  64 个文件 → **41 份可做 OOXML 往返**（18 份跳过：16 pptx 无导入路径 + 2 份大 xlsx），
-  **未知类别 0**；差异仍是 `paragraphs`/`text_chars`/`fields` 三类已知项。
+  64 个文件 → **41 份 DOCX/XLSX 往返 + 16 份 PPTX 导入口径**（2 份 16.9 MB/20 万行
+  xlsx 跳过），**未知类别 0**；往返差异仍是 `paragraphs`/`text_chars`/`fields`
+  三类已知项；PPTX 的图片/表格/图表由产品**主动列出损失清单**（文字保留率
+  78–86%），不伪装保留。
+
+### i18n 决策：中文优先（路线 B，2026-10-20）
+- 依据：`tr()` 包装率约 11%，切到 en_US 会得到"半英文"界面，比纯中文更差；
+  英文用户本来也无法真正使用。按模块 tr 化（A 路线）需 2–3 周，暂不投入。
+- 实施：移除「视图 → 语言」子菜单与 `_switch_language()`；
+  启动固定 `zh_CN`（`app.py`/`main.py`），旧配置里的 `language: en_US` 不再生效
+  （`settings.py` 读取时归一为 zh_CN）；`i18n.py`、`locales/*.json` 与 `tr()` 保留，
+  作为未来 tr 化的基础设施。
+- 棘轮：`tools/i18n_audit.py` 继续阻止 GUI 新增硬编码；基线 3599/116 →
+  **3598/116**（移除 1 条语言名文案）。
+- 回归：`tests/unit/test_i18n_decision.py` 4 条（无语言入口、启动固定中文、
+  旧配置忽略、i18n 基础设施保留）+ `tests/fidelity/test_i18n.py` 8 条继续通过。
+- 报告 [i18n-现状与硬编码棘轮.md](docs/i18n-现状与硬编码棘轮.md) 已更新为"已决策"。
 
 ### 工程
 - 干净 worktree（只含已跟踪文件 + 用户 64 文件语料）最终验证：

@@ -68,6 +68,67 @@ def _empty_paragraphs(path: Path):
         return None
 
 
+def _pptx_source_chars(path: Path) -> int:
+    """PPTX 源文件里的文字量（标题/正文/表格/备注，去掉空白）。"""
+    from pptx import Presentation
+
+    total = 0
+    presentation = Presentation(str(path))
+    for slide in presentation.slides:
+        for shape in slide.shapes:
+            if getattr(shape, "has_text_frame", False):
+                total += len("".join(shape.text_frame.text.split()))
+            if getattr(shape, "has_table", False):
+                for row in shape.table.rows:
+                    for cell in row.cells:
+                        total += len("".join(cell.text.split()))
+        try:
+            notes = slide.notes_slide.notes_text_frame.text
+            total += len("".join(notes.split()))
+        except Exception:  # noqa: BLE001 - 没有备注页很正常
+            pass
+    return total
+
+
+def _pptx_import_result(path: Path) -> dict:
+    """
+    PPTX 走**导入口径**（产品没有 pptx → Markdown → pptx 的往返路径）。
+
+    这里不假装做了往返：调用产品的 `import_pptx()`，记录
+    * 导入页数；
+    * 文字保留率（标题/正文/备注口径，源端含表格文字）；
+    * 产品**主动声明**的损失清单（图片/表格/图表等转占位）与警告。
+    """
+    result = {
+        "path": str(path), "name": path.name, "format": "pptx",
+        "size": path.stat().st_size, "profile": "pptx",
+        "error": None, "skipped": None,
+        "slides": 0, "text_before": 0, "text_after": 0,
+        "losses": {}, "warnings": [],
+    }
+    try:
+        from beeoffice.plugins.beeshow_pptx_import import import_pptx
+
+        before = _pptx_source_chars(path)
+        imported, _markdown = import_pptx(path)
+        after = 0
+        for slide in imported.slides:
+            after += len("".join((slide.title or "").split()))
+            for _level, text in slide.bullets:
+                after += len("".join(text.split()))
+            after += len("".join((slide.notes or "").split()))
+        result.update({
+            "slides": imported.slide_count,
+            "text_before": before,
+            "text_after": after,
+            "losses": dict(imported.losses),
+            "warnings": list(imported.warnings),
+        })
+    except Exception as e:  # noqa: BLE001 - 报告要跑完全部语料
+        result["error"] = f"导入失败: {type(e).__name__}: {e}"
+    return result
+
+
 def classify(result, known):
     """把一行结果分类成：丢失/未知丢失/增加/错误。"""
     lost = [r for r in result.get("rows", []) if r.get("status") == "lost"]
@@ -102,6 +163,7 @@ def build_markdown(results, meta) -> str:
     """生成 Markdown 报告（人读）。"""
     real = [r for r in results if r["profile"] == "real"]
     stress = [r for r in results if r["profile"] == "stress"]
+    pptx = [r for r in results if r["profile"] == "pptx"]
 
     def _section(title, rows, known):
         lines = [f"### {title}", ""]
@@ -148,6 +210,9 @@ def build_markdown(results, meta) -> str:
         if r["error"]:
             all_unknown.append((r["name"], "异常"))
             continue
+        if r.get("profile") == "pptx":
+            # 导入口径：产品已明示的损失清单不算"未知"；只有导入异常才是未知
+            continue
         if r["skipped"]:
             continue
         known = KNOWN_REAL if r["profile"] == "real" else KNOWN_STRESS
@@ -156,26 +221,34 @@ def build_markdown(results, meta) -> str:
 
     real_rows = [r for r in real if not r["error"] and not r["skipped"]]
     stress_rows = [r for r in stress if not r["error"] and not r["skipped"]]
-    skipped_n = len([r for r in results if r["skipped"]])
+    pptx_rows = [r for r in pptx if not r["error"]]
+    skipped_n = len([
+        r for r in results
+        if r.get("skipped") and r.get("profile") != "pptx"
+    ])
     lines = [
         "# 保真度报告（自动生成）",
         "",
         f"> 生成时间：{meta['generated_at']} · 代码基线：`{meta['commit']}`",
-        f"> 工具：`tools/fidelity_report.py` · 方法：OOXML 探测 → DOCX↔Markdown 往返 → 再探测",
+        f"> 工具：`tools/fidelity_report.py` · 方法：OOXML 探测 → DOCX↔Markdown 往返 → 再探测；"
+        "PPTX 走产品**导入口径**（无往返，记录已声明损失）",
         f"> JSON：`{meta.get('json', '—')}`",
         "",
         "## 0. 结论",
         "",
-        f"- 样本：真实文档 **{len(real_rows)}** 份 + 压力语料 **{len(stress_rows)}** 份"
-        + (f"（另有 {skipped_n} 份跳过：无导入路径）" if skipped_n else "")
+        f"- 样本：真实文档 **{len(real_rows)}** 份（往返）"
+        + (f" + PPTX **{len(pptx_rows)}** 份（导入口径）" if pptx_rows else "")
+        + (f" + 压力语料 **{len(stress_rows)}** 份" if stress_rows else "")
+        + (f"（另有 {skipped_n} 份跳过：大表/无导入路径）" if skipped_n else "")
         + "。",
         f"- 未知类别/异常：**{len(all_unknown)}** 个"
         + ("（见下表，需要调查）" if all_unknown else "（全部差异都在已知类别内）"),
         "- 说明：**本报告不是\"零丢失\"证明**。真实文档的差异集中在"
         "“空段落无法用 Markdown 表达”“空白规范化”“HYPERLINK 域→真超链接”三类；"
+        "PPTX 的图片/表格/图表等由产品在导入时**主动列出损失清单**（不伪装保留）。"
         "若要对外宣称保真能力，请使用“每次转换都有损失报告”的口径。",
         "",
-        "## 1. 真实文档",
+        "## 1. 真实文档（DOCX/XLSX 往返）",
         "",
     ]
     lines += _section("1.1 逐文件结果", real, KNOWN_REAL)
@@ -187,19 +260,51 @@ def build_markdown(results, meta) -> str:
         "",
     ]
     lines += _section("2.1 逐文件结果", stress, KNOWN_STRESS)
+    if pptx:
+        lines += [
+            "## 2b. PPTX（导入口径，非往返）",
+            "",
+            "产品目前**没有** pptx→…→pptx 往返路径；这里调用产品导入接口，",
+            "记录页数、文字保留率（标题/正文/备注；源端含表格文字）与**已声明损失**。",
+            "",
+            "| 文件 | 大小 | 页数 | 文字保留率 | 已声明损失 | 警告 | 异常 |",
+            "|---|---:|---:|---:|---|---|---|",
+        ]
+        for r in pptx:
+            if r["error"]:
+                lines.append(
+                    f"| {r['name']} | {r['size'] / 1024:.0f} KB | — | — | — | — "
+                    f"| **{r['error']}** |"
+                )
+                continue
+            before = r.get("text_before") or 0
+            after = r.get("text_after") or 0
+            ratio = f"{after / before * 100:.1f}%" if before else "—"
+            losses = "、".join(
+                f"{k}×{v}" for k, v in (r.get("losses") or {}).items()
+            ) or "无声明"
+            warns = "；".join(r.get("warnings") or []) or "—"
+            lines.append(
+                f"| {r['name']} | {r['size'] / 1024:.0f} KB | {r.get('slides', 0)} "
+                f"| {ratio} | {losses} | {warns} | 无 |"
+            )
+        lines.append("")
     lines += [
         "## 3. 复跑",
         "",
         "```powershell",
         "cd D:\\beeofficeV",
         "$env:PYTHONPATH='D:\\beeofficeV'; $env:QT_QPA_PLATFORM='offscreen'",
-        "python tools\\fidelity_report.py --include-stress --report docs\\保真报告.md --json 结果.json",
+        "python tools\\fidelity_report.py --include-pptx-import --max-size-mb 8 "
+        "--report docs\\保真报告.md --json 结果.json",
         "```",
         "",
         "## 4. 局限",
         "",
-        "- 真实样本量有限（当前 7 份，目标 50 份），且以中文技术文档为主；",
-        "- 只覆盖 DOCX 往返；XLSX 走“保结构更新”另一条路，PPTX 目前只导入不往返；",
+        "- 真实样本量取决于 `tests/fidelity/corpus/`，当前 64 个文件"
+        "（41 份可往返 + 16 份 PPTX 只导入 + 2 份大 xlsx 跳过）；",
+        "- DOCX 中间经过 Markdown，是结构性薄弱点；XLSX 走“保结构更新”另一条路；",
+        "- PPTX 目前只导入不往返，损失清单来自产品实现（不是第三方比对）；",
         "- 差异按“特征计数”而非逐字 diff；能抓住大段丢失，不能证明逐字一致。",
         "",
     ]
@@ -225,6 +330,8 @@ def main(argv=None) -> int:
                     help="真实语料目录（可多次；默认 tests/fidelity/corpus）")
     ap.add_argument("--include-stress", action="store_true",
                     help="同时跑 tools/fidelity_corpus_gen.py 生成的压力语料")
+    ap.add_argument("--include-pptx-import", action="store_true",
+                    help="对 PPTX 跑产品导入接口并记录已声明损失（非往返）")
     ap.add_argument("--report", help="输出 Markdown 报告路径")
     ap.add_argument("--json", help="输出 JSON 路径")
     ap.add_argument("--max-size-mb", type=float, default=0,
@@ -238,9 +345,16 @@ def main(argv=None) -> int:
     workdir = Path(tmp.name)
 
     real_files = iter_files(real_dirs)
-    print(f"真实语料 {len(real_files)} 个文件", flush=True)
-    for path in real_files:
+    real_only = [p for p in real_files if p.suffix.lower() != ".pptx"]
+    pptx_files = [
+        p for p in real_files if p.suffix.lower() == ".pptx"
+    ] if args.include_pptx_import else []
+    print(f"真实语料 {len(real_files)} 个文件"
+          f"（可往返 {len(real_only)} + PPTX 导入口径 {len(pptx_files)}）", flush=True)
+    for path in real_only:
         jobs.append(("real", path, workdir / "real"))
+    for path in pptx_files:
+        jobs.append(("pptx", path, workdir / "pptx"))
 
     stress_files = []
     if args.include_stress:
@@ -255,6 +369,10 @@ def main(argv=None) -> int:
     results = []
     max_bytes = int(args.max_size_mb * 1024 * 1024) if args.max_size_mb else 0
     for profile, path, root in jobs:
+        if profile == "pptx":
+            print(f"  正在导入 {path.name} ...", flush=True)
+            results.append(_pptx_import_result(path))
+            continue
         size = path.stat().st_size
         if max_bytes and size > max_bytes:
             print(f"  ↷ 跳过（{size / 1024 / 1024:.1f} MB > "
@@ -279,6 +397,8 @@ def main(argv=None) -> int:
         if r["error"]:
             unknown.append((r["name"], "异常"))
             continue
+        if r.get("profile") == "pptx":
+            continue
         if r["skipped"]:
             continue
         known = KNOWN_REAL if r["profile"] == "real" else KNOWN_STRESS
@@ -287,8 +407,10 @@ def main(argv=None) -> int:
 
     real_n = len([r for r in results if r["profile"] == "real"])
     stress_n = len([r for r in results if r["profile"] == "stress"])
+    pptx_n = len([r for r in results if r.get("profile") == "pptx"])
     print()
-    print(f"完成：真实 {real_n} + 压力 {stress_n}；未知类别/异常 {len(unknown)} 个")
+    print(f"完成：真实 {real_n} + PPTX {pptx_n} + 压力 {stress_n}；"
+          f"未知类别/异常 {len(unknown)} 个")
     for name, detail in unknown:
         print(f"  ✗ {name}: {detail}")
 

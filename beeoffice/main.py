@@ -112,13 +112,11 @@ def main():
         from PySide6.QtGui import QFont
         QFont.insertSubstitution('.AppleSystemUIFont', 'PingFang SC')
 
-    # 加载设置
-    from beeoffice.settings import AppSettings
-    settings = AppSettings()
-
-    # 设置语言
+    # 设置语言（i18n 决策 2026-10-20：中文优先，固定 zh_CN；
+    # 语言包与 tr() 基础设施保留，作为未来按模块 tr 化的基础）
+    # 注：这里不需要再单独构造 AppSettings —— BeeApp 会自行加载。
     from beeoffice.i18n import set_language
-    set_language(settings.language)
+    set_language("zh_CN")
 
     # 延迟导入主窗口，减少启动时的模块加载量
     from beeoffice.app import BeeApp
@@ -126,6 +124,7 @@ def main():
 
     # 设置保存失败必须让用户看见：settings.py 只在注册了回调时才提示，
     # 未注册时仅记日志（见 BeeOffice-优化规划.md §1.2）
+    from beeoffice.settings import AppSettings
     AppSettings.on_save_error = window._on_settings_save_error
 
     window.show()

@@ -4,32 +4,26 @@
 
 优化要点：
   1. 所有菜单项接入 i18n（tr 函数），与 locales/zh_CN.json、en_US.json 键名对齐
-  2. 动态发现可用语言包，避免硬编码语言列表
-  3. 强调色子菜单使用 theme.accent.* 翻译键，并显示当前勾选状态
-  4. 补充缺失菜单项：从模板新建、保存为模板、导出子菜单、生成报告、
+  2. 强调色子菜单使用 theme.accent.* 翻译键，并显示当前勾选状态
+  3. 补充缺失菜单项：从模板新建、保存为模板、导出子菜单、生成报告、
      PDF 批注、批量转换、AI 辅助、宏、关联表格到文档等
-  5. 新增「工具」菜单，集中放置文档处理类功能
-  6. 撤销/重做动作连接到当前控件（QPlainTextEdit / QTextEdit）
-  7. 新增插件菜单注册入口（调用 Plugin.register_menus 钩子）
-  8. 「WebDAV 设置」更名为「云存储设置」，与实际能力一致（支持 WebDAV / OneDrive / Google Drive）
+  4. 新增「工具」菜单，集中放置文档处理类功能
+  5. 撤销/重做动作连接到当前控件（QPlainTextEdit / QTextEdit）
+  6. 新增插件菜单注册入口（调用 Plugin.register_menus 钩子）
+  7. 「WebDAV 设置」更名为「云存储设置」，与实际能力一致（支持 WebDAV / OneDrive / Google Drive）
+
+## i18n 决策（2026-10-20）
+界面**中文优先（B 路线）**：不再提供语言切换入口 —— 实测 `tr()` 包装率仅约 11%，
+切到 en_US 后大部分界面仍是中文（"半英文"体验比纯中文更差）。
+`beeoffice/i18n.py` 与 `locales/*.json` **保留**，作为未来按模块 tr 化的基础设施；
+`tools/i18n_audit.py` 的 GUI 硬编码棘轮继续阻止新增债务。
 """
 import logging
 
 from PySide6.QtGui import QAction, QKeySequence
 
-from beeoffice.i18n import tr, I18nManager
+from beeoffice.i18n import tr
 from beeoffice.theme import Theme
-
-
-# ==================== 常量 ====================
-# 语言代码 → 显示名（语言包中若存在 app.lang_name 键，可优先使用）
-_LANGUAGE_DISPLAY_NAMES = {
-    "zh_CN": "中文",
-    "en_US": "English",
-}
-
-# 默认语言包列表（当无法从 I18nManager 获取时回退）
-_DEFAULT_LANGUAGES = ["zh_CN", "en_US"]
 
 
 # ==================== 内部辅助函数 ====================
@@ -75,37 +69,6 @@ def _apply_redo(main_window):
     editor = _resolve_editor(widget)
     if editor is not None and hasattr(editor, "redo"):
         editor.redo()
-
-
-def _build_language_menu(main_window, parent_menu):
-    """
-    构建语言子菜单（动态发现可用语言包）
-    :param main_window: BeeApp 实例
-    :param parent_menu: 挂载到的父菜单（视图菜单）
-    """
-    lang_menu = parent_menu.addMenu("🌐 " + tr("menu.view.language", "语言"))
-
-    try:
-        i18n = I18nManager()
-        available = list(i18n._translations.keys())
-    except Exception as e:
-        logging.error(f"获取语言列表失败: {e}")
-        available = []
-
-    if not available:
-        available = _DEFAULT_LANGUAGES
-
-    current_lang = getattr(main_window.settings, "language", "zh_CN")
-
-    for code in sorted(available):
-        display = _LANGUAGE_DISPLAY_NAMES.get(code, code)
-        action = QAction(display, main_window)
-        action.setCheckable(True)
-        action.setChecked(current_lang == code)
-        action.triggered.connect(
-            lambda checked=False, c=code: main_window._switch_language(c)
-        )
-        lang_menu.addAction(action)
 
 
 def _build_accent_menu(main_window, parent_menu):
@@ -394,10 +357,7 @@ def setup_menus(main_window):
     split_action.triggered.connect(main_window.tab_manager.split_with_current)
     view_menu.addAction(split_action)
 
-    view_menu.addSeparator()
-
-    # 语言子菜单（动态发现可用语言包）
-    _build_language_menu(main_window, view_menu)
+    # 语言子菜单已移除（2026-10-20 i18n 决策：中文优先，不再提供半成品英文界面）
 
     # ==================== 帮助菜单 ====================
     help_menu = menu_bar.addMenu(tr("menu.help", "帮助"))

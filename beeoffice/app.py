@@ -96,7 +96,10 @@ class BeeApp(QMainWindow):
         self.settings = AppSettings()
         Theme.set_theme(self.settings.theme)
         Theme.set_accent(self.settings.accent_color)
-        set_language(self.settings.language)
+        # i18n 决策（2026-10-20，中文优先/路线 B）：界面固定中文。
+        # `settings.language` 仍保留在配置里（向后兼容/未来 tr 化），但**不再生效**——
+        # 实测 tr 包装率仅约 11%，切到 en_US 会得到"半英文"界面，比纯中文更差。
+        set_language("zh_CN")
 
         self.setWindowTitle(tr("app.title"))
         self.resize(*self.settings.window_size)
@@ -1440,15 +1443,7 @@ class BeeApp(QMainWindow):
     def _apply_theme(self):
         self.setStyleSheet(Theme.get_stylesheet())
 
-    def _switch_language(self, lang_code):
-        set_language(lang_code)
-        self.settings.language = lang_code
-        self.settings.save()
-        QMessageBox.information(
-            self,
-            tr("dialog.language_switch", "语言切换"),
-            tr("msg.language_switched", "语言已切换，请重启应用。"),
-        )
+    # 语言切换入口已移除（2026-10-20 i18n 决策：中文优先，不再提供半成品英文界面）
 
     # ==================================================================
     # 状态栏
