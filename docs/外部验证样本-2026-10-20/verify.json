@@ -1,0 +1,25 @@
+{
+  "tool": "beecmd",
+  "version": "0.4.0",
+  "op": "verify",
+  "src": "06_法律合规_合同台账_Excel.xlsx",
+  "artifact": "contract_ledger.csv",
+  "ok": false,
+  "mismatches": 2,
+  "samples": [
+    {
+      "sheet": "合同台账",
+      "issue": "产物里缺这张表"
+    },
+    {
+      "sheet": "字段说明",
+      "issue": "产物里缺这张表"
+    }
+  ],
+  "sheets_checked": [
+    "合同台账",
+    "字段说明"
+  ],
+  "mode": "sheet",
+  "checked_at": "2026-10-20T17:02:58"
+}

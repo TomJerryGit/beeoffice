@@ -50,6 +50,19 @@
 - `docs/外部验证-操作手册.md`：最后一道门槛的操作步骤、手工版命令、回传清单与
   判定标准（含"无 Python 机器"的手工留痕方式）。
 
+### 外部验证（本机隔离环境，2026-10-20）
+- **独立 `beecmd.exe` 完成 3 项真实工作**（退出码均 0）：
+  - merge：2 份真实业务表 → **14,430 行 × 26 列** `merged.xlsx`（42.2 s）；
+  - convert：多工作表 xlsx → `contract_ledger.csv`（5,004 行 × 12 列，41.7 s）；
+  - clean：`--plan` 确定性清洗 → `cleaned.xlsx`（5,004 行，`original_untouched=true`，13.5 s）；
+- 环境：仓库外目录 `C:\beeoffice_external_validation`、PATH 仅 `System32/Windows`
+  （`python_on_path=false`）、`PYTHONPATH` 清空、**未启动 GUI**；被验证 exe 的
+  sha256 `F6C41B87…` 与 CLI 发行包内成员**哈希一致**；
+- 如实说明：本机磁盘上仍装有 Python 3.11（exe 为 onefile 自包含，运行不依赖它）；
+  `verify` 对多表转单 CSV 报 2 处不一致（第二张表缺失），退出码 2，**未计入通过项**；
+- 记录：[外部验证-记录-2026-10-20.md](docs/外部验证-记录-2026-10-20.md) +
+  [机器可读 JSON](docs/外部验证-evidence-2026-10-20.json) + 官方报告样本。
+
 ### 已知限制
 - 2 份 16.9 MB / 20 万行 xlsx 的**结构化写入往返**实测 >20 分钟仍未完成，
   因此 50 份语料报告按 `--max-size-mb 8` 跳过；超大表建议用流式/数据库工具核对，

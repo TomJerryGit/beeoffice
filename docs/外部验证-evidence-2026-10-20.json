@@ -1,0 +1,117 @@
+{
+  "tool": "beecmd.exe (standalone)",
+  "date": "2026-10-20",
+  "host": "2026-10-20 17:00:35",
+  "env_path": "C:\\Windows\\System32;C:\\Windows",
+  "python_on_path": false,
+  "python_installed_on_disk": true,
+  "executable": {
+    "sha256": "F6C41B8736852809667CA25D4EE6A47374EDB4DCEBC4FA475174041E9B7D23B1",
+    "size": 81232120,
+    "matches_cli_zip_member": true
+  },
+  "inputs": [
+    {
+      "sha256": "CADB0E1CEE87EFBECD64B7E3754CC908B1CF0E3618EB45B39E21BF4D6BCB0AF1",
+      "name": "01_金融行业_个人贷款对账单_Excel.xlsx",
+      "size": 602925
+    },
+    {
+      "sha256": "B7F7A47A860E75B7BF93752DB329ABF64F3B889F384D2BC15D28D6437B1239AD",
+      "name": "02_制造行业_生产工单记录_Excel.xlsx",
+      "size": 607341
+    },
+    {
+      "sha256": "3AD9EA73BC9057D702FD5549CC1FD1317BD2B4406CCE9299EC623EB41B725F2A",
+      "name": "06_法律合规_合同台账_Excel.xlsx",
+      "size": 457799
+    }
+  ],
+  "commands": {
+    "version": {
+      "command": "beecmd.exe --version",
+      "exit_code": 0,
+      "elapsed_s": 16.06,
+      "output": "beecmd 0.4.0",
+      "files": []
+    },
+    "merge": {
+      "command": "beecmd.exe merge 01_金融行业_个人贷款对账单_Excel.xlsx 02_制造行业_生产工单记录_Excel.xlsx -o merged.xlsx",
+      "exit_code": 0,
+      "elapsed_s": 42.22,
+      "output": "? 已汇总 2 个文件 / 14430 行 → merged.xlsx（append）",
+      "files": [
+        {
+          "sha256": "83F9F854C4F7DB65A9BD914113CFEA72F89D5E2F52192E646F71B46F185356AD",
+          "name": "merged.xlsx",
+          "size": 1245676
+        }
+      ]
+    },
+    "convert": {
+      "command": "beecmd.exe convert 06_法律合规_合同台账_Excel.xlsx --to csv -o contract_ledger.csv",
+      "exit_code": 0,
+      "elapsed_s": 41.7,
+      "output": "? 06_法律合规_合同台账_Excel.xlsx → contract_ledger.csv（csv）",
+      "files": [
+        {
+          "sha256": "820849C834CF614F8BF6CA45EB13E31FFA19B1746DAF23B009DB5F29B95512BB",
+          "name": "contract_ledger.csv",
+          "size": 991346
+        }
+      ]
+    },
+    "verify": {
+      "command": "beecmd.exe verify 06_法律合规_合同台账_Excel.xlsx contract_ledger.csv --report verify.json",
+      "exit_code": 2,
+      "elapsed_s": 40.35,
+      "output": "? 报告已写入 verify.json（不一致 2 处）",
+      "files": [
+        {
+          "sha256": "72C34A6E4CE7B2FDD96F2AE1F33D4DF6AF54669AAE01D32BAA8F36F7A7519EA7",
+          "name": "verify.json",
+          "size": 518
+        }
+      ]
+    },
+    "clean": {
+      "command": "beecmd.exe clean contract_ledger.csv -o cleaned.xlsx --plan clean_plan.json --report clean_report.json",
+      "exit_code": 0,
+      "elapsed_s": 13.51,
+      "output": "? 清洗完成（plan-file，3 项操作 / 0 处修改）：行 5004→5004 → cleaned.xlsx\r\n   计划: cleaned.xlsx.plan.json\r\n   报告: clean_report.json",
+      "files": [
+        {
+          "sha256": "6F280B836DA77F90B25B64ECC83DF02C652447DDC949CAA9FDE8B4A68B3F7387",
+          "name": "cleaned.xlsx",
+          "size": 459955
+        },
+        {
+          "sha256": "64A726FFABF591C0565C6C69A28E3A5371E0C982A88ACF21A7F5669D1AE9887E",
+          "name": "clean_report.json",
+          "size": 1271
+        }
+      ]
+    }
+  },
+  "checks": {
+    "merged_rows": 14430,
+    "merged_cols": 26,
+    "csv_rows": 5004,
+    "csv_cols": 12,
+    "cleaned_rows": 5004,
+    "cleaned_cols": 12,
+    "clean_original_untouched": true,
+    "verify_ok": false,
+    "verify_mismatches": 2,
+    "verify_sample_issue": "产物里缺这张表",
+    "zip_member_matches_tested_exe": true,
+    "tested_exe_sha256": "F6C41B8736852809667CA25D4EE6A47374EDB4DCEBC4FA475174041E9B7D23B1",
+    "cli_zip_sha256": "aab09dc326f9dfbcdf01db63c494581db1affcd8e64fa4abda145bbb467f8739"
+  },
+  "notes": [
+    "在本机（同一台 Windows 10 机器）的隔离环境中执行：PATH 仅保留 System32/Windows、PYTHONPATH 清空、工作目录在仓库外，未启动 BeeOffice GUI。",
+    "本机磁盘上仍安装有 Python 3.11（python_on_disk=true），但不在 PATH 中；exe 是 PyInstaller onefile 自包含包。",
+    "GBK 控制台下 emoji 被替换为 '?'（_make_console_safe 的已知设计），不影响功能与退出码。",
+    "verify 退出码 2 是诚实的不一致报告：多工作表 xlsx 转单个 csv 后，另一张表（字段说明）不在产物中（2 处），未计入通过项。"
+  ]
+}

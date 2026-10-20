@@ -1,0 +1,62 @@
+{
+  "tool": "beecmd",
+  "version": "0.4.0",
+  "op": "clean",
+  "src": "contract_ledger.csv",
+  "out": "cleaned.xlsx",
+  "sheet": "contract_ledger",
+  "rows_before": 5004,
+  "rows_after": 5004,
+  "columns_before": [
+    "合同编号",
+    "合同名称",
+    "甲方（虚构）",
+    "乙方（虚构）",
+    "合同类别",
+    "合同金额（元）",
+    "签订日期",
+    "生效日期",
+    "到期日期",
+    "经办人",
+    "审批状态",
+    "归档编号"
+  ],
+  "columns_after": [
+    "合同编号",
+    "合同名称",
+    "甲方（虚构）",
+    "乙方（虚构）",
+    "合同类别",
+    "合同金额（元）",
+    "签订日期",
+    "生效日期",
+    "到期日期",
+    "经办人",
+    "审批状态",
+    "归档编号"
+  ],
+  "plan_source": "plan-file",
+  "model": "",
+  "api_base": "",
+  "attempts": 0,
+  "elapsed_ms": 0.0,
+  "operations": [
+    {
+      "op": "trim_whitespace",
+      "changed": 0,
+      "samples": []
+    },
+    {
+      "op": "drop_empty_rows",
+      "changed": 0,
+      "samples": []
+    },
+    {
+      "op": "drop_duplicate_rows",
+      "changed": 0,
+      "samples": []
+    }
+  ],
+  "original_untouched": true,
+  "plan_file": "cleaned.xlsx.plan.json"
+}
