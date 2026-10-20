@@ -115,7 +115,7 @@ class UIMixin:
             "LOWER": ("LOWER(文本)", "文本"),
             "PROPER": ("PROPER(文本)", "文本"),
             "CONCATENATE": ("CONCATENATE(文本1,...)", "文本"),
-            "TEXTJOIN": ("TEXTJOIN(分隔符,文本1,...)", "文本"),
+            "TEXTJOIN": ("TEXTJOIN(分隔符,忽略空值,文本...)", "文本"),
             "FIND": ("FIND(找什么,在哪里)", "文本"),
             "SEARCH": ("SEARCH(找什么,在哪里)", "文本"),
             "SUBSTITUTE": ("SUBSTITUTE(文本,旧,新)", "文本"),

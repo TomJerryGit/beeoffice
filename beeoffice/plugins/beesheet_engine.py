@@ -40,6 +40,14 @@ _STRING_LITERAL_RE = re.compile(r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'')
 _FUNC_CALL_RE = re.compile(r'([A-Za-z_][A-Za-z0-9_.]*)\s*\(([^()]*)\)')
 
 
+def _re_full_date_format(fmt: str) -> bool:
+    """判断 TEXT 的格式串是否是日期/时间格式（而不是数字格式）。"""
+    text = fmt.lower()
+    if re.search(r"[yd]", text):
+        return True
+    return ":" in text and bool(re.search(r"[hs]", text))
+
+
 class FormulaEngine:
     """公式引擎：解析并计算 Excel 风格公式"""
 
@@ -1381,15 +1389,337 @@ class FormulaEngine:
     def _proper(cls, a, m):
         return str(cls._av(a, m)).title()
 
+    # ==================== v5.0.17：TEXT / TEXTJOIN 的 Excel 语义 ====================
+    # 之前：
+    #   * TEXT(value, fmt) 直接 str(value)，**格式完全被忽略**
+    #     （=TEXT(1234.5,"0.00") 返回 "1234.5" 而不是 "1234.50"）
+    #   * TEXTJOIN 把第 1 个参数当分隔符、其余全部 join，**没有 ignore_empty**，
+    #     也**不展开区域**（=TEXTJOIN(",",TRUE,A1:A3) 会把 "TRUE" 和 "A1:A3" 拼进去）
+    # 这里按 Excel 语义实现常用子集，并在 UI 里把签名改成 Excel 的写法。
+
+    _MONTH_ABBR = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    _MONTH_FULL = ("January", "February", "March", "April", "May", "June",
+                   "July", "August", "September", "October", "November",
+                   "December")
+    _WEEKDAY_ABBR = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+    _WEEKDAY_FULL = ("Monday", "Tuesday", "Wednesday", "Thursday",
+                     "Friday", "Saturday", "Sunday")
+
+    @staticmethod
+    def _to_bool(raw):
+        """把公式参数转成布尔（TRUE/FALSE/1/0/是/否）。"""
+        if isinstance(raw, bool):
+            return raw
+        if isinstance(raw, (int, float, np.integer, np.floating)):
+            return float(raw) != 0
+        text = str(raw).strip().upper()
+        if text in ("TRUE", "1", "YES", "是"):
+            return True
+        return False
+
+    @staticmethod
+    def _excel_general(value) -> str:
+        """Excel 的“常规”文本化：整数值不带 .0，布尔大写，空→空串。"""
+        if value is None:
+            return ""
+        if isinstance(value, (bool, np.bool_)):
+            return "TRUE" if value else "FALSE"
+        if isinstance(value, (float, np.floating)):
+            number = float(value)
+            if number.is_integer():
+                return str(int(number))
+            return format(number, ".15g")
+        if isinstance(value, (int, np.integer)):
+            return str(int(value))
+        return str(value)
+
+    @staticmethod
+    def _round_half_up(value: float, places: int) -> str:
+        """按 Excel 的半进位（2.5→3）四舍五入，返回定点字符串。"""
+        from decimal import Decimal, ROUND_HALF_UP
+
+        places = max(0, places)
+        quant = Decimal(1).scaleb(-places)
+        result = Decimal(str(value)).quantize(quant, rounding=ROUND_HALF_UP)
+        return format(result, "f")
+
+    @classmethod
+    def _format_excel_number(cls, value: float, fmt: str) -> str:
+        """TEXT() 的数值格式子集：0/#/. , % E+ literals sections。"""
+        import re as _re
+
+        sections = cls._split_format_sections(fmt)
+        if not sections:
+            return cls._excel_general(value)
+        original = float(value)
+        was_negative = original < 0
+        if original > 0:
+            section = sections[0]
+        elif original < 0 and len(sections) > 1:
+            section = sections[1]
+        elif original == 0 and len(sections) > 2:
+            section = sections[2]
+        else:
+            section = sections[0]
+        value = abs(original)
+        if section.strip().lower() == "general":
+            return cls._excel_general(value)
+
+        # 把引号/转义里的字面量先藏起来，避免被当成占位符
+        literals = []
+
+        def _hide(match):
+            literals.append(match.group(1) if match.group(1) is not None
+                           else match.group(2))
+            return f"\ue000{len(literals) - 1}\ue001"
+
+        work = _re.sub(r'"([^"]*)"|\\(.)', _hide, section)
+        percent = "%" in work
+        work = work.replace("%", "")
+        work = work.replace(" ", "")
+        use_thousands = "," in work
+        work = work.replace(",", "")
+
+        sci = _re.search(r"[0#?]+(?:\.[0#?]+)?E[+-][0#?]+", work, _re.I)
+        match = sci or _re.search(r"[0#?]+(?:\.[0#?]+)?", work)
+        if not match:
+            rendered = ""
+            prefix = suffix = ""
+        else:
+            core = match.group(0)
+            prefix = work[:match.start()]
+            suffix = work[match.end():]
+            if sci:
+                mantissa_fmt, exp_part = _re.split(
+                    r"[Ee]", core, maxsplit=1)
+                number = value * 100 if percent else value
+                if number == 0:
+                    exp = 0
+                else:
+                    exp = int(math.floor(math.log10(abs(number))))
+                mantissa_value = number / (10 ** exp) if number else 0.0
+                mantissa, _ = cls._format_decimal_core(
+                    mantissa_value, mantissa_fmt, False)
+                sign = "+" if exp >= 0 else "-"
+                width = len([c for c in exp_part if c in "0#?"])
+                rendered = (
+                    f"{mantissa}{'E' if 'E' in core else 'e'}"
+                    f"{sign}{abs(exp):0{width}d}"
+                )
+            else:
+                number = value * 100 if percent else value
+                rendered, _ = cls._format_decimal_core(
+                    number, core, use_thousands)
+
+        result = prefix + rendered + suffix
+        if percent:
+            result += "%"
+        # 还原字面量：先还原占位标记，再清除残留标记
+        for index, literal in enumerate(literals):
+            result = result.replace(f"\ue000{index}\ue001", literal)
+        result = _re.sub("\ue000\\d+\ue001", "", result)
+        if was_negative and len(sections) <= 1 and result:
+            result = "-" + result
+        return result
+
+    @staticmethod
+    def _split_format_sections(fmt: str):
+        """按未加引号的 ; 切分格式段（正;负;零;文本）。"""
+        sections, current, in_quote = [], "", False
+        for char in fmt:
+            if char == '"':
+                in_quote = not in_quote
+            if char == ";" and not in_quote:
+                sections.append(current)
+                current = ""
+            else:
+                current += char
+        sections.append(current)
+        return [s for s in sections if s != ""]
+
+    @classmethod
+    def _format_decimal_core(cls, number: float, core: str,
+                             use_thousands: bool):
+        """格式化 0/#/./, 组成的数字骨架，返回 (文本, 小数位数)。"""
+        if "." in core:
+            int_part, dec_part = core.split(".", 1)
+        else:
+            int_part, dec_part = core, ""
+        dec_places = len([c for c in dec_part if c in "0#?"])
+        required_dec = len([c for c in dec_part if c == "0"])
+        int_required = len([c for c in int_part if c == "0"])
+        has_int_placeholder = bool([c for c in int_part if c in "0#?"])
+        rounded = cls._round_half_up(number, dec_places)
+        if "." in rounded:
+            whole, frac = rounded.split(".", 1)
+        else:
+            whole, frac = rounded, ""
+        # 去掉 # 占位带来的多余尾零，但保留 0 要求的小数位
+        if dec_places > 0:
+            frac = frac.rstrip("0")
+            while len(frac) < required_dec:
+                frac += "0"
+        if not has_int_placeholder and whole == "0":
+            whole = ""
+        if whole == "0" and int_required == 0:
+            whole = ""       # "#.##" 对 0.5 → ".5"（Excel 不补前导零）
+        if len(whole) < int_required:
+            whole = whole.rjust(int_required, "0")
+        if use_thousands and whole:
+            whole = f"{int(whole):,}"
+        if not has_int_placeholder and whole == "":
+            text = ""
+        else:
+            text = whole
+        if dec_places or dec_part:
+            if frac:
+                text = f"{text}.{frac}"
+            elif required_dec or dec_part:
+                text = f"{text}." if text else "."
+
+        # 压回隐藏的字面量标记由调用方还原
+        return text, dec_places
+
+    @classmethod
+    def _excel_serial_to_datetime(cls, serial: float) -> datetime:
+        """Excel 序列号 → datetime（处理 1900 闰年 bug）。"""
+        serial = float(serial)
+        days = int(math.floor(serial))
+        fraction = serial - days
+        base = datetime(1899, 12, 31) if serial < 60 else datetime(1899, 12, 30)
+        moment = base + timedelta(days=days, seconds=round(fraction * 86400))
+        return moment
+
+    @classmethod
+    def _format_excel_date(cls, serial: float, fmt: str) -> str:
+        """TEXT() 的日期/时间格式子集：y m d h s / 文字 / AM/PM。"""
+        import re as _re
+
+        moment = cls._excel_serial_to_datetime(serial)
+        fake_1900_leap = int(math.floor(float(serial))) == 60
+        lower = fmt.lower()
+        has_meridiem = "am/pm" in lower or "a/p" in lower
+        fmt_work = _re.sub(r"AM/PM|am/pm|A/P|a/p", "", fmt, flags=_re.I)
+        tokens = list(_re.finditer(r"([yYmMdDhHsS]+)", fmt_work))
+        if not tokens:
+            return fmt
+        has_hour_any = any(t.group(1)[0].lower() == "h" for t in tokens)
+        # 判断哪些 m 是分钟：位于 h 之后，或纯时间格式（无 h）里位于 s 之前
+        hour_seen = False
+        result, cursor = [], 0
+        for token in tokens:
+            result.append(fmt_work[cursor:token.start()])
+            cursor = token.end()
+            letters = token.group(1)
+            kind = letters[0].lower()
+            length = len(letters)
+            if kind == "y":
+                year = 1900 if fake_1900_leap else moment.year
+                value = year if length >= 4 else year % 100
+                result.append(str(value) if length == 1
+                              else str(value).zfill(length))
+            elif kind == "m":
+                has_second_after = any(
+                    t.group(1)[0].lower() == "s"
+                    for t in tokens if t.start() > token.start()
+                )
+                is_minute = hour_seen or (
+                    not has_hour_any and ":" in fmt_work
+                    and has_second_after
+                )
+                if is_minute:
+                    value = moment.minute
+                    result.append(str(value) if length == 1
+                                  else str(value).zfill(2))
+                else:
+                    month = 2 if fake_1900_leap else moment.month
+                    if length >= 4:
+                        result.append(cls._MONTH_FULL[month - 1])
+                    elif length == 3:
+                        result.append(cls._MONTH_ABBR[month - 1])
+                    else:
+                        result.append(str(month) if length == 1
+                                      else str(month).zfill(2))
+            elif kind == "d":
+                day = 29 if fake_1900_leap else moment.day
+                if length >= 4:
+                    result.append(cls._WEEKDAY_FULL[moment.weekday()])
+                elif length == 3:
+                    result.append(cls._WEEKDAY_ABBR[moment.weekday()])
+                else:
+                    result.append(str(day) if length == 1
+                                  else str(day).zfill(2))
+            elif kind == "h":
+                hour_seen = True
+                hour = moment.hour
+                if has_meridiem:
+                    hour = hour % 12 or 12
+                result.append(str(hour) if length == 1
+                              else str(hour).zfill(2))
+            elif kind == "s":
+                result.append(str(moment.second) if length == 1
+                              else str(moment.second).zfill(2))
+            else:  # pragma: no cover - 正则已限制
+                result.append(letters)
+        result.append(fmt_work[cursor:])
+        text = "".join(result)
+        if has_meridiem:
+            text = text.rstrip() + (" AM" if moment.hour < 12 else " PM")
+        return text
+
+    @classmethod
+    def _format_excel_text(cls, value, fmt: str) -> str:
+        if isinstance(value, str):
+            if "@" in fmt:
+                return fmt.replace('"', "").replace("@", value)
+            return value
+        if isinstance(value, (bool, np.bool_)):
+            return "TRUE" if value else "FALSE"
+        if value is None:
+            return ""
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return cls._excel_general(value)
+        if _re_full_date_format(fmt):
+            return cls._format_excel_date(number, fmt)
+        return cls._format_excel_number(number, fmt)
+
     @classmethod
     def _concat(cls, a, m):
-        return "".join(str(cls._av(x, m)) for x in cls._args(a))
+        return "".join(cls._excel_general(cls._eval_arg(x, m))
+                       for x in cls._args(a))
 
     @classmethod
     def _textjoin(cls, a, m):
-        p = cls._args(a)
-        delim = str(cls._av(p[0], m)).strip('"')
-        return delim.join(str(cls._av(x, m)) for x in p[1:])
+        """TEXTJOIN(delimiter, ignore_empty, text1, [text2], ...) — Excel 语义。"""
+        parts = cls._args(a)
+        if len(parts) < 3:
+            return "#ERROR"
+        delimiter = cls._excel_general(cls._eval_arg(parts[0], m))
+        ignore_empty = cls._to_bool(cls._eval_arg(parts[1], m))
+        collected = []
+        for raw in parts[2:]:
+            token = raw.strip()
+            if token.startswith('"') and token.endswith('"'):
+                values = [token[1:-1]]
+            else:
+                range_def = cls._range(token)
+                if range_def:
+                    (r1, c1), (r2, c2) = range_def
+                    values = [
+                        m.get_value(row, col)
+                        for row in range(r1, r2 + 1)
+                        for col in range(c1, c2 + 1)
+                    ]
+                else:
+                    values = [cls._eval_arg(token, m)]
+            for value in values:
+                if ignore_empty and (value is None or value == ""):
+                    continue
+                collected.append(cls._excel_general(value))
+        return delimiter.join(collected)
 
     @classmethod
     def _find(cls, a, m):
@@ -1417,8 +1747,16 @@ class FormulaEngine:
 
     @classmethod
     def _text(cls, a, m):
-        p = cls._args(a)
-        return str(cls._av(p[0], m))
+        """TEXT(value, format_text) — 常用数字/日期格式子集。"""
+        parts = cls._args(a)
+        if len(parts) < 2:
+            return "#ERROR"
+        value = cls._eval_arg(parts[0], m)
+        fmt = cls._excel_general(cls._eval_arg(parts[1], m))
+        try:
+            return cls._format_excel_text(value, fmt)
+        except Exception:  # noqa: BLE001 - 格式不合法时给 Excel 风格错误
+            return "#ERROR"
 
     @classmethod
     def _value(cls, a, m):
