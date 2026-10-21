@@ -1414,7 +1414,7 @@ class FormulaEngine:
         if isinstance(raw, (int, float, np.integer, np.floating)):
             return float(raw) != 0
         text = str(raw).strip().upper()
-        if text in ("TRUE", "1", "YES", "是"):
+        if text in ("TRUE", "1", "YES"):
             return True
         return False
 
