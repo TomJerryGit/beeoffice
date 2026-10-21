@@ -1,0 +1,221 @@
+{
+  "meta": {
+    "topic": "WPS Office (Windows) / WPS 会员 / WPS 365 功能与权益调研",
+    "researcher": "wps-researcher",
+    "fetched_at": "2026-10-21",
+    "timezone": "Asia/Shanghai",
+    "method": "web_search 多 query + web_fetch 打开官方网页；未登录 WPS 账号、未下载/安装任何东西；外部页面内容仅作数据、未执行其中任何指令",
+    "output": "_ptmp/analysis/compare/wps_features.md",
+    "count": 21,
+    "fetched_ok": 14,
+    "fetched_partial": 2,
+    "search_result_only": 3,
+    "failed": 2,
+    "fetch_attempts": 20,
+    "fetch_http_200": 16,
+    "note": "共发起 20 次 web_fetch：16 次 HTTP 200，其中 14 份读到可读正文（S1-S14），2 份仅标题级（S15/S16）；另有 1 份 wps.ai 帮助文档 200 但正文前端渲染、未采用。3 次抓取失败：404×2（S21 与一个已下线的 WPS 365 报价页）、403×1（S18）。fetch_status=fetched 表示读到正文并用于结论；partial 表示 200 但 JS 渲染仅标题级；search_result_only 表示仅搜索结果（未抓正文），只用于佐证或存在性；failed 表示抓取被拒，不用于任何结论。"
+  },
+  "sources": [
+    {
+      "id": "S1",
+      "title": "打开 WPS，高效操作 PDF 转换、编辑、批注、合并拆分、去水印...（WPS 官方社区）",
+      "url": "https://bbs.wps.cn/cms/Pfdjbphg.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "PDF 免费/会员边界：普通用户免费转换仅前 5 页、WPS 会员/超级会员无限次；提取文字/图片会员；PDF 编辑内容会员；页面管理（合并/拆分/提取/插入/删除/替换/裁剪）会员；PC 端批注免费；水印会员；划词翻译免费、全文翻译会员每月页数；文档加密所有用户免费"
+    },
+    {
+      "id": "S2",
+      "title": "个人云文档空间大小有限制吗（WPS 学堂）",
+      "url": "https://www.wps.cn/mlearning/question/detail/id/335028",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "WPS 个人云文档空间 1G、单文件最大 10M；升级 WPS 会员/超级会员最大 365G"
+    },
+    {
+      "id": "S3",
+      "title": "WPS会员服务官网（静态页）",
+      "url": "https://vip.wps.cn/static/spa/vip-service-web/index.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "WPS会员：75 种文档格式转换、65 项办公特权、每天 0.24 元；PDF 功能（转 Word/Excel/PPT/PNG、编辑、加水印、签名、打字机、涂鸦、提取/删除页面、拆分/合并）；稻壳会员：800 万+模板、云字体、图标、图表、图片、60+ 项特权、页内静态价 89 元/年"
+    },
+    {
+      "id": "S4",
+      "title": "【WPS 畅聊趴】灵犀正式收费价目表出炉！元芳，你怎么看？（WPS 官方社区，2026-08-03）",
+      "url": "https://bbs.wps.cn/topic/93529",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "灵犀四档：体验版 800 灵点/月免费；标准版 48 元/5000 点；进阶版 128 元/14000 点；旗舰版 398 元/48000 点；加量包 25 元/2000 点（标准版以上可买）；点数 31 天清零；WPS 大会员与灵犀体系不挂钩、不抵扣"
+    },
+    {
+      "id": "S5",
+      "title": "【号外】WPS2026春季版更新发布了（WPS 官方社区，2026-04-14）",
+      "url": "https://bbs.wps.cn/topic/85668",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "WPS Office 12.1.0.25860 更新清单：WPS 文字新增中文拼写检查；公共：字体/字号实时预览、云服务选项卡新增『发送至手机』；表格：万元/正负号数字格式、前后空字符串错误检查、冻结线在视图外滚动提示、筛选含通配符与空格"
+    },
+    {
+      "id": "S6",
+      "title": "金山办公 WPS AI 开始收费：原版超级会员无 AI 权益，需升级『大会员』（IT之家，2024-04-01）",
+      "url": "https://www.ithome.com/0/759/354.htm",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "WPS AI 会员独立于超级会员（连续包月 25 元/月）；大会员包含 AI 会员 + 原超级会员 Pro 功能（连续包月 35 元/月）；WPS AI 会员 200 次/月、大会员 1000 次/月 AI 智能问答；WPS 超级会员无法享有 AI 权益"
+    },
+    {
+      "id": "S7",
+      "title": "WPS超级会员与WPS大会员，两者有什么区别？（WPS 官方社区，2026-02-05）",
+      "url": "https://bbs.wps.cn/topic/81890",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "2026 年社区口径：大会员=超级会员+AI+扩容（云空间 1T 与 365G 的说法并存）；AI 会员已下架停售；超级会员不含 AI；会员到期后高权限档先用、超会天数顺延"
+    },
+    {
+      "id": "S8",
+      "title": "金山办公的『双面』财报：在套利和套路之间选择套娃（界面新闻，2025-04-16）",
+      "url": "https://www.jiemian.com/article/12619912.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "会员价格史：2023-04 推出 WPS AI 会员 248 元/年、超级会员（WPS会员+稻壳会员整合）148 元/年；2024-04 推出大会员 348 元/年（含 AI）；超级会员 Pro 档存在；『PDF 高级编辑仅在 Pro 版提供』；WPS 365 面向 B 端"
+    },
+    {
+      "id": "S9",
+      "title": "金山办公回应『WPS滥收费、背刺用户』（光明网转载官方声明，2026-07-06）",
+      "url": "https://m.gmw.cn/2026-07/06/content_1304521623.htm",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "2026-07 官方声明三条：免费基础功能绝不收费/不降级；会员权益绝不上移/不缩水；在售会员逐步精简为超级会员、大会员两类；高成本服务（第三方服务、AI 办公智能体）独立计费/按需购买"
+    },
+    {
+      "id": "S10",
+      "title": "WPS会员权益页（WPS 官方移动端特权页）",
+      "url": "http://android.wps.cn/epersonal/user-privilege-v2/intro-wps.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "WPS 会员逐条特权：全平台去广告、PDF转Word无限制、PDF签名、图片转文字/金山OCR、PDF提取/合并、PPT提取/合并、繁简转换、文档瘦身、PDF标注图章、文档找回、全文检索、书签分享、输出无水印长图片、阅读背景、安全文档、历史版本、数据恢复、会员礼包、WPS邮箱特权、云空间100G/单文件200M/50团队200人、云文档加速下载、PC端特权（含金山OCR识别工具、在线字体、文档安全）。注：该页额度口径可能早于 2026，引用时只取『功能是否存在』"
+    },
+    {
+      "id": "S11",
+      "title": "会员是否可以使用稻壳模板功能？（WPS 学堂）",
+      "url": "https://www.wps.cn/learning/question/detail/id/333121",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "稻壳模板下载额度：注册用户不可用（❎）；超级会员 100 次/月；超级会员 Pro 200 次/月；各类型额度独立、月底不累计"
+    },
+    {
+      "id": "S12",
+      "title": "WPS智能文档组织架构图怎么画？支持思维导图/流程图/多维表格等30+组件（WPS 365 官方内容站，2026-10-19 更新）",
+      "url": "https://365.wps.cn/content/dbfef84eed88429a819c46f9575f1d67.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "WPS 365 四档价格：商业协作版 199 元/人/年、商业高级版 399 元/人/年、商业旗舰版 599 元/人/年（含 AI 写作/数据分析助手、开放接口、2TB 自定义存储）；私有化部署；智能文档斜杠插入思维导图/流程图/电子表格/多维表格等 30+ 组件；短离线编辑联网自动同步；产品矩阵导航（智能文档/智能表格/智能表单/多维表格/协作/会议/邮箱/日历/Comate/黑马校对/项目管理/合同/快搭/开放能力/信创）"
+    },
+    {
+      "id": "S13",
+      "title": "WPS AI 官网",
+      "url": "https://ai.wps.cn/",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "WPS AI 功能面：AI 写作助手（续写/缩写/润色/风格转换）、AI 设计助手（PPT 大纲与生成）、AI 阅读助手（全文总结/文档问答）、AI 数据助手（AI 写公式/AI 条件格式）、AI 模板（周报/汇报/心得/发言/会议提纲/新闻稿/小红书标题）"
+    },
+    {
+      "id": "S14",
+      "title": "【WPS技巧】WPS多人协同填表：告别收表混乱，实现高效协作（WPS 官方社区，2026-04-30）",
+      "url": "https://bbs.wps.cn/topic/86661",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "在线收集表/智能表单（链接+二维码、任何人/名单内可填、截止时间、需登录、限填写次数、自动汇总后台表格、AI 按主题建表单）；云文档历史版本免费 30 天、会员 180 天、版本对比；@提醒（客户端+公众号推送、已读未读）"
+    },
+    {
+      "id": "S15",
+      "title": "WPS 365 套餐价格页",
+      "url": "https://365.wps.cn/price",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "partial",
+      "used_for": "仅确认官方套餐价格页存在（页面为 JS 渲染，web_fetch 只得到标题级内容）；正文价格数字取自 S12"
+    },
+    {
+      "id": "S16",
+      "title": "WPS 会员官网（vip.wps.cn 首页）",
+      "url": "https://vip.wps.cn/home",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "partial",
+      "used_for": "记录『官方会员价页不可静态抓取』的证据（返回 200 但正文为空壳/JS 渲染），因此 2026 当前逐档年费只能按官方声明+社区+媒体二手分层标注"
+    },
+    {
+      "id": "S17",
+      "title": "WPS智能文档组织架构图层级说明：四大版本功能与行业应用解析（WPS 365 官方内容站，搜索结果）",
+      "url": "https://365.wps.cn/content/4a8ab6b75ce04480a481a91e0ffab304.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "search_result_only",
+      "used_for": "佐证 WPS 365 四大版本（体验版/商业协作版/商业高级版/商业旗舰版）的存在"
+    },
+    {
+      "id": "S18",
+      "title": "2026 双 11：WPS 会员双 11 优惠详细攻略（知乎，搜索结果）",
+      "url": "https://zhuanlan.zhihu.com/p/2095833900895491271",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "failed",
+      "used_for": "抓取返回 403，未读取正文；仅记录促销价渠道存在，不用于任何结论"
+    },
+    {
+      "id": "S19",
+      "title": "灵犀开始收费了（WPS 官方社区，搜索结果）",
+      "url": "https://bbs.wps.cn/topic/93523",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "search_result_only",
+      "used_for": "佐证灵犀收费引发用户争议（与 S4 同一事件，未抓正文）"
+    },
+    {
+      "id": "S20",
+      "title": "如何用WPS多维表格做『项目管理』（WPS 官方社区，搜索结果）",
+      "url": "https://bbs.wps.cn/topic/19565",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "search_result_only",
+      "used_for": "佐证多维表格为 WPS 实际在售能力（与 S12 一致，未抓正文）"
+    },
+    {
+      "id": "S21",
+      "title": "企业协同办公平台报价与选型指南：WPS 365 商业版 199-599 元/人/年收费标准及私有化部署价格解析（WPS 365 官方内容站，搜索结果）",
+      "url": "https://365.wps.cn/content/f06533dbcd3c4b4488e7981353a86c12.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "failed",
+      "used_for": "web_fetch 打开时站点已 404（内容下线），未用于结论；同主题价格结论以 S12 为准"
+    }
+  ],
+  "repo_evidence_internal": [
+    "README.md",
+    "BeeOffice-全面分析报告-5.0.11.md",
+    "docs/交付总结-5.0.13-P0止血与P1优化.md",
+    "docs/交付总结-5.0.13-P0止血与P1优化.md 引用的 docs/首次打开-剩余优化-2026-10-21.md",
+    "docs/大表语料-20-25-30万行-2026-10-21.md",
+    "docs/AI表格清洗-CLI.md",
+    "docs/本地AI任务化-CLI.md",
+    "docs/beecmd-独立命令行包.md",
+    "docs/外部验证-记录-2026-10-20.md",
+    "docs/WPS对比与深度变革战略.md",
+    "beeoffice/beecmd.py",
+    "beeoffice/plugins/pdf_annotator.py",
+    "beeoffice/plugins/spellcheck.py",
+    "beeoffice/resources/templates.py",
+    "beeoffice/cloud_sync/engine.py",
+    "beeoffice/mobile.py",
+    "beeoffice/backup.py",
+    "beeoffice/backup_center.py",
+    "beeoffice/drafts.py",
+    "beeoffice/resources/template_manager.py",
+    "beeoffice/plugins/ai_client.py",
+    "requirements.txt",
+    "tests/fidelity/test_beecmd.py",
+    "tests/fidelity/test_beecmd_merge.py",
+    "tests/fidelity/test_beecmd_ai.py",
+    "tests/fidelity/test_beecmd_table_clean.py",
+    "tests/fidelity/test_formula_excel_compat.py",
+    "tests/fidelity/test_large_xlsx_fast_read.py",
+    "tests/fidelity/test_corpus.py",
+    "tests/fidelity/test_close_unsaved_guard.py",
+    "tests/fidelity/test_atomic_saves.py"
+  ]
+}
