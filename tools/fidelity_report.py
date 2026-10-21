@@ -68,6 +68,27 @@ def _empty_paragraphs(path: Path):
         return None
 
 
+def _probe_xlsx_shape(path: Path):
+    """大表跳过时的轻量维度探测（不读值，只读 dimension/表名）。"""
+    if path.suffix.lower() not in (".xlsx", ".xlsm"):
+        return None
+    try:
+        from openpyxl import load_workbook
+
+        wb = load_workbook(path, read_only=True, data_only=True)
+        try:
+            ws = wb.worksheets[0]
+            return {
+                "rows": max(0, (ws.max_row or 1) - 1),   # 不计表头
+                "cols": ws.max_column or 0,
+                "sheets": len(wb.sheetnames),
+            }
+        finally:
+            wb.close()
+    except Exception:  # noqa: BLE001 - 探测失败不影响报告
+        return None
+
+
 def _pptx_source_chars(path: Path) -> int:
     """PPTX 源文件里的文字量（标题/正文/表格/备注，去掉空白）。"""
     from pptx import Presentation
@@ -301,9 +322,12 @@ def build_markdown(results, meta) -> str:
         "",
         "## 4. 局限",
         "",
-        "- 真实样本量取决于 `tests/fidelity/corpus/`，当前 64 个文件"
-        "（41 份可往返 + 16 份 PPTX 只导入 + 2 份大 xlsx 跳过）；",
-        "- DOCX 中间经过 Markdown，是结构性薄弱点；XLSX 走“保结构更新”另一条路；",
+        f"- 真实样本量取决于 `tests/fidelity/corpus/`，当前 {len(real) + len(pptx)} 个文件"
+        f"（{len(real_rows)} 份可往返 + {len(pptx_rows)} 份 PPTX 只导入"
+        + (f" + {skipped_n} 份大表跳过（>8 MB，见跳过原因）" if skipped_n else "")
+        + "）；",
+        "- DOCX 中间经过 Markdown，是结构性薄弱点；XLSX 走“保结构更新”另一条路；"
+        "大表（>8 MB）不做 Markdown 往返，只用于打开/转换性能验证；",
         "- PPTX 目前只导入不往返，损失清单来自产品实现（不是第三方比对）；",
         "- 差异按“特征计数”而非逐字 diff；能抓住大段丢失，不能证明逐字一致。",
         "",
@@ -377,10 +401,20 @@ def main(argv=None) -> int:
         if max_bytes and size > max_bytes:
             print(f"  ↷ 跳过（{size / 1024 / 1024:.1f} MB > "
                   f"{args.max_size_mb:g} MB）{path.name}", flush=True)
+            shape = _probe_xlsx_shape(path)
+            reason = (
+                f"超过 --max-size-mb {args.max_size_mb:g} MB 上限"
+                "（大表 Markdown 往返不可行）"
+            )
+            if shape:
+                reason += (
+                    f"；声明规模 {shape['rows']:,} 行 × {shape['cols']} 列"
+                    f" / {shape['sheets']} 张表"
+                )
             results.append({
                 "name": path.name, "size": size, "error": "",
-                "skipped": f"超过 --max-size-mb {args.max_size_mb:g} MB 上限"
-                           "（大表 Markdown 往返不可行）",
+                "skipped": reason,
+                "shape": shape,
                 "rows": [], "profile": profile, "empty_paragraphs": None,
                 "before": {"features": {}}, "after": {"features": {}},
             })

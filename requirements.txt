@@ -22,6 +22,10 @@ PySide6-Addons>=6.5.0
 pandas>=2.0.0
 numpy>=1.24.0
 openpyxl>=3.1.0
+# python-calamine：大 xlsx（>= 8 MB）的快速读值引擎（Rust 实现，可选但建议安装）。
+# 实测 30 万行 × 13 列：openpyxl 读取 2.7–5 分钟 → calamine 12–25 秒；
+# 未安装时产品自动回退 openpyxl（功能不变，只是大表打开明显更慢）。
+python-calamine>=0.2
 xlrd>=2.0.1
 chardet>=5.0.0
 python-dateutil>=2.8.0

@@ -93,6 +93,104 @@ class WorkbookData:
 
 # ==================== 读 ====================
 
+#: 超过该大小的 xlsx 改用 calamine（Rust）读值；小文件保持 openpyxl 路径不变，
+#: 避免类型/日期解析细节变化影响既有保真测试。
+#: 实测 30 万行 × 13 列（25.4 MB）：openpyxl 读取 2.7–5 分钟，
+#: calamine 约 12–25 秒（v5.0.17 大表支持）。
+_CALAMINE_MIN_BYTES = 8 * 1024 * 1024
+#: 文件不大但**声明**行数超过该值时也走 calamine（稀疏大表；见 _declared_row_count）
+_CALAMINE_MIN_ROWS = 50_000
+
+
+def _calamine_available() -> bool:
+    """python-calamine 是否可用（可选依赖；缺失时自动回退 openpyxl）。"""
+    try:
+        import python_calamine  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+def _declared_row_count(path: Path) -> int:
+    """从 xlsx 的 `<dimension ref="A1:M200001">` 快速读出声明行数。
+
+    有些大表是**稀疏**的（磁盘才 2.3 MB，但声明 20 万行、塞满空样式行），
+    只看文件大小会误判成"小文件"而走 openpyxl（实测 10.4 s，calamine 1.4 s）。
+    只读每个 worksheet XML 开头 4 KB（dimension 在文档最前面），毫秒级。
+    """
+    try:
+        import zipfile
+
+        import re as _re
+
+        with zipfile.ZipFile(path) as archive:
+            names = [
+                n for n in archive.namelist()
+                if _re.match(r"xl/worksheets/sheet\d+\.xml$", n)
+            ]
+            best = 0
+            for name in names[:8]:
+                head = archive.read(name)[:4096]
+                match = _re.search(
+                    rb'<dimension[^>]*ref="([^"]+)"', head
+                )
+                if not match:
+                    continue
+                ref = match.group(1).decode("ascii", "ignore")
+                # ref 可能是 "A1"（单格）或 "A1:M200001"（区域）→ 取右下角行号
+                last = ref.rsplit(":", 1)[-1]
+                row_match = _re.match(r"[A-Za-z]+(\d+)", last)
+                if row_match:
+                    best = max(best, int(row_match.group(1)))
+            return best
+    except Exception:  # noqa: BLE001 - 探测失败就退回按大小判断
+        return 0
+
+
+def _use_calamine(path: Path) -> bool:
+    """是否对该文件走 calamine 快速读值路径（OOXML 且"大"文件）。"""
+    try:
+        if str(path).lower().endswith(".xls"):
+            return False
+        if not _calamine_available():
+            return False
+        if Path(path).stat().st_size >= _CALAMINE_MIN_BYTES:
+            return True
+        # 稀疏大表：磁盘不大但声明行数很多，同样走 calamine
+        return _declared_row_count(path) >= _CALAMINE_MIN_ROWS
+    except OSError:
+        return False
+
+
+#: 行数限制不超过该值时（两阶段载入的阶段 1），宁可走 openpyxl 的**按行读取**：
+#: 实测 25 万行文件只读前 500 行，openpyxl 1.1 s、calamine 13.7 s —— calamine
+#: 会先解析整个文件，反而不适合"先显示前几百行"的场景。
+_CALAMINE_MAX_SKIP_ROWS = 5000
+
+
+def _read_values_frames(path: Path, engine: str, max_rows: Optional[int]):
+    """读全部工作表的值；大 xlsx 优先 calamine，失败或无依赖时回退原引擎。
+
+    `max_rows` 很小（两阶段载入的阶段 1）时保持 openpyxl 按行读取，
+    避免 calamine "先解析整份文件"导致首屏反而更慢。
+    """
+    preview = (
+        max_rows is not None and max_rows <= _CALAMINE_MAX_SKIP_ROWS
+    )
+    if engine == "openpyxl" and not preview and _use_calamine(path):
+        try:
+            return pd.read_excel(
+                path, sheet_name=None, engine="calamine", nrows=max_rows
+            )
+        except (ImportError, ValueError, TypeError, AttributeError,
+                NotImplementedError, RuntimeError) as e:
+            logging.warning(f"calamine 读取失败，回退 openpyxl（{path.name}）: {e}")
+    return pd.read_excel(
+        path, sheet_name=None, engine=engine, nrows=max_rows
+    )
+
+
 def pick_excel_engine(path) -> str:
     """
     按扩展名选 pandas 的 Excel 读取引擎。
@@ -134,9 +232,10 @@ def read_workbook(path, max_rows: Optional[int] = None) -> WorkbookData:
     # 引擎按扩展名选（.xls → xlrd），见 pick_excel_engine()
     engine = pick_excel_engine(path)
 
-    # 值：pandas 读全部工作表（pandas>=2.0 返回 dict，保序）
-    frames: Dict[str, pd.DataFrame] = pd.read_excel(
-        path, sheet_name=None, engine=engine, nrows=max_rows
+    # 值：pandas 读全部工作表（pandas>=2.0 返回 dict，保序）。
+    # 大 xlsx（>=8 MB）优先走 calamine，避免 openpyxl 逐格解析数分钟。
+    frames: Dict[str, pd.DataFrame] = _read_values_frames(
+        path, engine, max_rows
     )
 
     # 公式只对 OOXML 有效：`_read_formulas` 依赖 zip+XML，
@@ -236,6 +335,11 @@ def _read_formulas(path: Path) -> Dict[str, Dict[Tuple[int, int], str]]:
     """
     result: Dict[str, Dict[Tuple[int, int], str]] = {}
     presence = _sheets_possibly_having_formulas(path)
+    # 预检明确"所有表都没有公式"时，连 openpyxl 工作簿都不必加载：
+    # 大表实测加载骨架要 10+ 秒，而绝大多数数值表一个公式都没有。
+    if presence and not any(presence.values()):
+        logging.debug("[_read_formulas] 全部工作表预检无公式，跳过 openpyxl 扫描")
+        return result
 
     try:
         wb = load_workbook(path, data_only=False, read_only=True)

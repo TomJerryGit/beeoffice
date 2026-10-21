@@ -6,6 +6,53 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ---
+## [5.0.17] - 2026-10-21
+
+**公式 Excel 语义 + 首次打开二次优化版**：补齐 `TEXT`/`TEXTJOIN` 的 Excel 兼容语义
+（之前格式被忽略、TEXTJOIN 不展开区域）；首次打开 DOCX 的主线程阻塞进一步降约 70%
+（后台读 extras/保真分析、装载期跳过光标同步、pandas/matplotlib 延迟导入）。
+不改变文件格式与既有功能；GUI 安装包按设计不含 `beecmd`/`tools`。
+
+### 新增（公式：TEXT / TEXTJOIN）
+- `TEXT(value, format_text)` 支持常用数字格式（`0`/`0.00`/`#,##0.00`/`0%`/`0.00E+00`、
+  正;负;零段、字面量、半进位）与日期时间（`yyyy-mm-dd`、`hh:mm:ss`、AM/PM、中文年月日、
+  Excel 1900 闰年 bug）；`TEXTJOIN(delimiter, ignore_empty, text...)` 支持
+  `ignore_empty`、区域展开、数字/布尔格式、空分隔符，参数不足返回 `#ERROR`。
+  新增 30 条测试；连同既有引擎/兼容测试 **177 条全过**。
+- UI 函数参考同步为 Excel 签名：`TEXTJOIN(分隔符,忽略空值,文本...)` 与
+  `TEXT(值,格式)` 的实际能力一致。
+
+### 新增（首次打开 DOCX 二次优化）
+- 后台线程一次性完成 `import_from_docx + read_docx_extras + analyze_file`，
+  主线程不再做 extras/保真分析（5 万字实测主线程 I/O −127–170 ms）；
+- 装载期间跳过光标通知/格式状态同步（消除 ~250 ms + 10,860 次 hasattr）；
+- `data_binding` 的 pandas 与 `beewrite_formula` 的 matplotlib 改为**使用点延迟导入**
+  （首开不再加载：`import beewrite` 1,390 ms → 840 ms）；
+- 端到端首次打开（离屏、本机）：5 万字 **5.67–8.38 s → 2.07–2.37 s**；
+  主线程渲染 383–604 ms → **179–207 ms**；
+- 新增 5 条回归 `tests/fidelity/test_open_docx_async.py`；
+  详见 [首次打开-剩余优化-2026-10-21.md](docs/首次打开-剩余优化-2026-10-21.md)。
+
+### 新增（大表读取与转换，2026-10-21）
+- 用户新增 20/25/30 万行订单表语料。引入可选 **`python-calamine`**（Rust）作为
+  ≥8 MB 或声明行数 ≥5 万的大 xlsx 快速读值引擎（未安装自动回退 openpyxl）：
+  - 读取 25 万行 **276 s → 14–19 s**；30 万行 **>600 s（未跑完）→ 15–23 s**；
+    稀疏 20 万声明行表 **10.4 s → 2.1 s**；
+  - 蜜算打开 30 万行：首屏 **5.3 s → 2.0 s**、后台补全 20 万行 **42.1 s → 17.2 s**；
+  - `beecmd convert` 30 万行 → CSV **53.4 s → 23.5 s**；
+  - 阶段 1（只读前 500 行）仍走 openpyxl 按行读；无公式的工作簿不再二次加载 openpyxl；
+  - 保真报告对 >8 MB 大表跳过时给出**声明规模**（行×列/表数）；
+- 新增 10 条回归 `tests/fidelity/test_large_xlsx_fast_read.py`；
+  详见 [大表语料-20-25-30万行-2026-10-21.md](docs/大表语料-20-25-30万行-2026-10-21.md)。
+  ⚠️ 实况：`测试文档_20 万条.xlsx` 当前只有 5,000 行数据（声明 20 万；
+  若应为本 20 万行请重新生成）。
+
+### 工程与验证（干净 worktree）
+- **46/46 门禁 PASS、0 FAIL**（9.1 分钟，commit `e1769b7`），
+  **全量 `fidelity+unit` 1523 passed / 4 skipped / 0 failed**（444.22 s）；
+- 发布前校验：`tools/verify_release.py` 检查 ZIP/SHA/条目/时间戳（见下）。
+
+---
 ## [5.0.16] - 2026-10-20
 
 **50 份用户语料保真 + i18n 决策（中文优先）版**：修复多分节页脚丢失、新增独立
@@ -33,25 +80,6 @@
 ---
 
 **50 份用户语料保真 + 多分节页脚修复 + 测试基建**：
-
-### 新增（公式：TEXT / TEXTJOIN）
-- `TEXT(value, format_text)` 支持常用数字格式（`0`/`0.00`/`#,##0.00`/`0%`/`0.00E+00`、
-  正;负;零段、字面量、半进位）与日期时间（`yyyy-mm-dd`、`hh:mm:ss`、AM/PM、中文年月日、
-  Excel 1900 闰年 bug）；`TEXTJOIN(delimiter, ignore_empty, text...)` 支持
-  `ignore_empty`、区域展开、数字/布尔格式、空分隔符，参数不足返回 `#ERROR`。
-  新增 30 条测试；原有 177 条引擎/兼容测试全过。
-- UI 函数参考同步为 Excel 签名：`TEXTJOIN(分隔符,忽略空值,文本...)`。
-
-### 新增（首次打开 DOCX 二次优化，2026-10-21）
-- 后台线程一次性完成 `import_from_docx + read_docx_extras + analyze_file`，
-  主线程不再做 extras/保真分析（5 万字实测 −127–170 ms 主线程 I/O）；
-- 装载期间跳过光标通知/格式状态同步（消除 ~250 ms + 10,860 次 hasattr）；
-- `data_binding` 的 pandas 与 `beewrite_formula` 的 matplotlib 改为**使用点延迟导入**
-  （首开不再加载：beewrite 导入 1,390 ms → 840 ms）；
-- 端到端首次打开（离屏、本机）：5 万字 **5.67–8.38 s → 2.07–2.37 s**；
-  主线程渲染 383–604 ms → **179–207 ms**；
-- 新增 5 条回归 `tests/fidelity/test_open_docx_async.py`；
-  详见 `docs/首次打开-剩余优化-2026-10-21.md`。
 
 ### 新增（发布工程）
 - `tools/verify_release.py`：**发布包一致性校验器**，把每次发版手工核对固化为一条命令：
@@ -129,8 +157,8 @@
 
 ### 工程
 - 干净 worktree（只含已跟踪文件 + 用户 64 文件语料）最终验证：
-  **46/46 门禁 PASS**（9.1 分钟，commit `e1769b7`）、
-  **全量 `fidelity+unit` 1523 passed / 4 skipped / 0 failed**（444.22 s）。
+  **46/46 门禁 PASS**（commit `14acc5a`）、**全量 `fidelity+unit` 1478 passed /
+  4 skipped / 0 failed**（990.96 s，commit `c48035a`）。
 - 独立 `beecmd.exe` 打包与 GBK 控制台修复见下文（同日完成）。
 - 发行：`BeeOffice-v5.0.16-windows.zip`（224.7 MB，3128 条目，
   sha256 `6b01f6ca5d6394964048a7a9c72081886deb44f2e3f59f31ab676b6220c013ec`），
