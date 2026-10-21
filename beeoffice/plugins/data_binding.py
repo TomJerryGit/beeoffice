@@ -22,8 +22,21 @@ v5.0.5 修复：
     避免吞掉 KeyboardInterrupt / SystemExit 等系统异常。
 """
 import re
-import pandas as pd
 from pathlib import Path
+
+#: pandas 是**重量级**依赖（实测首次 import ~0.6 s）。蜜写首次打开 DOCX 时
+#: 会 import data_binding，而绝大多数文档**没有数据绑定** —— 把 pandas 延迟到
+#: 真正读取数据源/格式化值时再导入，首开不再为它买单（v5.0.17 首开优化）。
+_PANDAS = None
+
+
+def _pandas():
+    global _PANDAS
+    if _PANDAS is None:
+        import pandas as pd
+
+        _PANDAS = pd
+    return _PANDAS
 
 
 class VariableParser:
@@ -85,6 +98,7 @@ class DataSourceManager:
         path = Path(filepath)
         if not path.exists():
             raise FileNotFoundError(f"数据源文件不存在: {filepath}")
+        pd = _pandas()
         if path.suffix.lower() == '.csv':
             import chardet
             with open(path, 'rb') as f:
@@ -148,7 +162,7 @@ class DataSourceManager:
     @staticmethod
     def _format_value(val):
         """值格式化：NaN → 空串；整数浮点 → 无小数点；其他浮点 → 2 位小数"""
-        if pd.isna(val):
+        if _pandas().isna(val):
             return ""
         if isinstance(val, float):
             if val == int(val):

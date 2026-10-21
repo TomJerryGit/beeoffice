@@ -9,6 +9,7 @@ v5.0.1 修复（P1-11）：
 
 import time
 import tempfile
+import importlib.util
 from pathlib import Path
 
 from PySide6.QtWidgets import (
@@ -19,14 +20,24 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap, QImage
 
-# 尝试导入 matplotlib
-try:
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    HAS_MPL = True
-except ImportError:
-    HAS_MPL = False
+# matplotlib 是**重量级**依赖（实测首次 import ~0.45 s）。蜜写打开 DOCX 时
+# 会 import 本模块（公式对话框），但绝大多数用户首次打开并不插入公式 ——
+# 因此只做**可用性探测**，真正渲染时才延迟导入 pyplot（v5.0.17 首开优化）。
+HAS_MPL = importlib.util.find_spec("matplotlib") is not None
+_PLT = None
+
+
+def _load_pyplot():
+    """延迟加载 matplotlib.pyplot（Agg 后端，仅首次调用时初始化）。"""
+    global _PLT
+    if _PLT is None:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        _PLT = plt
+    return _PLT
 
 
 # ==================== 常用公式模板 ====================
@@ -249,6 +260,7 @@ class FormulaDialog(QDialog):
         }
         color = color_map.get(self._color_combo.currentText(), "#000000")
 
+        plt = _load_pyplot()
         # 渲染（`fig.text` 有副作用：把文字画进图里，所以只看调用、不接返回值）
         fig = plt.figure(figsize=(6, 1.2), dpi=dpi)
         fig.patch.set_alpha(0)
@@ -299,6 +311,7 @@ class FormulaDialog(QDialog):
                 self._color_combo.currentText(), "#000000"
             )
 
+            plt = _load_pyplot()
             fig = plt.figure(figsize=(6, 1.2), dpi=dpi)
             fig.patch.set_alpha(0)
             fig.text(

@@ -471,7 +471,10 @@ class ViewMixin:
         self._char_count_label.setText(f"字符：{len(text)}")
 
     def _update_cursor_position(self):
-        """更新状态栏光标行列位置"""
+        """更新状态栏光标行列位置（批量装载期间跳过，v5.0.17 首开优化）。"""
+        rich = getattr(self, "rich_editor", None)
+        if rich is not None and getattr(rich, "_loading_markdown", False):
+            return
         if self._edit_mode == "markdown":
             cursor = self.markdown_editor.textCursor()
         else:

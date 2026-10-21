@@ -190,7 +190,14 @@ class RichTextEditor(QTextEdit):
 
     # ==================== 光标位置通知 ====================
     def _notify_cursor_position(self):
-        """通知父窗口当前光标位置（若在表格中显示行列）"""
+        """通知父窗口当前光标位置（若在表格中显示行列）。
+
+        v5.0.17：批量装载（`set_markdown`）期间跳过 —— 每插入一段都会触发
+        cursorPositionChanged；实测 5 万字文档 1,810 次通知、10,860 次
+        `hasattr` 父链探测，主线程白白多花 ~250 ms。
+        """
+        if getattr(self, "_loading_markdown", False):
+            return
         cursor = self.textCursor()
         table = cursor.currentTable()
         msg = ""

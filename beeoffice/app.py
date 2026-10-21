@@ -85,6 +85,34 @@ SELF_SAVE_IGNORE_SECONDS = 2.0
 SELF_SAVE_RECORD_TTL = 10.0
 
 
+def _import_docx_for_open(path):
+    """
+    **后台线程**里准备打开 DOCX 所需的全部数据（v5.0.17 首次打开优化）。
+
+    优化前：`import_from_docx` 在后台，但 `read_docx_extras`（5 万字实测
+    122–164 ms）与 `analyze_file`（5–6 ms）在**主线程** on_result 里同步做，
+    期间界面卡住。三件都是纯 I/O/CPU、互不依赖 Qt 控件，全部挪进后台。
+
+    :return: (markdown, extras, fidelity_report)；任何附加项失败都不影响打开。
+    """
+    from beeoffice.plugins.bee_export import import_from_docx, read_docx_extras
+
+    markdown = import_from_docx(path)
+    extras = {}
+    try:
+        extras = read_docx_extras(path)
+    except Exception as e:  # noqa: BLE001 - 扩展信息失败不阻止打开
+        logging.warning(f"读取 DOCX 扩展信息失败（不影响打开）: {e}")
+    report = None
+    try:
+        from beeoffice.plugins.fidelity_report import analyze_file
+
+        report = analyze_file(path)
+    except Exception as e:  # noqa: BLE001 - 保真提示失败不阻止打开
+        logging.debug(f"保真度分析失败（忽略）: {e}")
+    return markdown, extras, report
+
+
 class BeeApp(QMainWindow):
     """蜜蜂办公主窗口"""
 
@@ -744,7 +772,7 @@ class BeeApp(QMainWindow):
         self.settings.add_recent_file(path)
         self._update_recent_menu()
 
-    def _attach_fidelity_report(self, widget, path):
+    def _attach_fidelity_report(self, widget, path, report=None):
         """
         P1-A：记录这份文件里"保不住"的构造，供导出前提示。
 
@@ -752,17 +780,21 @@ class BeeApp(QMainWindow):
           · 分析的是**源文件**，构造还在，信息完整；
           · 用户一开始就知道哪些内容要自己另存/确认。
 
+        v5.0.17：`report` 可由后台线程预先算好并传入（首开主线程不再做 XML 分析）；
+        为 None 时保持旧行为，同步分析（兼容既有调用/测试）。
+
         分析失败绝不能影响打开流程，所以整体包异常、只记日志。
         """
         try:
-            from beeoffice.plugins.fidelity_report import analyze_file
+            if report is None:
+                from beeoffice.plugins.fidelity_report import analyze_file
 
-            report = analyze_file(path)
+                report = analyze_file(path)
             # 直接赋值：**不能**写成 `if hasattr(widget, ...)` ——
             # 首次打开时该属性还不存在，hasattr 为 False，报告就永远挂不上
             # （这个 bug 是被 test_open_attaches_report_to_widget 抓出来的）
             widget._fidelity_report = report
-            if report.has_losses or report.note:
+            if report is not None and (report.has_losses or report.note):
                 logging.info(
                     f"[保真度提示] {Path(path).name}: {report.summary()} "
                     f"{[(i.key, i.count) for i in report.items]}"
@@ -826,16 +858,10 @@ class BeeApp(QMainWindow):
             tr("msg.loading_docx", "正在打开 Word 文档..."), 0
         )
 
-        try:
-            from beeoffice.plugins.bee_export import import_from_docx
-        except Exception as e:
-            logging.error(f"导入 bee_export 失败: {e}")
-            QMessageBox.warning(
-                self, tr("msg.open_failed", "打开失败"), str(e)
-            )
-            return
-
-        def on_result(md_content):
+        def on_result(payload):
+            # v5.0.17：后台线程已一并返回 (markdown, extras, fidelity_report)，
+            # 主线程不再做 read_docx_extras / analyze_file（5 万字实测 ~130–170ms）。
+            md_content, extras, fidelity_report = payload
             # P1（首次打开体验）：后台导入完成 → 进入主线程渲染阶段。
             # 大文档（5 万字实测）渲染约 1 秒，给用户一个明确的第二阶段提示，
             # 避免"正在打开"一直不动被误判卡死。
@@ -867,12 +893,8 @@ class BeeApp(QMainWindow):
                     logging.error(f"切换到富文本模式失败: {e}")
 
             # 3.5 保真度阶段 A：把 Markdown **表达不了**的信息另存到文档上
-            #     （页面设置 / 页眉页脚）。不加这一步，"导出 Word"会把页边距
-            #     变成默认 1 英寸，并且页眉页脚部件整个消失 —— 实测两项都丢。
+            #     （页面设置 / 页眉页脚）。extras 由后台线程读取，这里只做应用。
             try:
-                from beeoffice.plugins.bee_export import read_docx_extras
-
-                extras = read_docx_extras(path)
                 if extras and hasattr(widget, "apply_docx_extras"):
                     applied = widget.apply_docx_extras(extras)
                     logging.info(
@@ -880,7 +902,7 @@ class BeeApp(QMainWindow):
                         f"{sorted(extras)}"
                     )
             except Exception as e:
-                logging.warning(f"读取 DOCX 扩展信息失败（不影响打开）: {e}")
+                logging.warning(f"应用 DOCX 扩展信息失败（不影响打开）: {e}")
 
             # 4. 收尾
             if hasattr(widget, "_update_save_btn_text"):
@@ -891,7 +913,7 @@ class BeeApp(QMainWindow):
                 widget.reset_undo_history()
             self.tab_manager.set_tab_file_path(widget, path)
             self._add_file_watch(path)
-            self._attach_fidelity_report(widget, path)
+            self._attach_fidelity_report(widget, path, report=fidelity_report)
             # 同步标签标题为文件名
             self.sync_tab_title(widget, path)
             self.set_global_status(
@@ -908,7 +930,7 @@ class BeeApp(QMainWindow):
             self.set_global_status(tr("msg.open_failed", "打开失败"), 3000)
 
         AsyncTaskManager.run(
-            import_from_docx,
+            _import_docx_for_open,
             path,
             on_result=on_result,
             on_error=on_error,

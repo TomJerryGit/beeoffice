@@ -317,7 +317,13 @@ class ModeMixin:
     # 格式状态同步
     # ==================================================================
     def _update_format_state(self):
-        """光标移动时同步按钮状态（粗体 / 斜体 / 下划线 / 删除线）"""
+        """光标移动时同步按钮状态（粗体 / 斜体 / 下划线 / 删除线）。
+
+        v5.0.17：批量装载期间跳过（每段插入都会触发，实测累计 ~42 ms）。
+        """
+        rich = getattr(self, "rich_editor", None)
+        if rich is not None and getattr(rich, "_loading_markdown", False):
+            return
         if self._edit_mode != "rich_text":
             return
         cf = self.rich_editor.currentCharFormat()

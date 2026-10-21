@@ -284,28 +284,53 @@ def test_app_open_docx_file_applies_extras():
     """
     `app._open_docx_file` 必须读并应用 extras（否则整条链路断在入口）。
 
-    用 **AST** 断言真实调用节点，不用文本搜索（本会话被自己的注释骗过多次）。
+    v5.0.17：extras 与保真报告改由后台线程 `_import_docx_for_open` 一起读，
+    `_open_docx_file` 只做应用 —— 所以这里用 AST 分别断言：
+      1) 后台 helper 里真的有 read_docx_extras / analyze_file；
+      2) `_open_docx_file` 里没有阻塞式 read_docx_extras，且调用了 apply_docx_extras。
     """
     import ast
     import inspect
     import textwrap
 
-    from beeoffice.app import BeeApp
+    from beeoffice import app as app_module
 
-    src = textwrap.dedent(inspect.getsource(BeeApp._open_docx_file))
-    tree = ast.parse(src)
-
-    imported = {
+    helper_src = textwrap.dedent(
+        inspect.getsource(app_module._import_docx_for_open)
+    )
+    helper_tree = ast.parse(helper_src)
+    helper_imported = {
         alias.name
-        for node in ast.walk(tree)
+        for node in ast.walk(helper_tree)
         if isinstance(node, ast.ImportFrom)
         for alias in node.names
     }
-    called = {
+    helper_called = {
+        node.func.id
+        for node in ast.walk(helper_tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+    assert "import_from_docx" in helper_imported
+    assert "read_docx_extras" in helper_imported
+    assert "import_from_docx" in helper_called
+    assert "read_docx_extras" in helper_called
+
+    open_src = textwrap.dedent(
+        inspect.getsource(app_module.BeeApp._open_docx_file)
+    )
+    open_tree = ast.parse(open_src)
+    open_imported = {
+        alias.name
+        for node in ast.walk(open_tree)
+        if isinstance(node, ast.ImportFrom)
+        for alias in node.names
+    }
+    open_called = {
         node.func.attr
-        for node in ast.walk(tree)
+        for node in ast.walk(open_tree)
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
     }
-
-    assert "read_docx_extras" in imported, "没有导入 read_docx_extras"
-    assert "apply_docx_extras" in called, "没有调用 widget.apply_docx_extras"
+    assert "read_docx_extras" not in open_imported, (
+        "extras 读取已挪到后台，不应再出现在 _open_docx_file 主线程代码里"
+    )
+    assert "apply_docx_extras" in open_called, "没有调用 widget.apply_docx_extras"

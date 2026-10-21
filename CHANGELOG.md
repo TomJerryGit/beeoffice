@@ -34,6 +34,25 @@
 
 **50 份用户语料保真 + 多分节页脚修复 + 测试基建**：
 
+### 新增（公式：TEXT / TEXTJOIN）
+- `TEXT(value, format_text)` 支持常用数字格式（`0`/`0.00`/`#,##0.00`/`0%`/`0.00E+00`、
+  正;负;零段、字面量、半进位）与日期时间（`yyyy-mm-dd`、`hh:mm:ss`、AM/PM、中文年月日、
+  Excel 1900 闰年 bug）；`TEXTJOIN(delimiter, ignore_empty, text...)` 支持
+  `ignore_empty`、区域展开、数字/布尔格式、空分隔符，参数不足返回 `#ERROR`。
+  新增 30 条测试；原有 177 条引擎/兼容测试全过。
+- UI 函数参考同步为 Excel 签名：`TEXTJOIN(分隔符,忽略空值,文本...)`。
+
+### 新增（首次打开 DOCX 二次优化，2026-10-21）
+- 后台线程一次性完成 `import_from_docx + read_docx_extras + analyze_file`，
+  主线程不再做 extras/保真分析（5 万字实测 −127–170 ms 主线程 I/O）；
+- 装载期间跳过光标通知/格式状态同步（消除 ~250 ms + 10,860 次 hasattr）；
+- `data_binding` 的 pandas 与 `beewrite_formula` 的 matplotlib 改为**使用点延迟导入**
+  （首开不再加载：beewrite 导入 1,390 ms → 840 ms）；
+- 端到端首次打开（离屏、本机）：5 万字 **5.67–8.38 s → 2.07–2.37 s**；
+  主线程渲染 383–604 ms → **179–207 ms**；
+- 新增 5 条回归 `tests/fidelity/test_open_docx_async.py`；
+  详见 `docs/首次打开-剩余优化-2026-10-21.md`。
+
 ### 新增（发布工程）
 - `tools/verify_release.py`：**发布包一致性校验器**，把每次发版手工核对固化为一条命令：
   SHA-256 与 `.sha256` 一致、包内文件数、必需文件（exe/locale/tech_words）、
