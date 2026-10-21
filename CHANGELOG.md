@@ -48,9 +48,20 @@
   若应为本 20 万行请重新生成）。
 
 ### 工程与验证（干净 worktree）
-- **46/46 门禁 PASS、0 FAIL**（9.1 分钟，commit `e1769b7`），
-  **全量 `fidelity+unit` 1523 passed / 4 skipped / 0 failed**（444.22 s）；
-- 发布前校验：`tools/verify_release.py` 检查 ZIP/SHA/条目/时间戳（见下）。
+- **46/46 门禁 PASS、0 FAIL**（12.5 分钟，commit `ddb390c`，
+  日志 `_ptmp/analysis/gates_clean_47b.log`）；
+- 同一干净 worktree 的**全量 `fidelity+unit`**：
+  **1533 passed / 4 skipped / 0 failed**（861.62 s，
+  日志 `_ptmp/analysis/pytest_clean_full12.log`）；
+- 发布前校验：`tools/verify_release.py` **5/5 项通过**
+  （SHA 与 .sha256 一致、3130 条目、必需文件、locale 223、时间戳晚于提交）。
+
+### 发行
+- `BeeOffice-v5.0.17-windows.zip`：**225.4 MB、3130 个条目**，
+  sha256 `6ce6431abca694eecfd0dcebcf066ddd134ac9c22e08691182398f31d0ded859`；
+  tag `v5.0.17` = `ddb390c`；归档 `release-archive/`；
+- 包内已含 `python_calamine`（大表快速读取）；GUI 安装包按设计**不含**
+  `beecmd`/`tools`，独立 CLI 包沿用 v0.4.0（`release-archive/cli/`）。
 
 ---
 ## [5.0.16] - 2026-10-20
