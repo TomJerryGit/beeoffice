@@ -1,4 +1,4 @@
-﻿# beeoffice/__version__.py
+# beeoffice/__version__.py
 """
 蜜蜂办公 BeeOffice 版本信息
 
