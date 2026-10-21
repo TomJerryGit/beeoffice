@@ -129,8 +129,8 @@
 
 ### 工程
 - 干净 worktree（只含已跟踪文件 + 用户 64 文件语料）最终验证：
-  **46/46 门禁 PASS**（commit `14acc5a`）、**全量 `fidelity+unit` 1478 passed /
-  4 skipped / 0 failed**（990.96 s，commit `c48035a`）。
+  **46/46 门禁 PASS**（9.1 分钟，commit `e1769b7`）、
+  **全量 `fidelity+unit` 1523 passed / 4 skipped / 0 failed**（444.22 s）。
 - 独立 `beecmd.exe` 打包与 GBK 控制台修复见下文（同日完成）。
 - 发行：`BeeOffice-v5.0.16-windows.zip`（224.7 MB，3128 条目，
   sha256 `6b01f6ca5d6394964048a7a9c72081886deb44f2e3f59f31ab676b6220c013ec`），
