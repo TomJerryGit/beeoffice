@@ -44,6 +44,19 @@
 - 新增测试 `test_beesheet_number_formats_4_4.py`（3）、
   `test_beesheet_print_area_4_5.py`（3）、`test_beeshow_rehearsal_4_6.py`（3）。
 
+### 工程与验证（干净 worktree，commit `7399cf6`）
+- **46/46 门禁 PASS、0 FAIL**（10.5 分钟，日志 `_ptmp/analysis/gates_clean_5019.log`）；
+- 全量 `fidelity+unit`：**1594 passed / 4 skipped / 0 failed**（721.59 s，
+  日志 `_ptmp/analysis/pytest_clean_5019.log`）；
+- 本轮第 4 批共新增 **26 条**测试（17 + 9），全部通过。
+
+### 发行
+- `BeeOffice-v5.0.19-windows.zip`：**225.5 MB / 3134 个条目**，
+  sha256 `b088bf81e107e6dfe3c730d51413da2910790b91c317d396f29313595ad31fda`；
+- tag `v5.0.19` = `7399cf6`；归档 `release-archive/`；
+- 发布校验 `tools/verify_release.py` **5/5 通过**（SHA / 3134 条目 / 必需文件 /
+  locale 226×2 / 时间戳晚于提交）。
+
 ### 说明
 - i18n 基线按"中文优先"路线 3616 → **3654**（新增 WPS 式冻结/排序/打印区域/
   数字格式/排练计时 UI 文案）。
