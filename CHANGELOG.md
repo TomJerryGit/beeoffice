@@ -49,6 +49,16 @@
 - 相关回归 117 条（蜜算两阶段/工作簿/保存/关闭守卫/蜜演插件）全过；
   i18n 棘轮通过（3598/3598，+0）；`i18n-ratchet`、`packaging` 门禁通过。
 
+### 新增（beecmd v0.5.0：PDF 页面/权限工具，2026-10-22）
+- 新增 `beeoffice/pdf_tools.py`（PyMuPDF，零 Qt，不改源文件）：
+  `pdf-merge` / `pdf-split` / `pdf-extract` / `pdf-delete` /
+  `pdf-encrypt`（AES-256 + 打印/复制权限）/ `pdf-watermark`（支持中文 CJK 字体）/
+  `pdf-text` / `pdf-images`；新增 `version` 子命令；`beecmd` 版本 0.4.0 → **0.5.0**。
+- 页码统一 1 基，支持 `1-3,5,7-`；坏输入/越界/已加密文件给出明确错误与非 0 退出码。
+- 新增 13 条测试 `tests/fidelity/test_beecmd_pdf_tools.py`（含源文件不被修改、
+  密码校验、中文水印、CLI 集成）；文档 `docs/beecmd-PDF工具.md`。
+- 这是 WPS 会员里唯一"现有依赖可低成本追平"的一大类；PDF 转换/OCR/版面编辑明确不做。
+
 ### 新增（WPS 式 UI 第 2 批，2026-10-22）
 - **蜜算工作表页签**：表格底部 QTabBar 显示工作簿全部工作表，支持点击切换、
   ＋新建、右键重命名/删除；切换时先把当前编辑回写工作簿对象再加载目标表，

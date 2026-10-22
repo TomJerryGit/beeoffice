@@ -78,7 +78,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 #: 支持的表格输入扩展名
 SHEET_INPUTS = (".xlsx", ".xls", ".csv", ".json", ".md", ".html", ".htm")
@@ -1245,6 +1245,90 @@ def cmd_clean(src: str, out: str, sheet: Optional[str] = None,
 
 # ==================== 命令：batch ====================
 
+# ==================== PDF 工具（v0.5） ====================
+
+def cmd_pdf_merge(srcs: List[str], out: str) -> int:
+    from beeoffice.pdf_tools import merge_pdfs
+
+    info = merge_pdfs(srcs, out)
+    print(f"✅ 合并 {len(srcs)} 个 PDF → {info['output']}"
+          f"（共 {info['pages']} 页）")
+    return EXIT_OK
+
+
+def cmd_pdf_split(src: str, outdir: str, ranges: Optional[str] = None) -> int:
+    from beeoffice.pdf_tools import split_pdf
+
+    info = split_pdf(src, outdir, ranges)
+    print(f"✅ 拆分 {info['pages']} 页 → {info['output_dir']}"
+          f"（{len(info['outputs'])} 个文件）")
+    return EXIT_OK
+
+
+def cmd_pdf_extract(src: str, out: str, pages: Optional[str] = None) -> int:
+    from beeoffice.pdf_tools import extract_pages
+
+    info = extract_pages(src, out, pages)
+    print(f"✅ 提取第 {info['page_indexes']} 页 → {info['output']}"
+          f"（{info['pages']} 页）")
+    return EXIT_OK
+
+
+def cmd_pdf_delete(src: str, out: str, pages: str) -> int:
+    from beeoffice.pdf_tools import delete_pages
+
+    info = delete_pages(src, out, pages)
+    print(f"✅ 删除指定页后 → {info['output']}（剩 {info['pages']} 页）")
+    return EXIT_OK
+
+
+def cmd_pdf_encrypt(src: str, out: str, user_password: str,
+                    owner_password: Optional[str] = None,
+                    allow_print: bool = True,
+                    allow_copy: bool = True) -> int:
+    from beeoffice.pdf_tools import encrypt_pdf
+
+    encrypt_pdf(
+        src, out, user_password,
+        owner_password=owner_password,
+        allow_print=allow_print,
+        allow_copy=allow_copy,
+    )
+    print(f"✅ 已加密 → {out}（AES-256；允许打印={allow_print}，"
+          f"允许复制={allow_copy}）")
+    return EXIT_OK
+
+
+def cmd_pdf_watermark(src: str, out: str, text: str,
+                      opacity: float = 0.15,
+                      fontsize: float = 48.0,
+                      pages: Optional[str] = None) -> int:
+    from beeoffice.pdf_tools import add_watermark
+
+    info = add_watermark(
+        src, out, text, opacity=opacity, fontsize=fontsize, pages=pages
+    )
+    print(f"✅ 已加水印「{text}」→ {info['output']}"
+          f"（{info['watermarked_pages']} 页，opacity={info['opacity']}）")
+    return EXIT_OK
+
+
+def cmd_pdf_text(src: str, out: str, pages: Optional[str] = None) -> int:
+    from beeoffice.pdf_tools import extract_text
+
+    info = extract_text(src, out, pages)
+    print(f"✅ 已提取文本 {info['pages']} 页 → {info['output']}")
+    return EXIT_OK
+
+
+def cmd_pdf_images(src: str, outdir: str, pages: Optional[str] = None) -> int:
+    from beeoffice.pdf_tools import extract_images
+
+    info = extract_images(src, outdir, pages)
+    print(f"✅ 已导出 {info['count']} 张图片 → {info['output_dir']}")
+    return EXIT_OK
+
+
 def cmd_batch(jobs_file: str, audit: Optional[str] = None) -> int:
     """
     批量执行任务（JSON 清单）。每条任务：
@@ -1416,6 +1500,76 @@ def build_parser() -> argparse.ArgumentParser:
     p_verify.add_argument("artifact")
     p_verify.add_argument("--report", help="报告输出路径（默认打印）")
 
+    # ---------- v0.5：PDF 页面/权限工具（PyMuPDF，零 Qt） ----------
+    p_pdf_merge = sub.add_parser(
+        "pdf-merge", help="合并多个 PDF 为一个新文件（不修改源文件）"
+    )
+    p_pdf_merge.add_argument("srcs", nargs="+", help="PDF 源文件（至少 1 个）")
+    p_pdf_merge.add_argument("-o", "--out", required=True, help="输出 PDF")
+
+    p_pdf_split = sub.add_parser(
+        "pdf-split", help="拆分 PDF（默认每页一个文件，可按区间）"
+    )
+    p_pdf_split.add_argument("src")
+    p_pdf_split.add_argument("-o", "--out", required=True, help="输出目录")
+    p_pdf_split.add_argument(
+        "--ranges", help='输出区间，分号分隔，如 "1-3;4-6;7-"'
+    )
+
+    p_pdf_extract = sub.add_parser(
+        "pdf-extract", help="提取指定页为新的 PDF"
+    )
+    p_pdf_extract.add_argument("src")
+    p_pdf_extract.add_argument("-o", "--out", required=True, help="输出 PDF")
+    p_pdf_extract.add_argument("--pages", help="页码（1 基，如 1-3,5,7-）")
+
+    p_pdf_delete = sub.add_parser(
+        "pdf-delete", help="删除指定页，其余页生成新 PDF"
+    )
+    p_pdf_delete.add_argument("src")
+    p_pdf_delete.add_argument("-o", "--out", required=True, help="输出 PDF")
+    p_pdf_delete.add_argument("--pages", required=True, help="要删除的页码")
+
+    p_pdf_encrypt = sub.add_parser(
+        "pdf-encrypt", help="给 PDF 加打开密码/权限（AES-256）"
+    )
+    p_pdf_encrypt.add_argument("src")
+    p_pdf_encrypt.add_argument("-o", "--out", required=True, help="输出 PDF")
+    p_pdf_encrypt.add_argument(
+        "--user-password", required=True, help="打开密码"
+    )
+    p_pdf_encrypt.add_argument("--owner-password", help="权限密码（默认同打开密码）")
+    p_pdf_encrypt.add_argument("--no-print", action="store_true",
+                               help="禁止打印")
+    p_pdf_encrypt.add_argument("--no-copy", action="store_true",
+                               help="禁止复制文本")
+
+    p_pdf_watermark = sub.add_parser(
+        "pdf-watermark", help="给 PDF 叠加文字水印"
+    )
+    p_pdf_watermark.add_argument("src")
+    p_pdf_watermark.add_argument("-o", "--out", required=True, help="输出 PDF")
+    p_pdf_watermark.add_argument("--text", required=True, help="水印文字")
+    p_pdf_watermark.add_argument("--opacity", type=float, default=0.15,
+                                 help="透明度 0–1（默认 0.15）")
+    p_pdf_watermark.add_argument("--fontsize", type=float, default=48.0,
+                                 help="字号（默认 48）")
+    p_pdf_watermark.add_argument("--pages", help="页码（1 基）")
+
+    p_pdf_text = sub.add_parser("pdf-text", help="提取 PDF 文本到 .txt")
+    p_pdf_text.add_argument("src")
+    p_pdf_text.add_argument("-o", "--out", required=True, help="输出 .txt")
+    p_pdf_text.add_argument("--pages", help="页码（1 基）")
+
+    p_pdf_images = sub.add_parser(
+        "pdf-images", help="导出 PDF 页面里的图片"
+    )
+    p_pdf_images.add_argument("src")
+    p_pdf_images.add_argument("-o", "--out", required=True, help="输出目录")
+    p_pdf_images.add_argument("--pages", help="页码（1 基）")
+
+    p_version = sub.add_parser("version", help="打印版本（等价 --version）")
+
     p_batch = sub.add_parser("batch", help="按 JSON 清单批量执行")
     p_batch.add_argument("jobs", help="任务清单 JSON")
     p_batch.add_argument("--audit", help="审计流水 JSONL 输出路径")
@@ -1478,6 +1632,34 @@ def main(argv: Optional[List[str]] = None) -> int:
             )
         if args.command == "batch":
             return cmd_batch(args.jobs, args.audit)
+        if args.command == "pdf-merge":
+            return cmd_pdf_merge(args.srcs, args.out)
+        if args.command == "pdf-split":
+            return cmd_pdf_split(args.src, args.out, args.ranges)
+        if args.command == "pdf-extract":
+            return cmd_pdf_extract(args.src, args.out, args.pages)
+        if args.command == "pdf-delete":
+            return cmd_pdf_delete(args.src, args.out, args.pages)
+        if args.command == "pdf-encrypt":
+            return cmd_pdf_encrypt(
+                args.src, args.out, args.user_password,
+                owner_password=args.owner_password,
+                allow_print=not args.no_print,
+                allow_copy=not args.no_copy,
+            )
+        if args.command == "pdf-watermark":
+            return cmd_pdf_watermark(
+                args.src, args.out, args.text,
+                opacity=args.opacity, fontsize=args.fontsize,
+                pages=args.pages,
+            )
+        if args.command == "pdf-text":
+            return cmd_pdf_text(args.src, args.out, args.pages)
+        if args.command == "pdf-images":
+            return cmd_pdf_images(args.src, args.out, args.pages)
+        if args.command == "version":
+            print(f"beecmd {__version__}")
+            return EXIT_OK
     except BeecmdError as e:
         print(f"❌ {e}", file=sys.stderr)
         return EXIT_ERROR
