@@ -77,6 +77,20 @@
 - 细节对标证据：[WPS功能细节深度对标与首批提升-2026-10-22.md](docs/WPS功能细节深度对标与首批提升-2026-10-22.md)、
   [WPS式UI提升-第2批-2026-10-22.md](docs/WPS式UI提升-第2批-2026-10-22.md)。
 
+### 工程与验证（干净 worktree，commit `32c46e1`）
+- **46/46 门禁 PASS、0 FAIL**（15.5 分钟，日志 `_ptmp/analysis/gates_clean_48b.log`）；
+- 同一干净 worktree 全量 `fidelity+unit`：**1568 passed / 4 skipped / 0 failed**
+  （600.36 s，日志 `_ptmp/analysis/pytest_clean_full14.log`）；
+- 发布校验 `tools/verify_release.py` **5/5 通过**：3134 条目、locale 226×2、
+  必需文件齐全、包内时间戳晚于提交。
+
+### 发行
+- `BeeOffice-v5.0.18-windows.zip`：**225.5 MB、3134 个条目**，
+  sha256 `a1c2c5059aaf1dcc6c36bff6791a828210bcda53f74f533d7eea60bca79a8f57`；
+  tag `v5.0.18` = `32c46e1`；归档 `release-archive/`；
+- GUI 安装包按设计不含 `beecmd`/`tools`；`beecmd` 源码为 **v0.5.0**（PDF 工具），
+  独立 CLI exe 包仍为 v0.4.0，重新打包后另行发布。
+
 ---
 ## [5.0.17] - 2026-10-21
 
