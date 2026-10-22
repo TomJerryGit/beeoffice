@@ -322,6 +322,50 @@ class DocMixin:
             except Exception as e:  # noqa: BLE001 - 清栈失败不应影响打开
                 logging.debug(f"清空撤销栈失败: {e}")
 
+    # ==================== 页眉页脚编辑（5.1，2026-10-22） ====================
+    def _edit_header_footer(self):
+        """打开页眉页脚编辑对话框，写入导出用的 extras 字段。"""
+        try:
+            from beeoffice.plugins.beewrite_page_extras import (
+                HeaderFooterDialog,
+            )
+
+            dlg = HeaderFooterDialog(
+                getattr(self, "_docx_header_text", "") or "",
+                getattr(self, "_docx_footer_text", "") or "",
+                self,
+            )
+            if dlg.exec():
+                header, footer = dlg.values()
+                self._apply_header_footer_texts(header, footer)
+        except Exception as e:  # noqa: BLE001
+            logging.warning(f"[蜜写] 页眉页脚编辑失败: {e}")
+
+    def _apply_header_footer_texts(self, header: str, footer: str):
+        """写入第 1 节页眉/页脚文字（分节文档保留其他节不动）。"""
+        self._docx_header_text = header or ""
+        self._docx_footer_text = footer or ""
+        parts = getattr(self, "_docx_section_parts", None)
+        if parts:
+            try:
+                entry = parts[0]
+                entry["header_text"] = self._docx_header_text
+                entry["footer_text"] = self._docx_footer_text
+                entry["header_xml"] = ""
+                entry["footer_xml"] = ""
+                entry["header_linked"] = False
+                entry["footer_linked"] = False
+            except Exception as e:  # noqa: BLE001
+                logging.debug(f"[蜜写] 更新分节页眉页脚失败: {e}")
+        try:
+            self._set_status("📋 已更新页眉/页脚（导出 DOCX 生效）", 3000)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            self.contentChanged.emit()
+        except Exception:  # noqa: BLE001
+            pass
+
     def apply_docx_extras(self, extras):
         """
         导入 DOCX 时保存**Markdown 表达不了**的信息。

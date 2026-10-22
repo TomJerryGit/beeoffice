@@ -176,6 +176,18 @@ class PageNumberDialog(QDialog):
             self._format_combo.setCurrentIndex(idx)
         form.addRow("格式:", self._format_combo)
 
+        # 数字格式（5.3：DOCX 页码域也支持罗马数字）
+        self._num_format_combo = QComboBox()
+        self._num_format_combo.addItem("阿拉伯数字 (1,2,3)", "arabic")
+        self._num_format_combo.addItem("小写罗马 (i,ii,iii)", "lowerRoman")
+        self._num_format_combo.addItem("大写罗马 (I,II,III)", "upperRoman")
+        idx2 = self._num_format_combo.findData(
+            config.get("num_format", "arabic")
+        )
+        if idx2 >= 0:
+            self._num_format_combo.setCurrentIndex(idx2)
+        form.addRow("数字格式:", self._num_format_combo)
+
         # 起始页码
         self._start_spin = QSpinBox()
         self._start_spin.setRange(1, 9999)
@@ -193,8 +205,8 @@ class PageNumberDialog(QDialog):
 
         # 提示
         tip = QLabel(
-            "💡 页码只在导出 PDF 时生效（通过 CSS @page 规则）。\n"
-            "若使用 QWebEngineView 打印，可能不支持全部格式。"
+            "💡 页码用于导出 DOCX/PDF：DOCX 写入 Word 页码域（可更新），"
+            "PDF 通过 CSS @page 规则。"
         )
         tip.setStyleSheet(
             "QLabel{color:#666;font-size:11px;padding:8px;"
@@ -217,7 +229,45 @@ class PageNumberDialog(QDialog):
             "format": self._format_combo.currentText(),
             "start": self._start_spin.value(),
             "fontsize": self._fontsize_spin.value(),
+            "num_format": self._num_format_combo.currentData() or "arabic",
         }
+
+
+class HeaderFooterDialog(QDialog):
+    """页眉/页脚文字编辑（5.1，2026-10-22）。"""
+
+    def __init__(self, header="", footer="", parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("📋 页眉页脚")
+        self.resize(520, 260)
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+        self._header_edit = QLineEdit(header or "")
+        self._header_edit.setPlaceholderText("页眉文字，留空表示不写页眉")
+        self._footer_edit = QLineEdit(footer or "")
+        self._footer_edit.setPlaceholderText("页脚文字，留空表示不写页脚")
+        form.addRow("页眉:", self._header_edit)
+        form.addRow("页脚:", self._footer_edit)
+        layout.addLayout(form)
+        tip = QLabel(
+            "💡 页眉页脚会写入 DOCX 导出件；分节文档只改第 1 节，"
+            "其余节保持原样。页码请用「📄 页码」设置。"
+        )
+        tip.setWordWrap(True)
+        tip.setStyleSheet("QLabel{color:#666;font-size:11px;padding:8px;}")
+        layout.addWidget(tip)
+        btns = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+        btns.accepted.connect(self.accept)
+        btns.rejected.connect(self.reject)
+        layout.addWidget(btns)
+
+    def values(self):
+        return (
+            self._header_edit.text().strip(),
+            self._footer_edit.text().strip(),
+        )
 
 
 # ==================== 导出时注入 CSS ====================

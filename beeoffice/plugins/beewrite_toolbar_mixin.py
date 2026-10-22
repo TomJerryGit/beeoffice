@@ -416,6 +416,11 @@ class ToolbarMixin:
         btn_page_setup.clicked.connect(self._show_page_setup_dialog)
         layout.addWidget(btn_page_setup)
 
+        btn_header_footer = QPushButton("📋 页眉页脚")
+        btn_header_footer.setToolTip("编辑页眉/页脚文字（导出 DOCX 生效）")
+        btn_header_footer.clicked.connect(self._edit_header_footer)
+        layout.addWidget(btn_header_footer)
+
         btn_print = QPushButton("📄 页面视图")
         btn_print.setToolTip(
             "页面视图/打印预览（按页面设置显示纸张、方向、页边距）"

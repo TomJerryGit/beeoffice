@@ -1301,6 +1301,7 @@ def apply_header_footer(doc, header_text=None, footer_text=None,
                         part.is_linked_to_previous = True
                         continue
                     part.is_linked_to_previous = False
+                    text = str(entry.get(f"{attr}_text", "") or "")
                     if xml:
                         wrapper = parse_xml(
                             f"<w:root {_PART_NAMESPACES}>{xml}</w:root>"
@@ -1310,6 +1311,12 @@ def apply_header_footer(doc, header_text=None, footer_text=None,
                             element.remove(child)
                         for child in wrapper:
                             element.append(child)
+                    elif text:
+                        paragraphs = part.paragraphs
+                        if paragraphs:
+                            paragraphs[0].text = text
+                        else:
+                            part.add_paragraph(text)
                     applied = True
                 except Exception as e:  # noqa: BLE001 - 单节失败不应中断导出
                     logging.warning(
@@ -1356,13 +1363,110 @@ def apply_header_footer(doc, header_text=None, footer_text=None,
     return applied
 
 
+# ==================== 页码（5.3，2026-10-22） ====================
+def apply_page_numbers(doc, config=None):
+    """
+    把页码配置写进 DOCX 第 1 节（WPS/Word 打开可见、可随分页更新）。
+
+    支持：位置（上/下 + 左/中/右）、起始页码、数字格式（阿拉伯/小写罗马/大写罗马）；
+    格式串里的 PAGE / NUMPAGES 用 Word 域，不是静态文字。
+    """
+    if not config or not config.get("enabled"):
+        return False
+    try:
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.oxml import OxmlElement
+        from docx.oxml.ns import qn
+    except Exception:  # noqa: BLE001
+        return False
+
+    section = doc.sections[0]
+    position = str(config.get("position", "底部居中"))
+    fmt = str(config.get("format", "1"))
+    num_format = str(config.get("num_format", "arabic"))
+    start = max(1, int(config.get("start", 1) or 1))
+
+    top = position.startswith("顶部")
+    align_map = {
+        "左侧": WD_ALIGN_PARAGRAPH.LEFT,
+        "居中": WD_ALIGN_PARAGRAPH.CENTER,
+        "右侧": WD_ALIGN_PARAGRAPH.RIGHT,
+    }
+    align = WD_ALIGN_PARAGRAPH.CENTER
+    for key, value in align_map.items():
+        if key in position:
+            align = value
+            break
+
+    # 记录起始页码/数字格式（Word 的“页码格式”）
+    sect_pr = section._sectPr
+    pg_num = sect_pr.find(qn("w:pgNumType"))
+    if pg_num is None:
+        pg_num = OxmlElement("w:pgNumType")
+        sect_pr.append(pg_num)
+    pg_num.set(qn("w:start"), str(start))
+    if num_format in ("lowerRoman", "upperRoman"):
+        pg_num.set(qn("w:fmt"), num_format)
+    else:
+        pg_num.attrib.pop(qn("w:fmt"), None)
+
+    part = section.header if top else section.footer
+    part.is_linked_to_previous = False
+    paragraph = part.paragraphs[0] if part.paragraphs else part.add_paragraph()
+    paragraph.alignment = align
+    paragraph.clear()
+
+    def _field(par, instruction):
+        run = par.add_run()
+        begin = OxmlElement("w:fldChar")
+        begin.set(qn("w:fldCharType"), "begin")
+        instr = OxmlElement("w:instrText")
+        instr.set(qn("xml:space"), "preserve")
+        instr.text = instruction
+        separate = OxmlElement("w:fldChar")
+        separate.set(qn("w:fldCharType"), "separate")
+        end = OxmlElement("w:fldChar")
+        end.set(qn("w:fldCharType"), "end")
+        run._r.append(begin)
+        run._r.append(instr)
+        run._r.append(separate)
+        run._r.append(end)
+        return run
+
+    if fmt == "第 1 页":
+        paragraph.add_run("第 ")
+        _field(paragraph, "PAGE")
+        paragraph.add_run(" 页")
+    elif fmt in ("第 1 页 / 共 N 页", "1 / N"):
+        if fmt.startswith("第"):
+            paragraph.add_run("第 ")
+        _field(paragraph, "PAGE")
+        if fmt.startswith("第"):
+            paragraph.add_run(" 页 / 共 ")
+        else:
+            paragraph.add_run(" / ")
+        _field(paragraph, "NUMPAGES")
+        if fmt.startswith("第"):
+            paragraph.add_run(" 页")
+    elif fmt in ("Page 1", "Page 1 of N"):
+        paragraph.add_run("Page ")
+        _field(paragraph, "PAGE")
+        if fmt.endswith("N"):
+            paragraph.add_run(" of ")
+            _field(paragraph, "NUMPAGES")
+    else:
+        _field(paragraph, "PAGE")
+    return True
+
+
 # ==================== 导出 DOCX ====================
 def export_to_docx(content, output_path, page_settings=None, base_dir=None,
                    header_text=None, footer_text=None, table_merges=None,
                    sections=None, bookmarks=None,
                    header_xml="", footer_xml="",
                    paragraph_styles=None, style_definitions=None,
-                   nested_tables=None, section_parts=None):
+                   nested_tables=None, section_parts=None,
+                   page_number=None):
     """
     Markdown 导出为 DOCX 文件
 
@@ -1429,6 +1533,11 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
         # 表格合并（保真度阶段 A 最后一项）：Markdown 表格语法表达不了合并，
         # 因此由导入时记录的 table_merges 还原。
         apply_table_merges(doc, table_merges)
+        # 5.3：页码（域 + 起始页 + 罗马数字），页眉页脚写入之后注入
+        try:
+            apply_page_numbers(doc, page_number)
+        except Exception as e:  # noqa: BLE001
+            logging.warning(f"写入页码失败: {e}")
 
         # 嵌套表格（阶段 A 收尾）：Markdown 更表达不了"单元格里的表格"，
         # 不还原就会整块消失（实测 表 2→1、内层文字一并丢）。
@@ -1739,6 +1848,19 @@ def _write_table(table_tag, doc):
 
     doc_table = doc.add_table(rows=len(rows), cols=n_cols)
     doc_table.style = "Table Grid"
+    # 5.2（2026-10-22）：首行设为"跨页重复标题行"（WPS/Word 的重复标题行）。
+    # 用底层 XML，python-docx 没有直接 API；只加 w:tblHeader，不改内容。
+    try:
+        from docx.oxml import OxmlElement
+        from docx.oxml.ns import qn
+
+        first_row = doc_table.rows[0]._tr
+        tr_pr = first_row.get_or_add_trPr()
+        tbl_header = OxmlElement("w:tblHeader")
+        tbl_header.set(qn("w:val"), "true")
+        tr_pr.append(tbl_header)
+    except Exception as e:  # noqa: BLE001 - 重复表头失败不影响导出
+        logging.warning(f"设置表格重复标题行失败: {e}")
 
     for r, tr in enumerate(rows):
         cells = tr.find_all(["td", "th"])

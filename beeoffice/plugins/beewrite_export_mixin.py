@@ -475,6 +475,7 @@ class ExportMixin:
                     bookmarks=extras.get("bookmarks"),
                     paragraph_styles=extras.get("paragraph_styles"),
                     style_definitions=extras.get("style_definitions"),
+                    page_number=getattr(self, "_page_number_config", None),
                 ):
                     QMessageBox.warning(self, "失败", "无法生成 Word 文档")
                     return False
