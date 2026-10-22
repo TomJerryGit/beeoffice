@@ -331,7 +331,13 @@ class BeeApp(QMainWindow):
         layout = QVBoxLayout(dlg)
         text = QTextEdit()
         text.setReadOnly(True)
-        text.setPlainText(get_shortcut_help())
+        # 2026-10-21：快捷键帮助是 Markdown（`## 全局`、反引号包快捷键），
+        # 原 `setPlainText` 会把标记原样显示；QTextEdit 用 setMarkdown 渲染。
+        try:
+            text.setMarkdown(get_shortcut_help())
+        except Exception as e:  # noqa: BLE001 - 老 Qt 没有 setMarkdown 时退回纯文本
+            logging.debug(f"快捷键浮层 Markdown 渲染失败，退回纯文本: {e}")
+            text.setPlainText(get_shortcut_help())
         layout.addWidget(text)
         dlg.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
         dlg.show()
@@ -1157,6 +1163,9 @@ class BeeApp(QMainWindow):
             return
         if self._save_widget(widget):
             self.status_label.setText(tr("msg.saved", "已保存"))
+        elif getattr(widget, "_save_canceled", False):
+            # 2026-10-21：另存为对话框取消是**正常操作**，不能报"保存失败"
+            self.status_label.setText(tr("msg.save_canceled"))
         else:
             self.status_label.setText(tr("msg.save_failed", "保存失败"))
 

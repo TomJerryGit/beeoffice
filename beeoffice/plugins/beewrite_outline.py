@@ -184,6 +184,29 @@ class OutlinePanel(QWidget):
 
         self._tree.expandAll()
 
+    #: 用户手写编号前缀（一、 / 1.1 / 第一章 / （一））→ 不再叠加自动编号。
+    #: 中文数字/章名用 `chr()` 构造：i18n 棘轮会把字符串常量里的 CJK 当成 UI 文案，
+    #: 这是数据正则、不是界面文案，故不写成中文字面量。
+    _CN = "".join(chr(c) for c in (
+        0x4E00, 0x4E8C, 0x4E09, 0x56DB, 0x4E94,
+        0x516D, 0x4E03, 0x516B, 0x4E5D, 0x5341, 0x767E,
+    ))
+    _CHAPTER_WORDS = "".join(chr(c) for c in (
+        0x7AE0, 0x8282, 0x90E8, 0x5206, 0x7BC7,
+    ))
+    _DI = chr(0x7B2C)  # 第
+    _MANUAL_NUMBER_RE = re.compile(
+        "^\\s*(?:[" + _CN + "]+[、.．]"
+        "|[（(][" + _CN + "]+[）)]"
+        "|\\d+(?:\\.\\d+)*[、.．]?"
+        "|" + _DI + "[" + _CN + "]+[" + _CHAPTER_WORDS + "])\\s*"
+    )
+
+    @staticmethod
+    def _has_manual_numbering(text: str) -> bool:
+        """标题是否已带用户手写编号（2026-10-21：避免 `1.1 一、目标` 叠加）。"""
+        return bool(OutlinePanel._MANUAL_NUMBER_RE.match(str(text or "")))
+
     def _scan_headings(self):
         """
         扫描编辑器中的标题。
@@ -217,10 +240,14 @@ class OutlinePanel(QWidget):
                 if 1 <= level <= 6:
                     text = block.text().strip()
                     if text:
+                        number = numberer.next_number(level)
                         headings.append({
                             "level": level,
                             "text": text,
-                            "number": numberer.next_number(level),
+                            "number": (
+                                "" if self._has_manual_numbering(text)
+                                else number
+                            ),
                             "pos": block.position(),
                         })
                 block = block.next()
@@ -234,10 +261,15 @@ class OutlinePanel(QWidget):
                 m = re.match(r"^(#{1,6})\s+(.+)", line)
                 if m:
                     level = len(m.group(1))
+                    text = m.group(2).strip()
+                    number = numberer.next_number(level)
                     headings.append({
                         "level": level,
-                        "text": m.group(2).strip(),
-                        "number": numberer.next_number(level),
+                        "text": text,
+                        "number": (
+                            "" if self._has_manual_numbering(text)
+                            else number
+                        ),
                         "pos": pos,
                     })
                 pos += len(line) + 1

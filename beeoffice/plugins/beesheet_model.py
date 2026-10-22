@@ -132,7 +132,12 @@ class SheetDataModel(QAbstractTableModel):
             return True
         loader = loader or self._full_loader
         if loader is None:
-            self.load_error = "没有可用的完整数据加载器"
+            # 2026-10-21：阶段 2 正在后台跑时（或刚被取消），把"请稍候"说清楚，
+            # 不要再让用户误以为必须重开文件。
+            self.load_error = (
+                "数据仍在后台加载，请稍候（大表补全完成后即可操作；"
+                "若长时间未完成可重新打开文件）"
+            )
             return False
         try:
             df = loader()

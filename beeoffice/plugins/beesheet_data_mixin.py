@@ -297,9 +297,17 @@ class DataMixin:
         ⚠️ **大文件跳过**：读回要再 `load_workbook()` 打开一次文件，
         几十 MB 的表上这个代价很实在。所以超过 `_STYLE_READ_MAX_BYTES`
         就跳过（并在日志里说明）—— 大表通常也不是靠手工格式在用的。
+
+        ⚠️ **稀疏大表也要跳过**（2026-10-21 实测新增）：有些表磁盘只有 2 MB，
+        但 `<dimension>` 声明 20 万行（大量空样式行）。只看文件大小会漏掉它，
+        `read_view_styles` 会按声明区域扫满 260 万格，实测 **119–154 s**
+        （2.28 MB 的「20 万条」表打开 62.5–142.8 s）。所以再按**声明行数**
+        设一道 5 万行的阈值。
         """
         #: 超过这个大小就不读样式（避免为格式让打开变慢）
         max_bytes = 5 * 1024 * 1024
+        #: 声明行数超过这个值也不读样式（覆盖"磁盘小、声明极大"的稀疏表）
+        max_rows = 50_000
         try:
             size = Path(path).stat().st_size
         except OSError:
@@ -307,6 +315,21 @@ class DataMixin:
         if size > max_bytes:
             logging.info(
                 f"[蜜算] 文件较大（{size / 1048576:.1f} MB），跳过格式读回"
+                "（数据不受影响）"
+            )
+            return
+        try:
+            from beeoffice.plugins.beesheet_workbook import (
+                _declared_row_count,
+            )
+
+            declared_rows = _declared_row_count(Path(path))
+        except Exception:  # noqa: BLE001 - 探测失败就不阻断样式读回
+            declared_rows = 0
+        if declared_rows >= max_rows:
+            logging.info(
+                f"[蜜算] 声明行数较大（{declared_rows:,} 行，文件仅 "
+                f"{size / 1048576:.1f} MB，疑似稀疏表），跳过格式读回"
                 "（数据不受影响）"
             )
             return
@@ -391,6 +414,7 @@ class DataMixin:
             self, "导出", "表格.xlsx", "Excel (*.xlsx)"
         )
         if not path:
+            self._save_canceled = True
             return
         # R1 安全门：保存**必须**在数据完整的前提下进行。
         # 实测（tests/fidelity/test_beesheet_lazy_load.py）：
@@ -426,6 +450,7 @@ class DataMixin:
         **绝不在 .xls 上原地写**。
         """
         path = getattr(self, "_current_file_path", None)
+        self._save_canceled = False
         if path and str(path).lower().endswith(".xls"):
             from PySide6.QtWidgets import QMessageBox
 
@@ -451,6 +476,7 @@ class DataMixin:
 
     def save_as(self) -> bool:
         """另存为（忽略当前路径，重新选）。"""
+        self._save_canceled = False
         self._current_file_path = None
         self._export_xlsx()
         return bool(getattr(self, "_current_file_path", None))

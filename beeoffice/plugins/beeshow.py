@@ -188,6 +188,7 @@ class BeeShowView(
         `app._save_current` 的两个分支都不命中 → **Ctrl+S 毫无反应、也没有提示**，
         而导出件（PPTX/PDF/HTML）**回不到编辑器** → 做好的稿子关掉就改不了。
         """
+        self._save_canceled = False
         path = getattr(self, "_current_file_path", None)
         if not path:
             return self.save_as()
@@ -197,11 +198,13 @@ class BeeShowView(
         """另存为（重新选择路径）。"""
         from PySide6.QtWidgets import QFileDialog
 
+        self._save_canceled = False
         path, _ = QFileDialog.getSaveFileName(
             self, "保存演示文稿", self._suggested_deck_name(),
             "蜜演演示文稿 (*.beshow);;所有文件 (*)",
         )
         if not path:
+            self._save_canceled = True
             return False
         return self._write_deck(path)
 

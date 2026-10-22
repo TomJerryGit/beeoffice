@@ -96,6 +96,7 @@ from beeoffice.plugins.image_utils import (
     iter_block_images,
 )
 from beeoffice.utils import atomic_replace
+from beeoffice.i18n import tr
 
 
 # ==================== 常量 ====================
@@ -126,6 +127,7 @@ class ExportMixin:
           - _doc_kind == "word"     → 保存为 .docx
           - _doc_kind == "markdown" → 保存为 .md
         """
+        self._save_canceled = False
         doc_kind = getattr(self, "_doc_kind", "markdown")
         if doc_kind == "word":
             return self._save_as_docx()
@@ -133,6 +135,7 @@ class ExportMixin:
 
     def save_as(self):
         """另存为（忽略当前路径，重新选择）"""
+        self._save_canceled = False
         self._current_file_path = None
         self.save()
 
@@ -187,6 +190,7 @@ class ExportMixin:
             "Markdown 文件 (*.md);;所有文件 (*)",
         )
         if not path:
+            self._save_canceled = True
             return False
 
         if not path.lower().endswith(".md"):
@@ -366,6 +370,7 @@ class ExportMixin:
             "Word (*.docx);;所有文件 (*)",
         )
         if not path:
+            self._save_canceled = True
             return False
 
         if not path.lower().endswith(".docx"):
@@ -768,10 +773,17 @@ class ExportMixin:
 
         name = Path(report.path).name if report.path else "当前文档"
         detail = format_report(report, name)
+        # 2026-10-21：区分"真会丢内容"与"仅说明性 note"。
+        # 例：PPTX 导入报告 items=[]、summary="未发现无法保真的构造"，但 note 非空
+        # （说明 PPTX 只支持导入）—— 此时不能再写"有内容无法完整保留"，自相矛盾。
+        if getattr(report, "items", None):
+            headline = tr("dialog.fidelity_loss_headline") + "："
+        else:
+            headline = tr("msg.hint") + "："
         reply = QMessageBox.warning(
             self,
             "保真度提示",
-            f"这份文件里有内容无法完整保留：\n\n{detail}\n\n"
+            f"{headline}\n\n{detail}\n\n"
             f"仍要继续{action}吗？",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.Yes,

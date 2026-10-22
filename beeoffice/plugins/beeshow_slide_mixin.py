@@ -59,6 +59,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem, QInputDialog, QColorDialog,
 )
 from PySide6.QtCore import QTimer
+from PySide6.QtGui import QTextCursor
 
 from beeoffice.plugins.beeshow_constants import SLIDE_THEMES
 
@@ -350,8 +351,20 @@ class SlideMixin:
 
     # ==================== 增删 ====================
     def _add_slide(self):
-        """在光标处插入新幻灯片（--- 分隔 + 默认标题）"""
-        self._editor.textCursor().insertText("\n\n---\n\n## 新幻灯片")
+        """在文档末尾追加新幻灯片（`---` 分隔 + 默认标题）。
+
+        2026-10-21 修复（GUI 实跑发现）：
+        - 原实现 `insertText("\\n\\n---\\n\\n## 新幻灯片")` **结尾没有换行**，
+          且插入点取当前光标（新建演示时光标在文首）；
+        - 结果：`## 新幻灯片` 与原有首行 `# 欢迎使用蜜演` 粘成同一标题
+          （`新幻灯片# 欢迎使用蜜演 🎥`），按 `\\n---` 切分后**页数不变**（2→2）。
+
+        修复：光标移到文末再插入，并保证插入串以换行结尾 → 页数 +1、标题独立。
+        """
+        cursor = self._editor.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        cursor.insertText("\n\n---\n\n## 新幻灯片\n")
+        self._editor.setTextCursor(cursor)
         self._update_preview()
 
     def _delete_slide(self):

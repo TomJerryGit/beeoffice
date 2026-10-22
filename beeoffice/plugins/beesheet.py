@@ -58,7 +58,7 @@ from PySide6.QtWidgets import (
     QFormLayout, QCheckBox,
 )
 from PySide6.QtCore import (
-    Qt, QTimer, QItemSelectionModel, QItemSelection, Signal,
+    Qt, QTimer, QItemSelectionModel, QItemSelection, Signal, QThread,
 )
 
 from beeoffice.plugins.beesheet_utils import (
@@ -70,6 +70,7 @@ from beeoffice.plugins.beesheet_commands import (
 from beeoffice.plugins.beesheet_loaders import LargeFileLoader
 from beeoffice.plugins.beesheet_engine import FormulaEngine
 from beeoffice.plugins.beesheet_model import SheetDataModel
+from beeoffice.i18n import tr
 
 # ==================== Mixin 层 ====================
 from beeoffice.plugins.beesheet_formula_mixin import FormulaMixin
@@ -102,6 +103,14 @@ class BeeSheetView(
 
     #: 内容变化信号（供标签页的"● 未保存"标记 —— `tab_manager.addTab` 会接它）
     contentChanged = Signal()
+
+    #: 大表阶段 2（后台补全）请求信号。
+    #: 阶段 1 在 `_import_file_from_path` 里执行，而它被 `_open_sheet_file` 放到
+    #: **工作线程**；工作线程里再调 `AsyncTaskManager.run`，其回调不会落到主线程
+    #: 事件循环（PySide6 的 AutoConnection 按连接时线程排队 → 无事件循环的线程
+    #: 永远收不到）——实测 30 万行表后台补全"完成但界面永远 1000 行"。
+    #: 因此把"启动阶段 2"通过本信号发回主线程，由主线程再启动后台任务。
+    phase2_requested = Signal(str)
 
     FUNCTION_REFERENCE = {}
 
@@ -156,6 +165,8 @@ class BeeSheetView(
         # ---------- 数据模型 ----------
         self.model = SheetDataModel(self)
         self.model._conditional_formats_ref = self._conditional_formats = {}
+        # P0：阶段 2 必须从主线程启动（工作线程启动的 Async 回调收不到）。
+        self.phase2_requested.connect(self._start_phase2_full_load)
 
         # ---------- 撤销 / 重做 ----------
         self._undo_stack, self._redo_stack = [], []
@@ -590,9 +601,21 @@ class BeeSheetView(
         安全性来自"加载期间模型只读"（见 `SheetDataModel.flags`）：
         替换时不可能存在用户改动，因此不需要任何"合并/重放编辑"的逻辑
         —— 那种逻辑正是数据损坏的来源。
+
+        ⚠️ 线程约束（2026-10-21 实测修复）：本方法会被 `_import_file_from_path`
+        在**工作线程**里调用；如果直接在该线程 `AsyncTaskManager.run`，完成回调
+        永远不会落到主线程（30 万行表永远只显示首屏 1000 行）。因此这里检测
+        线程：非主线程 → 发 `phase2_requested` 信号回主线程，再由主线程启动。
         """
+        if QThread.currentThread() is not self.thread():
+            self.phase2_requested.emit(str(path))
+            return
+
         from beeoffice.async_task import AsyncTaskManager
         from beeoffice.plugins.beesheet_workbook import read_workbook
+
+        # 2026-10-21：进入主线程后再启动后台任务，并给出可见进度提示
+        self._set_status(tr("msg.sheet_loading_full"), 0)
 
         def load_full():
             workbook = read_workbook(path, max_rows=200001)
