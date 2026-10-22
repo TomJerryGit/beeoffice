@@ -753,25 +753,31 @@ class BeeApp(QMainWindow):
         ext = Path(path).suffix.lower()
 
         if ext in SHOW_EXTENSIONS:
-            self.show_busy_progress("正在加载演示文稿…")
+            if hasattr(self, "show_busy_progress"):
+                self.show_busy_progress("正在加载演示文稿…")
             try:
                 self._open_show_file(path)
             finally:
-                self.hide_busy_progress()
+                if hasattr(self, "hide_busy_progress"):
+                    self.hide_busy_progress()
         elif ext in SHEET_EXTENSIONS:
             self._open_sheet_file(path)
         elif ext == ".docx":
-            self.show_busy_progress("正在加载文档…")
+            if hasattr(self, "show_busy_progress"):
+                self.show_busy_progress("正在加载文档…")
             try:
                 self._open_docx_file(path)
             finally:
-                self.hide_busy_progress()
+                if hasattr(self, "hide_busy_progress"):
+                    self.hide_busy_progress()
         elif ext in TEXT_EXTENSIONS:
-            self.show_busy_progress("正在打开文本…")
+            if hasattr(self, "show_busy_progress"):
+                self.show_busy_progress("正在打开文本…")
             try:
                 self._open_text_file(path)
             finally:
-                self.hide_busy_progress()
+                if hasattr(self, "hide_busy_progress"):
+                    self.hide_busy_progress()
         else:
             # P1-B 实测：原先这里**只写一行日志**，用户看到的是"点了没反应"
             # —— 不弹提示、不开标签，还照样把文件记进"最近文件"。
