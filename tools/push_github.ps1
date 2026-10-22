@@ -50,7 +50,12 @@ function Run-GitCmd([string[]]$gitArgs) {
 }
 
 if (-not $RepoPath -or $RepoPath.Trim() -eq "") {
-    $RepoPath = $PSScriptRoot
+    $detected = & git -C $PSScriptRoot rev-parse --show-toplevel 2>$null
+    if ($LASTEXITCODE -eq 0 -and $detected) {
+        $RepoPath = ($detected | Select-Object -First 1).Trim()
+    } else {
+        $RepoPath = $PSScriptRoot
+    }
 }
 if (-not (Test-Path -LiteralPath $RepoPath)) {
     Fail "repository path not found: $RepoPath" 2
@@ -103,6 +108,12 @@ if ($DryRun) {
     exit 0
 }
 
+# Best-effort fetch so the merge-base check can use the remote ref.
+$fetch = Run-Git @("fetch", $Remote, $Branch)
+if ($fetch.Code -ne 0) {
+    Write-Host "NOTE: git fetch failed (push will still be attempted): $($fetch.Output)" -ForegroundColor Yellow
+}
+
 for ($i = 1; $i -le $Retries; $i++) {
     Write-Host ""
     Write-Host ("=" * 60)
@@ -124,6 +135,16 @@ for ($i = 1; $i -le $Retries; $i++) {
         Fail ("authentication failed. Fix credentials first: gh auth login (or PAT / credential manager). Details:`n" + $err) 3
     }
     if ($err -match "non-fast-forward|fetch first|rejected|diverged") {
+        # NEVER suggest pull --rebase for UNRELATED histories: that can rewrite
+        # the branch or merge two independent repos. Refuse and point to a branch.
+        $mergeBase = Run-Git @("merge-base", "HEAD", "$Remote/$Branch")
+        if ($mergeBase.Code -ne 0 -or -not $mergeBase.Output) {
+            Write-Host "UNRELATED HISTORIES: local '$Branch' and $Remote/$Branch share no common ancestor." -ForegroundColor Red
+            Write-Host "Do NOT force-push, and do NOT run 'git pull --rebase' on this branch."
+            Write-Host "Push local work to a NEW branch instead (remote main untouched):"
+            Write-Host "  git push $Remote HEAD:<new-branch-name>"
+            Fail "push rejected: unrelated histories; remote main left untouched" 5
+        }
         Write-Host "Remote has commits you do not have. Try:" -ForegroundColor Yellow
         Write-Host "  git pull --rebase $Remote $Branch"
         Write-Host "then run this script again."

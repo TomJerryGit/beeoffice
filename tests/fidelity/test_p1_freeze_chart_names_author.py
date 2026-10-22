@@ -122,8 +122,10 @@ def test_freeze_panes_written_and_read_back(sheet_view, qtbot, tmp_path):
     try:
         reader._import_file_from_path(str(target))
         assert reader._freeze_panes == "A2"
-        # 状态栏/信息面板用的旧字段也要跟着有值
-        assert reader._frozen_top == "A2"
+        # 2026-10-22：_frozen_top/_frozen_left 改为**冻结行/列数**（叠加视图
+        # 定位用），不再存放 A1 字符串；freeze_panes 引用仍是 "A2"。
+        assert reader._frozen_top == 1
+        assert reader._frozen_left == 0
     finally:
         reader.close()
 
