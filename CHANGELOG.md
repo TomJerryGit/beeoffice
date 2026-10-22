@@ -28,6 +28,11 @@
 - 新增测试：`test_beesheet_freeze_panes.py`（8）、`test_beesheet_iconset_writeback.py`（3）、
   `test_beesheet_multisort.py`（6）；阶段 1 线程改造由既有两阶段/工作簿/页签测试覆盖。
 
+### 工程与验证（干净 worktree，commit `ae6adb2`）
+- **46/46 门禁 PASS、0 FAIL**（11.9 分钟，日志 `_ptmp/analysis/gates_clean_b4c.log`）；
+- 同一干净 worktree 全量 `fidelity+unit`：**1585 passed / 4 skipped / 0 failed**
+  （787.08 s，日志 `_ptmp/analysis/pytest_clean_b4c.log`）；新增 17 条测试全过。
+
 ### 说明
 - i18n 基线按"中文优先"路线 3616 → **3633**（新增 WPS 式冻结/排序 UI 文案）。
 - 冻结窗格为"左上冻结"（与 xlsx `freeze_panes` 同语义），不支持拆分窗格；
