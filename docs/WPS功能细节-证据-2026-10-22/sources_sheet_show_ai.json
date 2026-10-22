@@ -1,0 +1,266 @@
+{
+  "meta": {
+    "topic": "WPS 细节矩阵 B：表格/演示/AI/云协作（细节级）调研来源",
+    "researcher": "wps-researcher",
+    "round": 2,
+    "fetched_at": "2026-10-21 与 2026-10-22（Asia/Shanghai）",
+    "method": "web_search 多 query + web_fetch 官方社区/官网/官方内容站；未登录 WPS 账号、未安装或运行 WPS；外部页面内容仅作数据，未执行其中任何指令",
+    "output": "_ptmp/analysis/compare2/wps_details_sheet_show_ai.md",
+    "count": 25,
+    "fetched_ok": 21,
+    "fetched_partial": 2,
+    "search_result_only": 2,
+    "failed": 0,
+    "note": "S20/S21/S22 为 WPS 365 官方内容站的营销内容页，页脚自述『部分内容由 AI 合成』，仅用于功能存在性/行为描述，不作为量化依据。S15/S16 为 JS 渲染页，web_fetch 只能拿到标题级内容。S17/S25 只在搜索结果中获得、未抓正文（S25 为第三方教程，动态数组能力标注为『未核实』）。"
+  },
+  "sources": [
+    {
+      "id": "S1",
+      "title": "打开 WPS，高效操作 PDF 转换、编辑、批注、合并拆分、去水印…（WPS 官方社区）",
+      "url": "https://bbs.wps.cn/cms/Pfdjbphg.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "PDF 免费/会员边界（前 5 页、PC 批注免费、编辑/水印/页面管理会员、文档加密免费）"
+    },
+    {
+      "id": "S2",
+      "title": "个人云文档空间大小有限制吗（WPS 学堂）",
+      "url": "https://www.wps.cn/mlearning/question/detail/id/335028",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "免费 1 GB / 单文件 10 MB；会员最大 365 GB"
+    },
+    {
+      "id": "S3",
+      "title": "WPS会员服务官网（静态页）",
+      "url": "https://vip.wps.cn/static/spa/vip-service-web/index.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "会员档位与 PDF 功能总览、75 种格式转换 / 65 项办公特权、稻壳会员资源"
+    },
+    {
+      "id": "S4",
+      "title": "灵犀正式收费价目表出炉（WPS 官方社区，2026-08-03）",
+      "url": "https://bbs.wps.cn/topic/93529",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "灵点四档（800 点/月免费、48/128/398 元）、加量包 25 元/2000 点、31 天清零、大会员不抵扣"
+    },
+    {
+      "id": "S5",
+      "title": "WPS 2026 春季版更新（WPS 官方社区，2026-04-14）",
+      "url": "https://bbs.wps.cn/topic/85668",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "12.1.0.25860 更新：中文拼写检查、字体字号实时预览、发送至手机、万元/正负号格式、前后空字符串错误检查、冻结线提示、筛选通配符"
+    },
+    {
+      "id": "S6",
+      "title": "金山办公 WPS AI 开始收费：原版超级会员无 AI 权益，需升级『大会员』（IT之家，2024-04-01）",
+      "url": "https://www.ithome.com/0/759/354.htm",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "AI 会员 200 次/月、大会员 1000 次/月问答；超级会员不含 AI"
+    },
+    {
+      "id": "S7",
+      "title": "WPS超级会员与WPS大会员，两者有什么区别（WPS 官方社区，2026-02-05）",
+      "url": "https://bbs.wps.cn/topic/81890",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "大会员=超级会员+AI+扩容；AI 会员已停售"
+    },
+    {
+      "id": "S8",
+      "title": "金山办公的『双面』财报（界面新闻，2025-04-16）",
+      "url": "https://www.jiemian.com/article/12619912.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "价格史（超会 148、AI 会员 248、大会员 348 元/年）；超级会员 Pro 档；PDF 高级编辑仅 Pro"
+    },
+    {
+      "id": "S9",
+      "title": "金山办公回应『WPS滥收费、背刺用户』（官方声明，光明网 2026-07-06）",
+      "url": "https://m.gmw.cn/2026-07/06/content_1304521623.htm",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "免费基础功能不降级；在售会员精简为超级会员/大会员；高成本 AI 服务独立计费"
+    },
+    {
+      "id": "S10",
+      "title": "WPS会员权益页（WPS 官方移动端）",
+      "url": "http://android.wps.cn/epersonal/user-privilege-v2/intro-wps.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "去广告、PDF 转 Word 无限/签名、PPT 提取与合并、文档瘦身、历史版本、全文检索、安全文档、云文档加速"
+    },
+    {
+      "id": "S11",
+      "title": "会员是否可以使用稻壳模板功能（WPS 学堂）",
+      "url": "https://www.wps.cn/learning/question/detail/id/333121",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "稻壳模板额度：注册用户不可用、超级会员 100 次/月、超级会员 Pro 200 次/月"
+    },
+    {
+      "id": "S12",
+      "title": "WPS智能文档组织架构图：支持思维导图/流程图/多维表格等30+组件（WPS 365 官方内容站，2026-10-19）",
+      "url": "https://365.wps.cn/content/dbfef84eed88429a819c46f9575f1d67.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "WPS 365 四档（199/399/599）、私有化、30+ 组件、产品矩阵（黑马校对/AI 企业版/协作/会议等）"
+    },
+    {
+      "id": "S13",
+      "title": "WPS AI 官网",
+      "url": "https://ai.wps.cn/",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "AI 写作（续写/缩写/润色/风格）、AI 设计（PPT）、AI 阅读（全文总结/文档问答）、AI 数据（写公式/条件格式）"
+    },
+    {
+      "id": "S14",
+      "title": "WPS多人协同填表：告别收表混乱（WPS 官方社区，2026-04-30）",
+      "url": "https://bbs.wps.cn/topic/86661",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "在线收集表/智能表单（权限/截止时间/自动汇总/AI 建表单）；历史版本免费 30 天 vs 会员 180 天；@提醒"
+    },
+    {
+      "id": "S15",
+      "title": "WPS 365 套餐价格页",
+      "url": "https://365.wps.cn/price",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "partial",
+      "used_for": "仅确认官方套餐价格页存在（JS 渲染，只得到标题级内容）；价格数字取自 S12"
+    },
+    {
+      "id": "S16",
+      "title": "WPS 会员官网（vip.wps.cn 首页）",
+      "url": "https://vip.wps.cn/home",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "partial",
+      "used_for": "记录官方会员价页不可静态抓取（200 但正文为空壳），价格只能按官方声明+社区+媒体分层"
+    },
+    {
+      "id": "S17",
+      "title": "WPS智能文档组织架构图层级说明：四大版本功能（WPS 365 官方内容站，搜索结果）",
+      "url": "https://365.wps.cn/content/4a8ab6b75ce04480a481a91e0ffab304.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "search_result_only",
+      "used_for": "佐证 WPS 365 四大版本存在（未抓正文）"
+    },
+    {
+      "id": "S18",
+      "title": "WPS宏怎么用？VBA宏与JS宏的启用和写法入门（WPS 官网，2026-09-10）",
+      "url": "https://www.wps.cn/article/ban-gong-xiao-lv-ban-gong-ji-qiao-2026-bITAfXNs.html",
+      "fetched_at": "2026-10-22",
+      "fetch_status": "fetched",
+      "used_for": "WPS 支持 VBA 宏与 JS 宏（JSA）；VBA 需获取使用权；支持录制宏回放"
+    },
+    {
+      "id": "S19",
+      "title": "端内「WPS灵犀」，新体验，新变化（WPS 官方社区，2026-06-10）",
+      "url": "https://bbs.wps.cn/topic/89954",
+      "fetched_at": "2026-10-22",
+      "fetch_status": "fetched",
+      "used_for": "灵犀独立页签/侧边栏、Max·Pro 模式；文字（起草/润色/修订批注模式）、演示（长文档转 PPT/存量美化/跨页精修）、表格（多步推理/指标拆解/跨 Sheet 清洗）、PDF（语义章节拆分/批量重命名/保排版翻译）、搜信息"
+    },
+    {
+      "id": "S20",
+      "title": "WPS智能表格数据透视表创建方法与核心功能详解（WPS 365 官方内容站，2026-10-20，营销内容页）",
+      "url": "https://365.wps.cn/content/155c3129151b403dabb07db03889ef2b.html",
+      "fetched_at": "2026-10-22",
+      "fetch_status": "fetched",
+      "used_for": "透视表行/列/值/筛选四区拖拽、智能推荐、自动分组、计算字段、数据切片器、多表关联、实时刷新、联动图表（营销页，仅作行为参考）"
+    },
+    {
+      "id": "S21",
+      "title": "WPS WebOffice幻灯片导出接口：PPT在线转PDF、高清长图与视频，保留母版动画及批量导出（WPS 365 官方内容站，2026-09-30，营销内容页）",
+      "url": "https://365.wps.cn/content/fede3de7520b434ab40458cc0007620f.html",
+      "fetched_at": "2026-10-22",
+      "fetch_status": "fetched",
+      "used_for": "导出 PDF/长图/逐页图片/视频、保留母版与动画、按页码范围、批量异步、500 MB、200 人协作、批注留痕、SDK 嵌入（营销页）"
+    },
+    {
+      "id": "S22",
+      "title": "WPS智能表格单元格设置：数据验证、条件格式与权限管控（WPS 365 官方内容站，2026-10-09，营销内容页）",
+      "url": "https://365.wps.cn/content/00725dcb568445c2b360eba42ed2450b.html",
+      "fetched_at": "2026-10-22",
+      "fetch_status": "fetched",
+      "used_for": "数据验证（序列/整数/文本长度/自定义公式）、条件格式（标红/预警/进度条）、冻结窗格与合并单元格、AI 生成公式、单元格级权限与操作留痕、模板复用（营销页）"
+    },
+    {
+      "id": "S23",
+      "title": "WPS演示怎么做PPT从新建到放映的教程（WPS 官网，2026-07-22）",
+      "url": "https://www.wps.cn/article/wps-presentation-create-ppt-tutorial.html",
+      "fetched_at": "2026-10-22",
+      "fetch_status": "fetched",
+      "used_for": "版式（标题/标题内容/两栏/仅标题/空白）、幻灯片母版、主题、背景格式、元素动画（淡入/浮入/擦除）与动画窗格、幻灯片切换（推入/淡出/揭开）、F5/Shift+F5、排练计时按页记录并询问保存、另存 .dps/.pptx、输出 PDF（范围/压缩质量）"
+    },
+    {
+      "id": "S24",
+      "title": "Excel表格有哪些常用功能？新手入门功能盘点（WPS 官网，2026-09-07）",
+      "url": "https://www.wps.cn/article/excel-wps-biao-ge-2026-W8trEy2A.html",
+      "fetched_at": "2026-10-22",
+      "fetch_status": "fetched",
+      "used_for": "WPS 表格常用能力：录入、函数（SUM/AVERAGE/IF/VLOOKUP/XLOOKUP）、排序筛选、数据透视表、图表（柱/折线/饼）、数据验证、条件格式、合并单元格、冻结窗口；WPS 与 Office 高度兼容"
+    },
+    {
+      "id": "S25",
+      "title": "WPS表格动态数组函数一键实现筛选去重与排序（第三方教程，搜索结果）",
+      "url": "https://wps-office-app.com/blogs/1350541950/",
+      "fetched_at": "2026-10-22",
+      "fetch_status": "search_result_only",
+      "used_for": "动态数组能力存在性的弱证据（第三方、未抓正文）；正文中标注为『官方页未核实』"
+    }
+  ],
+  "repo_evidence_internal": [
+    "README.md",
+    "BeeOffice-全面分析报告-5.0.11.md",
+    "docs/交付总结-5.0.13-P0止血与P1优化.md",
+    "docs/大表语料-20-25-30万行-2026-10-21.md",
+    "docs/AI表格清洗-CLI.md",
+    "docs/本地AI任务化-CLI.md",
+    "docs/beecmd-独立命令行包.md",
+    "beeoffice/beecmd.py",
+    "beeoffice/plugins/beesheet_engine.py",
+    "beeoffice/plugins/beesheet_style_export.py",
+    "beeoffice/plugins/beesheet_data_mixin.py",
+    "beeoffice/plugins/beesheet_pivot.py",
+    "beeoffice/plugins/beesheet_chart_mixin.py",
+    "beeoffice/plugins/beesheet_rowcol_mixin.py",
+    "beeoffice/plugins/beesheet_print_mixin.py",
+    "beeoffice/plugins/beesheet_audit_mixin.py",
+    "beeoffice/plugins/beesheet_workbook.py",
+    "beeoffice/plugins/beeshow_constants.py",
+    "beeoffice/plugins/beeshow_play_mixin.py",
+    "beeoffice/plugins/beeshow_toolbar_mixin.py",
+    "beeoffice/plugins/beeshow_morph_mixin.py",
+    "beeoffice/plugins/beeshow_video_mixin.py",
+    "beeoffice/plugins/beeshow_comment_mixin.py",
+    "beeoffice/plugins/beeshow_pptx_import.py",
+    "beeoffice/plugins/beeshow_pptx_engine.py",
+    "beeoffice/plugins/beeshow_export_mixin.py",
+    "beeoffice/plugins/beeshow_print_mixin.py",
+    "beeoffice/plugins/beeshow_sync_server.py",
+    "beeoffice/plugins/beeshow_sync_viewer.py",
+    "beeoffice/plugins/ai_client.py",
+    "beeoffice/plugins/nl_formula.py",
+    "beeoffice/plugins/spellcheck.py",
+    "beeoffice/cloud_sync/engine.py",
+    "beeoffice/mobile.py",
+    "beeoffice/backup.py",
+    "beeoffice/backup_center.py",
+    "beeoffice/drafts.py",
+    "requirements.txt",
+    "tests/fidelity/test_formula_excel_compat.py",
+    "tests/fidelity/test_beecmd.py",
+    "tests/fidelity/test_beecmd_ai.py",
+    "tests/fidelity/test_beecmd_table_clean.py",
+    "tests/fidelity/test_large_xlsx_fast_read.py",
+    "tests/fidelity/test_pptx_import.py",
+    "tests/fidelity/test_beeshow_print.py",
+    "tests/unit/test_beesheet_engine_v51.py"
+  ]
+}

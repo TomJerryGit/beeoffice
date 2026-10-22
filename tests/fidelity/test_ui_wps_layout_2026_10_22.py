@@ -9,7 +9,6 @@ WPS 式 UI/版式提升回归（2026-10-22，第 2 批）：
    构造 QPrinter（原先写死 A4）。
 """
 import pandas as pd
-import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPageLayout, QPageSize
 
