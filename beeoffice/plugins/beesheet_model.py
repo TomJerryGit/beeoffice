@@ -81,6 +81,8 @@ class SheetDataModel(QAbstractTableModel):
         #   · `complete_full_dataframe()` / `set_full_dataframe()` → True
         self._fully_loaded = True
         self._full_loader = None
+        # 2026-10-22：WPS 式表头（列字母 A/B/C + 行号 1/2/3），可切换
+        self.wps_headers = True
         self.load_error = ""
         self._init_empty()
 
@@ -567,15 +569,31 @@ class SheetDataModel(QAbstractTableModel):
         return _FLAGS_EDITABLE
 
     def headerData(self, s, o, role):
-        """表头数据"""
+        """表头数据（2026-10-22：WPS 式「列字母 + 行号」显示，可切换）。
+
+        WPS/Excel 的网格默认显示 A/B/C… 列号与 1/2/3… 行号；BeeOffice 原先
+        直接显示 DataFrame 列名。现在默认在列名前面加 Excel 列字母
+        （如 `A 订单编号`），并把行号从 1 开始显示（与 WPS 视觉一致）；
+        用户可在工具栏「🔠 行列号」切回纯列名。
+        """
         if role == Qt.DisplayRole:
             if o == Qt.Horizontal:
+                name = ""
                 if self._full_df is not None and \
-                   s < len(self._full_df.columns):
-                    return self._full_df.columns[s]
-                return str(s)
+                        s < len(self._full_df.columns):
+                    name = str(self._full_df.columns[s])
+                if getattr(self, "wps_headers", True):
+                    from beeoffice.plugins.beesheet_utils import (
+                        col_index_to_name,
+                    )
+
+                    letter = col_index_to_name(s)
+                    return f"{letter}  {name}" if name else letter
+                return name if name else str(s)
             else:
-                return str(s + 1)
+                return str(s + 1) if not getattr(
+                    self, "wps_headers", True
+                ) else str(s + 1)
         return None
 
     # ==================== 工具方法 ====================

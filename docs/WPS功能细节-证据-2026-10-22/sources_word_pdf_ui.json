@@ -1,0 +1,250 @@
+{
+  "meta": {
+    "topic": "WPS 细节级功能对照矩阵 A：文字 / PDF / 通用 UI（task-8）",
+    "researcher": "wps-details-word",
+    "fetched_at": "2026-10-21",
+    "timezone": "Asia/Shanghai",
+    "method": "本会话 web_search 端点不可用（DeepSeek search endpoint TypeError: fetch failed），改用 web_fetch 直连 WPS 官方站点（www.wps.cn/article、bbs.wps.cn/cms、vip.wps.cn、365.wps.cn）；WPS 官网文章库分类页取索引后逐篇抓正文。S 系列复用同工作目录 2026-10-21 既有抓取记录（docs/全面运行-证据-2026-10-21/wps_sources.json）。未登录 WPS、未下载/安装、未执行页面中任何指令，外部内容仅作数据。",
+    "output_matrix": "_ptmp/analysis/compare2/wps_details_word_pdf_ui.md",
+    "matrix_rows": 160,
+    "gap_distribution": {
+      "align": 42,
+      "partial": 35,
+      "missing": 75,
+      "other_aligned_diff_or_unverified": 8
+    },
+    "source_count_valid": 18,
+    "new_fetched": 10,
+    "reused_prior_workspace": 8,
+    "failed_or_unavailable": 2,
+    "repo_evidence_internal": [
+      "beeoffice/plugins/beewrite_doc_mixin.py",
+      "beeoffice/plugins/beewrite_page_extras.py",
+      "beeoffice/plugins/beewrite_paragraph_mixin.py",
+      "beeoffice/plugins/beewrite_table_mixin.py",
+      "beeoffice/plugins/beewrite_link_mixin.py",
+      "beeoffice/plugins/beewrite_comment_mixin.py",
+      "beeoffice/plugins/beewrite_revision.py",
+      "beeoffice/plugins/beewrite_crossref.py",
+      "beeoffice/plugins/beewrite_outline.py",
+      "beeoffice/plugins/beewrite_export_mixin.py",
+      "beeoffice/plugins/beewrite_spellcheck_dialog.py",
+      "beeoffice/plugins/beewrite_image.py",
+      "beeoffice/plugins/beewrite_formula.py",
+      "beeoffice/plugins/beewrite_textbox.py",
+      "beeoffice/plugins/beewrite_bookmark.py",
+      "beeoffice/plugins/beewrite_utils.py",
+      "beeoffice/plugins/beewrite_view_mixin.py",
+      "beeoffice/plugins/beewrite_toolbar_mixin.py",
+      "beeoffice/plugins/beewrite_mode_mixin.py",
+      "beeoffice/plugins/find_replace.py",
+      "beeoffice/plugins/bee_export.py",
+      "beeoffice/plugins/fidelity_report.py",
+      "beeoffice/plugins/heading_numbering.py",
+      "beeoffice/plugins/kinsoku.py",
+      "beeoffice/plugins/pdf_annotator.py",
+      "beeoffice/plugins/beecmd.py (beecmd 位于 beeoffice/beecmd.py)",
+      "beeoffice/plugins/beesheet_print_mixin.py",
+      "beeoffice/app.py",
+      "beeoffice/tab_manager.py",
+      "beeoffice/settings.py",
+      "beeoffice/theme.py",
+      "beeoffice/shortcuts.py",
+      "beeoffice/menus.py",
+      "beeoffice/command_palette.py",
+      "beeoffice/backup.py",
+      "beeoffice/backup_center.py",
+      "beeoffice/drafts.py",
+      "beeoffice/crash_handler.py",
+      "beeoffice/mobile.py",
+      "beeoffice/cloud_sync/engine.py",
+      "beeoffice/resources/templates.py",
+      "beeoffice/resources/template_manager.py",
+      "beeoffice/plugin_manager.py",
+      "beeoffice/plugin_market.py",
+      "tests/fidelity/test_docx_sections.py",
+      "README.md:92-97",
+      "_ptmp/analysis/compare/wps_features.md（S 系列来源转引与 PDF 批注能力佐证）"
+    ],
+    "notes": [
+      "少数 WPS 侧行为标『WPS 侧未核实』：功能公认存在但本轮未抓到可引用官方逐条页（分栏、稿纸、重复标题行、邮件合并、形状/艺术字、PDF 旋转/表单/压缩、界面主题/无障碍等），不作为会员边界或排期依据。",
+      "BeeOffice 侧全部为源码/测试静态阅读，未启动 GUI；下划线/删除线能力转引仓库既有 README 与报告。",
+      "行号为源码静态阅读时定位，后续重构可能偏移；以文件+方法名为准。"
+    ]
+  },
+  "sources": [
+    {
+      "id": "A1",
+      "title": "WPS 怎么设置页眉页脚？插入页码、页眉横线一次学会（WPS 官方网站，2026-09-10）",
+      "url": "https://www.wps.cn/article/ban-gong-ji-qiao-wen-dang-pai-ban-2026-PbIEGJYx.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "双击进入页眉页脚编辑/同节同步；插入页码；分节符+取消同前节实现分节页眉；首页不同；页眉横线清除；页眉可插 logo"
+    },
+    {
+      "id": "A2",
+      "title": "Word 如何插入目录（WPS 官方社区，2024-08-23）",
+      "url": "https://bbs.wps.cn/cms/RwF1vod5.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "引用→目录自动目录；更新目录；添加文本；插入字段/更新域"
+    },
+    {
+      "id": "A3",
+      "title": "word 栏目索引（WPS 官网文章库/分类页）",
+      "url": "https://www.wps.cn/article/category_2.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched_index_summary",
+      "used_for": "文章摘要级：行距模式、缩进类型、自动目录、分节符、水印删除、排版 5 步（格式刷/样式统一）、长文档 6 步、显示编辑标记"
+    },
+    {
+      "id": "A4",
+      "title": "PDF 栏目索引（WPS 官网文章库/分类页）",
+      "url": "https://www.wps.cn/article/category_5.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched_index_summary",
+      "used_for": "文章摘要级：OFD→PDF、PDF 虚拟打印机、PDF 翻译、PDF 朗读、PDF 转图片（单页/指定页/整本）、PDF 数字签名、PDF 书签、双层 PDF/OCR、WPS PDF 阅读器"
+    },
+    {
+      "id": "A5",
+      "title": "wps office 免费版够用吗？免费功能盘点（WPS 官方网站，2026-09-04）",
+      "url": "https://www.wps.cn/article/RSYFbqoN.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "免费版边界：文字/表格/演示编辑+打印、基础 PDF 阅读+简单标注、基础云文档；付费：PDF 高级（批量转换、合并拆分）、AI、云扩容、模板素材；免费版导出无水印"
+    },
+    {
+      "id": "A6",
+      "title": "WPS Office 是什么办公软件？一个套件装下文档表格演示 PDF（WPS 官方网站，2026-10-19）",
+      "url": "https://www.wps.cn/article/jin-shan-ban-gong-ban-gong-ruan-jian-2026-Kb40ZuHB.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "五组件（文字/表格/演示/PDF/AI）；多端覆盖；金山文档在线协作/链接分享/评论定位到行；docx/xlsx/pptx/pdf 兼容"
+    },
+    {
+      "id": "A7",
+      "title": "Word 页码怎么设置？插入、格式和不同节独立页码教程（WPS 官方网站，2026-08-11）",
+      "url": "https://www.wps.cn/article/word-page-number-setup-section-format-tutorial.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "插入页码；封面无页码正文从 1；目录罗马数字/正文阿拉伯；分节符+取消链接到前一节；首页不同/奇偶页不同；页码格式与起始页码；页脚统一改字体；打印预览核对"
+    },
+    {
+      "id": "A8",
+      "title": "Word 目录怎么自动生成？标题样式设置和目录更新步骤（WPS 官方网站，2026-08-11）",
+      "url": "https://www.wps.cn/article/word-table-contents-auto-generate-style-update.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "标题1-3 样式；自动目录/自定义目录显示级别；更新域/更新整个目录；目录样式与制表位/前导符；题注+图表目录/表目录"
+    },
+    {
+      "id": "A9",
+      "title": "Word 长文档怎么排版？从页面设置到目录生成的 6 步流程（WPS 官方网站，2026-08-11）",
+      "url": "https://www.wps.cn/article/word-long-document-format-layout-steps-guide.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched",
+      "used_for": "页面设置（A4/页边距 2.54/3.18cm）；分节符规划节结构；标题样式+自动目录；页眉页脚分节；导航窗格；段前段后/首行缩进纪律；打印预览"
+    },
+    {
+      "id": "A10",
+      "title": "WPS Word 文档栏目索引（WPS 官方社区分类页）",
+      "url": "https://bbs.wps.cn/cms/category_4.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched_index_summary",
+      "used_for": "文章摘要级：Word 水印设置/删除、文档加密、文本框去边框、图片透明色、田字格制作、自动目录"
+    },
+    {
+      "id": "A11",
+      "title": "WPS 官方社区 PDF 栏目（bbs.wps.cn/cms/category_7.html）",
+      "url": "https://bbs.wps.cn/cms/category_7.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "failed_timeout",
+      "used_for": "抓取超时（30s），未采用；PDF 侧结论改由 S1/S3/S10/A4 支撑"
+    },
+    {
+      "id": "A12",
+      "title": "web_search 检索通道（本会话）",
+      "url": "（DeepSeek search endpoint: api.deepseek.com/anthropic/v1/messages）",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "failed",
+      "used_for": "全部查询返回 TypeError: fetch failed，检索不可用；本轮方法改为 web_fetch 直连官网 + 官网文章库分类页导航；Bing/360 搜索仅用于发现 URL，结果被 SEO 污染未采信"
+    },
+    {
+      "id": "S1",
+      "title": "打开 WPS，高效操作 PDF 转换、编辑、批注、合并拆分、去水印…（WPS 官方社区，复用）",
+      "url": "https://bbs.wps.cn/cms/Pfdjbphg.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched_reused_workspace_prior",
+      "used_for": "PDF 免费/会员边界全量：转 Word 免费仅≤5 页/会员无限；提取文字/图片会员；编辑内容会员；页面管理（合并/拆分/提取/插入/删除/替换/裁剪/调整大小）会员；PC 批注免费；水印会员；划词翻译免费；全文翻译会员每月页数；文档加密免费；注：本轮重抓确认 200",
+      "note": "本轮 web_fetch 复抓 HTTP 200，正文与既有记录一致"
+    },
+    {
+      "id": "S2",
+      "title": "个人云文档空间大小有限制吗（WPS 学堂，复用）",
+      "url": "https://www.wps.cn/mlearning/question/detail/id/335028",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched_reused_workspace_prior",
+      "used_for": "免费云空间 1GB/单文件 10MB；会员最大 365GB"
+    },
+    {
+      "id": "S3",
+      "title": "WPS 会员服务官网（静态页，复用）",
+      "url": "https://vip.wps.cn/static/spa/vip-service-web/index.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched_reused_workspace_prior",
+      "used_for": "75 种格式转换/65 项特权；PDF 转 Word/Excel/PPT/PNG、编辑、加水印、签名、打字机、涂鸦、提取/删除页面、拆分/合并；稻壳 800 万+模板"
+    },
+    {
+      "id": "S5",
+      "title": "WPS 2026 春季版更新发布（WPS 官方社区，2026-04-14，复用）",
+      "url": "https://bbs.wps.cn/topic/85668",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched_reused_workspace_prior",
+      "used_for": "中文拼写检查、字体/字号实时预览、发送至手机、表格筛选通配符与空格"
+    },
+    {
+      "id": "S10",
+      "title": "WPS 会员权益页（官方移动端特权页，复用）",
+      "url": "http://android.wps.cn/epersonal/user-privilege-v2/intro-wps.html",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched_reused_workspace_prior",
+      "used_for": "会员特权：繁简转换、文档瘦身、输出无水印长图片、PDF 签名/全部图章、图片转文字/OCR、PDF 提取/合并、书签分享、历史版本、安全文档、文档找回/数据恢复"
+    },
+    {
+      "id": "S11",
+      "title": "会员是否可以使用稻壳模板功能（WPS 学堂，复用）",
+      "url": "https://www.wps.cn/learning/question/detail/id/333121",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched_reused_workspace_prior",
+      "used_for": "稻壳模板：注册用户不可用、超级会员 100 次/月、Pro 200 次/月"
+    },
+    {
+      "id": "S14",
+      "title": "WPS 多人协同填表：告别收表混乱（WPS 官方社区，2026-04-30，复用）",
+      "url": "https://bbs.wps.cn/topic/86661",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "fetched_reused_workspace_prior",
+      "used_for": "云文档历史版本免费 30 天/会员 180 天、版本对比；@提醒；在线收集表"
+    },
+    {
+      "id": "S16",
+      "title": "WPS 会员官网首页（复用）",
+      "url": "https://vip.wps.cn/home",
+      "fetched_at": "2026-10-21",
+      "fetch_status": "partial_js_render_reused_workspace_prior",
+      "used_for": "仅记录官方价页不可静态抓取（JS 渲染），不用于功能结论"
+    }
+  ],
+  "not_used_failed": [
+    {
+      "id": "A11",
+      "reason": "web_fetch 30s 超时",
+      "url": "https://bbs.wps.cn/cms/category_7.html"
+    },
+    {
+      "id": "A12",
+      "reason": "web_search 端点不可用（TypeError: fetch failed）",
+      "note": "Bing/360 搜索 HTML 抓取可用但结果被 SEO 污染，未作为 WPS 结论来源"
+    }
+  ]
+}

@@ -40,7 +40,11 @@ BASELINE = ROOT / "tools" / "i18n_baseline.json"
 
 #: 不参与 GUI i18n 棘轮的文件（CLI 控制台输出，不是 QTranslator 文案；
 #: beecmd 的中文是"命令行输出"，要翻译也应该走 CLI 自己的文案表，而不是 GUI locale）
-EXCLUDED_FILES = {"beeoffice/beecmd.py"}
+EXCLUDED_FILES = {
+    "beeoffice/beecmd.py",
+    # pdf_tools 只被 beecmd 调用（命令行输出，不是 GUI 文案）
+    "beeoffice/pdf_tools.py",
+}
 
 #: 含 CJK 统一表意文字（够用；扩展区/兼容区不常见于界面）
 _CJK_RE = re.compile(r"[\u4e00-\u9fff]")

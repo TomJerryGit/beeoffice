@@ -252,6 +252,8 @@ class BeeSheetView(
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(self._toolbar_container)
         layout.addWidget(self.table_view)
+        if hasattr(self, "_sheet_tabs_container"):
+            layout.addWidget(self._sheet_tabs_container)
         layout.addWidget(self._info_panel)
 
     # ==================== 基础功能 ====================
@@ -734,6 +736,8 @@ class BeeSheetView(
             # 记住工作簿（导出时把全部工作表与公式写回）
             self._workbook = workbook
             self._active_sheet_name = workbook.active if workbook else ""
+            if hasattr(self, "_refresh_sheet_tabs"):
+                self._refresh_sheet_tabs()
 
             # P1：记住"当前文件"，这样 Ctrl+S / 自动保存 / 保存前备份
             # 才有目标（原先蜜算从不设路径 → 上述三件事对蜜算全部失效）。

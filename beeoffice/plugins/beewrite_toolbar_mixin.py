@@ -416,7 +416,10 @@ class ToolbarMixin:
         btn_page_setup.clicked.connect(self._show_page_setup_dialog)
         layout.addWidget(btn_page_setup)
 
-        btn_print = QPushButton("🖨️ 打印预览")
+        btn_print = QPushButton("📄 页面视图")
+        btn_print.setToolTip(
+            "页面视图/打印预览（按页面设置显示纸张、方向、页边距）"
+        )
         btn_print.clicked.connect(self._print_preview)
         layout.addWidget(btn_print)
 

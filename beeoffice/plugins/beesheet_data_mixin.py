@@ -496,6 +496,210 @@ class DataMixin:
         except Exception as e:  # noqa: BLE001
             logging.debug(f"[蜜算] 同步标签标题失败（忽略）: {e}")
 
+    # ==================== WPS 式工作表页签（2026-10-22） ====================
+    def _refresh_sheet_tabs(self):
+        """按 `self._workbook` 重建底部工作表页签，并同步当前选中项。"""
+        bar = getattr(self, "_sheet_tab_bar", None)
+        if bar is None:
+            return
+        workbook = getattr(self, "_workbook", None)
+        names = list(workbook.sheet_names) if workbook is not None else []
+        current = getattr(self, "_active_sheet_name", "") or (
+            names[0] if names else ""
+        )
+        container = getattr(self, "_sheet_tabs_container", None)
+        if container is not None:
+            container.setVisible(bool(names))
+        bar.blockSignals(True)
+        try:
+            while bar.count() > 0:
+                bar.removeTab(0)
+            for name in names:
+                bar.addTab(str(name))
+            if names and current in names:
+                bar.setCurrentIndex(names.index(current))
+            elif names:
+                bar.setCurrentIndex(0)
+        finally:
+            bar.blockSignals(False)
+
+    def _current_sheet_index(self) -> int:
+        workbook = getattr(self, "_workbook", None)
+        if workbook is None:
+            return -1
+        name = getattr(self, "_active_sheet_name", "")
+        names = workbook.sheet_names
+        return names.index(name) if name in names else 0
+
+    def _on_sheet_tab_changed(self, index: int):
+        """点击工作表页签：把当前表写回工作簿，再加载目标表数据。"""
+        workbook = getattr(self, "_workbook", None)
+        if workbook is None or not (0 <= index < len(workbook.sheets)):
+            return
+        target = workbook.sheets[index]
+        if not getattr(self.model, "is_fully_loaded", True):
+            self._set_status(
+                "完整数据仍在后台加载，暂不能切换工作表，请稍候", 4000
+            )
+            self._refresh_sheet_tabs()
+            return
+        old_name = getattr(self, "_active_sheet_name", "") or ""
+        if old_name and old_name != target.name:
+            try:
+                from beeoffice.plugins.beesheet_workbook import (
+                    sync_active_sheet,
+                )
+
+                sync_active_sheet(workbook, old_name, self.model.df.copy())
+            except Exception as e:  # noqa: BLE001 - 切换不能被同步失败阻断
+                logging.warning(f"[蜜算] 切换工作表前回写失败（继续）: {e}")
+        self._active_sheet_name = target.name
+        df = target.df if target.df is not None else pd.DataFrame()
+        self.model.set_full_dataframe(df.copy())
+        self.table_view.setModel(self.model)
+        self._undo_stack.clear()
+        self._redo_stack.clear()
+        self._auto_resize_columns()
+        path = getattr(self, "_current_file_path", None)
+        if path:
+            self._load_view_styles_from(path, target.name)
+        self._set_status(f"已切换到工作表：{target.name}", 3000)
+        try:
+            self.contentChanged.emit()
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _show_sheet_tab_menu(self, pos):
+        """工作表页签右键菜单：新建 / 重命名 / 删除。"""
+        bar = getattr(self, "_sheet_tab_bar", None)
+        if bar is None:
+            return
+        index = bar.tabAt(pos)
+        menu = QMenu(self)
+        menu.addAction("➕ 新建工作表", self._add_workbook_sheet)
+        if index >= 0:
+            menu.addSeparator()
+            menu.addAction(
+                "✏️ 重命名…",
+                lambda: self._rename_workbook_sheet(index),
+            )
+            menu.addAction(
+                "🗑 删除工作表",
+                lambda: self._delete_workbook_sheet(index),
+            )
+        menu.exec(bar.mapToGlobal(pos))
+
+    def _ensure_workbook_for_sheets(self):
+        """没有工作簿时创建一个（用于空白表格的新建工作表）。"""
+        from beeoffice.plugins.beesheet_workbook import (
+            SheetData, WorkbookData,
+        )
+
+        workbook = getattr(self, "_workbook", None)
+        if workbook is not None:
+            return workbook
+        name = getattr(self, "_active_sheet_name", "") or "Sheet1"
+        df = self.model.df if self.model is not None else pd.DataFrame()
+        workbook = WorkbookData(
+            sheets=[SheetData(name=str(name), df=df)],
+            active=str(name),
+        )
+        self._workbook = workbook
+        self._active_sheet_name = str(name)
+        return workbook
+
+    def _add_workbook_sheet(self):
+        workbook = self._ensure_workbook_for_sheets()
+        from beeoffice.plugins.beesheet_workbook import SheetData
+
+        base = "Sheet"
+        index = len(workbook.sheets) + 1
+        names = set(workbook.sheet_names)
+        while f"{base}{index}" in names:
+            index += 1
+        name = f"{base}{index}"
+        workbook.sheets.append(
+            SheetData(name=name, df=pd.DataFrame({"A": []}))
+        )
+        self._refresh_sheet_tabs()
+        bar = getattr(self, "_sheet_tab_bar", None)
+        if bar is not None:
+            bar.setCurrentIndex(len(workbook.sheets) - 1)
+        self._set_status(f"已新建工作表：{name}", 3000)
+        try:
+            self.contentChanged.emit()
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _rename_workbook_sheet(self, index: int):
+        workbook = getattr(self, "_workbook", None)
+        if workbook is None or not (0 <= index < len(workbook.sheets)):
+            return
+        sheet = workbook.sheets[index]
+        name, ok = QInputDialog.getText(
+            self, "重命名工作表", "工作表名称：", text=sheet.name
+        )
+        if not ok:
+            return
+        new_name = (name or "").strip()
+        if not new_name:
+            QMessageBox.warning(self, "重命名失败", "工作表名称不能为空")
+            return
+        if new_name != sheet.name and new_name in workbook.sheet_names:
+            QMessageBox.warning(self, "重命名失败", f"已存在工作表：{new_name}")
+            return
+        old_name = sheet.name
+        sheet.name = new_name
+        if getattr(self, "_active_sheet_name", "") == old_name:
+            self._active_sheet_name = new_name
+        if workbook.active == old_name:
+            workbook.active = new_name
+        self._refresh_sheet_tabs()
+        if getattr(self, "_sheet_tab_bar", None) is not None:
+            self._sheet_tab_bar.setCurrentIndex(index)
+        self._set_status(f"工作表已重命名：{old_name} → {new_name}", 3000)
+        try:
+            self.contentChanged.emit()
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _delete_workbook_sheet(self, index: int):
+        workbook = getattr(self, "_workbook", None)
+        if workbook is None or len(workbook.sheets) <= 1:
+            self._set_status("至少保留一张工作表", 3000)
+            return
+        if not (0 <= index < len(workbook.sheets)):
+            return
+        removed = workbook.sheets.pop(index)
+        if getattr(self, "_active_sheet_name", "") == removed.name:
+            new_index = min(index, len(workbook.sheets) - 1)
+            self._active_sheet_name = workbook.sheets[new_index].name
+        self._refresh_sheet_tabs()
+        bar = getattr(self, "_sheet_tab_bar", None)
+        if bar is not None:
+            bar.setCurrentIndex(self._current_sheet_index())
+        self._set_status(f"已删除工作表：{removed.name}", 3000)
+        try:
+            self.contentChanged.emit()
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _toggle_wps_headers(self):
+        """切换 WPS 式表头（A/B/C 列字母 + 行号）与纯列名显示。"""
+        button = getattr(self, "_wps_headers_btn", None)
+        enabled = bool(button.isChecked()) if button is not None else True
+        self.model.wps_headers = enabled
+        rows = self.model.rowCount()
+        cols = self.model.columnCount()
+        if cols:
+            self.model.headerDataChanged.emit(Qt.Horizontal, 0, cols - 1)
+        if rows:
+            self.model.headerDataChanged.emit(Qt.Vertical, 0, rows - 1)
+        self._auto_resize_columns()
+        self._set_status(
+            "表头：WPS 式行列号" if enabled else "表头：仅列名", 2500
+        )
+
     def _export_csv(self):
         """导出为 CSV（带 UTF-8 BOM）"""
         # R1 安全门：导出必须基于完整数据（否则导出的文件只有前 N 行）

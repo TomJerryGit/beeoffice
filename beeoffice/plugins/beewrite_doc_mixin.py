@@ -425,26 +425,60 @@ class DocMixin:
         return extras
 
     # ==================================================================
-    # 打印预览
+    # 打印预览 / 页面视图
     # ==================================================================
-    def _print_preview(self):
-        """打开打印预览对话框"""
+    def _build_page_printer(self):
+        """
+        按当前文档的 `_page_settings` 构造 QPrinter（纸张/方向/页边距）。
+
+        2026-10-22：原先打印预览写死 A4、忽略用户设置，与 WPS 的「页面视图」
+        不一致；现在预览/打印/导出共用这套页面参数（页边距单位 mm）。
+        """
+        from PySide6.QtPrintSupport import QPrinter
+        from PySide6.QtGui import QPageSize, QPageLayout
+        from PySide6.QtCore import QMarginsF
+
+        settings = getattr(self, "_page_settings", {}) or {}
+        paper = str(settings.get("paper", "A4"))
+        paper_id = {
+            "A4": QPageSize.A4,
+            "A3": QPageSize.A3,
+            "A5": QPageSize.A5,
+            "Letter": QPageSize.Letter,
+            "Legal": QPageSize.Legal,
+        }.get(paper, QPageSize.A4)
+        printer = QPrinter(QPrinter.HighResolution)
+        printer.setPageSize(QPageSize(paper_id))
+        printer.setPageOrientation(
+            QPageLayout.Landscape
+            if settings.get("orientation") == "landscape"
+            else QPageLayout.Portrait
+        )
+        margins = QMarginsF(
+            float(settings.get("margin_left", 25.4)),
+            float(settings.get("margin_top", 25.4)),
+            float(settings.get("margin_right", 25.4)),
+            float(settings.get("margin_bottom", 25.4)),
+        )
         try:
-            from PySide6.QtPrintSupport import (
-                QPrinter,
-                QPrintPreviewDialog,
-            )
+            printer.setPageMargins(margins, QPageLayout.Millimeter)
+        except Exception:  # noqa: BLE001 - 某些平台打印后端限制，保留默认
+            pass
+        return printer
+
+    def _print_preview(self):
+        """打开页面视图（打印预览）：按当前页面设置渲染页边距/纸张/方向。"""
+        try:
+            from PySide6.QtPrintSupport import QPrintPreviewDialog
         except ImportError:
             QMessageBox.warning(
                 self, "提示", "当前环境不支持打印功能"
             )
             return
 
-        printer = QPrinter(QPrinter.HighResolution)
-        printer.setPageSize(QPrinter.A4)
-
+        printer = self._build_page_printer()
         preview = QPrintPreviewDialog(printer, self)
-        preview.setWindowTitle("📄 打印预览")
+        preview.setWindowTitle("📄 页面视图（打印预览）")
         preview.resize(900, 700)
 
         def render(p):

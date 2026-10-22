@@ -1,5 +1,5 @@
 {
-  "total": 3598,
+  "total": 3616,
   "by_file": {
     "beeoffice/__version__.py": 1,
     "beeoffice/ai_settings.py": 22,
@@ -29,7 +29,7 @@
     "beeoffice/plugins/beesheet_audit_mixin.py": 128,
     "beeoffice/plugins/beesheet_chart_mixin.py": 32,
     "beeoffice/plugins/beesheet_context_menu_mixin.py": 20,
-    "beeoffice/plugins/beesheet_data_mixin.py": 216,
+    "beeoffice/plugins/beesheet_data_mixin.py": 229,
     "beeoffice/plugins/beesheet_dialogs.py": 27,
     "beeoffice/plugins/beesheet_engine.py": 10,
     "beeoffice/plugins/beesheet_formula_mixin.py": 70,
@@ -41,7 +41,7 @@
     "beeoffice/plugins/beesheet_rowcol_mixin.py": 33,
     "beeoffice/plugins/beesheet_style_export.py": 22,
     "beeoffice/plugins/beesheet_style_mixin.py": 20,
-    "beeoffice/plugins/beesheet_ui_mixin.py": 214,
+    "beeoffice/plugins/beesheet_ui_mixin.py": 218,
     "beeoffice/plugins/beesheet_workbook.py": 3,
     "beeoffice/plugins/beeshow.py": 7,
     "beeoffice/plugins/beeshow_ai_mixin.py": 41,
@@ -94,7 +94,7 @@
     "beeoffice/plugins/beewrite_spellcheck_dialog.py": 31,
     "beeoffice/plugins/beewrite_table_mixin.py": 72,
     "beeoffice/plugins/beewrite_textbox.py": 14,
-    "beeoffice/plugins/beewrite_toolbar_mixin.py": 102,
+    "beeoffice/plugins/beewrite_toolbar_mixin.py": 103,
     "beeoffice/plugins/beewrite_view_mixin.py": 25,
     "beeoffice/plugins/data_binding.py": 5,
     "beeoffice/plugins/empty_state.py": 13,
@@ -118,7 +118,7 @@
     "beeoffice/templates.py": 35,
     "beeoffice/utils.py": 1
   },
-  "generated_at": "2026-10-20 14:20",
-  "commit": "52096c4",
-  "note": "硬编码中文文案棘轮基线；只许减少。2026-10-20 已决策中文优先（移除语言切换入口），beecmd.py 不计入。"
+  "generated_at": "2026-10-22 08:46",
+  "commit": "7316d3a",
+  "note": "硬编码中文文案棘轮基线；只许减少。更新方式：python tools/i18n_audit.py --write-baseline"
 }

@@ -40,7 +40,7 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableView, QHeaderView,
     QLineEdit, QLabel, QPushButton, QComboBox, QSpinBox,
-    QListWidget, QProgressBar, QAbstractButton,
+    QListWidget, QProgressBar, QAbstractButton, QTabBar,
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QShortcut, QKeySequence
@@ -338,6 +338,20 @@ class UIMixin:
             btn.setStyleSheet(btn_style)
             btn.clicked.connect(slot)
             self._t4.addWidget(btn)
+
+        # 2026-10-22：WPS 式「列字母 A/B/C + 行号」显示开关
+        self._wps_headers_btn = QPushButton("🔠 行列号")
+        self._wps_headers_btn.setCheckable(True)
+        self._wps_headers_btn.setChecked(
+            getattr(self.model, "wps_headers", True)
+        )
+        self._wps_headers_btn.setToolTip(
+            "切换表头：WPS 式列字母（A/B/C）+ 行号 / 仅列名"
+        )
+        self._wps_headers_btn.setStyleSheet(btn_style)
+        self._wps_headers_btn.clicked.connect(self._toggle_wps_headers)
+        self._t4.addWidget(self._wps_headers_btn)
+
         btn_toggle = QPushButton("▲ 隐藏")
         btn_toggle.setStyleSheet("QPushButton{font-size:10px;padding:2px 6px;}")
         btn_toggle.clicked.connect(lambda: self._toggle_toolbars(btn_toggle))
@@ -495,6 +509,39 @@ class UIMixin:
         self._fill_start_range = None
         self._fill_direction = None
         self._fill_target = None
+
+        # ===== WPS 式底部工作表标签栏（2026-10-22）=====
+        self._sheet_tabs_container = QWidget()
+        tabs_layout = QHBoxLayout(self._sheet_tabs_container)
+        tabs_layout.setContentsMargins(4, 0, 4, 0)
+        tabs_layout.setSpacing(2)
+        self._sheet_tab_bar = QTabBar()
+        self._sheet_tab_bar.setExpanding(False)
+        self._sheet_tab_bar.setDocumentMode(True)
+        self._sheet_tab_bar.setMinimumHeight(24)
+        self._sheet_tab_bar.setToolTip(
+            "工作表页签（可右键：新建/重命名/删除；点击切换）"
+        )
+        self._sheet_tab_bar.setContextMenuPolicy(Qt.CustomContextMenu)
+        self._sheet_tab_bar.customContextMenuRequested.connect(
+            self._show_sheet_tab_menu
+        )
+        self._sheet_tab_bar.currentChanged.connect(
+            self._on_sheet_tab_changed
+        )
+        tabs_layout.addWidget(self._sheet_tab_bar)
+        self._sheet_add_btn = QPushButton("＋")
+        self._sheet_add_btn.setFixedWidth(26)
+        self._sheet_add_btn.setToolTip("新建工作表")
+        self._sheet_add_btn.setStyleSheet(
+            "QPushButton{background:#FFF;border:1px solid #CCC;"
+            "border-radius:3px;font-weight:bold;}"
+            "QPushButton:hover{background:#FFE0A0;}"
+        )
+        self._sheet_add_btn.clicked.connect(self._add_workbook_sheet)
+        tabs_layout.addWidget(self._sheet_add_btn)
+        tabs_layout.addStretch()
+        self._sheet_tabs_container.setVisible(False)
 
     # ==================== 参数提示气泡 ====================
     def _build_param_tip(self):
