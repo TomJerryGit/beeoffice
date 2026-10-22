@@ -1363,6 +1363,47 @@ def apply_header_footer(doc, header_text=None, footer_text=None,
     return applied
 
 
+# ==================== 目录域（5.4，2026-10-22） ====================
+def apply_toc_field(doc, title="目录"):
+    """
+    在 DOCX 开头插入 Word TOC 域（可在 Word/WPS 中右键“更新域”生成页码）。
+
+    这是“真目录域”，不是静态文字：导出后打开文档更新域即可得到带页码的目录。
+    """
+    try:
+        from docx.oxml import OxmlElement
+        from docx.oxml.ns import qn
+    except Exception:  # noqa: BLE001
+        return False
+    paragraph = doc.add_paragraph(title)
+    try:
+        paragraph.style = "TOC Heading"
+    except Exception:  # noqa: BLE001
+        pass
+    field_par = doc.add_paragraph()
+    run = field_par.add_run()
+    begin = OxmlElement("w:fldChar")
+    begin.set(qn("w:fldCharType"), "begin")
+    instr = OxmlElement("w:instrText")
+    instr.set(qn("xml:space"), "preserve")
+    instr.text = ' TOC \\o "1-3" \\h \\z \\u '
+    separate = OxmlElement("w:fldChar")
+    separate.set(qn("w:fldCharType"), "separate")
+    end = OxmlElement("w:fldChar")
+    end.set(qn("w:fldCharType"), "end")
+    run._r.append(begin)
+    run._r.append(instr)
+    run._r.append(separate)
+    run._r.append(end)
+    # 移到正文最前（目录在前，内容在后）
+    body = doc.element.body
+    for element in (field_par._p, paragraph._p):
+        body.remove(element)
+    body.insert(0, field_par._p)
+    body.insert(0, paragraph._p)
+    return True
+
+
 # ==================== 页码（5.3，2026-10-22） ====================
 def apply_page_numbers(doc, config=None):
     """
@@ -1466,7 +1507,7 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
                    header_xml="", footer_xml="",
                    paragraph_styles=None, style_definitions=None,
                    nested_tables=None, section_parts=None,
-                   page_number=None):
+                   page_number=None, toc_field=False):
     """
     Markdown 导出为 DOCX 文件
 
@@ -1520,6 +1561,13 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
             apply_sections(doc, sections)
         else:
             apply_page_settings(doc, page_settings)
+
+        # 5.4：可选 Word 目录域（真域，可在 Word/WPS 更新）
+        if toc_field:
+            try:
+                apply_toc_field(doc)
+            except Exception as e:  # noqa: BLE001
+                logging.warning(f"写入目录域失败: {e}")
 
         # 页眉页脚（保真度阶段 A）：原先**整个部件都不存在**，
         # 因为导入侧只返回 Markdown，信息没有承载者。

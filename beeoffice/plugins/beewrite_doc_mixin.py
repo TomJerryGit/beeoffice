@@ -88,6 +88,21 @@ class DocMixin:
             )
         return "".join(rows)
 
+    def _enable_toc_field(self):
+        """启用 Word 目录域（5.4）：导出 DOCX 时在开头生成可更新的 TOC 域。"""
+        self._docx_toc_field = True
+        try:
+            self._set_status(
+                "📑 已启用 Word 目录域（导出 DOCX 后在 Word/WPS 中更新域即可）",
+                4000,
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            self.contentChanged.emit()
+        except Exception:  # noqa: BLE001
+            pass
+
     def _insert_toc(self):
         """
         根据当前文档标题生成目录并插入到光标处。

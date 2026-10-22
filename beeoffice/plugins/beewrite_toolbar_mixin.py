@@ -265,6 +265,13 @@ class ToolbarMixin:
         btn_toc.clicked.connect(self._insert_toc)
         toolbar.addWidget(btn_toc)
 
+        btn_toc_field = QPushButton("📑 目录域")
+        btn_toc_field.setToolTip(
+            "启用 Word 目录域：导出 DOCX 后可在 Word/WPS 中更新域生成带页码目录"
+        )
+        btn_toc_field.clicked.connect(self._enable_toc_field)
+        toolbar.addWidget(btn_toc_field)
+
         btn_compare = QPushButton("📊 对比")
         btn_compare.clicked.connect(self._compare_with_original)
         toolbar.addWidget(btn_compare)
