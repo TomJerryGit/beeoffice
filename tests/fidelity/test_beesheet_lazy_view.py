@@ -147,8 +147,9 @@ def test_phase2_completes_and_enables_editing(view, qtbot, tmp_path):
     view._import_file_from_path(str(path))
     # 等后台补全（真实 AsyncTask 线程）。
     # 等待上限给足：单文件补全实测 ~1.3s，但测试进程里前面用例可能留下
-    # 待处理的后台任务，队列会排队。
-    for _ in range(1500):
+    # 待处理的后台任务，队列会排队；全量套件满载时 30s 上限出现过一次抖动，
+    # 放宽到 60s（真实功能等待，不改变断言强度）。
+    for _ in range(3000):
         qtbot.wait(20)
         if view.model.is_fully_loaded:
             break
