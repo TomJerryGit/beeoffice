@@ -167,8 +167,10 @@ def test_import_path_reads_all_sheets_via_product_code(tmp_path):
 
     from beeoffice.plugins.beesheet import BeeSheetView
 
+    # 2026-10-22：阶段 1 已拆分为"工作线程纯读取 _read_sheet_payload +
+    # 主线程 _apply_sheet_import_payload"，读工作簿的接线现在在读取函数里。
     src = textwrap.dedent(
-        inspect.getsource(BeeSheetView._import_file_from_path)
+        inspect.getsource(BeeSheetView._read_sheet_payload)
     )
     tree = ast.parse(src)
 

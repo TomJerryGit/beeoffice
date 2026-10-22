@@ -41,6 +41,9 @@ class ContextMenuMixin:
         # ---------- 粘贴 ----------
         menu.addAction("📋 粘贴").triggered.connect(self._smart_paste)
         menu.addSeparator()
+        if hasattr(self, "_make_freeze_menu"):
+            self._make_freeze_menu(menu)
+        menu.addSeparator()
 
         # ---------- 插入行列 ----------
         insert_menu = menu.addMenu("➕ 插入")

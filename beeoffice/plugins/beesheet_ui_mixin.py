@@ -40,7 +40,7 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableView, QHeaderView,
     QLineEdit, QLabel, QPushButton, QComboBox, QSpinBox,
-    QListWidget, QProgressBar, QAbstractButton, QTabBar,
+    QListWidget, QProgressBar, QAbstractButton, QTabBar, QMenu,
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QShortcut, QKeySequence
@@ -352,6 +352,13 @@ class UIMixin:
         self._wps_headers_btn.clicked.connect(self._toggle_wps_headers)
         self._t4.addWidget(self._wps_headers_btn)
 
+        self._freeze_btn = QPushButton("❄️ 冻结")
+        self._freeze_btn.setToolTip("冻结首行/首列/当前单元格（WPS 式）")
+        freeze_menu = QMenu(self._freeze_btn)
+        self._make_freeze_menu(freeze_menu)
+        self._freeze_btn.setMenu(freeze_menu)
+        self._t4.addWidget(self._freeze_btn)
+
         btn_toggle = QPushButton("▲ 隐藏")
         btn_toggle.setStyleSheet("QPushButton{font-size:10px;padding:2px 6px;}")
         btn_toggle.clicked.connect(lambda: self._toggle_toolbars(btn_toggle))
@@ -478,6 +485,9 @@ class UIMixin:
         # 单元格编辑委托
         self._delegate = CellEditorDelegate(self)
         self.table_view.setItemDelegate(self._delegate)
+
+        # WPS 式冻结窗格（叠加视图，2026-10-22）
+        self._init_frozen_views()
 
         # 公式栏事件
         self.formula_bar.returnPressed.connect(self._on_formula_enter)

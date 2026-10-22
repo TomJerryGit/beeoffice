@@ -64,6 +64,7 @@ from PySide6.QtCore import (
 from beeoffice.plugins.beesheet_utils import (
     adjust_formula_refs, col_index_to_name, col_name_to_index,
 )
+from beeoffice.plugins.beesheet_freeze_mixin import FreezeMixin
 from beeoffice.plugins.beesheet_commands import (
     EditCellCommand, SortCommand,
 )
@@ -94,6 +95,7 @@ class BeeSheetView(
     ChartMixin,
     ContextMenuMixin,
     RowColMixin,
+    FreezeMixin,
     UIMixin,
     SheetPrintMixin,
     SheetAIMixin,
@@ -111,6 +113,11 @@ class BeeSheetView(
     #: 永远收不到）——实测 30 万行表后台补全"完成但界面永远 1000 行"。
     #: 因此把"启动阶段 2"通过本信号发回主线程，由主线程再启动后台任务。
     phase2_requested = Signal(str)
+
+    #: 阶段 1（读文件）完成信号：工作线程只做**纯读取**，把结果发回主线程
+    #: 再建模型/样式/状态栏。原先工作线程直接 setModel / resize / 弹窗，
+    #: 属于跨线程操作 Qt（潜在崩溃 + 偶发界面不刷新）；2026-10-22 修正。
+    import_ready = Signal(object, str)
 
     FUNCTION_REFERENCE = {}
 
@@ -167,6 +174,7 @@ class BeeSheetView(
         self.model._conditional_formats_ref = self._conditional_formats = {}
         # P0：阶段 2 必须从主线程启动（工作线程启动的 Async 回调收不到）。
         self.phase2_requested.connect(self._start_phase2_full_load)
+        self.import_ready.connect(self._apply_sheet_import_payload)
 
         # ---------- 撤销 / 重做 ----------
         self._undo_stack, self._redo_stack = [], []
@@ -654,77 +662,74 @@ class BeeSheetView(
     # ==================================================================
     # 导入
     # ==================================================================
-    def _import_file_from_path(self, path):
-        """从路径导入 CSV / Excel（自动检测编码，限制 20 万行）"""
-        try:
-            ext = os.path.splitext(path)[1].lower()
-            # R1：默认不走两阶段（小文件没必要，避免改变既有行为）；
-            # 下面 xlsx 分支会按文件大小重新判定。
-            # 必须在这里初始化：CSV 分支不会进入 xlsx 分支，
-            # 否则后面引用 `lazy` 会 NameError（我第一版就漏了这一步）。
-            lazy = False
-            if ext == '.csv':
-                import chardet
-                with open(path, 'rb') as f:
-                    raw = f.read(10000)
-                df = pd.read_csv(
-                    path,
-                    encoding=chardet.detect(raw).get('encoding', 'utf-8'),
-                    nrows=200001
+    def _read_sheet_payload(self, path):
+        """
+        阶段 1 的**纯读取**部分（可在工作线程执行，不碰 Qt）。
+
+        返回 `{df, workbook, lazy, total_rows}`；>20 万行的询问与切片放到
+        主线程 `_apply_sheet_import_payload` 里做（QMessageBox 不能在工作线程弹）。
+        """
+        ext = os.path.splitext(path)[1].lower()
+        lazy = False
+        workbook = None
+        if ext == '.csv':
+            import chardet
+            with open(path, 'rb') as f:
+                raw = f.read(10000)
+            df = pd.read_csv(
+                path,
+                encoding=chardet.detect(raw).get('encoding', 'utf-8'),
+                nrows=200001,
+            )
+        else:
+            try:
+                from beeoffice.plugins.beesheet_workbook import read_workbook
+
+                # R1：大文件先只读前 PHASE1_ROWS 行，随后后台补齐。
+                lazy = self._should_lazy_load(path)
+                workbook = read_workbook(
+                    path, max_rows=self.PHASE1_ROWS if lazy else 200001
                 )
-            else:
-                # 保真度阶段 A（docs/fidelity.md 根因 1 第一刀）：
-                # 原先 `pd.read_excel(...)` **只读首张工作表、且公式全丢**
-                # （实测 9 项特征丢 8 项：sheets 2→1、formulas 4→0）。
-                # 现在用 beesheet_workbook 读**全部**工作表与每格公式，
-                # 首张表进模型（当前只编辑一张），其余留在工作簿对象里，
-                # 导出时原样写回。
+                df = (
+                    workbook.sheets[0].df
+                    if workbook.sheets else pd.DataFrame()
+                )
+            except Exception as e:  # noqa: BLE001 - 回退不应中断导入
+                logging.warning(f"工作簿读取失败，回退为只读首张表: {e}")
                 workbook = None
-                try:
-                    from beeoffice.plugins.beesheet_workbook import (
-                        read_workbook,
-                    )
+                lazy = False
+                from beeoffice.plugins.beesheet_workbook import (
+                    pick_excel_engine,
+                )
 
-                    # R1：**两阶段载入**。大文件先只读前 PHASE1_ROWS 行，
-                    # 让窗口尽快可交互；完整数据随后在后台补齐
-                    # （期间模型只读，见 _start_phase2_full_load 的说明）。
-                    lazy = self._should_lazy_load(path)
-                    if lazy:
-                        workbook = read_workbook(
-                            path, max_rows=self.PHASE1_ROWS
-                        )
-                    else:
-                        workbook = read_workbook(path, max_rows=200001)
-                    df = (
-                        workbook.sheets[0].df
-                        if workbook.sheets else pd.DataFrame()
-                    )
-                except Exception as e:  # noqa: BLE001 - 回退不应中断导入
-                    logging.warning(
-                        f"工作簿读取失败，回退为只读首张表: {e}"
-                    )
-                    workbook = None
-                    lazy = False
-                    # ⚠️ 引擎按扩展名选：`.xls` 必须走 xlrd（openpyxl 只认 .xlsx）。
-                    # 原先写死 `engine='openpyxl'` → 对话框里列着的 .xls
-                    # 一选就"导入失败"（审计报告 §2.10 的"假装支持"）。
-                    from beeoffice.plugins.beesheet_workbook import (
-                        pick_excel_engine,
-                    )
+                df = pd.read_excel(
+                    path, engine=pick_excel_engine(path), nrows=200001
+                )
+        return {
+            "df": df,
+            "workbook": workbook,
+            "lazy": lazy,
+            "total_rows": len(df),
+        }
 
-                    df = pd.read_excel(
-                        path, engine=pick_excel_engine(path), nrows=200001
-                    )
-            total_rows = len(df)
+    def _apply_sheet_import_payload(self, payload, path):
+        """主线程：把阶段 1 读取结果变成模型/视图/状态（唯一碰 Qt 的地方）。"""
+        try:
+            df = payload["df"]
+            workbook = payload.get("workbook")
+            lazy = bool(payload.get("lazy"))
+            total_rows = int(payload.get("total_rows", len(df)))
             if total_rows > 200000:
                 if QMessageBox.question(
-                    self, "提示", f"文件有{total_rows}行，仅加载前20万行？",
-                    QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
-                ) == QMessageBox.Yes:
-                    df = df.head(200000)
+                    self,
+                    "提示",
+                    f"文件有{total_rows}行，仅加载前20万行？",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.Yes,
+                ) != QMessageBox.Yes:
+                    return
+                df = df.head(200000)
             if lazy:
-                # 阶段 1：先显示前 PHASE1_ROWS 行（模型此时**只读**），
-                # 随后后台补全；补全前禁止编辑，于是阶段 2 的替换永远安全。
                 self.model.set_partial_dataframe(df)
             else:
                 self.model.set_full_dataframe(df)
@@ -733,18 +738,12 @@ class BeeSheetView(
             self._redo_stack.clear()
             self._auto_resize_columns()
 
-            # 记住工作簿（导出时把全部工作表与公式写回）
             self._workbook = workbook
             self._active_sheet_name = workbook.active if workbook else ""
             if hasattr(self, "_refresh_sheet_tabs"):
                 self._refresh_sheet_tabs()
 
-            # P1：记住"当前文件"，这样 Ctrl+S / 自动保存 / 保存前备份
-            # 才有目标（原先蜜算从不设路径 → 上述三件事对蜜算全部失效）。
             self.set_current_file_path(path)
-
-            # P1：读回视图侧格式（加粗/数字格式/合并/批注）——
-            # 只写不读会变成"存了却看不到"，用户会以为保存坏了。
             self._load_view_styles_from(
                 path, getattr(self, "_active_sheet_name", "") or ""
             )
@@ -764,12 +763,33 @@ class BeeSheetView(
                 0 if lazy else 5000,
             )
             if lazy:
-                # 记下阶段 2 的加载器（供 _ensure_full_data 兜底调用），
-                # 并立刻启动后台补全。
                 self.model._full_loader = self._make_full_loader(path)
                 self._start_phase2_full_load(path)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             QMessageBox.warning(self, "导入失败", str(e))
+
+    def _import_file_from_path(self, path):
+        """
+        从路径导入 CSV / Excel（自动检测编码，限制 20 万行）。
+
+        线程模型（2026-10-22 修正）：本方法被 `AsyncTaskManager` 放在工作线程
+        执行时，只做**纯读取**并把结果经 `import_ready` 发回主线程；
+        主线程槽 `_apply_sheet_import_payload` 才创建模型/改视图/弹窗。
+        主线程直接调用时同步读取+应用（既有测试/脚本路径保持不变）。
+        """
+        is_main = QThread.currentThread() is self.thread()
+        try:
+            payload = self._read_sheet_payload(path)
+        except Exception as e:  # noqa: BLE001
+            if is_main:
+                QMessageBox.warning(self, "导入失败", str(e))
+                return None
+            raise
+        if is_main:
+            self._apply_sheet_import_payload(payload, path)
+        else:
+            self.import_ready.emit(payload, path)
+        return payload
 
     def _should_lazy_load(self, path) -> bool:
         """
@@ -840,35 +860,119 @@ class BeeSheetView(
         self._set_status(f"↪ 重做({len(self._redo_stack)}步)", 2000)
 
     # ==================== 排序 ====================
-    def sort_by_column(self, col, ascending=True):
-        """按列排序"""
-        old = self.model.df.copy()
-        self.model._loaded_df = self.model.df.sort_values(
-            by=self.model.df.columns[col], ascending=ascending,
-            ignore_index=True
+    def sort_by_columns(self, keys):
+        """
+        多级排序（2026-10-22，WPS 式细节）。
+
+        :param keys: [(列序号, 是否升序), ...]，按优先级从高到低
+            例：[(2, False), (0, True)] = 先按第 3 列降序，再按第 1 列升序。
+
+        为什么不用 `sort_by_column` 重复调用：多次单列排序是**不稳定**的
+        （后一次会覆盖前一次），必须一次性 `sort_values(by=[...])` 才是真多级。
+        """
+        keys = [(int(c), bool(asc)) for c, asc in keys]
+        if not keys:
+            return False
+        model = self.model
+        real_rows = int(getattr(model, "_real_rows", 0) or 0)
+        full = getattr(model, "_full_df", None)
+        if full is not None and real_rows and len(full) >= real_rows:
+            base = full.iloc[:real_rows].copy()
+        elif real_rows:
+            base = model.df.iloc[:real_rows].copy()
+        else:
+            base = model.df.copy()
+        if not len(base.columns):
+            return False
+        for col, _asc in keys:
+            if not (0 <= col < len(base.columns)):
+                raise ValueError(f"排序列越界：{col}")
+        old = base.copy()
+        by = [base.columns[col] for col, _asc in keys]
+        # 重复列名时 pandas 会报错：退回按位置构造临时列（值仍写回原列）
+        try:
+            new_df = base.sort_values(
+                by=by,
+                ascending=[asc for _c, asc in keys],
+                ignore_index=True,
+                kind="mergesort",       # 稳定排序，保证多级优先级
+            )
+        except (ValueError, KeyError):
+            work = base.copy()
+            helper_names = []
+            for index, (col, _asc) in enumerate(keys):
+                helper = f"__sort_key_{index}__"
+                work[helper] = work.iloc[:, col].to_numpy()
+                helper_names.append(helper)
+            work = work.sort_values(
+                by=helper_names,
+                ascending=[asc for _c, asc in keys],
+                ignore_index=True,
+                kind="mergesort",
+            ).drop(columns=helper_names)
+            new_df = work
+        self._push_command(SortCommand(old, new_df))
+        labels = "、".join(
+            f"{base.columns[c]}{'↑' if asc else '↓'}"
+            for c, asc in keys
         )
-        self._push_command(SortCommand(old, self.model._loaded_df))
-        self._set_status("已排序")
+        self._set_status(f"已按 {len(keys)} 列排序：{labels}", 3000)
+        return True
+
+    def sort_by_column(self, col, ascending=True):
+        """按列排序（单级，保留给旧调用；内部走多级排序）"""
+        return self.sort_by_columns([(col, ascending)])
 
     def _show_sort_dialog(self):
-        """排序对话框（选择列 + 升/降序）"""
+        """多级排序对话框（最多 3 个排序键，WPS 式；2026-10-22）"""
         # R1 安全门：排序会重排整表，必须在数据完整时做
         if not self._ensure_full_data("排序"):
             return
         dlg = QDialog(self)
+        dlg.setWindowTitle("🔤 多级排序")
         form = QFormLayout(dlg)
-        cc = QComboBox()
-        cc.addItems(list(self.model.df.columns))
-        form.addRow("列:", cc)
-        oc = QComboBox()
-        oc.addItems(["升序", "降序"])
-        form.addRow("顺序:", oc)
-        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        btns.accepted.connect(
-            lambda: [self.sort_by_column(cc.currentIndex(),
-                                          oc.currentText() == "升序"),
-                     dlg.accept()]
+        columns = list(self.model.df.columns)
+        rows = []
+        for index in range(3):
+            row = QHBoxLayout()
+            col_combo = QComboBox()
+            order_combo = QComboBox()
+            order_combo.addItems(["升序", "降序"])
+            if index > 0:
+                col_combo.addItem("（无）")
+                col_combo.setItemData(0, -1, Qt.UserRole)
+            for col, name in enumerate(columns):
+                col_combo.addItem(str(name))
+                col_combo.setItemData(col_combo.count() - 1, col, Qt.UserRole)
+            row.addWidget(col_combo)
+            row.addWidget(order_combo)
+            form.addRow(f"第{index + 1}级:", row)
+            rows.append((col_combo, order_combo))
+        tip = QLabel("按优先级从高到低选择；选“（无）”的级别不参与排序。")
+        tip.setWordWrap(True)
+        form.addRow(tip)
+        btns = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
         )
+
+        def _accept():
+            keys = []
+            for col_combo, order_combo in rows:
+                col = col_combo.currentData(Qt.UserRole)
+                if col is None or int(col) < 0:
+                    continue
+                keys.append((int(col), order_combo.currentText() == "升序"))
+            if not keys:
+                QMessageBox.warning(dlg, "排序", "请至少选择一级排序列")
+                return
+            try:
+                self.sort_by_columns(keys)
+            except Exception as e:  # noqa: BLE001
+                QMessageBox.warning(dlg, "排序失败", str(e))
+                return
+            dlg.accept()
+
+        btns.accepted.connect(_accept)
         btns.rejected.connect(dlg.reject)
         form.addRow(btns)
         dlg.exec()

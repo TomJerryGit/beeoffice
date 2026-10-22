@@ -371,7 +371,11 @@ class DataMixin:
             if styles.get("freeze_panes"):
                 self._freeze_panes = styles["freeze_panes"]
                 # 状态栏与信息面板沿用既有的"冻结信息"字段
-                self._frozen_top = self._freeze_panes
+                self._frozen_top, self._frozen_left = self._parse_freeze_ref(
+                    self._freeze_panes
+                )
+            if hasattr(self, "_apply_freeze_from_state"):
+                self._apply_freeze_from_state()
 
             # P1：文件里若有透视表规格，读进来（供「刷新透视表」用）
             try:

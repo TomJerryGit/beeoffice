@@ -67,13 +67,16 @@ def test_phase2_auto_completes_from_worker_thread(qtbot, tmp_path, monkeypatch):
         lambda: not worker.is_alive(), timeout=10000
     )
     assert not errors, errors
-    assert view.model.rowCount() >= 1000, "阶段 1 应显示前 500 行"
-    assert view.model.is_fully_loaded is False, "阶段 1 后应处于只读部分载入状态"
+    # 阶段 1 读取在工作线程完成，但模型/UI 应用被排队回主线程；
+    # 这里等主线程处理完（否则断言的是控制器尚未应用的空模型）。
+    qtbot.waitUntil(
+        lambda: view.model.rowCount() >= 1000, timeout=15000
+    )
 
     # 关键断言：不等手动兜底，后台补全应自己完成（修复前这里永远 False）
     qtbot.waitUntil(
         lambda: view.model.is_fully_loaded and view.model.rowCount() == 1000,
-        timeout=10000,
+        timeout=15000,
     )
     assert view.model.is_fully_loaded is True
     assert view.model.rowCount() == 1000

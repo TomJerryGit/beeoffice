@@ -229,6 +229,21 @@ def _apply_conditional(ws, conditional: Dict[Any, Any], row_count: int) -> int:
                     mid_type="percentile", mid_value=50, mid_color="FFEB84",
                     end_type="max", end_color="63BE7B",
                 )
+            elif kind == "icon_set":
+                # 2026-10-22：图标集原先在导出链上被**主动跳过**（GUI 能看到
+                # 🔴🟡🟢，保存 xlsx 后规则消失）。视图是 3 档，写回 Excel
+                # 原生 3TrafficLights1，阈值按视图的 min/mid/max 计算。
+                from openpyxl.formatting.rule import IconSetRule
+
+                lo = float(spec.get("min", 0))
+                hi = float(spec.get("max", 1))
+                if hi <= lo:
+                    continue
+                step = (hi - lo) / 3.0
+                rule = IconSetRule(
+                    "3TrafficLights1", "num",
+                    [lo, lo + step, lo + 2 * step], showValue=True,
+                )
             else:
                 continue
             ws.conditional_formatting.add(cell_range, rule)

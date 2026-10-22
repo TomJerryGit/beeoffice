@@ -6,6 +6,36 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ---
+## [Unreleased]
+
+**第 4 批 P0（2026-10-22）：表格 S 级细节 + 阶段 1 线程安全**（对应路线图 4.1/4.2/4.3/4.7）。
+
+### 新增
+- **真实冻结窗格（4.1）**：新增 `beesheet_freeze_mixin.py`，用顶部/左侧/交叉角
+  三个叠加 QTableView 实现 WPS 式真冻结（`A2` 首行 / `B1` 首列 / `B2` 行列 /
+  `C3` 前 2 行 2 列），滚动时冻结行列固定，列宽/行高/选中与主表同步；
+  工具栏「❄️ 冻结」与右键「冻结窗格」共 5 个动作；`freeze_panes` 仍随 xlsx 持久化。
+- **条件格式图标集写回（4.2）**：导出链原先主动跳过 `icon_set`，导致 GUI 有
+  🔴🟡🟢、保存后规则消失；现写回 Excel 原生 `3TrafficLights1`（数值阈值）。
+- **多级排序（4.3）**：排序对话框最多 3 级（列 + 升/降序），一次
+  `sort_values(by=[...], kind="mergesort")`；只对真实数据行排序（模型补齐的
+  1000 行空行不参与、不被排到前面）；`sort_by_column` 保留兼容；撤销通过
+  `SortCommand → set_full_dataframe` 同步 `_real_rows/_full_df`。
+- **阶段 1 UI 线程安全（4.7）**：`_import_file_from_path` 拆成
+  `_read_sheet_payload`（工作线程纯读取）+ `import_ready` 信号 →
+  `_apply_sheet_import_payload`（主线程建模型/样式/状态/弹窗）；工作线程不再
+  直接 `setModel`/`resizeColumnToContents`/`QMessageBox`。
+- 新增测试：`test_beesheet_freeze_panes.py`（8）、`test_beesheet_iconset_writeback.py`（3）、
+  `test_beesheet_multisort.py`（6）；阶段 1 线程改造由既有两阶段/工作簿/页签测试覆盖。
+
+### 说明
+- i18n 基线按"中文优先"路线 3616 → **3633**（新增 WPS 式冻结/排序 UI 文案）。
+- 冻结窗格为"左上冻结"（与 xlsx `freeze_panes` 同语义），不支持拆分窗格；
+  图标集写回为 3 档交通灯（与视图显示一致），不做自定义图标集。
+- 多级排序不会自动重映射蜜算内部的公式引用表/批注坐标（与既有单列排序一致），
+  这是后续"排序后公式/批注跟随"专项的已知边界。
+
+---
 ## [5.0.18] - 2026-10-22
 
 **功能细节提升第 1 批（2026-10-22）：修 GUI 实跑发现的 2 个 P0 + 1 个 P1 + 一批 UI/文案细节。**

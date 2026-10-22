@@ -1,5 +1,5 @@
 {
-  "total": 3616,
+  "total": 3633,
   "by_file": {
     "beeoffice/__version__.py": 1,
     "beeoffice/ai_settings.py": 22,
@@ -24,7 +24,7 @@
     "beeoffice/plugins/ai_client.py": 25,
     "beeoffice/plugins/ai_errors.py": 31,
     "beeoffice/plugins/bee_export.py": 17,
-    "beeoffice/plugins/beesheet.py": 96,
+    "beeoffice/plugins/beesheet.py": 101,
     "beeoffice/plugins/beesheet_ai_mixin.py": 124,
     "beeoffice/plugins/beesheet_audit_mixin.py": 128,
     "beeoffice/plugins/beesheet_chart_mixin.py": 32,
@@ -33,6 +33,7 @@
     "beeoffice/plugins/beesheet_dialogs.py": 27,
     "beeoffice/plugins/beesheet_engine.py": 10,
     "beeoffice/plugins/beesheet_formula_mixin.py": 70,
+    "beeoffice/plugins/beesheet_freeze_mixin.py": 10,
     "beeoffice/plugins/beesheet_loaders.py": 2,
     "beeoffice/plugins/beesheet_model.py": 9,
     "beeoffice/plugins/beesheet_pivot.py": 13,
@@ -41,7 +42,7 @@
     "beeoffice/plugins/beesheet_rowcol_mixin.py": 33,
     "beeoffice/plugins/beesheet_style_export.py": 22,
     "beeoffice/plugins/beesheet_style_mixin.py": 20,
-    "beeoffice/plugins/beesheet_ui_mixin.py": 218,
+    "beeoffice/plugins/beesheet_ui_mixin.py": 220,
     "beeoffice/plugins/beesheet_workbook.py": 3,
     "beeoffice/plugins/beeshow.py": 7,
     "beeoffice/plugins/beeshow_ai_mixin.py": 41,
@@ -118,7 +119,7 @@
     "beeoffice/templates.py": 35,
     "beeoffice/utils.py": 1
   },
-  "generated_at": "2026-10-22 08:46",
-  "commit": "7316d3a",
+  "generated_at": "2026-10-22 10:53",
+  "commit": "32183a2",
   "note": "硬编码中文文案棘轮基线；只许减少。更新方式：python tools/i18n_audit.py --write-baseline"
 }

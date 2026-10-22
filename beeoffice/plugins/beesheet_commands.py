@@ -83,21 +83,27 @@ class SortCommand:
 
     def __init__(self, old, new):
         """
-        :param old: 排序前的 DataFrame（已 copy）
-        :param new: 排序后的 DataFrame（已 copy）
+        :param old: 排序前的 DataFrame（已 copy，只含真实数据行）
+        :param new: 排序后的 DataFrame（已 copy，只含真实数据行）
         """
         self.old = old.copy()
         self.new = new.copy()
 
+    @staticmethod
+    def _apply(m, df):
+        # 2026-10-22：旧实现只改 `_loaded_df`，会把模型补齐的 1000 行空行
+        # 一起参与排序、且 `_full_df/_real_rows` 不同步；统一走
+        # `set_full_dataframe` 让真实行数/填充/取值镜像一起重建。
+        m.set_full_dataframe(df.copy())
+        m._fully_loaded = True
+
     def execute(self, m):
         """执行：应用排序后的数据"""
-        m._loaded_df = self.new.copy()
-        m.layoutChanged.emit()
+        self._apply(m, self.new)
 
     def undo(self, m):
         """撤销：恢复排序前的数据"""
-        m._loaded_df = self.old.copy()
-        m.layoutChanged.emit()
+        self._apply(m, self.old)
 
 
 class TrimCommand:
