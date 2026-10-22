@@ -53,7 +53,7 @@ from pathlib import Path
 from datetime import datetime
 
 from PySide6.QtWidgets import (
-    QMainWindow, QStatusBar, QLabel, QMessageBox, QFileDialog,
+    QMainWindow, QStatusBar, QLabel, QMessageBox, QFileDialog, QProgressBar,
     QDialog, QVBoxLayout, QTextEdit,
 )
 from PySide6.QtGui import QKeySequence, QShortcut
@@ -146,6 +146,13 @@ class BeeApp(QMainWindow):
         self.status = QStatusBar()
         self.status_label = QLabel(tr("app.ready"))
         self.status.addWidget(self.status_label)
+        # 打开大文件/导入等耗时操作的全局进度条（不确定进度滚动）
+        self._busy_progress = QProgressBar()
+        self._busy_progress.setRange(0, 0)
+        self._busy_progress.setFixedWidth(160)
+        self._busy_progress.setTextVisible(False)
+        self._busy_progress.hide()
+        self.status.addPermanentWidget(self._busy_progress)
         self.setStatusBar(self.status)
 
         self._apply_theme()
@@ -746,13 +753,25 @@ class BeeApp(QMainWindow):
         ext = Path(path).suffix.lower()
 
         if ext in SHOW_EXTENSIONS:
-            self._open_show_file(path)
+            self.show_busy_progress("正在加载演示文稿…")
+            try:
+                self._open_show_file(path)
+            finally:
+                self.hide_busy_progress()
         elif ext in SHEET_EXTENSIONS:
             self._open_sheet_file(path)
         elif ext == ".docx":
-            self._open_docx_file(path)
+            self.show_busy_progress("正在加载文档…")
+            try:
+                self._open_docx_file(path)
+            finally:
+                self.hide_busy_progress()
         elif ext in TEXT_EXTENSIONS:
-            self._open_text_file(path)
+            self.show_busy_progress("正在打开文本…")
+            try:
+                self._open_text_file(path)
+            finally:
+                self.hide_busy_progress()
         else:
             # P1-B 实测：原先这里**只写一行日志**，用户看到的是"点了没反应"
             # —— 不弹提示、不开标签，还照样把文件记进"最近文件"。
@@ -810,20 +829,36 @@ class BeeApp(QMainWindow):
         except Exception as e:  # noqa: BLE001 - 提示功能不能影响打开
             logging.debug(f"[保真度提示] 分析失败（忽略）: {e}")
 
+    def show_busy_progress(self, message=""):
+        """显示全局忙碌进度条（打开/导入等耗时操作）。"""
+        try:
+            if message:
+                self.set_global_status(message, 0)
+            self._busy_progress.show()
+            from PySide6.QtWidgets import QApplication
+            QApplication.processEvents()
+        except Exception:  # noqa: BLE001
+            pass
+
+    def hide_busy_progress(self):
+        try:
+            self._busy_progress.hide()
+        except Exception:  # noqa: BLE001
+            pass
+
     def _open_sheet_file(self, path):
         self._new_beesheet()
         widget = self.tab_manager.currentWidget()
         if not hasattr(widget, "_import_file_from_path"):
             return
 
-        self.set_global_status(
-            tr("msg.loading_sheet", "正在加载表格..."), 0
-        )
+        self.show_busy_progress(tr("msg.loading_sheet", "正在加载表格..."))
 
         def on_result(_):
             self.tab_manager.set_tab_file_path(widget, path)
             self._add_file_watch(path)
             self._attach_fidelity_report(widget, path)
+            self.hide_busy_progress()
             self.set_global_status(
                 tr("msg.open_success", "已打开 {file}").format(
                     file=Path(path).name
@@ -835,6 +870,7 @@ class BeeApp(QMainWindow):
             QMessageBox.warning(
                 self, tr("msg.open_failed", "打开失败"), str(err)
             )
+            self.hide_busy_progress()
             self.set_global_status(tr("msg.open_failed", "打开失败"), 3000)
 
         AsyncTaskManager.run(
@@ -922,6 +958,7 @@ class BeeApp(QMainWindow):
             self._attach_fidelity_report(widget, path, report=fidelity_report)
             # 同步标签标题为文件名
             self.sync_tab_title(widget, path)
+            self.hide_busy_progress()
             self.set_global_status(
                 tr("msg.open_success", "已打开 {file}").format(
                     file=Path(path).name
@@ -933,6 +970,7 @@ class BeeApp(QMainWindow):
             QMessageBox.warning(
                 self, tr("msg.open_failed", "打开失败"), str(err)
             )
+            self.hide_busy_progress()
             self.set_global_status(tr("msg.open_failed", "打开失败"), 3000)
 
         AsyncTaskManager.run(

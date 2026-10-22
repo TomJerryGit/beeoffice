@@ -48,6 +48,7 @@ class SheetDataModel(QAbstractTableModel):
     CHUNK_SIZE = 5000
     PRELOAD_MARGIN = 2000
     DEFAULT_ROWS = 1000
+    DEFAULT_COLS = 26          # WPS 默认 A–Z（2026-10-22 用户反馈：默认列太少）
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -202,7 +203,7 @@ class SheetDataModel(QAbstractTableModel):
             return None
 
     # ==================== 初始化 ====================
-    def _init_empty(self, rows=None, cols=10):
+    def _init_empty(self, rows=None, cols=None):
         """
         初始化空表格
 
@@ -210,6 +211,8 @@ class SheetDataModel(QAbstractTableModel):
         """
         if rows is None:
             rows = self.DEFAULT_ROWS
+        if cols is None:
+            cols = self.DEFAULT_COLS
         self._full_df = pd.DataFrame(
             '',
             index=range(rows),
@@ -593,7 +596,10 @@ class SheetDataModel(QAbstractTableModel):
                     )
 
                     letter = col_index_to_name(s)
-                    return f"{letter}  {name}" if name else letter
+                    # 空列名/列名恰好等于字母时只显示一次（修 "A  A" 重复）
+                    if not name or str(name).strip().upper() == letter.upper():
+                        return letter
+                    return f"{letter}  {name}"
                 return name if name else str(s)
             else:
                 return str(s + 1) if not getattr(
