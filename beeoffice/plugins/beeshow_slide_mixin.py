@@ -405,6 +405,9 @@ class SlideMixin:
           - 广播翻页（任务 4.3）
         """
         if 0 <= index < len(self._slides_html):
+            # 4.6：编辑器内翻页时也累计当前页排练耗时（若正在排练）
+            if hasattr(self, "_record_rehearsal_page"):
+                self._record_rehearsal_page(self._current_slide)
             self._current_slide = index
             theme = SLIDE_THEMES[self._current_theme]
             bg = self._custom_bg or theme.get("bg", "#FFF")

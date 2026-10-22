@@ -373,6 +373,11 @@ class SheetDataModel(QAbstractTableModel):
             return f"{num * 100:.{decimals}f}%"
         elif num_format == '千分位':
             return f"{num:,.{decimals}f}"
+        elif num_format == '万元':
+            # 只改显示：原始数值保持不变，保存后仍是 123456（不是 12.35）。
+            return f"{num / 10000.0:,.{decimals}f}万"
+        elif num_format == '正负号':
+            return f"{num:+,.{decimals}f}"
         return str(val) if not pd.isna(val) else ""
 
     def data(self, index, role=Qt.DisplayRole):

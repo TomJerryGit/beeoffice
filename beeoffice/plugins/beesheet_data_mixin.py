@@ -195,6 +195,7 @@ class DataMixin:
                 if hasattr(self, "_comment_author_name") else "",
                 named_ranges=getattr(self, "_named_ranges", None),
                 freeze_panes=getattr(self, "_freeze_panes", None),
+                print_area=getattr(self, "_print_area", None),
                 charts=getattr(self, "_charts", None),
                 charts_fresh_file=fresh_file,
                 row_count=row_count,
@@ -376,6 +377,10 @@ class DataMixin:
                 )
             if hasattr(self, "_apply_freeze_from_state"):
                 self._apply_freeze_from_state()
+            if styles.get("print_area"):
+                self._print_area = styles["print_area"]
+            else:
+                self._print_area = None
 
             # P1：文件里若有透视表规格，读进来（供「刷新透视表」用）
             try:

@@ -159,7 +159,10 @@ class BeeShowView(
         """把当前文稿写盘并记住路径（失败**如实提示**，不假装成功）。"""
         from beeoffice.plugins import beeshow_doc
 
-        if not beeshow_doc.save_deck(path, self.content()):
+        if not beeshow_doc.save_deck(
+            path, self.content(),
+            rehearsal=getattr(self, "_rehearsal_page_seconds", None),
+        ):
             from PySide6.QtWidgets import QMessageBox
 
             QMessageBox.warning(
@@ -231,6 +234,10 @@ class BeeShowView(
             logging.warning(f"[蜜演] 刷新预览失败（已忽略）: {e}")
         self._current_file_path = str(path)
         self._sync_tab_title(str(path))
+        try:
+            self._rehearsal_page_seconds = beeshow_doc.load_rehearsal(path)
+        except Exception:  # noqa: BLE001
+            self._rehearsal_page_seconds = {}
         return True
 
     def open_pptx(self, path) -> bool:
@@ -315,6 +322,8 @@ class BeeShowView(
         self._rehearsal_timer.timeout.connect(self._update_rehearsal_time)
         self._rehearsal_start_time = None
         self._rehearsal_elapsed = 0
+        self._rehearsal_page_seconds = {}
+        self._rehearsal_page_start = None
 
         self._rehearsal_label = QLabel("")
         self._rehearsal_label.setStyleSheet(

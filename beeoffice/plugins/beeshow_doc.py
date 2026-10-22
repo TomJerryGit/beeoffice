@@ -25,8 +25,10 @@
 `load()` 对**没有标记的文件**也照常返回内容（宽松读取），
 只有 `is_deck_file()` 才严格要求标记——这样不会出现"以前存的打不开"。
 """
+import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -36,27 +38,62 @@ DECK_EXTENSION = ".beshow"
 DECK_MARKER = "<!-- beeshow-deck v1 -->"
 #: 允许被识别的历史标记（将来改版本号时留兼容位）
 KNOWN_MARKERS = (DECK_MARKER,)
+#: 排练计时元数据（Markdown 注释，渲染时忽略；2026-10-22 4.6）
+REHEARSAL_PREFIX = "<!-- beeshow-rehearsal:"
 
 
-def serialize(text: str) -> str:
+def serialize(text: str, rehearsal=None) -> str:
     """
     把编辑器里的 Markdown 变成"要写盘的内容"（幂等：已有标记则不重复加）。
+
+    `rehearsal`：可选的 `{页序号: 秒数}` 排练计时；写进 marker 后的 Markdown
+    注释里（不进正文、渲染被忽略），供下次打开恢复。
     """
     body = text or ""
+    meta = ""
+    if rehearsal:
+        try:
+            payload = json.dumps(
+                {"page_seconds": {
+                    str(k): round(float(v), 2)
+                    for k, v in dict(rehearsal).items()
+                }},
+                ensure_ascii=False, separators=(",", ":"),
+            )
+            meta = f"{REHEARSAL_PREFIX}{payload} -->\n"
+        except Exception:  # noqa: BLE001 - 元数据失败不影响正文保存
+            meta = ""
     if body.lstrip().startswith(KNOWN_MARKERS):
-        return body
-    return f"{DECK_MARKER}\n\n{body}"
+        # 已有 marker：把新 meta 插到 marker 行后（去重旧 meta）
+        body = strip_rehearsal_meta(body)
+        first_newline = body.find("\n")
+        if first_newline < 0:
+            return body + "\n" + meta
+        return body[:first_newline + 1] + meta + body[first_newline + 1:]
+    return f"{DECK_MARKER}\n{meta}\n{body}"
+
+
+def strip_rehearsal_meta(text: str) -> str:
+    """去掉排练计时元数据注释（保留正文与 marker）。"""
+    if not text:
+        return ""
+    lines = []
+    for line in str(text).splitlines(keepends=True):
+        if line.lstrip().startswith(REHEARSAL_PREFIX):
+            continue
+        lines.append(line)
+    return "".join(lines)
 
 
 def strip_marker(text: str) -> str:
-    """去掉文稿标记，返回纯 Markdown（读入编辑器时用）。"""
+    """去掉文稿标记 + 排练计时元数据，返回纯 Markdown（读入编辑器时用）。"""
     if not text:
         return ""
-    stripped = text.lstrip()
+    stripped = strip_rehearsal_meta(text).lstrip()
     for marker in KNOWN_MARKERS:
         if stripped.startswith(marker):
             return stripped[len(marker):].lstrip("\r\n")
-    return text
+    return stripped
 
 
 def has_marker(text: str) -> bool:
@@ -72,7 +109,7 @@ def is_deck_file(path) -> bool:
         return False
 
 
-def save_deck(path, text: str) -> bool:
+def save_deck(path, text: str, rehearsal=None) -> bool:
     """
     把文稿写入 `path`（**原子写**）。
 
@@ -85,7 +122,7 @@ def save_deck(path, text: str) -> bool:
         logging.error(f"[蜜演] 创建目录失败 {target.parent}: {e}")
         return False
 
-    payload = serialize(text)
+    payload = serialize(text, rehearsal=rehearsal)
     temp = target.with_suffix(target.suffix + ".tmp")
     try:
         temp.write_text(payload, encoding="utf-8")
@@ -98,6 +135,25 @@ def save_deck(path, text: str) -> bool:
         except OSError:
             pass
         return False
+
+
+def load_rehearsal(path) -> dict:
+    """读取文稿里的排练计时元数据 `{页序号(int): 秒数(float)}`。"""
+    try:
+        raw = Path(path).read_text(encoding="utf-8")
+    except Exception:  # noqa: BLE001
+        return {}
+    match = re.search(
+        re.escape(REHEARSAL_PREFIX) + r"(.+?)\s*-->", raw, re.S
+    )
+    if not match:
+        return {}
+    try:
+        payload = json.loads(match.group(1).strip())
+        seconds = payload.get("page_seconds", {})
+        return {int(k): float(v) for k, v in seconds.items()}
+    except Exception:  # noqa: BLE001
+        return {}
 
 
 def load_deck(path) -> Optional[str]:

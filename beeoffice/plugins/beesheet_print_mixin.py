@@ -57,6 +57,77 @@ class SheetPrintMixin:
     """蜜算打印 / 打印预览。"""
 
     # ==================================================================
+    # 打印区域（4.5，2026-10-22）
+    # ==================================================================
+    def _used_area_bounds(self):
+        """返回已用区域 `(start_row, end_row, start_col, end_col)`（视图 0 基、end 不含）。"""
+        model = getattr(self, "model", None)
+        df = getattr(model, "_full_df", None) if model is not None else None
+        if df is None and model is not None:
+            df = getattr(model, "df", None)
+        if df is None or getattr(df, "empty", True):
+            return None
+        try:
+            import numpy as np
+            import pandas as _pd
+
+            probe = df.replace("", _pd.NA)
+            mask = probe.notna().to_numpy()
+            rows_any = mask.any(axis=1)
+            cols_any = mask.any(axis=0)
+            if not rows_any.any() or not cols_any.any():
+                return None
+            last_row = int(np.nonzero(rows_any)[0].max()) + 1
+            last_col = int(np.nonzero(cols_any)[0].max()) + 1
+            return (0, last_row, 0, last_col)
+        except Exception:  # noqa: BLE001
+            return (0, len(df), 0, len(df.columns))
+
+    def _set_print_area(self, rect=None):
+        """
+        设置打印区域：`rect=(start_row, end_row, start_col, end_col)` 视图坐标，
+        end 不含；不传时用当前选区，选区无效时用已用区域。
+        """
+        if rect is None:
+            try:
+                selection = self.table_view.selectionModel().selection()
+                if selection and not selection.isEmpty():
+                    r = selection[0]
+                    rect = (r.top(), r.bottom() + 1, r.left(), r.right() + 1)
+            except Exception:  # noqa: BLE001
+                rect = None
+        if rect is None:
+            rect = self._used_area_bounds()
+        if not rect:
+            self._set_status("没有可设置的打印区域", 3000)
+            return False
+        start_row, end_row, start_col, end_col = (int(v) for v in rect)
+        if end_row <= start_row or end_col <= start_col:
+            self._set_status("打印区域为空", 3000)
+            return False
+        self._print_area = (start_row, end_row, start_col, end_col)
+        self._set_status(
+            f"📐 已设置打印区域：第 {start_row + 1}–{end_row} 行 × "
+            f"{end_col - start_col} 列（保存后随文件保留）", 5000
+        )
+        try:
+            self.contentChanged.emit()
+        except Exception:  # noqa: BLE001
+            pass
+        return True
+
+    def _set_print_area_from_selection(self):
+        return self._set_print_area()
+
+    def _clear_print_area(self):
+        self._print_area = None
+        self._set_status("已取消打印区域", 3000)
+        try:
+            self.contentChanged.emit()
+        except Exception:  # noqa: BLE001
+            pass
+
+    # ==================================================================
     # 取数（不依赖 Qt 绘制，便于测试）
     # ==================================================================
     def _collect_print_data(self):
@@ -113,22 +184,34 @@ class SheetPrintMixin:
         if last_row == 0 or last_col == 0:
             return empty
 
-        # ---- 默认范围 = 已用区域；选中多格时以选区为准 ----
+        # ---- 范围：显式打印区域 > 选中多格 > 已用区域 ----
         start_row, start_col = 0, 0
         end_row, end_col = last_row, last_col
-        try:
-            selection = self.table_view.selectionModel().selection()
-            if selection and not selection.isEmpty():
-                rect = selection[0]
-                if rect.isValid() and (
-                    rect.top() != rect.bottom() or rect.left() != rect.right()
-                ):
-                    start_row = max(0, rect.top())
-                    end_row = min(last_row, rect.bottom() + 1)
-                    start_col = max(0, rect.left())
-                    end_col = min(last_col, rect.right() + 1)
-        except Exception as e:  # noqa: BLE001 - 取不到选区就按已用区域
-            logging.debug(f"[print] 读取选区失败，按已用区域打印: {e}")
+        area = getattr(self, "_print_area", None)
+        if area:
+            try:
+                a_row, a_end_row, a_col, a_end_col = (int(v) for v in area)
+                start_row = max(0, min(a_row, last_row))
+                end_row = max(start_row + 1, min(a_end_row, last_row))
+                start_col = max(0, min(a_col, last_col))
+                end_col = max(start_col + 1, min(a_end_col, last_col))
+            except Exception as e:  # noqa: BLE001
+                logging.debug(f"[print] 打印区域无效，改用已用区域: {e}")
+        else:
+            try:
+                selection = self.table_view.selectionModel().selection()
+                if selection and not selection.isEmpty():
+                    rect = selection[0]
+                    if rect.isValid() and (
+                        rect.top() != rect.bottom()
+                        or rect.left() != rect.right()
+                    ):
+                        start_row = max(0, rect.top())
+                        end_row = min(last_row, rect.bottom() + 1)
+                        start_col = max(0, rect.left())
+                        end_col = min(last_col, rect.right() + 1)
+            except Exception as e:  # noqa: BLE001 - 取不到选区就按已用区域
+                logging.debug(f"[print] 读取选区失败，按已用区域打印: {e}")
 
         total_rows = max(0, end_row - start_row)
         truncated = 0

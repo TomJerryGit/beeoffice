@@ -359,6 +359,7 @@ class PlayMixin:
     def _on_progress_changed(self, value):
         """进度条拖动：跳转到对应页"""
         if self._is_playing:
+            self._record_rehearsal_page(self._current_slide)
             self._current_slide = value
             self._show_play_slide()
 
@@ -382,6 +383,7 @@ class PlayMixin:
 
         # ---------- 翻页（不依赖 _play_window） ----------
         if key in (Qt.Key_Right, Qt.Key_Down, Qt.Key_Space, Qt.Key_PageDown):
+            self._record_rehearsal_page(self._current_slide)
             self._current_slide = min(
                 self._current_slide + 1, len(self._slides_html) - 1
             )
@@ -390,17 +392,20 @@ class PlayMixin:
             return
 
         if key in (Qt.Key_Left, Qt.Key_Up, Qt.Key_PageUp):
+            self._record_rehearsal_page(self._current_slide)
             self._current_slide = max(self._current_slide - 1, 0)
             self._show_play_slide()
             self._update_presenter_view()
             return
 
         if key == Qt.Key_Home:
+            self._record_rehearsal_page(self._current_slide)
             self._current_slide = 0
             self._show_play_slide()
             return
 
         if key == Qt.Key_End:
+            self._record_rehearsal_page(self._current_slide)
             self._current_slide = len(self._slides_html) - 1
             self._show_play_slide()
             return
@@ -436,23 +441,54 @@ class PlayMixin:
         else:
             self.start_rehearsal()
 
+    def _record_rehearsal_page(self, index=None):
+        """
+        把"当前页已停留的秒数"累计到 `_rehearsal_page_seconds`（4.6）。
+
+        翻页/停止/保存前调用；停止后 `_rehearsal_page_start=None`，不会重复累计。
+        """
+        if getattr(self, "_rehearsal_page_start", None) is None:
+            return
+        try:
+            active = self._rehearsal_timer.isActive()
+        except Exception:  # noqa: BLE001
+            active = self._rehearsal_start_time is not None
+        if not active:
+            return
+        page = self._current_slide if index is None else int(index)
+        elapsed = max(0.0, time.time() - self._rehearsal_page_start)
+        if elapsed > 0:
+            seconds = getattr(self, "_rehearsal_page_seconds", None)
+            if seconds is None:
+                seconds = self._rehearsal_page_seconds = {}
+            seconds[page] = seconds.get(page, 0.0) + elapsed
+        self._rehearsal_page_start = time.time()
+
     def start_rehearsal(self):
         """开始排练计时"""
         self._rehearsal_start_time = time.time()
         self.rehearsal_start_time = self._rehearsal_start_time
         self._rehearsal_elapsed = 0
+        self._rehearsal_page_seconds = {}
+        self._rehearsal_page_start = self._rehearsal_start_time
         self._rehearsal_timer.start(100)
         self._rehearsal_label.show()
         self._rehearsal_label.setText("⏱ 排练: 00:00")
         self._set_status("⏱ 排练计时开始", 2000)
 
     def stop_rehearsal(self):
-        """停止排练计时"""
+        """停止排练计时（并记录当前页的耗时）"""
+        self._record_rehearsal_page(self._current_slide)
         if self._rehearsal_start_time:
             self._rehearsal_elapsed = time.time() - self._rehearsal_start_time
         self._rehearsal_timer.stop()
         self._rehearsal_start_time = None
         self.rehearsal_start_time = None
+        self._rehearsal_page_start = None
+        # 分页耗时之和比墙钟总时长更准（切页/后台不计入某一页的重复时间）
+        page_seconds = getattr(self, "_rehearsal_page_seconds", {}) or {}
+        if page_seconds:
+            self._rehearsal_elapsed = sum(page_seconds.values())
         minutes = int(self._rehearsal_elapsed // 60)
         seconds = int(self._rehearsal_elapsed % 60)
         self._rehearsal_label.setText(
@@ -463,10 +499,12 @@ class PlayMixin:
         )
 
     def reset_rehearsal(self):
-        """重置排练计时"""
+        """重置排练计时（含按页数据）"""
         self._rehearsal_timer.stop()
         self._rehearsal_start_time = None
         self.rehearsal_start_time = None
+        self._rehearsal_page_start = None
+        self._rehearsal_page_seconds = {}
         self._rehearsal_elapsed = 0
         self._rehearsal_label.setText("⏱ 排练: 00:00")
         self._rehearsal_label.hide()

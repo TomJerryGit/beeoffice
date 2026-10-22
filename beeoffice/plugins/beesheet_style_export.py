@@ -39,6 +39,10 @@ NUMBER_FORMAT_CODES = {
     "日期": "yyyy-mm-dd",
     "百分比": "0%",
     "文本": "@",
+    # 2026-10-22（4.4）：万元/正负号。万元采用 WPS 社区常用自定义格式
+    # `0!.0,"万"` 的等价写法（只改显示，不改原始数值）；正负号显示 +/-。
+    "万元": '0!.0,"万"',
+    "正负号": "+0.00;-0.00",
 }
 
 #: 视图里的对齐方式 → openpyxl 的 horizontal
@@ -82,6 +86,11 @@ def number_format_code(num_type: str, decimals: int = 2,
         return ("#,##0" if (thousands or kind == "千分位") else "0") + zeros
     if kind == "百分比":
         return "0" + zeros + "%"
+    if kind == "万元":
+        return f'0!{zeros},"万"'
+    if kind == "正负号":
+        body = ("#,##0" if thousands else "0") + zeros
+        return f"+{body};-{body}"
     return "General"
 
 
@@ -395,6 +404,11 @@ def read_view_styles(path, sheet_name: Optional[str] = None
         # ---------- 冻结窗格 ----------
         if ws.freeze_panes:
             result["freeze_panes"] = str(ws.freeze_panes)
+
+        # ---------- 打印区域 ----------
+        area = _read_print_area(ws)
+        if area:
+            result["print_area"] = area
 
         # ---------- 命名区域 ----------
         # 文件里是 `'数据'!$B$2:$B$4`，视图里存的是能直接填进定位框的
@@ -746,6 +760,60 @@ def _apply_defined_names(workbook, named_ranges: Dict[str, str]) -> int:
     return applied
 
 
+def _apply_print_area(ws, area) -> int:
+    """
+    打印区域（4.5）：视图 0 基、end 不含 → xlsx `ws.print_area` 引用。
+
+    例：(1, 5, 0, 3) = 视图第 2–5 行、前 3 列 → `A3:C6`（文件第 1 行是表头）。
+    """
+    if not area:
+        return 0
+    try:
+        start_row, end_row, start_col, end_col = (int(v) for v in area)
+        if end_row <= start_row or end_col <= start_col:
+            return 0
+        from openpyxl.utils import get_column_letter
+
+        ref = (
+            f"{get_column_letter(start_col + 1)}{start_row + 2}:"
+            f"{get_column_letter(end_col)}{end_row + 1}"
+        )
+        ws.print_area = ref
+        return 1
+    except Exception as e:  # noqa: BLE001
+        logging.debug(f"[蜜算] 写打印区域失败 {area}: {e}")
+        return 0
+
+
+def _read_print_area(ws):
+    """读回打印区域 → 视图 0 基 (start_row, end_row, start_col, end_col)。"""
+    try:
+        raw = getattr(ws, "print_area", None)
+        if isinstance(raw, (list, tuple)):
+            raw = raw[0] if raw else None
+        if not raw:
+            return None
+        text = str(raw).split("!")[-1].replace("$", "").strip()
+        match = __import__("re").match(
+            r"([A-Za-z]+)(\d+):([A-Za-z]+)(\d+)", text
+        )
+        if not match:
+            return None
+        c1, r1, c2, r2 = match.groups()
+        from openpyxl.utils import column_index_from_string
+
+        start_col = column_index_from_string(c1.upper()) - 1
+        end_col = column_index_from_string(c2.upper())
+        start_row = int(r1) - 2
+        end_row = int(r2) - 1
+        if start_row < 0 or end_row <= start_row:
+            return None
+        return (start_row, end_row, start_col, end_col)
+    except Exception as e:  # noqa: BLE001
+        logging.debug(f"[蜜算] 读打印区域失败: {e}")
+        return None
+
+
 def _apply_freeze_panes(ws, freeze: Optional[str]) -> bool:
     """
     冻结窗格（如 `"A2"` = 冻结首行）。
@@ -988,6 +1056,7 @@ def apply_view_styles(path, sheet_name: Optional[str] = None, *,
                       validations=None, comment_authors=None,
                       default_comment_author: str = "",
                       named_ranges=None, freeze_panes=None,
+                      print_area=None,
                       charts=None, charts_fresh_file: bool = False,
                       row_count: int = 0,
                       col_count: int = 0) -> Dict[str, int]:
@@ -1002,9 +1071,10 @@ def apply_view_styles(path, sheet_name: Optional[str] = None, *,
     """
     result = {"formats": 0, "merges": 0, "merges_skipped": 0,
               "comments": 0, "conditional": 0, "table_style": 0,
-              "validations": 0, "named_ranges": 0, "freeze": 0, "charts": 0}
+              "validations": 0, "named_ranges": 0, "freeze": 0,
+              "print_area": 0, "charts": 0}
     if not any((formats, merges, comments, conditional, table_style,
-                validations, named_ranges, freeze_panes, charts)):
+                validations, named_ranges, freeze_panes, print_area, charts)):
         return result
     try:
         from openpyxl import load_workbook
@@ -1038,6 +1108,7 @@ def apply_view_styles(path, sheet_name: Optional[str] = None, *,
         result["validations"] = _apply_data_validations(ws, validations)
         result["named_ranges"] = _apply_defined_names(workbook, named_ranges)
         result["freeze"] = 1 if _apply_freeze_panes(ws, freeze_panes) else 0
+        result["print_area"] = _apply_print_area(ws, print_area)
         result["charts"] = _apply_charts(ws, charts, charts_fresh_file)
         workbook.save(str(target))
     except Exception as e:  # noqa: BLE001

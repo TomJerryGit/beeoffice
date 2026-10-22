@@ -257,6 +257,19 @@ class UIMixin:
         self._print_btn.clicked.connect(self._print_preview)
         t1.addWidget(self._print_btn)
 
+        # 4.5：打印区域（选区/已用区域；随 xlsx 持久化）
+        self._print_area_btn = QPushButton("📐 打印区域")
+        self._print_area_btn.setToolTip(
+            "设置打印区域（有选区用选区，否则用已用区域）；保存后随文件保留"
+        )
+        print_area_menu = QMenu(self._print_area_btn)
+        print_area_menu.addAction(
+            "设置打印区域（选区/已用区域）", self._set_print_area_from_selection
+        )
+        print_area_menu.addAction("取消打印区域", self._clear_print_area)
+        self._print_area_btn.setMenu(print_area_menu)
+        t1.addWidget(self._print_area_btn)
+
         # R5：AI 助手（公式建议 / 解释问题 / 表格摘要）。
         # 定位"本地优先、可解释"：不追"一键生成整表"，只给建议与解释。
         self._ai_btn = QPushButton("🤖 AI ▾")
@@ -417,7 +430,8 @@ class UIMixin:
 
         self._num_format_combo = QComboBox()
         self._num_format_combo.addItems(
-            ["常规", "数值", "货币", "百分比", "千分位", "日期", "文本"]
+            ["常规", "数值", "货币", "百分比", "千分位", "日期", "文本",
+             "万元", "正负号"]
         )
         self._num_format_combo.setStyleSheet(
             "QComboBox{border:1px solid #CCC;padding:2px 6px;border-radius:3px;}"
