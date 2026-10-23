@@ -17,6 +17,16 @@
 - 大表打开完成（状态栏“就绪”）后，底部全局进度条不再残留。
 - `_open_sheet_file.on_result` 任一步异常也会隐藏进度条（`finally`）。
 
+### 工程与验证（干净 worktree，commit `1fd28f4`）
+- **46/46 门禁 PASS**（11.7 分钟，`_ptmp/analysis/gates_clean_5021.log`）；
+- 全量 `fidelity+unit`：**1608 passed / 4 skipped / 0 failed**（757.78 s，
+  `_ptmp/analysis/pytest_clean_5021.log`）。
+
+### 发行
+- `BeeOffice-v5.0.21-windows.zip`：**225.5 MB / 3132 个条目**，sha256
+  `885d25de9a4f77c8f70a4f1d1b465342a697458a067ae2e868151b649aa71a67`；
+- tag `v5.0.21` = `1fd28f4`；归档 `release-archive/`；`verify_release.py` 5/5 通过。
+
 ### 验收证据
 - WPS COM 实测：2 分节、121 行表格、TOC 域、页码 start=3 小写罗马；
   `Rows(1).HeadingFormat=true`；PDF 4 页，第 2–4 页重复表头；
