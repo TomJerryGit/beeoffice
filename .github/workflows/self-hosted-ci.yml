@@ -6,12 +6,81 @@ on:
   workflow_dispatch:
 
 jobs:
-  smoke:
+  gates-and-tests:
+    name: 46 门禁 + 全量测试
     runs-on: [self-hosted, windows, x64]
+    timeout-minutes: 90
+
     steps:
-      - uses: actions/checkout@v4
-      - name: smoke
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 检查 Python / 依赖
         shell: pwsh
         run: |
-          Write-Host "runner online"
           python --version
+          python -c "import PySide6, pandas, openpyxl, fitz; print('deps ok')"
+
+      - name: 准备测试语料（本机缓存优先）
+        shell: pwsh
+        run: |
+          $src = 'D:\beeofficeV\tests\fidelity\corpus'
+          $dst = 'tests\fidelity\corpus'
+          New-Item -ItemType Directory -Force -Path $dst | Out-Null
+          if (Test-Path $src) {
+            Copy-Item "$src\*" $dst -Recurse -Force
+            "copied corpus from $src"
+          } else {
+            "WARNING: local corpus cache not found; corpus-dependent tests may skip/fail"
+          }
+
+      - name: 46 项回归门禁
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QT_QPA_FONTDIR: 'C:\Windows\Fonts'
+          PYTHONIOENCODING: utf-8
+        run: |
+          $env:PYTHONPATH = (Get-Location).Path
+          python tools\check_gates.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: 全量测试（fidelity + unit）
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QT_QPA_FONTDIR: 'C:\Windows\Fonts'
+          PYTHONIOENCODING: utf-8
+          BEEOFFICE_DRAFT_DIR: 'D:\beeoffice_ci_drafts'
+        run: |
+          $env:PYTHONPATH = (Get-Location).Path
+          python -m pytest tests/fidelity tests/unit -q --no-header -p no:cacheprovider -o log_file= --timeout=900
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: 构建发行包（仅手动/标签触发）
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          $buildTmp = Join-Path (Get-Location) '_build_tmp'
+          New-Item -ItemType Directory -Force -Path $buildTmp | Out-Null
+          $env:TEMP = $buildTmp
+          $env:TMP = $buildTmp
+          $env:PYTHONPATH = (Get-Location).Path
+          python beeoffice\build_release.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-ChildItem -Filter 'BeeOffice-v*-windows.zip*' | Select-Object Name,Length
+
+      - name: 上传构建产物（仅手动/标签触发）
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: BeeOffice-windows-${{ github.run_number }}
+          path: |
+            BeeOffice-v*-windows.zip
+            BeeOffice-v*-windows.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
