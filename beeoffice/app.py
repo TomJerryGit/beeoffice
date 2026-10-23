@@ -861,16 +861,20 @@ class BeeApp(QMainWindow):
         self.show_busy_progress(tr("msg.loading_sheet", "正在加载表格..."))
 
         def on_result(_):
-            self.tab_manager.set_tab_file_path(widget, path)
-            self._add_file_watch(path)
-            self._attach_fidelity_report(widget, path)
-            self.hide_busy_progress()
-            self.set_global_status(
-                tr("msg.open_success", "已打开 {file}").format(
-                    file=Path(path).name
-                ),
-                3000,
-            )
+            # 验收发现：_attach_fidelity_report 等任何一步抛异常都会跳过
+            # hide_busy_progress，导致文件已打开、进度条却一直卡着。统一 finally。
+            try:
+                self.tab_manager.set_tab_file_path(widget, path)
+                self._add_file_watch(path)
+                self._attach_fidelity_report(widget, path)
+                self.set_global_status(
+                    tr("msg.open_success", "已打开 {file}").format(
+                        file=Path(path).name
+                    ),
+                    3000,
+                )
+            finally:
+                self.hide_busy_progress()
 
         def on_error(err):
             QMessageBox.warning(
