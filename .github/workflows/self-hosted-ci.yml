@@ -1,3 +1,12 @@
+# BeeOffice 自托管 runner CI（2026-10-23）
+#
+# 这台 runner 以 LocalSystem 服务运行，工作区没有业务语料/依赖缓存；
+# 因此本工作流直接在**本机已有仓库 D:\beeofficeV** 上跑，而不是 checkout 到
+# runner 工作区（那里缺 tests/fidelity/corpus 大文件，且服务账号环境不同）。
+# 推送触发后由 beeoffice-local-runner 执行：
+#   - 46 项回归门禁
+#   - 全量 fidelity + unit 测试
+#   - 构建 Windows 发行包并上传 artifact（zip + sha256）
 name: self-hosted-ci
 
 on:
@@ -6,93 +15,68 @@ on:
   workflow_dispatch:
 
 jobs:
-  gates-and-tests:
-    name: 46 门禁 + 全量测试
+  gates-tests-build:
+    name: 46 门禁 + 全量测试 + 构建
     runs-on: [self-hosted, windows, x64]
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: 诊断 Python / 依赖（输出写入工作区，失败不阻断本步）
+      - name: 环境检查
         shell: powershell
-        continue-on-error: true
         run: |
+          $repo = 'D:\beeofficeV'
           $py = 'D:\Program Files\Python311\python.exe'
-          $log = Join-Path (Get-Location) '_ci_diag.txt'
-          "py=$py exists=$(Test-Path $py)" | Out-File -LiteralPath $log -Encoding utf8
-          & $py --version *>> $log
-          & $py -c "import sys; print(sys.executable); print(sys.version)" *>> $log
-          & $py -c "import PySide6; print('PySide6 ok')" *>> $log
-          & $py -c "import pandas; print('pandas ok')" *>> $log
-          & $py -c "import openpyxl; print('openpyxl ok')" *>> $log
-          & $py -c "import fitz; print('fitz ok')" *>> $log
-          Get-Content -LiteralPath $log
-
-      - name: 准备测试语料（本机缓存优先）
-        shell: powershell
-        run: |
-          $src = 'D:\beeofficeV\tests\fidelity\corpus'
-          $dst = 'tests\fidelity\corpus'
-          New-Item -ItemType Directory -Force -Path $dst | Out-Null
-          if (Test-Path $src) {
-            Copy-Item "$src\*" $dst -Recurse -Force
-            "copied corpus from $src"
-          } else {
-            "WARNING: local corpus cache not found; corpus-dependent tests may skip/fail"
-          }
+          "repo=$repo exists=$(Test-Path $repo)"
+          "py=$py exists=$(Test-Path $py)"
+          & $py --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: 46 项回归门禁
         shell: powershell
-        env:
-          QT_QPA_PLATFORM: offscreen
-          QT_QPA_FONTDIR: 'C:\Windows\Fonts'
-          PYTHONIOENCODING: utf-8
         run: |
+          Set-Location 'D:\beeofficeV'
           $py = 'D:\Program Files\Python311\python.exe'
           $env:PYTHONPATH = (Get-Location).Path
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          $env:QT_QPA_FONTDIR = 'C:\Windows\Fonts'
+          $env:PYTHONIOENCODING = 'utf-8'
           & $py tools\check_gates.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: 全量测试（fidelity + unit）
         shell: powershell
-        env:
-          QT_QPA_PLATFORM: offscreen
-          QT_QPA_FONTDIR: 'C:\Windows\Fonts'
-          PYTHONIOENCODING: utf-8
-          BEEOFFICE_DRAFT_DIR: 'D:\beeoffice_ci_drafts'
         run: |
+          Set-Location 'D:\beeofficeV'
           $py = 'D:\Program Files\Python311\python.exe'
           $env:PYTHONPATH = (Get-Location).Path
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          $env:QT_QPA_FONTDIR = 'C:\Windows\Fonts'
+          $env:PYTHONIOENCODING = 'utf-8'
+          $env:BEEOFFICE_DRAFT_DIR = 'D:\beeoffice_ci_drafts'
           & $py -m pytest tests/fidelity tests/unit -q --no-header -p no:cacheprovider -o log_file= --timeout=900
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: 构建发行包（仅手动/标签触发）
-        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+      - name: 构建发行包并复制到 artifact 目录
         shell: powershell
-        env:
-          PYTHONIOENCODING: utf-8
         run: |
-          $buildTmp = Join-Path (Get-Location) '_build_tmp'
+          Set-Location 'D:\beeofficeV'
+          $py = 'D:\Program Files\Python311\python.exe'
+          $env:PYTHONPATH = (Get-Location).Path
+          $env:PYTHONIOENCODING = 'utf-8'
+          $buildTmp = 'D:\beeofficeV\_ptmp\ci_build'
           New-Item -ItemType Directory -Force -Path $buildTmp | Out-Null
           $env:TEMP = $buildTmp
           $env:TMP = $buildTmp
-          $py = 'D:\Program Files\Python311\python.exe'
-          $env:PYTHONPATH = (Get-Location).Path
           & $py beeoffice\build_release.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-ChildItem -Filter 'BeeOffice-v*-windows.zip*' | Select-Object Name,Length
+          New-Item -ItemType Directory -Force -Path (Join-Path $env:GITHUB_WORKSPACE 'artifact') | Out-Null
+          Copy-Item 'D:\beeofficeV\BeeOffice-v*-windows.zip*' (Join-Path $env:GITHUB_WORKSPACE 'artifact') -Force
+          Get-ChildItem (Join-Path $env:GITHUB_WORKSPACE 'artifact') | Select-Object Name,Length
 
-      - name: 上传构建产物（仅手动/标签触发）
-        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+      - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:
           name: BeeOffice-windows-${{ github.run_number }}
-          path: |
-            BeeOffice-v*-windows.zip
-            BeeOffice-v*-windows.zip.sha256
+          path: artifact/
           if-no-files-found: error
           retention-days: 14
