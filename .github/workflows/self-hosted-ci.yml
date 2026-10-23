@@ -20,8 +20,9 @@ jobs:
       - name: 检查 Python / 依赖
         shell: pwsh
         run: |
-          python --version
-          python -c "import PySide6, pandas, openpyxl, fitz; print('deps ok')"
+          $py = 'D:\Program Files\Python311\python.exe'
+          & $py --version
+          & $py -c "import PySide6, pandas, openpyxl, fitz; print('deps ok')"
 
       - name: 准备测试语料（本机缓存优先）
         shell: pwsh
@@ -43,8 +44,9 @@ jobs:
           QT_QPA_FONTDIR: 'C:\Windows\Fonts'
           PYTHONIOENCODING: utf-8
         run: |
+          $py = 'D:\Program Files\Python311\python.exe'
           $env:PYTHONPATH = (Get-Location).Path
-          python tools\check_gates.py
+          & $py tools\check_gates.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: 全量测试（fidelity + unit）
@@ -55,8 +57,9 @@ jobs:
           PYTHONIOENCODING: utf-8
           BEEOFFICE_DRAFT_DIR: 'D:\beeoffice_ci_drafts'
         run: |
+          $py = 'D:\Program Files\Python311\python.exe'
           $env:PYTHONPATH = (Get-Location).Path
-          python -m pytest tests/fidelity tests/unit -q --no-header -p no:cacheprovider -o log_file= --timeout=900
+          & $py -m pytest tests/fidelity tests/unit -q --no-header -p no:cacheprovider -o log_file= --timeout=900
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: 构建发行包（仅手动/标签触发）
@@ -69,8 +72,9 @@ jobs:
           New-Item -ItemType Directory -Force -Path $buildTmp | Out-Null
           $env:TEMP = $buildTmp
           $env:TMP = $buildTmp
+          $py = 'D:\Program Files\Python311\python.exe'
           $env:PYTHONPATH = (Get-Location).Path
-          python beeoffice\build_release.py
+          & $py beeoffice\build_release.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-ChildItem -Filter 'BeeOffice-v*-windows.zip*' | Select-Object Name,Length
 
