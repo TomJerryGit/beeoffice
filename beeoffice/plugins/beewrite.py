@@ -77,6 +77,7 @@ from beeoffice.plugins.beewrite_outline import OutlinePanel
 
 # ==================== Mixin 层 ====================
 from beeoffice.plugins.beewrite_toolbar_mixin import ToolbarMixin
+from beeoffice.plugins.ribbon_widget import RibbonBar
 from beeoffice.plugins.beewrite_mode_mixin import ModeMixin
 from beeoffice.plugins.beewrite_paragraph_mixin import ParagraphMixin
 from beeoffice.plugins.beewrite_table_mixin import TableMixin
@@ -231,8 +232,13 @@ class BeeWriteEditor(
         toolbar_container = QVBoxLayout()
         toolbar_container.setContentsMargins(0, 0, 0, 0)
         toolbar_container.setSpacing(1)
-        toolbar_container.addWidget(self._toolbar1)
-        toolbar_container.addWidget(self._toolbar2)
+        # WPS 式 Ribbon：把两行平铺工具栏收进「开始 / 插入」标签页
+        self._ribbon = RibbonBar()
+        page = self._ribbon.add_tab("开始")
+        page.addWidget(self._toolbar1)
+        page = self._ribbon.add_tab("插入")
+        page.addWidget(self._toolbar2)
+        toolbar_container.addWidget(self._ribbon)
 
         # ---------- 总布局 ----------
         layout = QVBoxLayout(self)

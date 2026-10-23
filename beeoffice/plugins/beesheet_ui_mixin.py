@@ -46,6 +46,7 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QShortcut, QKeySequence
 
 from beeoffice.plugins.beesheet_delegate import CellEditorDelegate
+from beeoffice.plugins.ribbon_widget import RibbonBar
 from beeoffice.plugins.beesheet_loaders import ChunkLoader
 
 
@@ -450,6 +451,24 @@ class UIMixin:
 
         self._t5.addStretch()
         tc.addLayout(self._t5)
+
+        # ===== WPS 式 Ribbon：把平铺行收进标签页 =====
+        # 开始：文件/状态 + 字体格式；插入：图表/透视/函数；
+        # 数据：清洗/查找/验证/名称/审计；视图：样式/兼容/行列号/冻结。
+        ribbon = RibbonBar()
+        pages = (
+            ("开始", (t1, self._t5)),
+            ("插入", (self._t2,)),
+            ("数据", (self._t3,)),
+            ("视图", (self._t4,)),
+        )
+        for title, rows in pages:
+            page_layout = ribbon.add_tab(title)
+            for row in rows:
+                tc.removeItem(row)          # 从旧垂直布局摘下（不销毁控件）
+                page_layout.addLayout(row)
+        tc.addWidget(ribbon)
+        self._ribbon = ribbon
 
         # 暂存到 self，供主类的 layout 组装
         self._toolbar_container = tc
