@@ -17,12 +17,27 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 检查 Python / 依赖
+      - name: 诊断 Python / 依赖（输出写入工作区，失败不阻断本步）
         shell: powershell
+        continue-on-error: true
         run: |
           $py = 'D:\Program Files\Python311\python.exe'
-          & $py --version
-          & $py -c "import PySide6, pandas, openpyxl, fitz; print('deps ok')"
+          $log = Join-Path (Get-Location) '_ci_diag.txt'
+          "py=$py exists=$(Test-Path $py)" | Out-File -LiteralPath $log -Encoding utf8
+          $code = @'
+import sys
+print(sys.executable)
+print(sys.version)
+for name in ["PySide6", "pandas", "openpyxl", "fitz"]:
+    try:
+        __import__(name)
+        print(name, "ok")
+    except Exception as e:
+        print(name, "FAIL", type(e).__name__, e)
+'@
+          Set-Content -LiteralPath (Join-Path (Get-Location) '_ci_check_deps.py') -Value $code -Encoding utf8
+          & $py (Join-Path (Get-Location) '_ci_check_deps.py') *>> $log
+          Get-Content -LiteralPath $log
 
       - name: 准备测试语料（本机缓存优先）
         shell: powershell
