@@ -767,6 +767,15 @@ class BeeSheetView(
                 self._start_phase2_full_load(path)
         except Exception as e:  # noqa: BLE001
             QMessageBox.warning(self, "导入失败", str(e))
+        finally:
+            # 验收发现：AsyncTaskManager 的 on_result 可能在工作线程回调，
+            # 在工作线程 hide() 进度条无效。主线程应用完导入后统一隐藏。
+            try:
+                win = self.window()
+                if hasattr(win, "hide_busy_progress"):
+                    win.hide_busy_progress()
+            except Exception:  # noqa: BLE001
+                pass
 
     def _import_file_from_path(self, path):
         """
