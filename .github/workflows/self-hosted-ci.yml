@@ -24,19 +24,12 @@ jobs:
           $py = 'D:\Program Files\Python311\python.exe'
           $log = Join-Path (Get-Location) '_ci_diag.txt'
           "py=$py exists=$(Test-Path $py)" | Out-File -LiteralPath $log -Encoding utf8
-          $code = @'
-import sys
-print(sys.executable)
-print(sys.version)
-for name in ["PySide6", "pandas", "openpyxl", "fitz"]:
-    try:
-        __import__(name)
-        print(name, "ok")
-    except Exception as e:
-        print(name, "FAIL", type(e).__name__, e)
-'@
-          Set-Content -LiteralPath (Join-Path (Get-Location) '_ci_check_deps.py') -Value $code -Encoding utf8
-          & $py (Join-Path (Get-Location) '_ci_check_deps.py') *>> $log
+          & $py --version *>> $log
+          & $py -c "import sys; print(sys.executable); print(sys.version)" *>> $log
+          & $py -c "import PySide6; print('PySide6 ok')" *>> $log
+          & $py -c "import pandas; print('pandas ok')" *>> $log
+          & $py -c "import openpyxl; print('openpyxl ok')" *>> $log
+          & $py -c "import fitz; print('fitz ok')" *>> $log
           Get-Content -LiteralPath $log
 
       - name: 准备测试语料（本机缓存优先）
