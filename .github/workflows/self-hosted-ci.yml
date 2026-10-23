@@ -18,14 +18,14 @@ jobs:
           fetch-depth: 0
 
       - name: 检查 Python / 依赖
-        shell: pwsh
+        shell: powershell
         run: |
           $py = 'D:\Program Files\Python311\python.exe'
           & $py --version
           & $py -c "import PySide6, pandas, openpyxl, fitz; print('deps ok')"
 
       - name: 准备测试语料（本机缓存优先）
-        shell: pwsh
+        shell: powershell
         run: |
           $src = 'D:\beeofficeV\tests\fidelity\corpus'
           $dst = 'tests\fidelity\corpus'
@@ -38,7 +38,7 @@ jobs:
           }
 
       - name: 46 项回归门禁
-        shell: pwsh
+        shell: powershell
         env:
           QT_QPA_PLATFORM: offscreen
           QT_QPA_FONTDIR: 'C:\Windows\Fonts'
@@ -50,7 +50,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: 全量测试（fidelity + unit）
-        shell: pwsh
+        shell: powershell
         env:
           QT_QPA_PLATFORM: offscreen
           QT_QPA_FONTDIR: 'C:\Windows\Fonts'
@@ -64,7 +64,7 @@ jobs:
 
       - name: 构建发行包（仅手动/标签触发）
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
-        shell: pwsh
+        shell: powershell
         env:
           PYTHONIOENCODING: utf-8
         run: |
