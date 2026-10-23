@@ -11,6 +11,16 @@
 **WPS 式 Ribbon 标签栏（2026-10-23）**：把蜜算/蜜写的平铺工具栏收进标签页，
 不复制按钮、不改变命令逻辑。
 
+### 工程与验证（干净 worktree，commit `61908e8`）
+- **46/46 门禁 PASS**（13.3 分钟，`_ptmp/analysis/gates_clean_5022.log`）；
+- 全量 `fidelity+unit`：**1611 passed / 4 skipped / 0 failed**（665.46 s，
+  `_ptmp/analysis/pytest_clean_5022.log`）。
+
+### 发行
+- `BeeOffice-v5.0.22-windows.zip`：**225.5 MB / 3132 个条目**，sha256
+  `df1f5d88606008d082a7c46a508057b8cea5d33cf3a5f6d59c5e53faaeb161b0`；
+- tag `v5.0.22` = `61908e8`；归档 `release-archive/`；`verify_release.py` 5/5 通过。
+
 ### 新增
 - 新增 `beeoffice/plugins/ribbon_widget.py`（QTabBar + QStackedWidget，WPS 风格标签样式）；
 - 蜜算：工具栏分为「开始（文件/字体格式）/ 插入（图表/透视/函数）/ 数据（清洗/验证/审计）/
