@@ -28,6 +28,16 @@
 - 空白表默认列数 10 → **26（A–Z）**（行仍 1000）。
 - 主窗口状态栏新增全局忙碌进度条：打开表格/Word/文本/演示时显示。
 
+### 工程与验证（干净 worktree，commit `a21db09`）
+- **46/46 门禁 PASS**（7.8 分钟，`_ptmp/analysis/gates_clean_5020b.log`）；
+- 全量 `fidelity+unit`：**1608 passed / 4 skipped / 0 failed**（470.89 s，
+  `_ptmp/analysis/pytest_clean_5020b.log`）；第 5 批新增 11 条测试全过。
+
+### 发行
+- `BeeOffice-v5.0.20-windows.zip`：**225.5 MB / 3130 个条目**，sha256
+  `82b83379f155324bb5e4e5c4f99f123ba74c7f59476577ec30842b4e2fc35b1f`；
+- tag `v5.0.20` = `a21db09`；归档 `release-archive/`；`verify_release.py` 5/5 通过。
+
 ### 说明
 - i18n 基线 3654 → **3689**。
 
