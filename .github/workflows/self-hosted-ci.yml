@@ -1,0 +1,102 @@
+# BeeOffice 自托管 runner CI（2026-10-23）
+#
+# 跑在 D:\actions-runner-beeoffice 注册的 `beeoffice-local-runner` 上：
+#   - 46 项回归门禁（tools/check_gates.py）
+#   - 全量 fidelity + unit 测试（与本地干净基线同一条命令）
+#   - workflow_dispatch / tag 时额外构建 Windows 发行包并上传 artifact
+#
+# 语料说明：tests/fidelity/corpus 里的大文件（20/25/30 万行 xlsx）未全部入库，
+# 本机 `D:\beeofficeV\tests\fidelity\corpus` 有一份缓存；步骤会优先复制它，
+# 没有缓存时照常跑（相关测试按缺失跳过或报错，日志可见）。
+#
+# 触发：推送到 wps-run-ui-2026-10-22 分支；或在 Actions 页面手动 Run workflow。
+name: self-hosted-ci
+
+on:
+  push:
+    branches: [wps-run-ui-2026-10-22]
+    tags: ["v*"]
+  pull_request:
+    branches: [wps-run-ui-2026-10-22]
+  workflow_dispatch:
+
+concurrency:
+  group: self-hosted-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  gates-and-tests:
+    name: 46 门禁 + 全量测试
+    runs-on: [self-hosted, windows, x64]
+    timeout-minutes: 90
+
+    env:
+      QT_QPA_PLATFORM: offscreen
+      QT_QPA_FONTDIR: "C:\\Windows\\Fonts"
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONIOENCODING: utf-8
+      BEEOFFICE_DRAFT_DIR: "${{ runner.temp }}\\beeoffice_ci_drafts"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 检查 Python / 依赖
+        shell: pwsh
+        run: |
+          python --version
+          python -c "import PySide6, pandas, openpyxl, fitz; print('deps ok')"
+
+      - name: 准备测试语料（本机缓存优先）
+        shell: pwsh
+        run: |
+          $src = 'D:\beeofficeV\tests\fidelity\corpus'
+          $dst = 'tests\fidelity\corpus'
+          New-Item -ItemType Directory -Force -Path $dst | Out-Null
+          if (Test-Path $src) {
+            Copy-Item "$src\*" $dst -Recurse -Force
+            "copied corpus from $src"
+          } else {
+            "WARNING: local corpus cache not found; corpus-dependent tests may skip/fail"
+          }
+
+      - name: 46 项回归门禁
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = (Get-Location).Path
+          python tools\check_gates.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: 全量测试（fidelity + unit）
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = (Get-Location).Path
+          python -m pytest tests/fidelity tests/unit -q --no-header -p no:cacheprovider -o log_file= --timeout=900
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: 构建发行包（仅手动/标签触发）
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          TEMP: "${{ runner.temp }}\\build"
+          TMP: "${{ runner.temp }}\\build"
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:TEMP | Out-Null
+          $env:PYTHONPATH = (Get-Location).Path
+          python beeoffice\build_release.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-ChildItem -Filter 'BeeOffice-v*-windows.zip*' | Select-Object Name,Length
+
+      - name: 上传构建产物（仅手动/标签触发）
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: BeeOffice-windows-${{ github.run_number }}
+          path: |
+            BeeOffice-v*-windows.zip
+            BeeOffice-v*-windows.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
