@@ -456,17 +456,18 @@ class UIMixin:
         # 开始：文件/状态 + 字体格式；插入：图表/透视/函数；
         # 数据：清洗/查找/验证/名称/审计；视图：样式/兼容/行列号/冻结。
         ribbon = RibbonBar()
-        pages = (
-            ("开始", (t1, self._t5)),
-            ("插入", (self._t2,)),
-            ("数据", (self._t3,)),
-            ("视图", (self._t4,)),
+        page_defs = (
+            ("开始", (("📄 文件", t1), ("🖋 格式", self._t5))),
+            ("插入", (("📊 图表 / 分析", self._t2),)),
+            ("数据", (("🧹 数据工具", self._t3),)),
+            ("视图", (("👁 显示", self._t4),)),
         )
-        for title, rows in pages:
+        for title, groups in page_defs:
             page_layout = ribbon.add_tab(title)
-            for row in rows:
-                tc.removeItem(row)          # 从旧垂直布局摘下（不销毁控件）
-                page_layout.addLayout(row)
+            for group_title, row in groups:
+                tc.removeItem(row)      # 从旧垂直布局摘下（不销毁控件）
+                group = ribbon.add_group(page_layout, group_title)
+                group.add_layout(row)
         tc.addWidget(ribbon)
         self._ribbon = ribbon
 

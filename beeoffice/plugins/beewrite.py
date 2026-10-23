@@ -235,9 +235,11 @@ class BeeWriteEditor(
         # WPS 式 Ribbon：把两行平铺工具栏收进「开始 / 插入」标签页
         self._ribbon = RibbonBar()
         page = self._ribbon.add_tab("开始")
-        page.addWidget(self._toolbar1)
+        group = self._ribbon.add_group(page, "🖋 字体与段落")
+        group.add_widget(self._toolbar1)
         page = self._ribbon.add_tab("插入")
-        page.addWidget(self._toolbar2)
+        group = self._ribbon.add_group(page, "📋 插入与页面")
+        group.add_widget(self._toolbar2)
         toolbar_container.addWidget(self._ribbon)
 
         # ---------- 总布局 ----------

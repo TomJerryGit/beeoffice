@@ -13,7 +13,11 @@ WPS 的标签式功能区一致，且不复制按钮、不改变任何命令逻�
     ...
     layout.addWidget(ribbon)
 """
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
     QStackedWidget,
     QTabBar,
     QVBoxLayout,
@@ -21,8 +25,36 @@ from PySide6.QtWidgets import (
 )
 
 
+class RibbonGroup(QFrame):
+    """Ribbon 分组框：内容在上、组名在下的 WPS/Office 样式。"""
+
+    def __init__(self, title: str = "", parent=None):
+        super().__init__(parent)
+        self.setObjectName("RibbonGroup")
+        self.setStyleSheet(
+            "QFrame#RibbonGroup{border-right:1px solid #E3E3E3;}"
+        )
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(4, 2, 6, 1)
+        layout.setSpacing(0)
+        self.content = QHBoxLayout()
+        self.content.setContentsMargins(0, 0, 0, 0)
+        self.content.setSpacing(3)
+        layout.addLayout(self.content, 1)
+        self._title = QLabel(title or "")
+        self._title.setAlignment(Qt.AlignCenter)
+        self._title.setStyleSheet("color:#777;font-size:10px;padding-top:1px;")
+        layout.addWidget(self._title)
+
+    def add_layout(self, layout):
+        self.content.addLayout(layout)
+
+    def add_widget(self, widget):
+        self.content.addWidget(widget)
+
+
 class RibbonBar(QWidget):
-    """标签式功能区：QTabBar + 每标签一页垂直布局。"""
+    """标签式功能区：QTabBar + 每标签一页水平分组布局。"""
 
     STYLE = """
     QTabBar::tab {
@@ -53,16 +85,23 @@ class RibbonBar(QWidget):
         layout.addWidget(self._stack, 1)
         self._tabs.currentChanged.connect(self._stack.setCurrentIndex)
 
-    def add_tab(self, title: str) -> QVBoxLayout:
+    def add_tab(self, title: str) -> QHBoxLayout:
         page = QWidget()
-        page_layout = QVBoxLayout(page)
+        page_layout = QHBoxLayout(page)
         page_layout.setContentsMargins(4, 2, 4, 2)
-        page_layout.setSpacing(2)
+        page_layout.setSpacing(4)
+        page_layout.addStretch()
         self._stack.addWidget(page)
         index = self._tabs.addTab(title)
         if index == 0:
             self._tabs.setCurrentIndex(0)
         return page_layout
+
+    def add_group(self, page_layout: QHBoxLayout, title: str = "") -> RibbonGroup:
+        """在标签页里追加一个 Ribbon 分组框。"""
+        group = RibbonGroup(title, page_layout.parentWidget())
+        page_layout.insertWidget(max(0, page_layout.count() - 1), group)
+        return group
 
     def tab_names(self):
         return [self._tabs.tabText(i) for i in range(self._tabs.count())]

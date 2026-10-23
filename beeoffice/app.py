@@ -700,6 +700,15 @@ class BeeApp(QMainWindow):
         if not self.plugin_manager:
             return
         menu_bar = self.menuBar()
+        # 统一 WPS 式浅色菜单栏外壳（配合各插件的 Ribbon 标签页）
+        menu_bar.setStyleSheet(
+            "QMenuBar{background:#F7F8FA;border-bottom:1px solid #E3E3E3;"
+            "padding:1px 4px;}"
+            "QMenuBar::item{background:transparent;padding:5px 12px;"
+            "border-radius:3px;color:#333;}"
+            "QMenuBar::item:selected{background:#E8F0FE;color:#1A73E8;}"
+            "QMenuBar::item:pressed{background:#D2E3FC;}"
+        )
         for plugin in self.plugins:
             if hasattr(plugin, "register_menus"):
                 try:
