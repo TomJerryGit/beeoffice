@@ -241,6 +241,8 @@ class BeeWriteEditor(
         group = self._ribbon.add_group(page, "📋 插入与页面")
         group.add_widget(self._toolbar2)
         toolbar_container.addWidget(self._ribbon)
+        self._ribbon.add_quick_action("💾", "保存 (Ctrl+S)", self.save)
+        self._ribbon.add_quick_action("🖨", "页面视图", self._print_preview)
 
         # ---------- 总布局 ----------
         layout = QVBoxLayout(self)

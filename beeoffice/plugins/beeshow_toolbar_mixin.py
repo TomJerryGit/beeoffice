@@ -43,6 +43,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QShortcut, QKeySequence
 
 from beeoffice.plugins.beeshow_constants import SLIDE_THEMES
+from beeoffice.plugins.ribbon_widget import RibbonBar
 
 
 class ToolbarMixin:
@@ -219,7 +220,21 @@ class ToolbarMixin:
         )
         toolbar.addWidget(btn_image_suggest)
 
-        return toolbar
+        # WPS 式外壳：编辑工具收进「开始」，放映控制独立「放映」页 + 大按钮
+        ribbon = RibbonBar()
+        page = ribbon.add_tab("开始")
+        group = ribbon.add_group(page, "🎥 编辑与导出")
+        group.add_widget(toolbar)
+        page2 = ribbon.add_tab("放映")
+        group2 = ribbon.add_group(page2, "▶ 放映控制")
+        group2.add_large_button("▶\n播放", "开始播放 (F5)", self._start_play)
+        group2.add_large_button("🎤\n演讲者", "演讲者模式", self._start_presenter_mode)
+        group2.add_large_button("🖨\n打印", "打印预览", self._print_preview)
+        group2.add_large_button("⏱\n排练", "开始/停止排练计时", self.toggle_rehearsal)
+        ribbon.add_quick_action("💾", "保存 (Ctrl+S)", self.save)
+        ribbon.add_quick_action("▶", "播放 (F5)", self._start_play)
+        self._ribbon = ribbon
+        return ribbon
 
     # ==================== 右键菜单（任务 1.2 / 4.1 / 4.2 / v5.2 B1） ====================
     def _show_ai_notes_menu(self, global_pos):

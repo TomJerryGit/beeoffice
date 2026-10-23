@@ -470,6 +470,10 @@ class UIMixin:
                 group.add_layout(row)
         tc.addWidget(ribbon)
         self._ribbon = ribbon
+        # 快速访问栏
+        ribbon.add_quick_action("💾", "保存 (Ctrl+S)", self.save)
+        ribbon.add_quick_action("↩", "撤销 (Ctrl+Z)", self.undo)
+        ribbon.add_quick_action("↪", "重做 (Ctrl+Y)", self.redo)
 
         # 暂存到 self，供主类的 layout 组装
         self._toolbar_container = tc

@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QStackedWidget,
+    QToolButton,
     QTabBar,
     QVBoxLayout,
     QWidget,
@@ -45,6 +46,22 @@ class RibbonGroup(QFrame):
         self._title.setAlignment(Qt.AlignCenter)
         self._title.setStyleSheet("color:#777;font-size:10px;padding-top:1px;")
         layout.addWidget(self._title)
+
+    def add_large_button(self, text: str, tooltip: str, callback):
+        """WPS 式大按钮（图标在上、文字在下）。"""
+        button = QToolButton()
+        button.setText(text)
+        button.setToolTip(tooltip)
+        button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        button.setMinimumSize(56, 46)
+        button.setStyleSheet(
+            "QToolButton{border:none;border-radius:4px;padding:2px;"
+            "font-size:12px;color:#333;}"
+            "QToolButton:hover{background:#E8F0FE;}"
+        )
+        button.clicked.connect(callback)
+        self.content.addWidget(button)
+        return button
 
     def add_layout(self, layout):
         self.content.addLayout(layout)
@@ -81,6 +98,16 @@ class RibbonBar(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+        # 快速访问栏（保存/撤销等）在标签栏上方，WPS 式
+        quick_row = QHBoxLayout()
+        quick_row.setContentsMargins(4, 1, 4, 0)
+        quick_row.setSpacing(2)
+        self._quick_layout = QHBoxLayout()
+        self._quick_layout.setContentsMargins(0, 0, 0, 0)
+        self._quick_layout.setSpacing(2)
+        quick_row.addLayout(self._quick_layout)
+        quick_row.addStretch()
+        layout.addLayout(quick_row)
         layout.addWidget(self._tabs)
         layout.addWidget(self._stack, 1)
         self._tabs.currentChanged.connect(self._stack.setCurrentIndex)
@@ -102,6 +129,21 @@ class RibbonBar(QWidget):
         group = RibbonGroup(title, page_layout.parentWidget())
         page_layout.insertWidget(max(0, page_layout.count() - 1), group)
         return group
+
+    def add_quick_action(self, text: str, tooltip: str, callback):
+        """快速访问栏按钮（WPS 标题栏下的小图标按钮）。"""
+        button = QToolButton()
+        button.setText(text)
+        button.setToolTip(tooltip)
+        button.setAutoRaise(True)
+        button.setFixedSize(24, 22)
+        button.setStyleSheet(
+            "QToolButton{border:none;border-radius:3px;font-size:13px;}"
+            "QToolButton:hover{background:#E8F0FE;}"
+        )
+        button.clicked.connect(callback)
+        self._quick_layout.addWidget(button)
+        return button
 
     def tab_names(self):
         return [self._tabs.tabText(i) for i in range(self._tabs.count())]

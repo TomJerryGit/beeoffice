@@ -63,3 +63,27 @@ def test_ribbon_groups_have_titles(qtbot):
     groups = view._ribbon.findChildren(QFrame, "RibbonGroup")
     titles = [g._title.text() for g in groups]
     assert "📄 文件" in titles and "🖋 格式" in titles
+
+
+def test_quick_access_bar(qtbot):
+    view = BeeSheetView()
+    qtbot.addWidget(view)
+    rib = view._ribbon
+    buttons = [rib._quick_layout.itemAt(i).widget() for i in range(rib._quick_layout.count())]
+    buttons = [b for b in buttons if b is not None]
+    assert len(buttons) == 3
+    tips = [b.toolTip() for b in buttons]
+    assert any("保存" in x for x in tips)
+    assert any("撤销" in x for x in tips)
+    assert any("重做" in x for x in tips)
+
+
+def test_large_button_callback(qtbot):
+    from beeoffice.plugins.ribbon_widget import RibbonBar
+    clicks = []
+    rib = RibbonBar()
+    page = rib.add_tab("放映")
+    group = rib.add_group(page, "控制")
+    btn = group.add_large_button("▶\n播放", "播放", lambda: clicks.append(1))
+    btn.click()
+    assert clicks == [1]
