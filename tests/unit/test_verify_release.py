@@ -13,7 +13,7 @@ if str(ROOT) not in sys.path:
 from tools.verify_release import sha256, verify_zip   # noqa: E402
 
 
-def _make_zip(path: Path, *, locale_keys: int = 226, with_sha: bool = True,
+def _make_zip(path: Path, *, locale_keys: int = 227, with_sha: bool = True,
               future: bool = True) -> Path:
     stamp = (2035 if future else 2000, 1, 1, 0, 0, 0)
 
@@ -58,7 +58,7 @@ def test_verify_zip_all_checks_pass(tmp_path):
     names = {item["name"] for item in result["checks"]}
     assert "SHA-256 与 .sha256 一致" in names
     assert "必需文件存在" in names
-    assert f"locale key 数 = 226" in names
+    assert f"locale key 数 = 227" in names
     assert "包内最新条目晚于提交" in names
 
 

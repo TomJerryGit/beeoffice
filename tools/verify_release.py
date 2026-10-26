@@ -33,8 +33,8 @@ REQUIRED_SUFFIXES = (
     "locales/en_US.json",
 )
 
-#: 期望 locale key 数（v5.0.18 起为 226；变化时在发版说明里解释）
-EXPECTED_LOCALE_KEYS = 226
+#: 期望 locale key 数（v5.0.18 起为 227；变化时在发版说明里解释）
+EXPECTED_LOCALE_KEYS = 227
 
 
 def sha256(path: Path) -> str:

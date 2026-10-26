@@ -1567,10 +1567,10 @@ class BeeApp(QMainWindow):
         """全局应用主题（所有窗口/对话框 + Ribbon 分组/快速栏）。"""
         from PySide6.QtWidgets import QApplication
 
-        app = QApplication.instance()
         stylesheet = Theme.get_stylesheet()
-        if app is not None:
-            app.setStyleSheet(stylesheet)
+        # 注意：不能在构造/测试环境调用 QApplication.setStyleSheet（PySide6
+        # 原生崩溃 0xC0000005 实测发生在 app fixture 初始化）；主窗口 QSS 会
+        # 向子控件传播，Ribbon 再用 apply_theme() 单独刷新。
         self.setStyleSheet(stylesheet)
         try:
             from beeoffice.plugins.ribbon_widget import RibbonBar
