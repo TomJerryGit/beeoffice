@@ -21,15 +21,26 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      - name: 环境检查
+      - name: 环境检查（写诊断到 D:\beeoffice_ci_diag.txt，不阻断）
         shell: powershell
+        continue-on-error: true
         run: |
+          $diag = 'D:\beeoffice_ci_diag.txt'
           $repo = 'D:\beeofficeV'
           $py = 'D:\Program Files\Python311\python.exe'
-          "repo=$repo exists=$(Test-Path $repo)"
-          "py=$py exists=$(Test-Path $py)"
-          & $py --version
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "== env $(Get-Date -Format o) ==" | Out-File -LiteralPath $diag -Encoding utf8
+          "user=$env:USERNAME workspace=$env:GITHUB_WORKSPACE" | Out-File -LiteralPath $diag -Append -Encoding utf8
+          "repo=$repo exists=$(Test-Path $repo)" | Out-File -LiteralPath $diag -Append -Encoding utf8
+          "py=$py exists=$(Test-Path $py)" | Out-File -LiteralPath $diag -Append -Encoding utf8
+          try {
+            & $py --version *>> $diag
+            "py_exit=$LASTEXITCODE" | Out-File -LiteralPath $diag -Append -Encoding utf8
+            & $py -c "import sys; print(sys.executable); import PySide6, pandas, openpyxl, fitz; print('deps_ok')" *>> $diag
+            "deps_exit=$LASTEXITCODE" | Out-File -LiteralPath $diag -Append -Encoding utf8
+          } catch {
+            "EXCEPTION: $_" | Out-File -LiteralPath $diag -Append -Encoding utf8
+          }
+          Get-Content -LiteralPath $diag
 
       - name: 46 项回归门禁
         shell: powershell
