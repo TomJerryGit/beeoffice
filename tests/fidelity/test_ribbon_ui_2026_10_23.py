@@ -43,7 +43,7 @@ def test_word_has_wps_ribbon_tabs(beewrite_editor, qtbot):
     qtbot.waitExposed(editor)
     ribbon = editor._ribbon
     assert isinstance(ribbon, RibbonBar)
-    assert ribbon.tab_names() == ["开始", "插入"]
+    assert ribbon.tab_names() == ["开始", "插入", "页面"]
     # 工具栏已被收进对应 Ribbon 页的分组框（结构断言，避免 offscreen 可见性抖动）
     page0 = ribbon._stack.widget(0)
     page1 = ribbon._stack.widget(1)

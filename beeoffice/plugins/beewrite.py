@@ -234,12 +234,20 @@ class BeeWriteEditor(
         toolbar_container.setSpacing(1)
         # WPS 式 Ribbon：把两行平铺工具栏收进「开始 / 插入」标签页
         self._ribbon = RibbonBar()
+        # 开始：模式切换（Markdown/所见即所得）+ 字体/段落
         page = self._ribbon.add_tab("开始")
+        group = self._ribbon.add_group(page, "📝 模式")
+        group.add_layout(self._mode_toolbar)
         group = self._ribbon.add_group(page, "🖋 字体与段落")
         group.add_widget(self._toolbar1)
+        # 插入：表格/图片/链接/分页/批注/修订等
         page = self._ribbon.add_tab("插入")
-        group = self._ribbon.add_group(page, "📋 插入与页面")
+        group = self._ribbon.add_group(page, "📋 插入与对象")
         group.add_widget(self._toolbar2)
+        # 页面：导出/保存/页面设置/页眉页脚/页面视图/拼写检查
+        page = self._ribbon.add_tab("页面")
+        group = self._ribbon.add_group(page, "📄 文件与页面")
+        group.add_layout(self._quick_toolbar)
         toolbar_container.addWidget(self._ribbon)
         self._ribbon.add_quick_action("💾", "保存 (Ctrl+S)", self.save)
         self._ribbon.add_quick_action("🖨", "页面视图", self._print_preview)
@@ -248,8 +256,6 @@ class BeeWriteEditor(
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        layout.addLayout(self._mode_toolbar)
-        layout.addLayout(self._quick_toolbar)
         layout.addLayout(toolbar_container)
         # 关键修复：加 stretch=1，让分屏占满剩余空间，消除下方空白
         layout.addWidget(splitter, 1)
