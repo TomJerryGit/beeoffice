@@ -25,6 +25,16 @@
 - **大按钮组件**：`RibbonGroup.add_large_button()`（图标+文字上下排布，56×46）；
 - 截图：`docs/截图-WPS式UI-2026-10-22/07~09`。
 
+### 工程与验证（干净 worktree，commit `ec13bbd`）
+- **46/46 门禁 PASS**（12.5 分钟，`_ptmp/analysis/gates_clean_5023e.log`）；
+- 全量 `fidelity+unit`：**1614 passed / 4 skipped / 0 failed**（640.26 s，
+  `_ptmp/analysis/pytest_clean_5023e.log`）。
+
+### 发行
+- `BeeOffice-v5.0.23-windows.zip`：**225.5 MB / 3132 个条目**，sha256
+  `c478b87ba1795bc733780ea46abf8454bcd079f2a157b2a17a440d5402c313ef`；
+- tag `v5.0.23` = `ec13bbd`；归档 `release-archive/`；`verify_release.py` 5/5 通过。
+
 ### 说明
 - i18n 基线 3695 → **3721**。
 - 阶段 1 覆盖蜜算/蜜写/蜜演；全局主题（阶段 2）仍未做。
