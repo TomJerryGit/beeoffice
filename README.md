@@ -7,7 +7,7 @@
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/)
 [![PySide6](https://img.shields.io/badge/PySide6-6.5+-green.svg)](https://doc.qt.io/qtforpython/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-5.0.23-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-5.0.24-orange.svg)](CHANGELOG.md)
 
 ---
 

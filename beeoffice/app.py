@@ -700,15 +700,6 @@ class BeeApp(QMainWindow):
         if not self.plugin_manager:
             return
         menu_bar = self.menuBar()
-        # 统一 WPS 式浅色菜单栏外壳（配合各插件的 Ribbon 标签页）
-        menu_bar.setStyleSheet(
-            "QMenuBar{background:#F7F8FA;border-bottom:1px solid #E3E3E3;"
-            "padding:1px 4px;}"
-            "QMenuBar::item{background:transparent;padding:5px 12px;"
-            "border-radius:3px;color:#333;}"
-            "QMenuBar::item:selected{background:#E8F0FE;color:#1A73E8;}"
-            "QMenuBar::item:pressed{background:#D2E3FC;}"
-        )
         for plugin in self.plugins:
             if hasattr(plugin, "register_menus"):
                 try:
@@ -717,6 +708,47 @@ class BeeApp(QMainWindow):
                     logging.error(
                         f"插件 {getattr(plugin, 'name', '未知')} 注册菜单失败: {e}"
                     )
+        # 视图 → 主题 / 强调色（阶段 2：全局主题切换，持久化到 settings）
+        try:
+            from PySide6.QtGui import QAction, QActionGroup
+
+            view_menu = None
+            for action in menu_bar.actions():
+                if action.text().replace("&", "").strip() in ("视图", "View"):
+                    view_menu = action.menu()
+                    break
+            if view_menu is None:
+                view_menu = menu_bar.addMenu("视图")
+            theme_menu = view_menu.addMenu("🎨 主题")
+            group = QActionGroup(self)
+            group.setExclusive(True)
+            light = QAction("☀️ 浅色", self, checkable=True)
+            light.setChecked(self.settings.theme != "dark")
+            light.triggered.connect(lambda _=False: self._set_theme("light"))
+            dark = QAction("🌙 深色", self, checkable=True)
+            dark.setChecked(self.settings.theme == "dark")
+            dark.triggered.connect(lambda _=False: self._set_theme("dark"))
+            group.addAction(light)
+            group.addAction(dark)
+            theme_menu.addAction(light)
+            theme_menu.addAction(dark)
+            accent_menu = view_menu.addMenu("🎨 强调色")
+            accents = (
+                ("amber", "琥珀黄"), ("ocean", "海洋蓝"),
+                ("forest", "森林绿"), ("sunset", "落日橙"),
+            )
+            accent_group = QActionGroup(self)
+            accent_group.setExclusive(True)
+            for key, label in accents:
+                act = QAction(label, self, checkable=True)
+                act.setChecked(self.settings.accent_color == key)
+                act.triggered.connect(
+                    lambda _=False, k=key: self._set_accent(k)
+                )
+                accent_group.addAction(act)
+                accent_menu.addAction(act)
+        except Exception as e:  # noqa: BLE001
+            logging.debug(f"[主题菜单] 注册失败（忽略）: {e}")
 
     # ==================================================================
     # 最近文件
@@ -1516,7 +1548,10 @@ class BeeApp(QMainWindow):
     # 主题
     # ==================================================================
     def _toggle_theme(self, checked):
-        mode = "dark" if checked else "light"
+        self._set_theme("dark" if checked else "light")
+
+    def _set_theme(self, mode):
+        mode = "dark" if mode == "dark" else "light"
         Theme.set_theme(mode)
         self.settings.theme = mode
         self.settings.save()
@@ -1529,7 +1564,20 @@ class BeeApp(QMainWindow):
         self._apply_theme()
 
     def _apply_theme(self):
-        self.setStyleSheet(Theme.get_stylesheet())
+        """全局应用主题（所有窗口/对话框 + Ribbon 分组/快速栏）。"""
+        from PySide6.QtWidgets import QApplication
+
+        app = QApplication.instance()
+        stylesheet = Theme.get_stylesheet()
+        if app is not None:
+            app.setStyleSheet(stylesheet)
+        self.setStyleSheet(stylesheet)
+        try:
+            from beeoffice.plugins.ribbon_widget import RibbonBar
+            for ribbon in self.findChildren(RibbonBar):
+                ribbon.apply_theme()
+        except Exception:  # noqa: BLE001
+            pass
 
     # 语言切换入口已移除（2026-10-20 i18n 决策：中文优先，不再提供半成品英文界面）
 

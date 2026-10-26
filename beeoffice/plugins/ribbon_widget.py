@@ -47,6 +47,22 @@ class RibbonGroup(QFrame):
         self._title.setStyleSheet("color:#777;font-size:10px;padding-top:1px;")
         layout.addWidget(self._title)
 
+    def apply_theme(self):
+        """按当前全局主题刷新分组框颜色。"""
+        try:
+            from beeoffice.theme import Theme
+            dark = Theme.is_dark()
+        except Exception:  # noqa: BLE001
+            dark = False
+        border = "#444" if dark else "#E3E3E3"
+        title = "#AAA" if dark else "#777"
+        self.setStyleSheet(
+            "QFrame#RibbonGroup{border-right:1px solid " + border + ";}"
+        )
+        self._title.setStyleSheet(
+            "color:" + title + ";font-size:10px;padding-top:1px;"
+        )
+
     def add_large_button(self, text: str, tooltip: str, callback):
         """WPS 式大按钮（图标在上、文字在下）。"""
         button = QToolButton()
@@ -111,6 +127,47 @@ class RibbonBar(QWidget):
         layout.addWidget(self._tabs)
         layout.addWidget(self._stack, 1)
         self._tabs.currentChanged.connect(self._stack.setCurrentIndex)
+        self.apply_theme()
+
+    def apply_theme(self):
+        """按当前全局主题刷新标签/快速访问栏/分组（浅色/深色 + 强调色）。"""
+        try:
+            from beeoffice.theme import Theme
+            dark = Theme.is_dark()
+            accent = Theme.get_accent_color("primary")
+            light = Theme.get_accent_color("light")
+            dark_a = Theme.get_accent_color("dark")
+        except Exception:  # noqa: BLE001
+            dark, accent, light, dark_a = False, "#2196F3", "#E3F2FD", "#0D47A1"
+        bg = "#2D2D2D" if dark else "#F5F5F5"
+        fg = "#CCC" if dark else "#444"
+        page_bg = "#252525" if dark else "#FFFFFF"
+        tab_bg = "#333" if dark else "#F5F5F5"
+        tab_sel_bg = "#FFFFFF" if dark else "#FFFFFF"
+        tab_sel_fg = accent if not dark else "#FFFFFF"
+        border = "#3D3D3D" if dark else "#E3E3E3"
+        self._tabs.setStyleSheet(f"""
+            QTabBar::tab {{
+                background: {tab_bg}; color: {fg}; padding: 5px 16px;
+                border: 1px solid {border}; border-bottom: none;
+                border-top-left-radius: 4px; border-top-right-radius: 4px;
+                margin-right: 1px; font-size: 12px;
+            }}
+            QTabBar::tab:selected {{
+                background: {tab_sel_bg}; color: {tab_sel_fg};
+                font-weight: bold; border-bottom: 2px solid {accent};
+            }}
+            QTabBar::tab:hover {{ background: {light if not dark else '#444'}; }}
+        """)
+        self._stack.setStyleSheet(f"QStackedWidget{{background:{page_bg};}}")
+        for button in self._quick_layout.findChildren(QToolButton) if hasattr(self, "_quick_layout") else []:
+            button.setStyleSheet(
+                "QToolButton{border:none;border-radius:3px;font-size:13px;"
+                f"color:{fg};}}"
+                f"QToolButton:hover{{background:{light if not dark else '#444'};}}"
+            )
+        for group in self.findChildren(RibbonGroup):
+            group.apply_theme()
 
     def add_tab(self, title: str) -> QHBoxLayout:
         page = QWidget()

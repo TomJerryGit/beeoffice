@@ -20,7 +20,7 @@
 """
 import logging
 
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtGui import QAction, QActionGroup, QKeySequence
 
 from beeoffice.i18n import tr
 from beeoffice.theme import Theme
@@ -77,8 +77,10 @@ def _build_accent_menu(main_window, parent_menu):
     :param main_window: BeeApp 实例
     :param parent_menu: 挂载到的父菜单（视图菜单）
     """
-    accent_menu = parent_menu.addMenu(tr("menu.view.accent", "强调色"))
+    accent_menu = parent_menu.addMenu(tr("menu.view.accent", "🎨 强调色"))
     current_accent = getattr(main_window.settings, "accent_color", "amber")
+    accent_group = QActionGroup(main_window)
+    accent_group.setExclusive(True)
 
     for accent_key in list(Theme.ACCENT_COLORS.keys()):
         display_name = tr(
@@ -91,6 +93,7 @@ def _build_accent_menu(main_window, parent_menu):
         action.triggered.connect(
             lambda checked=False, n=accent_key: main_window._set_accent(n)
         )
+        accent_group.addAction(action)
         accent_menu.addAction(action)
 
 
@@ -338,13 +341,24 @@ def setup_menus(main_window):
     # ==================== 视图菜单 ====================
     view_menu = menu_bar.addMenu(tr("menu.view", "视图"))
 
-    # 深色主题切换
-    theme_action = QAction(
-        tr("menu.view.dark_theme", "深色主题"), main_window, checkable=True
+    # 主题：浅色 / 深色（阶段 2：全局主题，持久化）
+    theme_menu = view_menu.addMenu(tr("menu.view.theme", "🎨 主题"))
+    theme_group = QActionGroup(main_window)
+    theme_group.setExclusive(True)
+    light_action = QAction("☀️ 浅色", main_window, checkable=True)
+    light_action.setChecked(main_window.settings.theme != "dark")
+    light_action.triggered.connect(
+        lambda _=False: main_window._set_theme("light")
     )
-    theme_action.setChecked(main_window.settings.theme == "dark")
-    theme_action.triggered.connect(main_window._toggle_theme)
-    view_menu.addAction(theme_action)
+    dark_action = QAction("🌙 深色", main_window, checkable=True)
+    dark_action.setChecked(main_window.settings.theme == "dark")
+    dark_action.triggered.connect(
+        lambda _=False: main_window._set_theme("dark")
+    )
+    theme_group.addAction(light_action)
+    theme_group.addAction(dark_action)
+    theme_menu.addAction(light_action)
+    theme_menu.addAction(dark_action)
 
     # 强调色子菜单
     _build_accent_menu(main_window, view_menu)
