@@ -1565,8 +1565,6 @@ class BeeApp(QMainWindow):
 
     def _apply_theme(self):
         """全局应用主题（所有窗口/对话框 + Ribbon 分组/快速栏）。"""
-        from PySide6.QtWidgets import QApplication
-
         stylesheet = Theme.get_stylesheet()
         # 注意：不能在构造/测试环境调用 QApplication.setStyleSheet（PySide6
         # 原生崩溃 0xC0000005 实测发生在 app fixture 初始化）；主窗口 QSS 会
