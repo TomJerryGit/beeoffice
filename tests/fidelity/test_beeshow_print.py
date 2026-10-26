@@ -314,7 +314,9 @@ def test_missing_image_draws_placeholder_not_blank(qtbot, tmp_path):
                     non_white += 1
     finally:
         document.close()
-    assert non_white > 50, "缺图时页面上什么都没有（占位框没画出来）"
+    # 占位框只有细边框：72dpi 每 4px 采样时像素数受字体/DPI 影响，
+    # 阈值取 20（实测正常环境 41+，真正空白页为 0），仍能区分“没画”与“画了”。
+    assert non_white > 20, "缺图时页面上什么都没有（占位框没画出来）"
 
 
 def test_empty_deck_renders_notice_page(qtbot, tmp_path):

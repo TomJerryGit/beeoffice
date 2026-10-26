@@ -314,19 +314,24 @@ def test_verify_pdf_is_inconclusive_when_text_unavailable(markdown_doc, tmp_path
     两种都接受，但**必须自洽**。
     """
     pytest.importorskip("fitz")
-    out = tmp_path / "报告.pdf"
-    _run(["convert", str(markdown_doc), "--to", "pdf", "-o", str(out)])
+    # 构造“只有图形、没有文本层”的 PDF：不依赖本机字体/WeasyPrint 导出结果，
+    # 从而稳定测到 verify 的“不可判定”分支（环境不同导出文本层会变）。
+    import fitz
+
+    out = tmp_path / "无文本.pdf"
+    doc = fitz.open()
+    page = doc.new_page()
+    page.draw_rect(fitz.Rect(72, 72, 300, 200), color=(0, 0, 0), width=1)
+    doc.save(str(out))
+    doc.close()
 
     report = tmp_path / "r.json"
     code = _run(["verify", str(markdown_doc), str(out), "--report", str(report)])
     data = json.loads(report.read_text(encoding="utf-8"))
 
-    assert code in (0, 3), data
-    if code == 3:
-        assert data.get("inconclusive") is True
-        assert data.get("note"), "不可判定必须说明原因"
-    else:
-        assert data["ok"] is True
+    assert code == 3, data
+    assert data.get("inconclusive") is True
+    assert data.get("note"), "不可判定必须说明原因"
 
 
 def test_table_source_to_pdf_is_honestly_rejected(sheet_file, capsys, tmp_path):
