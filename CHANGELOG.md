@@ -34,6 +34,17 @@
 - **大按钮组件**：`RibbonGroup.add_large_button()`（图标+文字上下排布，56×46）；
 - 截图：`docs/截图-WPS式UI-2026-10-22/07~09`。
 
+### 工程与验证（干净 worktree，commit `431afce`）
+- **46/46 门禁 PASS**（10.0 分钟，`_ptmp/analysis/gates_clean_5024c.log`）；
+- 全量 `fidelity+unit`：**1618 passed / 4 skipped / 0 failed**（654.27 s，
+  `_ptmp/analysis/pytest_clean_5024c.log`）。
+
+### 发行
+- `BeeOffice-v5.0.24-windows.zip`：**225.5 MB / 3132 个条目**，sha256
+  `2590646f83bd83fcde748633e7c2fa27d002921650f96bd7ac67c26e503806d5`；
+- tag `v5.0.24` = `431afce`；归档 `release-archive/`；`verify_release.py` 5/5 通过
+  （locale 227×2）。
+
 ### 工程与验证（干净 worktree，commit `ec13bbd`）
 - **46/46 门禁 PASS**（12.5 分钟，`_ptmp/analysis/gates_clean_5023e.log`）；
 - 全量 `fidelity+unit`：**1614 passed / 4 skipped / 0 failed**（640.26 s，
