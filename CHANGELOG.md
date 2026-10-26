@@ -17,6 +17,16 @@
 - 深色清理：蜜算名称框、Ribbon 分组/快速访问栏、蜜写/蜜演 QToolBar 跟随主题；
 - 新增 4 条阶段 3 主题 token/刷新测试；截图 `12~14`。
 
+### 工程与验证（干净 worktree，commit `757194c`）
+- **46/46 门禁 PASS**（`_ptmp/analysis/gates_clean_5025.log`，全部阻断项通过）；
+- 全量 `fidelity+unit`：**1622 passed / 4 skipped / 0 failed**（455.27 s，
+  `_ptmp/analysis/pytest_clean_5025b.log`）。
+
+### 发行
+- `BeeOffice-v5.0.25-windows.zip`：**225.5 MB / 3132 个条目**，sha256
+  `ac0704540f060a9ac6030b02cce13e0c4867daa0db71383c62bebd72a6de9b6e`；
+- tag `v5.0.25` = `757194c`；归档 `release-archive/`；`verify_release.py` 5/5 通过。
+
 ### 说明
 - 少量语义色按钮（如打印绿/危险红）保留固定色，不属于浅色残留。
 
