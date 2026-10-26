@@ -25,7 +25,8 @@ jobs:
         shell: powershell
         continue-on-error: true
         run: |
-          $diag = 'D:\beeoffice_ci_diag.txt'
+          $diag = 'D:\beeofficeV\_ptmp\analysis\ci_runner_diag.txt'
+          New-Item -ItemType Directory -Force -Path (Split-Path $diag) | Out-Null
           $repo = 'D:\beeofficeV'
           $py = 'D:\Program Files\Python311\python.exe'
           "== env $(Get-Date -Format o) ==" | Out-File -LiteralPath $diag -Encoding utf8
