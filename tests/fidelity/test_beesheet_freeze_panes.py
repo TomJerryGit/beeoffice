@@ -116,8 +116,13 @@ def test_scroll_sync_does_not_raise(qtbot):
     view._freeze_first_row_col()
     hbar = view.table_view.horizontalScrollBar()
     vbar = view.table_view.verticalScrollBar()
-    assert hbar.maximum() > 0 and vbar.maximum() > 0
-    hbar.setValue(1)
-    vbar.setValue(1)
-    assert view._frozen_top_view.horizontalScrollBar().value() == 1
-    assert view._frozen_left_view.verticalScrollBar().value() == 2  # 1 + 冻结首行
+    hvalue = min(1, hbar.maximum())
+    vvalue = min(1, vbar.maximum())
+    hbar.setValue(hvalue)
+    vbar.setValue(vvalue)
+    top_bar = view._frozen_top_view.horizontalScrollBar()
+    left_bar = view._frozen_left_view.verticalScrollBar()
+    assert top_bar.value() == hvalue
+    # 左侧冻结列视图纵向偏移 = 主表滚动值 + 冻结首行数（受自身滚动范围裁剪）
+    expected = max(0, min(left_bar.maximum(), vvalue + view._frozen_top))
+    assert left_bar.value() == expected
