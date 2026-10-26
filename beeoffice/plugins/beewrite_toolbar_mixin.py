@@ -19,6 +19,9 @@ from PySide6.QtWidgets import (
 )
 
 
+from beeoffice.theme import Theme
+
+
 _TOOLBAR_STYLE = (
     "QToolBar{background:#FFF;border-bottom:1px solid #EEE;"
     "padding:2px 4px;spacing:4px}"
@@ -34,13 +37,24 @@ _TOOLBAR_STYLE = (
 class ToolbarMixin:
     """蜜写工具栏构建 Mixin"""
 
+    def apply_theme(self):
+        """主题切换后刷新蜜写两条工具栏（阶段 3 token 化）。"""
+        from beeoffice.theme import Theme
+        try:
+            for attr in ("_toolbar1", "_toolbar2"):
+                bar = getattr(self, attr, None)
+                if bar is not None:
+                    bar.setStyleSheet(Theme.toolbar_qss())
+        except Exception:  # noqa: BLE001
+            pass
+
     # ------------------------------------------------------------------
     # 第 1 行工具栏：格式
     # ------------------------------------------------------------------
     def _build_toolbar1(self) -> QToolBar:
         """构建格式工具栏"""
         toolbar = QToolBar()
-        toolbar.setStyleSheet(_TOOLBAR_STYLE)
+        toolbar.setStyleSheet(Theme.toolbar_qss())
 
         # ---------- 字体 ----------
         self._font_combo = QComboBox()
@@ -170,7 +184,7 @@ class ToolbarMixin:
     def _build_toolbar2(self) -> QToolBar:
         """构建插入工具栏"""
         toolbar = QToolBar()
-        toolbar.setStyleSheet(_TOOLBAR_STYLE)
+        toolbar.setStyleSheet(Theme.toolbar_qss())
 
         # ---------- 列表 ----------
         btn_ul = QPushButton("• 列表")

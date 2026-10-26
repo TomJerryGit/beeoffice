@@ -43,21 +43,28 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QShortcut, QKeySequence
 
 from beeoffice.plugins.beeshow_constants import SLIDE_THEMES
+from beeoffice.theme import Theme
 from beeoffice.plugins.ribbon_widget import RibbonBar
 
 
 class ToolbarMixin:
     """蜜演 UI 构建 Mixin"""
 
+    def apply_theme(self):
+        """主题切换后刷新蜜演工具栏/分组（阶段 3）。"""
+        try:
+            self._main_toolbar.setStyleSheet(Theme.toolbar_qss())
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            self._ribbon.apply_theme()
+        except Exception:  # noqa: BLE001
+            pass
+
     # ==================== 主工具栏 ====================
     def _build_main_toolbar(self) -> QToolBar:
         toolbar = QToolBar()
-        toolbar.setStyleSheet(
-            "QToolBar{background:#FFF;border-bottom:1px solid #DDD;"
-            "padding:2px;spacing:4px}"
-            "QToolButton{padding:4px 8px;border-radius:3px}"
-            "QToolButton:hover{background:#FFF3E0}"
-        )
+        toolbar.setStyleSheet(Theme.toolbar_qss())
 
         toolbar.addWidget(QLabel("🎥 蜜演 "))
         toolbar.addWidget(QLabel("主题:"))

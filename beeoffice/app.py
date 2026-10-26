@@ -1576,6 +1576,14 @@ class BeeApp(QMainWindow):
                 ribbon.apply_theme()
         except Exception:  # noqa: BLE001
             pass
+        # 各插件刷新自己的 token 化控件
+        try:
+            for i in range(self.tab_manager.count()):
+                widget = self.tab_manager.widget(i)
+                if hasattr(widget, "apply_theme"):
+                    widget.apply_theme()
+        except Exception:  # noqa: BLE001
+            pass
 
     # 语言切换入口已移除（2026-10-20 i18n 决策：中文优先，不再提供半成品英文界面）
 

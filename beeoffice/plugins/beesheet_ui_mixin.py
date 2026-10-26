@@ -46,6 +46,7 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QShortcut, QKeySequence
 
 from beeoffice.plugins.beesheet_delegate import CellEditorDelegate
+from beeoffice.theme import Theme
 from beeoffice.plugins.ribbon_widget import RibbonBar
 from beeoffice.plugins.beesheet_loaders import ChunkLoader
 
@@ -54,6 +55,22 @@ class UIMixin:
     """蜜算 UI 构建相关功能的 Mixin"""
 
     # ==================== 函数参考表 ====================
+    def apply_theme(self):
+        """主题切换后刷新蜜算 token 化控件（阶段 3）。"""
+        try:
+            tok = Theme.tokens()
+            self._name_box.setStyleSheet(
+                "border:1px solid " + tok["border"] + ";padding:2px 6px;"
+                "background:" + tok["surface"] + ";color:" + tok["text"] + ";"
+                "font-size:12px;"
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            self._ribbon.apply_theme()
+        except Exception:  # noqa: BLE001
+            pass
+
     def _init_function_reference(self):
         """初始化函数参考表（80+ Excel 函数，按分类组织）"""
         self.FUNCTION_REFERENCE = {
@@ -153,9 +170,7 @@ class UIMixin:
         抽取自原 __init__ 的 UI 构建段，保持控件创建顺序不变。
         """
         # 按钮通用样式
-        btn_style = ("QPushButton{background:#EEE;border:1px solid #CCC;"
-                     "padding:4px 10px;border-radius:3px}"
-                     "QPushButton:hover{background:#FFE0A0}")
+        btn_style = Theme.button_qss()
 
         # 顶层工具栏容器
         tc = QVBoxLayout()
