@@ -10,6 +10,16 @@
 
 **阶段 4（Word 优先）：蜜写 WPS 式三页 Ribbon。**
 
+### 工程与验证（干净 worktree，commit `81f265a`）
+- **46/46 门禁 PASS**（`_ptmp/analysis/gates_clean_5026b.log`）；
+- 全量 `fidelity+unit`：**1624 passed / 4 skipped / 0 failed**（609.95 s，
+  `_ptmp/analysis/pytest_clean_5026b.log`）。
+
+### 发行
+- `BeeOffice-v5.0.26-windows.zip`：**225.5 MB / 3132 个条目**，sha256
+  `e1ff14843a4f5e5527ad67159815a3e8a8d32f75829ca864ea56996ef58df517`；
+- tag `v5.0.26` = `81f265a`；归档 `release-archive/`；`verify_release.py` 5/5 通过。
+
 ### 变更
 - 移除蜜写旧的外置「模式栏 + 快速栏」，全部收进 **WPS 式七标签 Ribbon**：
   - **文件**：📄 导出/保存/模板/页面设置/页眉页脚/页面视图/拼写检查；
