@@ -49,7 +49,7 @@ def test_app_wps_shell_hides_menubar_for_ribbon_page(app, qtbot):
     idx = app.tab_manager.addTab(editor, "WPS测试")
     app.tab_manager.setCurrentWidget(editor)
     app._sync_wps_shell()
-    assert app.menuBar().isHidden()
+    assert app.menuBar().maximumHeight() == 0
     ribbon = editor._ribbon
     assert ribbon._file_button is not None
     assert ribbon._file_button.menu() is not None

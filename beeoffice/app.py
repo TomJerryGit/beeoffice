@@ -1572,7 +1572,8 @@ class BeeApp(QMainWindow):
             ribbon = getattr(widget, "_ribbon", None)
             menu_bar = self.menuBar()
             if ribbon is None:
-                menu_bar.setVisible(True)
+                menu_bar.setMaximumHeight(16777215)
+                menu_bar.setStyleSheet("")
                 return
             file_menu = None
             for action in menu_bar.actions():
@@ -1581,9 +1582,16 @@ class BeeApp(QMainWindow):
                     break
             if file_menu is not None:
                 ribbon.attach_file_menu(file_menu)
-                menu_bar.setVisible(False)
+                # 保留 QMenuBar 的 QAction 快捷键（Ctrl+Z/S...），仅视觉上压到 0 高；
+                # 直接 setVisible(False) 会让菜单 QAction 快捷键失效。
+                menu_bar.setMaximumHeight(0)
+                menu_bar.setStyleSheet(
+                    "QMenuBar{max-height:0px;padding:0px;margin:0px;"
+                    "border:none;}"
+                )
             else:
-                menu_bar.setVisible(True)
+                menu_bar.setMaximumHeight(16777215)
+                menu_bar.setStyleSheet("")
         except Exception:  # noqa: BLE001
             pass
 
