@@ -21,6 +21,16 @@ jobs:
     timeout-minutes: 120
 
     steps:
+      - name: cmd 探针（绕过 PowerShell 验证路径/解释器）
+        shell: cmd
+        continue-on-error: true
+        run: |
+          echo probe-start > D:\beeofficeV\_ptmp\analysis\ci_cmd_probe.txt
+          echo user=%USERNAME% >> D:\beeofficeV\_ptmp\analysis\ci_cmd_probe.txt
+          dir D:\ >> D:\beeofficeV\_ptmp\analysis\ci_cmd_probe.txt 2>&1
+          dir D:\beeofficeV\ >> D:\beeofficeV\_ptmp\analysis\ci_cmd_probe.txt 2>&1
+          "D:\Program Files\Python311\python.exe" --version >> D:\beeofficeV\_ptmp\analysis\ci_cmd_probe.txt 2>&1
+          echo py_exit=%ERRORLEVEL% >> D:\beeofficeV\_ptmp\analysis\ci_cmd_probe.txt
       - name: 环境检查（写诊断到 D:\beeoffice_ci_diag.txt，不阻断）
         shell: powershell
         continue-on-error: true
