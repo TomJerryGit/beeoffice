@@ -324,6 +324,26 @@ class BeeWriteEditor(
             ("▲\n收起", "收起"),
         ):
             _add_large(group, label, target, self._toolbar2)
+
+        # 上下文标签：光标进入表格时出现“表格工具”
+        ctx = self._ribbon.add_context_tab("表格工具")
+        ctx_group = self._ribbon.add_group(ctx, "📋 表格")
+        for label, target, icon_name in (
+            ("📋\n表格", "表格", "table"),
+            ("🔗\n合并", "合并", "table"),
+            ("🔲\n拆分", "拆分", "table"),
+            ("▦\n底纹", "底色", "data"),
+        ):
+            ctx_group.add_large_button(
+                label, target, _clone_click(self._toolbar2, target),
+                icon_name=icon_name,
+            )
+        try:
+            self.rich_editor.cursorPositionChanged.connect(
+                self._update_table_context
+            )
+        except Exception:  # noqa: BLE001
+            pass
         toolbar_container.addWidget(self._ribbon)
         self._ribbon.add_quick_action("💾", "保存 (Ctrl+S)", self.save, icon_name="save")
         self._ribbon.add_quick_action("🖨", "页面视图", self._print_preview, icon_name="print")

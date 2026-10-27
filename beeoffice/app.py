@@ -139,6 +139,7 @@ class BeeApp(QMainWindow):
 
         self.tab_manager = TabManager(self)
         self.setCentralWidget(self.tab_manager)
+        self.tab_manager.currentChanged.connect(self._sync_wps_shell)
 
         from beeoffice.menus import setup_menus
         setup_menus(self)
@@ -1562,6 +1563,29 @@ class BeeApp(QMainWindow):
         self.settings.accent_color = accent_name
         self.settings.save()
         self._apply_theme()
+
+    def _sync_wps_shell(self, *_args):
+        """WPS 顶栏一体化：有 Ribbon 的编辑页隐藏传统菜单栏，
+        把「文件」菜单挂到 Ribbon 左上角；其它页面恢复菜单栏。"""
+        try:
+            widget = self.tab_manager.currentWidget()
+            ribbon = getattr(widget, "_ribbon", None)
+            menu_bar = self.menuBar()
+            if ribbon is None:
+                menu_bar.setVisible(True)
+                return
+            file_menu = None
+            for action in menu_bar.actions():
+                if action.text().replace("&", "").strip() == "文件":
+                    file_menu = action.menu()
+                    break
+            if file_menu is not None:
+                ribbon.attach_file_menu(file_menu)
+                menu_bar.setVisible(False)
+            else:
+                menu_bar.setVisible(True)
+        except Exception:  # noqa: BLE001
+            pass
 
     def _apply_theme(self):
         """全局应用主题（所有窗口/对话框 + Ribbon 分组/快速栏）。"""

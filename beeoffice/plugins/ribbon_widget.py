@@ -136,11 +136,62 @@ class RibbonBar(QWidget):
         self._quick_layout.setSpacing(2)
         quick_row.addLayout(self._quick_layout)
         quick_row.addStretch()
+        self._collapse_button = QToolButton()
+        self._collapse_button.setText("⌃")
+        self._collapse_button.setToolTip("折叠/展开功能区")
+        self._collapse_button.setAutoRaise(True)
+        self._collapse_button.setFixedSize(22, 20)
+        self._collapse_button.clicked.connect(self.toggle_collapse)
+        quick_row.addWidget(self._collapse_button)
         layout.addLayout(quick_row)
+        self._file_button = None
         layout.addWidget(self._tabs)
         layout.addWidget(self._stack, 1)
         self._tabs.currentChanged.connect(self._stack.setCurrentIndex)
         self.apply_theme()
+
+    def attach_file_menu(self, menu):
+        """WPS 顶栏：快速访问栏左侧的「文件」入口（复用主菜单）。"""
+        if menu is None:
+            return
+        if self._file_button is None:
+            self._file_button = QToolButton()
+            self._file_button.setText("文件")
+            self._file_button.setPopupMode(QToolButton.InstantPopup)
+            self._file_button.setAutoRaise(True)
+            self._file_button.setStyleSheet(
+                "QToolButton{border:none;padding:2px 10px;font-size:13px;"
+                "font-weight:bold;}"
+                "QToolButton:hover{background:#E8F0FE;border-radius:3px;}"
+            )
+            self._quick_layout.addWidget(self._file_button)
+        self._file_button.setMenu(menu)
+
+    def toggle_collapse(self):
+        collapsed = self._stack.isVisible()
+        self._stack.setVisible(not collapsed)
+        self._collapse_button.setText("⌄" if collapsed else "⌃")
+        self._collapse_button.setToolTip(
+            "展开功能区" if collapsed else "折叠功能区"
+        )
+
+    def add_context_tab(self, title: str) -> QHBoxLayout:
+        """新增默认隐藏的上下文标签页（选中表格/图片时显示）。"""
+        page = self.add_tab(title)
+        idx = self._tabs.count() - 1
+        self._tabs.setTabVisible(idx, False)
+        return page
+
+    def set_context_tab_visible(self, title: str, visible: bool):
+        for i in range(self._tabs.count()):
+            if self._tabs.tabText(i) == title:
+                self._tabs.setTabVisible(i, visible)
+                if not visible and self._tabs.currentIndex() == i:
+                    for j in range(self._tabs.count()):
+                        if self._tabs.isTabVisible(j):
+                            self._tabs.setCurrentIndex(j)
+                            break
+                return
 
     def apply_theme(self):
         """按当前全局主题刷新标签/快速访问栏/分组（浅色/深色 + 强调色）。"""

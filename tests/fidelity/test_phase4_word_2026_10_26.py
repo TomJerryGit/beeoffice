@@ -4,7 +4,7 @@
 def test_word_phase4_tabs_and_embedded_rows(qtbot, beewrite_editor):
     editor = beewrite_editor
     ribbon = editor._ribbon
-    assert ribbon.tab_names() == ["文件", "开始", "插入", "页面", "引用", "审阅", "视图"]
+    assert [t for t in ribbon.tab_names() if t != "表格工具"] == ["文件", "开始", "插入", "页面", "引用", "审阅", "视图"]
     # 旧的外置模式栏/快速栏不再是主布局的直接子布局
     direct = [
         editor.layout().itemAt(i).layout()

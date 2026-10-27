@@ -71,6 +71,12 @@ class UIMixin:
         except Exception:  # noqa: BLE001
             pass
 
+    def _show_table_context(self, *_args):
+        try:
+            self._ribbon.set_context_tab_visible("表格工具", True)
+        except Exception:  # noqa: BLE001
+            pass
+
     def _init_function_reference(self):
         """初始化函数参考表（80+ Excel 函数，按分类组织）"""
         self.FUNCTION_REFERENCE = {
@@ -524,12 +530,32 @@ class UIMixin:
         # 视图
         page = ribbon.add_tab("视图")
         _add_row_group(page, "👁 显示", self._t4)
+
+        # 上下文标签：选中单元格/区域时出现（表格工具）
+        ctx = ribbon.add_context_tab("表格工具")
+        ctx_group = ribbon.add_group(ctx, "📊 选中区域")
+        for label, target, icon_name in (
+            ("🧊\n冻结", "冻结", "view"),
+            ("🔢\n统计", "统计", "data"),
+            ("📄\n格式", "格式", "page"),
+        ):
+            ctx_group.add_large_button(
+                label, target,
+                _row_click(self._t4 if target == "冻结" else t1, target),
+                icon_name=icon_name,
+            )
         tc.addWidget(ribbon)
         self._ribbon = ribbon
         # 快速访问栏
         ribbon.add_quick_action("💾", "保存 (Ctrl+S)", self.save, icon_name="save")
         ribbon.add_quick_action("↩", "撤销 (Ctrl+Z)", self.undo, icon_name="undo")
         ribbon.add_quick_action("↪", "重做 (Ctrl+Y)", self.redo, icon_name="redo")
+        try:
+            self.table_view.selectionModel().currentChanged.connect(
+                self._show_table_context
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
         # 暂存到 self，供主类的 layout 组装
         self._toolbar_container = tc

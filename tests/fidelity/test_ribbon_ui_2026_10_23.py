@@ -13,7 +13,7 @@ def test_sheet_has_wps_ribbon_tabs(qtbot):
     view.show()
     ribbon = view._ribbon
     assert isinstance(ribbon, RibbonBar)
-    assert ribbon.tab_names() == ["文件", "开始", "插入", "数据", "公式", "视图"]
+    assert [t for t in ribbon.tab_names() if t != "表格工具"] == ["文件", "开始", "插入", "数据", "公式", "视图"]
     assert view.findChild(QTabBar) is not None
 
 
@@ -45,7 +45,7 @@ def test_word_has_wps_ribbon_tabs(beewrite_editor, qtbot):
     qtbot.waitExposed(editor)
     ribbon = editor._ribbon
     assert isinstance(ribbon, RibbonBar)
-    assert ribbon.tab_names() == ["文件", "开始", "插入", "页面", "引用", "审阅", "视图"]
+    assert [t for t in ribbon.tab_names() if t != "表格工具"] == ["文件", "开始", "插入", "页面", "引用", "审阅", "视图"]
     # 工具栏已被收进对应 Ribbon 页的分组框（结构断言，避免 offscreen 可见性抖动）
     page1 = ribbon._stack.widget(1)
     page2 = ribbon._stack.widget(2)
