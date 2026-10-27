@@ -246,8 +246,20 @@ class BeeWriteEditor(
                         return
             return _go
 
+        _ICONS = {
+            "页面设置": "page", "页眉页脚": "page", "页面视图": "view",
+            "目录": "toc", "目录域": "toc", "交叉引用": "link", "链接": "link",
+            "页码": "page", "水印": "comment", "拼写检查": "search",
+            "批注": "comment", "批注栏": "comment", "修订": "track",
+            "查看修改": "track", "大纲": "toc", "阅读": "view",
+            "双屏": "view", "收起": "view",
+        }
+
         def _add_large(group, label, target, toolbar):
-            group.add_large_button(label, target, _clone_click(toolbar, target))
+            group.add_large_button(
+                label, target, _clone_click(toolbar, target),
+                icon_name=_ICONS.get(target),
+            )
 
         # 文件：保存/导出/页面设置等高频文件操作（原快速栏）
         page = self._ribbon.add_tab("文件")
@@ -313,8 +325,8 @@ class BeeWriteEditor(
         ):
             _add_large(group, label, target, self._toolbar2)
         toolbar_container.addWidget(self._ribbon)
-        self._ribbon.add_quick_action("💾", "保存 (Ctrl+S)", self.save)
-        self._ribbon.add_quick_action("🖨", "页面视图", self._print_preview)
+        self._ribbon.add_quick_action("💾", "保存 (Ctrl+S)", self.save, icon_name="save")
+        self._ribbon.add_quick_action("🖨", "页面视图", self._print_preview, icon_name="print")
 
         # ---------- 总布局 ----------
         layout = QVBoxLayout(self)

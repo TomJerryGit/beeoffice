@@ -6,6 +6,19 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ---
+## [5.0.27] - 2026-10-27
+
+**阶段 4 续：统一图标体系 + 蜜算/蜜演重排。**
+
+### 新增
+- `ribbon_icons.py`：统一线性图标工厂（QPainter 绘制 28px 图标，跟随主题文字色），
+  覆盖 save/print/export/undo/redo/play/table/image/link/toc/comment/track/search/view/page/formula/data/insert；
+- 快速访问栏、阶段 4 大按钮统一使用 QIcon，不再依赖 emoji 字体；大按钮只显示中文标签；
+- **蜜算**重排为 文件/开始/插入/数据/公式/视图 六标签：文件页导入/导出/打印/保存大按钮，公式页函数/统计/AI；
+- **蜜演**重排为 文件/开始/插入/放映/视图 五标签：文件页保存/导出/打印，插入页背景/版式/表格/图片；
+- 主题切换时图标按新 token 重绘。
+
+---
 ## [5.0.26] - 2026-10-26
 
 **阶段 4（Word 优先）：蜜写 WPS 式三页 Ribbon。**

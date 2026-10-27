@@ -52,3 +52,11 @@ def test_sheet_and_word_refresh_on_theme_switch(qtbot, beewrite_editor):
     editor.apply_theme()
     assert "#FFFFFF" in editor._toolbar1.styleSheet()
     Theme.set_theme("light")
+
+
+def test_ribbon_icons_available(qapp):
+    from beeoffice.plugins.ribbon_icons import make_icon
+    for name in ("save", "print", "export", "undo", "redo", "play", "table",
+                 "image", "link", "toc", "comment", "track", "search", "view",
+                 "page", "formula", "data", "insert"):
+        assert not make_icon(name).isNull(), name

@@ -471,24 +471,65 @@ class UIMixin:
         # 开始：文件/状态 + 字体格式；插入：图表/透视/函数；
         # 数据：清洗/查找/验证/名称/审计；视图：样式/兼容/行列号/冻结。
         ribbon = RibbonBar()
-        page_defs = (
-            ("开始", (("📄 文件", t1), ("🖋 格式", self._t5))),
-            ("插入", (("📊 图表 / 分析", self._t2),)),
-            ("数据", (("🧹 数据工具", self._t3),)),
-            ("视图", (("👁 显示", self._t4),)),
-        )
-        for title, groups in page_defs:
-            page_layout = ribbon.add_tab(title)
-            for group_title, row in groups:
-                tc.removeItem(row)      # 从旧垂直布局摘下（不销毁控件）
-                group = ribbon.add_group(page_layout, group_title)
-                group.add_layout(row)
+
+        def _row_click(row, target):
+            def _go():
+                for i in range(row.count()):
+                    widget = row.itemAt(i).widget()
+                    if (widget is not None and hasattr(widget, "text")
+                            and target in widget.text()):
+                        widget.click()
+                        return
+            return _go
+
+        def _add_row_group(tab, title, row):
+            tc.removeItem(row)          # 从旧垂直布局摘下（不销毁控件）
+            group = ribbon.add_group(tab, title)
+            group.add_layout(row)
+
+        # 文件：把高频导入/导出/打印做成大按钮（WPS 文件页）
+        page = ribbon.add_tab("文件")
+        group = ribbon.add_group(page, "📄 文件")
+        for label, target, icon_name in (
+            ("📂\n导入", "导入", "export"),
+            ("📤\n导出", "导出", "export"),
+            ("🖨\n打印", "打印预览", "print"),
+            ("💾\n保存", "保存", "save"),
+        ):
+            group.add_large_button(
+                label, target, _row_click(t1, target), icon_name=icon_name
+            )
+
+        # 开始 / 插入 / 数据
+        page = ribbon.add_tab("开始")
+        _add_row_group(page, "📄 文件", t1)
+        _add_row_group(page, "🖋 格式", self._t5)
+        page = ribbon.add_tab("插入")
+        _add_row_group(page, "📊 图表 / 分析", self._t2)
+        page = ribbon.add_tab("数据")
+        _add_row_group(page, "🧹 数据工具", self._t3)
+
+        # 公式：函数/统计/AI 大按钮
+        page = ribbon.add_tab("公式")
+        group = ribbon.add_group(page, "🧮 公式与计算")
+        for label, target, icon_name in (
+            ("fx\n公式", "fx", "formula"),
+            ("∑\n统计", "统计", "data"),
+            ("🤖\nAI", "AI", "data"),
+        ):
+            group.add_large_button(
+                label, target, _row_click(t1, target), icon_name=icon_name
+            )
+
+        # 视图
+        page = ribbon.add_tab("视图")
+        _add_row_group(page, "👁 显示", self._t4)
         tc.addWidget(ribbon)
         self._ribbon = ribbon
         # 快速访问栏
-        ribbon.add_quick_action("💾", "保存 (Ctrl+S)", self.save)
-        ribbon.add_quick_action("↩", "撤销 (Ctrl+Z)", self.undo)
-        ribbon.add_quick_action("↪", "重做 (Ctrl+Y)", self.redo)
+        ribbon.add_quick_action("💾", "保存 (Ctrl+S)", self.save, icon_name="save")
+        ribbon.add_quick_action("↩", "撤销 (Ctrl+Z)", self.undo, icon_name="undo")
+        ribbon.add_quick_action("↪", "重做 (Ctrl+Y)", self.redo, icon_name="redo")
 
         # 暂存到 self，供主类的 layout 组装
         self._toolbar_container = tc

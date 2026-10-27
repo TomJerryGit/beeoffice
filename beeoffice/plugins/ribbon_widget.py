@@ -63,13 +63,23 @@ class RibbonGroup(QFrame):
             "color:" + title + ";font-size:10px;padding-top:1px;"
         )
 
-    def add_large_button(self, text: str, tooltip: str, callback, icon=None):
+    def add_large_button(self, text: str, tooltip: str, callback, icon=None, icon_name=None):
         """WPS 式大按钮（图标在上、文字在下）。"""
         button = QToolButton()
-        button.setText(text)
+        # 大按钮文字只保留最后一行中文；前面的 emoji 交给统一图标，
+        # 避免缺 emoji 字体时出现空方块。
+        button.setText(text.split("\n")[-1] if "\n" in text else text)
         button.setToolTip(tooltip)
         button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        if icon is not None:
+        if icon_name:
+            try:
+                from beeoffice.plugins.ribbon_icons import make_icon
+                button.setIcon(make_icon(icon_name))
+                button.setIconSize(QSize(22, 22))
+                button.setProperty("ribbonIcon", icon_name)
+            except Exception:  # noqa: BLE001
+                pass
+        elif icon is not None:
             button.setIcon(icon)
             button.setIconSize(QSize(22, 22))
         button.setMinimumSize(56, 46)
@@ -169,6 +179,14 @@ class RibbonBar(QWidget):
                 f"color:{fg};}}"
                 f"QToolButton:hover{{background:{light if not dark else '#444'};}}"
             )
+        for button in self.findChildren(QToolButton):
+            name = button.property("ribbonIcon")
+            if name:
+                try:
+                    from beeoffice.plugins.ribbon_icons import make_icon
+                    button.setIcon(make_icon(str(name)))
+                except Exception:  # noqa: BLE001
+                    pass
         for group in self.findChildren(RibbonGroup):
             group.apply_theme()
 
@@ -190,13 +208,22 @@ class RibbonBar(QWidget):
         page_layout.insertWidget(max(0, page_layout.count() - 1), group)
         return group
 
-    def add_quick_action(self, text: str, tooltip: str, callback):
+    def add_quick_action(self, text: str, tooltip: str, callback, icon_name=None):
         """快速访问栏按钮（WPS 标题栏下的小图标按钮）。"""
         button = QToolButton()
         button.setText(text)
         button.setToolTip(tooltip)
         button.setAutoRaise(True)
         button.setFixedSize(24, 22)
+        if icon_name:
+            try:
+                from beeoffice.plugins.ribbon_icons import make_icon
+                button.setText("")
+                button.setIcon(make_icon(icon_name))
+                button.setIconSize(QSize(16, 16))
+                button.setProperty("ribbonIcon", icon_name)
+            except Exception:  # noqa: BLE001
+                pass
         button.setStyleSheet(
             "QToolButton{border:none;border-radius:3px;font-size:13px;}"
             "QToolButton:hover{background:#E8F0FE;}"

@@ -13,7 +13,7 @@ def test_sheet_has_wps_ribbon_tabs(qtbot):
     view.show()
     ribbon = view._ribbon
     assert isinstance(ribbon, RibbonBar)
-    assert ribbon.tab_names() == ["开始", "插入", "数据", "视图"]
+    assert ribbon.tab_names() == ["文件", "开始", "插入", "数据", "公式", "视图"]
     assert view.findChild(QTabBar) is not None
 
 
@@ -23,14 +23,16 @@ def test_ribbon_switches_visible_rows(qtbot):
     view.resize(1000, 700)
     view.show()
     ribbon = view._ribbon
-    # 默认“开始”：文件/字体控件可见，冻结按钮隐藏
+    # 新增“文件”页后，开始页是索引 1；视图页是索引 5
+    ribbon.set_current_tab(1)          # 开始
+    qtbot.wait(30)
     assert view._print_btn.isVisibleTo(view)
     assert not view._freeze_btn.isVisibleTo(view)
-    ribbon.set_current_tab(3)          # 视图
+    ribbon.set_current_tab(5)          # 视图
     qtbot.wait(30)
     assert view._freeze_btn.isVisibleTo(view)
     assert not view._print_btn.isVisibleTo(view)
-    ribbon.set_current_tab(0)
+    ribbon.set_current_tab(1)
     qtbot.wait(30)
     assert view._print_btn.isVisibleTo(view)
 

@@ -227,19 +227,71 @@ class ToolbarMixin:
         )
         toolbar.addWidget(btn_image_suggest)
 
-        # WPS 式外壳：编辑工具收进「开始」，放映控制独立「放映」页 + 大按钮
+        # WPS 式外壳：文件 / 开始 / 插入 / 放映 / 视图
         ribbon = RibbonBar()
+
+        def _clone_click(target):
+            def _go():
+                for action in toolbar.actions():
+                    widget = toolbar.widgetForAction(action)
+                    if (widget is not None and hasattr(widget, "text")
+                            and target in widget.text()):
+                        widget.click()
+                        return
+            return _go
+
+        # 文件：保存/导出/打印大按钮
+        page = ribbon.add_tab("文件")
+        group = ribbon.add_group(page, "📄 文件与导出")
+        for label, target, icon_name in (
+            ("💾\n保存", "保存", "save"),
+            ("📄\n导出 PPTX", "PPTX", "export"),
+            ("📕\n导出 PDF", "PDF", "export"),
+            ("🖨\n打印", "打印", "print"),
+        ):
+            group.add_large_button(
+                label, target, _clone_click(target), icon_name=icon_name
+            )
+
+        # 开始：原有编辑/导出工具
         page = ribbon.add_tab("开始")
         group = ribbon.add_group(page, "🎥 编辑与导出")
         group.add_widget(toolbar)
+
+        # 插入：背景/版式/表格/图片
+        page = ribbon.add_tab("插入")
+        group = ribbon.add_group(page, "🎨 插入与版式")
+        for label, target, icon_name in (
+            ("🎨\n背景", "背景", "image"),
+            ("📐\n版式", "版式", "page"),
+            ("📊\n表格", "表格", "table"),
+            ("🖼\n图片", "图片", "image"),
+        ):
+            group.add_large_button(
+                label, target, _clone_click(target), icon_name=icon_name
+            )
+
+        # 放映
         page2 = ribbon.add_tab("放映")
         group2 = ribbon.add_group(page2, "▶ 放映控制")
-        group2.add_large_button("▶\n播放", "开始播放 (F5)", self._start_play)
-        group2.add_large_button("🎤\n演讲者", "演讲者模式", self._start_presenter_mode)
-        group2.add_large_button("🖨\n打印", "打印预览", self._print_preview)
-        group2.add_large_button("⏱\n排练", "开始/停止排练计时", self.toggle_rehearsal)
-        ribbon.add_quick_action("💾", "保存 (Ctrl+S)", self.save)
-        ribbon.add_quick_action("▶", "播放 (F5)", self._start_play)
+        group2.add_large_button("▶\n播放", "开始播放 (F5)", self._start_play, icon_name="play")
+        group2.add_large_button("🎤\n演讲者", "演讲者模式", self._start_presenter_mode, icon_name="play")
+        group2.add_large_button("🖨\n打印", "打印预览", self._print_preview, icon_name="print")
+        group2.add_large_button("⏱\n排练", "开始/停止排练计时", self.toggle_rehearsal, icon_name="track")
+
+        # 视图：主题/背景/版式
+        page = ribbon.add_tab("视图")
+        group = ribbon.add_group(page, "👁 主题与视图")
+        for label, target, icon_name in (
+            ("🎨\n背景", "背景", "image"),
+            ("📐\n版式", "版式", "page"),
+            ("🎭\n图标", "图标", "insert"),
+        ):
+            group.add_large_button(
+                label, target, _clone_click(target), icon_name=icon_name
+            )
+        ribbon.add_quick_action("💾", "保存 (Ctrl+S)", self.save, icon_name="save")
+        ribbon.add_quick_action("▶", "播放 (F5)", self._start_play, icon_name="play")
         self._ribbon = ribbon
         return ribbon
 
