@@ -13,7 +13,7 @@ WPS 的标签式功能区一致，且不复制按钮、不改变任何命令逻�
     ...
     layout.addWidget(ribbon)
 """
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -63,12 +63,15 @@ class RibbonGroup(QFrame):
             "color:" + title + ";font-size:10px;padding-top:1px;"
         )
 
-    def add_large_button(self, text: str, tooltip: str, callback):
+    def add_large_button(self, text: str, tooltip: str, callback, icon=None):
         """WPS 式大按钮（图标在上、文字在下）。"""
         button = QToolButton()
         button.setText(text)
         button.setToolTip(tooltip)
         button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        if icon is not None:
+            button.setIcon(icon)
+            button.setIconSize(QSize(22, 22))
         button.setMinimumSize(56, 46)
         button.setStyleSheet(
             "QToolButton{border:none;border-radius:4px;padding:2px;"

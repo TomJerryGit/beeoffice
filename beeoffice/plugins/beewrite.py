@@ -234,20 +234,84 @@ class BeeWriteEditor(
         toolbar_container.setSpacing(1)
         # WPS 式 Ribbon：把两行平铺工具栏收进「开始 / 插入」标签页
         self._ribbon = RibbonBar()
+
+        def _clone_click(toolbar, target):
+            """复用现有工具栏按钮的点击逻辑，避免复制业务代码。"""
+            def _go():
+                for action in toolbar.actions():
+                    widget = toolbar.widgetForAction(action)
+                    if (widget is not None and hasattr(widget, "text")
+                            and target in widget.text()):
+                        widget.click()
+                        return
+            return _go
+
+        def _add_large(group, label, target, toolbar):
+            group.add_large_button(label, target, _clone_click(toolbar, target))
+
+        # 文件：保存/导出/页面设置等高频文件操作（原快速栏）
+        page = self._ribbon.add_tab("文件")
+        group = self._ribbon.add_group(page, "📄 文件与导出")
+        group.add_layout(self._quick_toolbar)
+
         # 开始：模式切换（Markdown/所见即所得）+ 字体/段落
         page = self._ribbon.add_tab("开始")
         group = self._ribbon.add_group(page, "📝 模式")
         group.add_layout(self._mode_toolbar)
         group = self._ribbon.add_group(page, "🖋 字体与段落")
         group.add_widget(self._toolbar1)
+
         # 插入：表格/图片/链接/分页/批注/修订等
         page = self._ribbon.add_tab("插入")
         group = self._ribbon.add_group(page, "📋 插入与对象")
         group.add_widget(self._toolbar2)
-        # 页面：导出/保存/页面设置/页眉页脚/页面视图/拼写检查
+
+        # 页面：页面设置/页眉页脚/页面视图/打印
         page = self._ribbon.add_tab("页面")
-        group = self._ribbon.add_group(page, "📄 文件与页面")
-        group.add_layout(self._quick_toolbar)
+        group = self._ribbon.add_group(page, "📄 页面设置")
+        for label, target in (
+            ("📄\n页面设置", "页面设置"),
+            ("📋\n页眉页脚", "页眉页脚"),
+            ("📄\n页面视图", "页面视图"),
+        ):
+            _add_large(group, label, target, self._quick_toolbar)
+
+        # 引用：目录/交叉引用/页码/分节符/水印
+        page = self._ribbon.add_tab("引用")
+        group = self._ribbon.add_group(page, "📑 引用与目录")
+        for label, target in (
+            ("📑\n目录", "目录"),
+            ("📑\n目录域", "目录域"),
+            ("🔢\n交叉引用", "交叉引用"),
+            ("🔗\n链接", "链接"),
+            ("📄\n页码", "页码"),
+            ("💧\n水印", "水印"),
+        ):
+            _add_large(group, label, target, self._toolbar2)
+
+        # 审阅：拼写/批注/修订
+        page = self._ribbon.add_tab("审阅")
+        group = self._ribbon.add_group(page, "🔤 校对与审阅")
+        _add_large(group, "🔤\n拼写检查", "拼写检查", self._quick_toolbar)
+        for label, target in (
+            ("💬\n批注", "批注"),
+            ("📋\n批注栏", "批注栏"),
+            ("📝\n修订", "修订"),
+            ("📊\n查看修改", "查看修改"),
+        ):
+            _add_large(group, label, target, self._toolbar2)
+
+        # 视图：大纲/阅读/双屏/折叠
+        page = self._ribbon.add_tab("视图")
+        group = self._ribbon.add_group(page, "👁 视图")
+        _add_large(group, "📄\n页面视图", "页面视图", self._quick_toolbar)
+        for label, target in (
+            ("📑\n大纲", "大纲"),
+            ("📖\n阅读", "阅读"),
+            ("📊\n双屏", "双屏"),
+            ("▲\n收起", "收起"),
+        ):
+            _add_large(group, label, target, self._toolbar2)
         toolbar_container.addWidget(self._ribbon)
         self._ribbon.add_quick_action("💾", "保存 (Ctrl+S)", self.save)
         self._ribbon.add_quick_action("🖨", "页面视图", self._print_preview)

@@ -43,16 +43,16 @@ def test_word_has_wps_ribbon_tabs(beewrite_editor, qtbot):
     qtbot.waitExposed(editor)
     ribbon = editor._ribbon
     assert isinstance(ribbon, RibbonBar)
-    assert ribbon.tab_names() == ["开始", "插入", "页面"]
+    assert ribbon.tab_names() == ["文件", "开始", "插入", "页面", "引用", "审阅", "视图"]
     # 工具栏已被收进对应 Ribbon 页的分组框（结构断言，避免 offscreen 可见性抖动）
-    page0 = ribbon._stack.widget(0)
     page1 = ribbon._stack.widget(1)
-    assert page0.isAncestorOf(editor._toolbar1)
-    assert page1.isAncestorOf(editor._toolbar2)
-    ribbon.set_current_tab(1)
+    page2 = ribbon._stack.widget(2)
+    assert page1.isAncestorOf(editor._toolbar1)
+    assert page2.isAncestorOf(editor._toolbar2)
+    ribbon.set_current_tab(2)
     qtbot.wait(30)
-    assert ribbon.current_index() == 1
-    assert ribbon._stack.currentWidget() is page1
+    assert ribbon.current_index() == 2
+    assert ribbon._stack.currentWidget() is page2
 
 
 def test_ribbon_groups_have_titles(qtbot):
