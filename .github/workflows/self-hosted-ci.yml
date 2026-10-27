@@ -41,6 +41,23 @@ jobs:
           } catch {
             "EXCEPTION: $_" | Out-File -LiteralPath $diag -Append -Encoding utf8
           }
+          try {
+            $ver = (& $py --version 2>&1 | Out-String).Trim()
+            $deps = (& $py -c "import PySide6, pandas, openpyxl, fitz; print('deps_ok')" 2>&1 | Out-String).Trim()
+            $body = @(
+              "user=$env:USERNAME",
+              "workspace=$env:GITHUB_WORKSPACE",
+              "repo_exists=$(Test-Path $repo)",
+              "py_exists=$(Test-Path $py)",
+              "py_version=$ver",
+              "deps=$deps",
+              "cwd=$(Get-Location)",
+              "diag_file_exists=$(Test-Path $diag)"
+            ) -join "`n"
+            Invoke-RestMethod -Uri 'http://127.0.0.1:8123/diag' -Method Post -Body $body -TimeoutSec 5 | Out-Null
+          } catch {
+            "POST_FAILED: $_" | Out-File -LiteralPath $diag -Append -Encoding utf8
+          }
           Get-Content -LiteralPath $diag
 
       - name: 46 项回归门禁
