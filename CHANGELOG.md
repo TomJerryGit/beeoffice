@@ -10,6 +10,16 @@
 
 **阶段 4 续：统一图标体系 + 蜜算/蜜演重排。**
 
+### 工程与验证（干净 worktree，commit `3cbaf45`）
+- **46/46 门禁 PASS**（`_ptmp/analysis/gates_clean_5027.log`）；
+- 全量 `fidelity+unit`：**1625 passed / 4 skipped / 0 failed**（676.13 s，
+  `_ptmp/analysis/pytest_clean_5027.log`）。
+
+### 发行
+- `BeeOffice-v5.0.27-windows.zip`：**225.5 MB / 3132 个条目**，sha256
+  `f9cade4b9f5c07f07330eabac13c254727da8802fcf8f2b4f5c12f737914e0fd`；
+- tag `v5.0.27` = `3cbaf45`；归档 `release-archive/`；`verify_release.py` 5/5 通过。
+
 ### 新增
 - `ribbon_icons.py`：统一线性图标工厂（QPainter 绘制 28px 图标，跟随主题文字色），
   覆盖 save/print/export/undo/redo/play/table/image/link/toc/comment/track/search/view/page/formula/data/insert；
