@@ -27,8 +27,8 @@ jobs:
         run: |
           set "LOG=D:\beeoffice_ci_prepare.log"
           echo == prepare start %DATE% %TIME% == > "%LOG%"
-          set "GIT=C:\Program Files\Git\cmd\git.exe"
-          if not exist "%GIT%" set "GIT=C:\Program Files\Git\bin\git.exe"
+          set "GIT=D:\Program Files\Git\cmd\git.exe"
+          if not exist "%GIT%" set "GIT=D:\Program Files\Git\bin\git.exe"
           echo git=%GIT% >> "%LOG%"
           if not exist "%GIT%" (echo git not found >> "%LOG%" & type "%LOG%" & exit /b 1)
           set "SRC=D:\beeofficeV"
