@@ -10,6 +10,17 @@
 
 **阶段 4 收尾：WPS 顶栏入口、上下文标签、折叠按钮。**
 
+### 工程与验证（干净 worktree，commit `58155fa`）
+- **46/46 门禁 PASS**（45 项 + `fidelity-corpus` 单独补跑，均 PASS；
+  日志 `_ptmp/analysis/gates_clean_5028e.log` / `gate_corpus_5028.log`）；
+- 全量 `fidelity+unit`：**1629 passed / 4 skipped / 0 failed**（866.34 s，
+  `_ptmp/analysis/pytest_clean_5028e.log`）。
+
+### 发行
+- `BeeOffice-v5.0.28-windows.zip`：**225.5 MB / 3155 个条目**，sha256
+  `a69e0c5dc40f0701d363b22138904ccb4c66f64393ea33edf3dd43f5241ba7c0`；
+- tag `v5.0.28` = `58155fa`；归档 `release-archive/`；`verify_release.py` 5/5 通过。
+
 ### 新增
 - Ribbon 快速栏左侧「文件」入口：有 Ribbon 的编辑页自动隐藏传统 QMenuBar，复用文件菜单；切回普通页面恢复菜单栏；
 - 上下文标签：蜜算选中单元格区域出现「表格工具」，蜜写光标进入表格出现「表格工具」；
