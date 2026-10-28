@@ -343,6 +343,9 @@ def _tail(path, lines=6):
     return "\n".join(content.strip().splitlines()[-lines:])
 
 
+PYTEST_TIMEOUT = 900
+
+
 def run_gate(gate, tmpdir):
     # ⚠️ 必须用 shlex 解析：直接 `.split()` 会把 `-k 'a or b'` 拆坏
     #    （引号失效 → pytest 匹配不到用例 → 假失败。我第一版就是这么错的）
@@ -353,7 +356,7 @@ def run_gate(gate, tmpdir):
     else:
         cmd = [sys.executable, "-m", "pytest", *target_args,
                "-q", "--no-header", "-p", "no:cacheprovider",
-               "-o", "log_file=", "--timeout=900"]
+               "-o", "log_file=", f"--timeout={PYTEST_TIMEOUT}"]
     log = Path(tmpdir) / f"{gate.gid}.log"
     started = time.perf_counter()
     code = _run(cmd, log)
@@ -368,7 +371,13 @@ def main():
     parser.add_argument("--only", default="",
                         help="只跑这些门禁（逗号分隔的 id）")
     parser.add_argument("--list", action="store_true", help="只列出门禁")
+    parser.add_argument(
+        "--timeout", type=int, default=900,
+        help="每项 pytest 门禁超时秒数（CI/LocalSystem 冷缓存建议 1800）",
+    )
     args = parser.parse_args()
+    global PYTEST_TIMEOUT
+    PYTEST_TIMEOUT = args.timeout
 
     gates = GATES
     if args.only:
