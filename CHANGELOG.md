@@ -10,6 +10,12 @@
 
 **修复：全屏时 Ribbon 与表格之间的大块空白。**
 
+### 工程（S0 原型）
+- `tools/bench_wps_vs_bee.py`：同机 WPS/BeeOffice 基准（DOCX/XLSX/PPTX/PDF；warmup+repeat；P50/P95；WPS COM 可选）；
+- `docs/plugin-api-v1-draft.md`：插件 API v1 草案（manifest/权限/扩展点/文档事务/安全）；
+- `beeoffice/task_pane.py` + `Ctrl+Alt+P`：任务窗格壳原型（右侧 QDockWidget，AI/动画/属性等后续承载）；
+- 新增 S0 回归：任务窗格壳、基准脚本纯逻辑。
+
 ### 修复
 - RibbonBar/功能区栈/分组框的纵向策略改为 `Preferred + Maximum`，只占内容高度；
 - 全屏 1900×999 实测：Ribbon 从 497px 收回 174px，表格从 y=503 提到 y=180；

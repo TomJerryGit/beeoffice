@@ -140,6 +140,8 @@ class BeeApp(QMainWindow):
         self.tab_manager = TabManager(self)
         self.setCentralWidget(self.tab_manager)
         self.tab_manager.currentChanged.connect(self._sync_wps_shell)
+        from beeoffice.task_pane import TaskPaneManager
+        self.task_pane_manager = TaskPaneManager(self)
 
         from beeoffice.menus import setup_menus
         setup_menus(self)
@@ -199,6 +201,9 @@ class BeeApp(QMainWindow):
         QShortcut(QKeySequence("Ctrl+Tab"), self).activated.connect(self._next_tab)
         QShortcut(QKeySequence("Ctrl+Shift+Tab"), self).activated.connect(
             self._prev_tab
+        )
+        QShortcut(QKeySequence("Ctrl+Alt+P"), self).activated.connect(
+            self.show_task_pane_demo
         )
 
         # 启动期的延迟初始化：使用**绑定到本窗口**的单次 QTimer，
@@ -1563,6 +1568,29 @@ class BeeApp(QMainWindow):
         self.settings.accent_color = accent_name
         self.settings.save()
         self._apply_theme()
+
+    def show_task_pane(self, title, content_widget, pane_id="default"):
+        """显示/更新右侧任务窗格（S0 壳；S1 由插件 API 调用）。"""
+        return self.task_pane_manager.show_pane(
+            pane_id, title, content_widget
+        )
+
+    def show_task_pane_demo(self):
+        """视图菜单里的任务窗格原型入口。"""
+        from PySide6.QtWidgets import QLabel, QWidget, QVBoxLayout
+
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(2, 2, 2, 2)
+        label = QLabel(
+            "任务窗格原型（S0）\n\n"
+            "后续插件 API 的 ctx.ui.add_task_pane() 会在这里\n"
+            "承载 AI 助手、动画窗格、属性、导航等面板。"
+        )
+        label.setWordWrap(True)
+        layout.addWidget(label)
+        layout.addStretch()
+        self.show_task_pane("任务窗格原型", widget, pane_id="demo")
 
     def _sync_wps_shell(self, *_args):
         """WPS 顶栏一体化：有 Ribbon 的编辑页隐藏传统菜单栏，

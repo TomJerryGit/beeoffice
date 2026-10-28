@@ -371,6 +371,11 @@ def setup_menus(main_window):
     split_action.triggered.connect(main_window.tab_manager.split_with_current)
     view_menu.addAction(split_action)
 
+    # 任务窗格原型（S0 壳）
+    taskpane_action = QAction("🧩 任务窗格（原型）", main_window)
+    taskpane_action.triggered.connect(main_window.show_task_pane_demo)
+    view_menu.addAction(taskpane_action)
+
     # 语言子菜单已移除（2026-10-20 i18n 决策：中文优先，不再提供半成品英文界面）
 
     # ==================== 帮助菜单 ====================
