@@ -25,18 +25,23 @@ jobs:
       - name: 准备干净 worktree
         shell: cmd
         run: |
+          set "LOG=D:\beeoffice_ci_prepare.log"
+          echo == prepare start %DATE% %TIME% == > "%LOG%"
           set "GIT=C:\Program Files\Git\cmd\git.exe"
-          if not exist "%GIT%" exit /b 1
+          if not exist "%GIT%" set "GIT=C:\Program Files\Git\bin\git.exe"
+          echo git=%GIT% >> "%LOG%"
+          if not exist "%GIT%" (echo git not found >> "%LOG%" & type "%LOG%" & exit /b 1)
           set "SRC=D:\beeofficeV"
           set "REPO=D:\beeoffice_ci_repo"
-          if exist "%REPO%" rmdir /s /q "%REPO%"
-          "%GIT%" -C "%SRC%" worktree prune
-          "%GIT%" -C "%SRC%" worktree add --detach "%REPO%" HEAD
-          if errorlevel 1 exit /b 1
-          if not exist "%SRC%\tests\fidelity\corpus" exit /b 1
-          xcopy /e /i /y "%SRC%\tests\fidelity\corpus" "%REPO%\tests\fidelity\corpus" >nul
-          if errorlevel 1 exit /b 1
-          echo clean worktree ready: %REPO%
+          if exist "%REPO%" rmdir /s /q "%REPO%" >> "%LOG%" 2>&1
+          "%GIT%" -c safe.directory=D:/beeofficeV -C "%SRC%" worktree prune >> "%LOG%" 2>&1
+          "%GIT%" -c safe.directory=D:/beeofficeV -C "%SRC%" worktree add --detach "%REPO%" HEAD >> "%LOG%" 2>&1
+          if errorlevel 1 (echo worktree add failed >> "%LOG%" & type "%LOG%" & exit /b 1)
+          if not exist "%SRC%\tests\fidelity\corpus" (echo corpus missing >> "%LOG%" & type "%LOG%" & exit /b 1)
+          xcopy /e /i /y "%SRC%\tests\fidelity\corpus" "%REPO%\tests\fidelity\corpus" >> "%LOG%" 2>&1
+          if errorlevel 1 (echo xcopy corpus failed >> "%LOG%" & type "%LOG%" & exit /b 1)
+          echo clean worktree ready: %REPO% >> "%LOG%"
+          type "%LOG%"
 
       - name: 环境检查
         shell: cmd
