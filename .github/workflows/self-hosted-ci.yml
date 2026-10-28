@@ -43,8 +43,11 @@ jobs:
           set QT_QPA_FONTDIR=C:\Windows\Fonts
           set PYTHONIOENCODING=utf-8
           echo == gates start %DATE% %TIME% ==
-          "%PY%" tools\check_gates.py
-          if errorlevel 1 exit /b 1
+          "%PY%" tools\check_gates.py > D:\beeoffice_ci_gates.log 2>&1
+          if errorlevel 1 (
+            type D:\beeoffice_ci_gates.log
+            exit /b 1
+          )
 
       - name: 全量测试（fidelity + unit）
         shell: cmd
@@ -57,8 +60,11 @@ jobs:
           set PYTHONIOENCODING=utf-8
           set BEEOFFICE_DRAFT_DIR=D:\beeoffice_ci_drafts
           echo == pytest start %DATE% %TIME% ==
-          "%PY%" -m pytest tests/fidelity tests/unit -q --no-header -p no:cacheprovider -o log_file= --timeout=900
-          if errorlevel 1 exit /b 1
+          "%PY%" -m pytest tests/fidelity tests/unit -q --no-header -p no:cacheprovider -o log_file= --timeout=900 > D:\beeoffice_ci_pytest.log 2>&1
+          if errorlevel 1 (
+            type D:\beeoffice_ci_pytest.log
+            exit /b 1
+          )
 
       - name: 构建发行包并复制到 artifact 目录
         shell: cmd
