@@ -2,10 +2,12 @@
 #
 # 运行环境实测：
 # - runner 以 LocalSystem 服务运行，D:\beeofficeV 与 D:\Program Files\Python311\python.exe 均可访问；
-# - PowerShell 步骤在本机会在环境检查阶段异常退出（cmd 探针正常）；
-# - 因此所有 run 步骤统一使用 cmd.exe，直接在本机仓库上执行。
+# - PowerShell 步骤在本机会在环境检查阶段异常退出（cmd 探针正常），因此 run 全部用 cmd；
+# - 主工作区里有本地生成、被 .gitignore 的 test+files/，不属于仓库；
+#   直接在主工作区跑会让 fidelity-corpus 读到本地语料。CI 应在**干净 worktree**里跑，
+#   只复制仓库需要的 tests/fidelity/corpus（小文件），保证结果可复现。
 #
-# 流程：46 项门禁 → 全量 pytest → 构建发行包 → 上传 artifact。
+# 流程：创建干净 worktree → 46 项门禁 → 全量 pytest → 构建发行包 → 上传 artifact。
 name: self-hosted-ci
 
 on:
@@ -20,13 +22,27 @@ jobs:
     timeout-minutes: 120
 
     steps:
+      - name: 准备干净 worktree
+        shell: cmd
+        run: |
+          set "GIT=C:\Program Files\Git\cmd\git.exe"
+          if not exist "%GIT%" exit /b 1
+          set "SRC=D:\beeofficeV"
+          set "REPO=D:\beeoffice_ci_repo"
+          if exist "%REPO%" rmdir /s /q "%REPO%"
+          "%GIT%" -C "%SRC%" worktree prune
+          "%GIT%" -C "%SRC%" worktree add --detach "%REPO%" HEAD
+          if errorlevel 1 exit /b 1
+          if not exist "%SRC%\tests\fidelity\corpus" exit /b 1
+          xcopy /e /i /y "%SRC%\tests\fidelity\corpus" "%REPO%\tests\fidelity\corpus" >nul
+          if errorlevel 1 exit /b 1
+          echo clean worktree ready: %REPO%
+
       - name: 环境检查
         shell: cmd
         run: |
           set "PY=D:\Program Files\Python311\python.exe"
-          echo repo D:\beeofficeV
-          if not exist "D:\beeofficeV\beeoffice\__version__.py" exit /b 1
-          echo python "%PY%"
+          if not exist "D:\beeoffice_ci_repo\beeoffice\__version__.py" exit /b 1
           if not exist "%PY%" exit /b 1
           "%PY%" --version
           if errorlevel 1 exit /b 1
@@ -36,7 +52,7 @@ jobs:
       - name: 46 项回归门禁
         shell: cmd
         run: |
-          cd /d D:\beeofficeV
+          cd /d D:\beeoffice_ci_repo
           set "PY=D:\Program Files\Python311\python.exe"
           set PYTHONPATH=%CD%
           set QT_QPA_PLATFORM=offscreen
@@ -52,7 +68,7 @@ jobs:
       - name: 全量测试（fidelity + unit）
         shell: cmd
         run: |
-          cd /d D:\beeofficeV
+          cd /d D:\beeoffice_ci_repo
           set "PY=D:\Program Files\Python311\python.exe"
           set PYTHONPATH=%CD%
           set QT_QPA_PLATFORM=offscreen
@@ -69,18 +85,18 @@ jobs:
       - name: 构建发行包并复制到 artifact 目录
         shell: cmd
         run: |
-          cd /d D:\beeofficeV
+          cd /d D:\beeoffice_ci_repo
           set "PY=D:\Program Files\Python311\python.exe"
           set PYTHONPATH=%CD%
           set PYTHONIOENCODING=utf-8
-          set "TEMP=D:\beeofficeV\_ptmp\ci_build"
+          set "TEMP=D:\beeoffice_ci_repo\_ptmp\ci_build"
           set "TMP=%TEMP%"
           if not exist "%TEMP%" mkdir "%TEMP%"
           echo == build start %DATE% %TIME% ==
           "%PY%" beeoffice\build_release.py
           if errorlevel 1 exit /b 1
           if not exist "%GITHUB_WORKSPACE%\artifact" mkdir "%GITHUB_WORKSPACE%\artifact"
-          copy /y "D:\beeofficeV\BeeOffice-v*-windows.zip*" "%GITHUB_WORKSPACE%\artifact\"
+          copy /y "D:\beeoffice_ci_repo\BeeOffice-v*-windows.zip*" "%GITHUB_WORKSPACE%\artifact\"
           if errorlevel 1 exit /b 1
           dir "%GITHUB_WORKSPACE%\artifact"
 
