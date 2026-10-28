@@ -10,6 +10,17 @@
 
 **阶段 4 收尾：Ribbon 组内多行排版。**
 
+### 工程与验证（干净 worktree，commit `7ef9a41`）
+- **46/46 门禁 PASS**：45 项批量 PASS + `fidelity-corpus` 单独 PASS
+  （`gates_clean_5029.log` / `gate_corpus_5029.log`）；
+- 全量 `fidelity+unit`：**1630 passed / 4 skipped / 0 failed**（482.82 s，
+  `_ptmp/analysis/pytest_clean_5029.log`）。
+
+### 发行
+- `BeeOffice-v5.0.29-windows.zip`：**225.5 MB / 3155 个条目**，sha256
+  `e22b793b9c75dadda19609ae834af911cedd8863e0cfecc6fd9f994b85e224b4`；
+- tag `v5.0.29` = `7ef9a41`；归档 `release-archive/`；`verify_release.py` 5/5 通过。
+
 ### 新增
 - `RibbonGroup.add_row()`：一个分组内可多行排列，兼容原单行分组；
 - `RibbonGroup.add_small_button()`：图标在左、文字在右的 WPS 小按钮；
