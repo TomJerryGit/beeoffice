@@ -38,10 +38,13 @@ class RibbonGroup(QFrame):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 2, 6, 1)
         layout.setSpacing(0)
-        self.content = QHBoxLayout()
-        self.content.setContentsMargins(0, 0, 0, 0)
-        self.content.setSpacing(3)
-        layout.addLayout(self.content, 1)
+        # 阶段 4：组内多行——WPS 的一个组可以有多行小按钮
+        self._rows_layout = QVBoxLayout()
+        self._rows_layout.setContentsMargins(0, 0, 0, 0)
+        self._rows_layout.setSpacing(2)
+        layout.addLayout(self._rows_layout, 1)
+        self._rows = []
+        self.content = self.add_row()
         self._title = QLabel(title or "")
         self._title.setAlignment(Qt.AlignCenter)
         self._title.setStyleSheet("color:#777;font-size:10px;padding-top:1px;")
@@ -87,6 +90,46 @@ class RibbonGroup(QFrame):
             "QToolButton{border:none;border-radius:4px;padding:2px;"
             "font-size:12px;color:#333;}"
             "QToolButton:hover{background:#E8F0FE;}"
+        )
+        button.clicked.connect(callback)
+        self.content.addWidget(button)
+        return button
+
+    def add_row(self) -> QHBoxLayout:
+        """新增一行内容；大按钮/小按钮会追加到当前行。"""
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(3)
+        self._rows.append(row)
+        self._rows_layout.addLayout(row)
+        self.content = row
+        return row
+
+    def add_small_button(self, text: str, tooltip: str, callback,
+                         icon_name=None):
+        """WPS 式小按钮（图标在左、文字在右），用于组内第二行。"""
+        button = QToolButton()
+        button.setText(text)
+        button.setToolTip(tooltip)
+        button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        if icon_name:
+            try:
+                from beeoffice.plugins.ribbon_icons import make_icon
+                button.setIcon(make_icon(icon_name))
+                button.setIconSize(QSize(16, 16))
+                button.setProperty("ribbonIcon", icon_name)
+            except Exception:  # noqa: BLE001
+                pass
+        try:
+            from beeoffice.theme import Theme
+            color = Theme.tokens()["text"]
+            hover = Theme.tokens()["accent_light"]
+        except Exception:  # noqa: BLE001
+            color, hover = "#333333", "#E8F0FE"
+        button.setStyleSheet(
+            "QToolButton{border:none;border-radius:3px;padding:2px 5px;"
+            f"font-size:11px;color:{color};}}"
+            f"QToolButton:hover{{background:{hover};}}"
         )
         button.clicked.connect(callback)
         self.content.addWidget(button)

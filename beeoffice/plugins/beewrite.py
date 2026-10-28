@@ -281,12 +281,22 @@ class BeeWriteEditor(
         # 页面：页面设置/页眉页脚/页面视图/打印
         page = self._ribbon.add_tab("页面")
         group = self._ribbon.add_group(page, "📄 页面设置")
+        # 多行组：左侧大按钮 + 下方小按钮行
+        group.add_large_button(
+            "📄\n页面设置", "页面设置",
+            _clone_click(self._quick_toolbar, "页面设置"),
+            icon_name="page",
+        )
+        group.add_row()
         for label, target in (
-            ("📄\n页面设置", "页面设置"),
-            ("📋\n页眉页脚", "页眉页脚"),
-            ("📄\n页面视图", "页面视图"),
+            ("页眉页脚", "页眉页脚"),
+            ("页面视图", "页面视图"),
         ):
-            _add_large(group, label, target, self._quick_toolbar)
+            group.add_small_button(
+                label, target,
+                _clone_click(self._quick_toolbar, target),
+                icon_name="page" if target == "页眉页脚" else "view",
+            )
 
         # 引用：目录/交叉引用/页码/分节符/水印
         page = self._ribbon.add_tab("引用")
@@ -304,14 +314,26 @@ class BeeWriteEditor(
         # 审阅：拼写/批注/修订
         page = self._ribbon.add_tab("审阅")
         group = self._ribbon.add_group(page, "🔤 校对与审阅")
-        _add_large(group, "🔤\n拼写检查", "拼写检查", self._quick_toolbar)
-        for label, target in (
-            ("💬\n批注", "批注"),
-            ("📋\n批注栏", "批注栏"),
-            ("📝\n修订", "修订"),
-            ("📊\n查看修改", "查看修改"),
+        group.add_large_button(
+            "🔤\n拼写检查", "拼写检查",
+            _clone_click(self._quick_toolbar, "拼写检查"),
+            icon_name="search",
+        )
+        group.add_large_button(
+            "💬\n批注", "批注",
+            _clone_click(self._toolbar2, "批注"),
+            icon_name="comment",
+        )
+        group.add_row()
+        for label, target, icon_name in (
+            ("批注栏", "批注栏", "comment"),
+            ("修订", "修订", "track"),
+            ("查看修改", "查看修改", "track"),
         ):
-            _add_large(group, label, target, self._toolbar2)
+            group.add_small_button(
+                label, target, _clone_click(self._toolbar2, target),
+                icon_name=icon_name,
+            )
 
         # 视图：大纲/阅读/双屏/折叠
         page = self._ribbon.add_tab("视图")

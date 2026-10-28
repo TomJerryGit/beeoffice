@@ -240,12 +240,18 @@ class ToolbarMixin:
                         return
             return _go
 
-        # 文件：保存/导出/打印大按钮
+        # 文件：保存/导出/打印，两行大按钮（WPS 多行组）
         page = ribbon.add_tab("文件")
         group = ribbon.add_group(page, "📄 文件与导出")
         for label, target, icon_name in (
             ("💾\n保存", "保存", "save"),
             ("📄\n导出 PPTX", "PPTX", "export"),
+        ):
+            group.add_large_button(
+                label, target, _clone_click(target), icon_name=icon_name
+            )
+        group.add_row()
+        for label, target, icon_name in (
             ("📕\n导出 PDF", "PDF", "export"),
             ("🖨\n打印", "打印", "print"),
         ):

@@ -493,12 +493,18 @@ class UIMixin:
             group = ribbon.add_group(tab, title)
             group.add_layout(row)
 
-        # 文件：把高频导入/导出/打印做成大按钮（WPS 文件页）
+        # 文件：高频导入/导出/打印/保存，两行大按钮（WPS 多行组）
         page = ribbon.add_tab("文件")
         group = ribbon.add_group(page, "📄 文件")
         for label, target, icon_name in (
             ("📂\n导入", "导入", "export"),
             ("📤\n导出", "导出", "export"),
+        ):
+            group.add_large_button(
+                label, target, _row_click(t1, target), icon_name=icon_name
+            )
+        group.add_row()
+        for label, target, icon_name in (
             ("🖨\n打印", "打印预览", "print"),
             ("💾\n保存", "保存", "save"),
         ):

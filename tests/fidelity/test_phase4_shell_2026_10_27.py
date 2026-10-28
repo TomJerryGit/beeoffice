@@ -53,3 +53,16 @@ def test_app_wps_shell_hides_menubar_for_ribbon_page(app, qtbot):
     ribbon = editor._ribbon
     assert ribbon._file_button is not None
     assert ribbon._file_button.menu() is not None
+
+
+def test_group_supports_multiple_rows(qtbot):
+    rib = RibbonBar()
+    qtbot.addWidget(rib)
+    page = rib.add_tab("开始")
+    group = rib.add_group(page, "多行组")
+    group.add_large_button("大按钮", "大按钮", lambda: None, icon_name="save")
+    group.add_row()
+    group.add_small_button("小按钮", "小按钮", lambda: None, icon_name="print")
+    assert len(group._rows) == 2
+    assert group._rows[0].count() == 1
+    assert group._rows[1].count() == 1
