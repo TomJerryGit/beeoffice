@@ -1,12 +1,11 @@
-# BeeOffice 自托管 runner CI（2026-10-23）
+# BeeOffice 自托管 runner CI
 #
-# 这台 runner 以 LocalSystem 服务运行，工作区没有业务语料/依赖缓存；
-# 因此本工作流直接在**本机已有仓库 D:\beeofficeV** 上跑，而不是 checkout 到
-# runner 工作区（那里缺 tests/fidelity/corpus 大文件，且服务账号环境不同）。
-# 推送触发后由 beeoffice-local-runner 执行：
-#   - 46 项回归门禁
-#   - 全量 fidelity + unit 测试
-#   - 构建 Windows 发行包并上传 artifact（zip + sha256）
+# 运行环境实测：
+# - runner 以 LocalSystem 服务运行，D:\beeofficeV 与 D:\Program Files\Python311\python.exe 均可访问；
+# - PowerShell 步骤在本机会在环境检查阶段异常退出（cmd 探针正常）；
+# - 因此所有 run 步骤统一使用 cmd.exe，直接在本机仓库上执行。
+#
+# 流程：46 项门禁 → 全量 pytest → 构建发行包 → 上传 artifact。
 name: self-hosted-ci
 
 on:
@@ -21,96 +20,63 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      - name: cmd 探针（绕过 PowerShell 验证路径/解释器）
+      - name: 环境检查
         shell: cmd
-        continue-on-error: true
         run: |
-          echo probe-start > D:\beeofficeV\_ptmp\analysis\ci_cmd_probe.txt
-          echo user=%USERNAME% >> D:\beeofficeV\_ptmp\analysis\ci_cmd_probe.txt
-          dir D:\ >> D:\beeofficeV\_ptmp\analysis\ci_cmd_probe.txt 2>&1
-          dir D:\beeofficeV\ >> D:\beeofficeV\_ptmp\analysis\ci_cmd_probe.txt 2>&1
-          "D:\Program Files\Python311\python.exe" --version >> D:\beeofficeV\_ptmp\analysis\ci_cmd_probe.txt 2>&1
-          echo py_exit=%ERRORLEVEL% >> D:\beeofficeV\_ptmp\analysis\ci_cmd_probe.txt
-      - name: 环境检查（写诊断到 D:\beeoffice_ci_diag.txt，不阻断）
-        shell: powershell
-        continue-on-error: true
-        run: |
-          $diag = 'D:\beeofficeV\_ptmp\analysis\ci_runner_diag.txt'
-          New-Item -ItemType Directory -Force -Path (Split-Path $diag) | Out-Null
-          $repo = 'D:\beeofficeV'
-          $py = 'D:\Program Files\Python311\python.exe'
-          "== env $(Get-Date -Format o) ==" | Out-File -LiteralPath $diag -Encoding utf8
-          "user=$env:USERNAME workspace=$env:GITHUB_WORKSPACE" | Out-File -LiteralPath $diag -Append -Encoding utf8
-          "repo=$repo exists=$(Test-Path $repo)" | Out-File -LiteralPath $diag -Append -Encoding utf8
-          "py=$py exists=$(Test-Path $py)" | Out-File -LiteralPath $diag -Append -Encoding utf8
-          try {
-            & $py --version *>> $diag
-            "py_exit=$LASTEXITCODE" | Out-File -LiteralPath $diag -Append -Encoding utf8
-            & $py -c "import sys; print(sys.executable); import PySide6, pandas, openpyxl, fitz; print('deps_ok')" *>> $diag
-            "deps_exit=$LASTEXITCODE" | Out-File -LiteralPath $diag -Append -Encoding utf8
-          } catch {
-            "EXCEPTION: $_" | Out-File -LiteralPath $diag -Append -Encoding utf8
-          }
-          try {
-            $ver = (& $py --version 2>&1 | Out-String).Trim()
-            $deps = (& $py -c "import PySide6, pandas, openpyxl, fitz; print('deps_ok')" 2>&1 | Out-String).Trim()
-            $body = @(
-              "user=$env:USERNAME",
-              "workspace=$env:GITHUB_WORKSPACE",
-              "repo_exists=$(Test-Path $repo)",
-              "py_exists=$(Test-Path $py)",
-              "py_version=$ver",
-              "deps=$deps",
-              "cwd=$(Get-Location)",
-              "diag_file_exists=$(Test-Path $diag)"
-            ) -join "`n"
-            Invoke-RestMethod -Uri 'http://127.0.0.1:8123/diag' -Method Post -Body $body -TimeoutSec 5 | Out-Null
-          } catch {
-            "POST_FAILED: $_" | Out-File -LiteralPath $diag -Append -Encoding utf8
-          }
-          Get-Content -LiteralPath $diag
+          set "PY=D:\Program Files\Python311\python.exe"
+          echo repo D:\beeofficeV
+          if not exist "D:\beeofficeV\beeoffice\__version__.py" exit /b 1
+          echo python "%PY%"
+          if not exist "%PY%" exit /b 1
+          "%PY%" --version
+          if errorlevel 1 exit /b 1
+          "%PY%" -c "import PySide6, pandas, openpyxl, fitz; print('deps ok')"
+          if errorlevel 1 exit /b 1
 
       - name: 46 项回归门禁
-        shell: powershell
+        shell: cmd
         run: |
-          Set-Location 'D:\beeofficeV'
-          $py = 'D:\Program Files\Python311\python.exe'
-          $env:PYTHONPATH = (Get-Location).Path
-          $env:QT_QPA_PLATFORM = 'offscreen'
-          $env:QT_QPA_FONTDIR = 'C:\Windows\Fonts'
-          $env:PYTHONIOENCODING = 'utf-8'
-          & $py tools\check_gates.py
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cd /d D:\beeofficeV
+          set "PY=D:\Program Files\Python311\python.exe"
+          set PYTHONPATH=%CD%
+          set QT_QPA_PLATFORM=offscreen
+          set QT_QPA_FONTDIR=C:\Windows\Fonts
+          set PYTHONIOENCODING=utf-8
+          echo == gates start %DATE% %TIME% ==
+          "%PY%" tools\check_gates.py
+          if errorlevel 1 exit /b 1
 
       - name: 全量测试（fidelity + unit）
-        shell: powershell
+        shell: cmd
         run: |
-          Set-Location 'D:\beeofficeV'
-          $py = 'D:\Program Files\Python311\python.exe'
-          $env:PYTHONPATH = (Get-Location).Path
-          $env:QT_QPA_PLATFORM = 'offscreen'
-          $env:QT_QPA_FONTDIR = 'C:\Windows\Fonts'
-          $env:PYTHONIOENCODING = 'utf-8'
-          $env:BEEOFFICE_DRAFT_DIR = 'D:\beeoffice_ci_drafts'
-          & $py -m pytest tests/fidelity tests/unit -q --no-header -p no:cacheprovider -o log_file= --timeout=900
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cd /d D:\beeofficeV
+          set "PY=D:\Program Files\Python311\python.exe"
+          set PYTHONPATH=%CD%
+          set QT_QPA_PLATFORM=offscreen
+          set QT_QPA_FONTDIR=C:\Windows\Fonts
+          set PYTHONIOENCODING=utf-8
+          set BEEOFFICE_DRAFT_DIR=D:\beeoffice_ci_drafts
+          echo == pytest start %DATE% %TIME% ==
+          "%PY%" -m pytest tests/fidelity tests/unit -q --no-header -p no:cacheprovider -o log_file= --timeout=900
+          if errorlevel 1 exit /b 1
 
       - name: 构建发行包并复制到 artifact 目录
-        shell: powershell
+        shell: cmd
         run: |
-          Set-Location 'D:\beeofficeV'
-          $py = 'D:\Program Files\Python311\python.exe'
-          $env:PYTHONPATH = (Get-Location).Path
-          $env:PYTHONIOENCODING = 'utf-8'
-          $buildTmp = 'D:\beeofficeV\_ptmp\ci_build'
-          New-Item -ItemType Directory -Force -Path $buildTmp | Out-Null
-          $env:TEMP = $buildTmp
-          $env:TMP = $buildTmp
-          & $py beeoffice\build_release.py
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          New-Item -ItemType Directory -Force -Path (Join-Path $env:GITHUB_WORKSPACE 'artifact') | Out-Null
-          Copy-Item 'D:\beeofficeV\BeeOffice-v*-windows.zip*' (Join-Path $env:GITHUB_WORKSPACE 'artifact') -Force
-          Get-ChildItem (Join-Path $env:GITHUB_WORKSPACE 'artifact') | Select-Object Name,Length
+          cd /d D:\beeofficeV
+          set "PY=D:\Program Files\Python311\python.exe"
+          set PYTHONPATH=%CD%
+          set PYTHONIOENCODING=utf-8
+          set "TEMP=D:\beeofficeV\_ptmp\ci_build"
+          set "TMP=%TEMP%"
+          if not exist "%TEMP%" mkdir "%TEMP%"
+          echo == build start %DATE% %TIME% ==
+          "%PY%" beeoffice\build_release.py
+          if errorlevel 1 exit /b 1
+          if not exist "%GITHUB_WORKSPACE%\artifact" mkdir "%GITHUB_WORKSPACE%\artifact"
+          copy /y "D:\beeofficeV\BeeOffice-v*-windows.zip*" "%GITHUB_WORKSPACE%\artifact\"
+          if errorlevel 1 exit /b 1
+          dir "%GITHUB_WORKSPACE%\artifact"
 
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
