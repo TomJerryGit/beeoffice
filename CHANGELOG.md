@@ -6,6 +6,16 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ---
+## [5.0.30] - 2026-10-28
+
+**修复：全屏时 Ribbon 与表格之间的大块空白。**
+
+### 修复
+- RibbonBar/功能区栈/分组框的纵向策略改为 `Preferred + Maximum`，只占内容高度；
+- 全屏 1900×999 实测：Ribbon 从 497px 收回 174px，表格从 y=503 提到 y=180；
+- 新增 `test_ribbon_does_not_absorb_vertical_space` 回归。
+
+---
 ## [5.0.29] - 2026-10-28
 
 **阶段 4 收尾：Ribbon 组内多行排版。**

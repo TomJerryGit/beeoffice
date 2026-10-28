@@ -89,3 +89,15 @@ def test_large_button_callback(qtbot):
     btn = group.add_large_button("▶\n播放", "播放", lambda: clicks.append(1))
     btn.click()
     assert clicks == [1]
+
+
+def test_ribbon_does_not_absorb_vertical_space(qtbot):
+    """全屏时 Ribbon 只能占内容高度，不能把菜单与表格之间拉出大块空白。"""
+    view = BeeSheetView()
+    qtbot.addWidget(view)
+    view.resize(1600, 900)
+    view.show()
+    qtbot.wait(50)
+    ribbon = view._ribbon
+    assert ribbon.height() <= ribbon.sizeHint().height() + 12
+    assert view.table_view.geometry().top() < 260

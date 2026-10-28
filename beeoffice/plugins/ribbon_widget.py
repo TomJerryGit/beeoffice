@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QSizePolicy,
     QStackedWidget,
     QToolButton,
     QTabBar,
@@ -32,6 +33,8 @@ class RibbonGroup(QFrame):
     def __init__(self, title: str = "", parent=None):
         super().__init__(parent)
         self.setObjectName("RibbonGroup")
+        # 分组按内容高度收缩，不参与主窗口纵向拉伸（否则全屏时出现大块空白）
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         self.setStyleSheet(
             "QFrame#RibbonGroup{border-right:1px solid #E3E3E3;}"
         )
@@ -162,11 +165,13 @@ class RibbonBar(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("RibbonBar")
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         self._tabs = QTabBar()
         self._tabs.setExpanding(False)
         self._tabs.setDrawBase(False)
         self._tabs.setStyleSheet(self.STYLE)
         self._stack = QStackedWidget()
+        self._stack.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -286,6 +291,7 @@ class RibbonBar(QWidget):
 
     def add_tab(self, title: str) -> QHBoxLayout:
         page = QWidget()
+        page.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         page_layout = QHBoxLayout(page)
         page_layout.setContentsMargins(4, 2, 4, 2)
         page_layout.setSpacing(4)
