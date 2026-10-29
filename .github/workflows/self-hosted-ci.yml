@@ -82,7 +82,9 @@ jobs:
           set PYTHONUNBUFFERED=1
           set BEEOFFICE_DRAFT_DIR=D:\beeoffice_ci_drafts
           echo == pytest start %DATE% %TIME% ==
-          "%PY%" -m pytest tests/fidelity tests/unit -x -vv --durations=20 --timeout=300 --timeout-method=thread --no-header -p no:cacheprovider -o log_file= > D:\beeoffice_ci_pytest.log 2>&1
+          rem test_corpus 的真实文档往返由 46 门禁中的 fidelity-corpus 单独覆盖；
+          rem 这里排除它，避免 LocalSystem 冷缓存下同一批大文件被重复跑两遍。
+          "%PY%" -m pytest tests/fidelity tests/unit --ignore=tests/fidelity/test_corpus.py -x -vv --durations=20 --timeout=900 --timeout-method=thread --no-header -p no:cacheprovider -o log_file= > D:\beeoffice_ci_pytest.log 2>&1
           if errorlevel 1 (
             type D:\beeoffice_ci_pytest.log
             exit /b 1
