@@ -48,6 +48,11 @@
 - 新增 `beeoffice/plugins/data_toolbox_dialog.py`：删除重复行/去除首尾空白/统计摘要/多级排序入口；
 - 工具菜单“🧰 数据工具箱”；新增纯逻辑与 GUI 冒烟测试。
 
+**S3：投屏遥控（2026-10-29）**
+- 同步对话框二维码（qrcode[pil]，无依赖降级）+ PyInstaller hiddenimports；
+- 手机观众页遥控栏（上一页/下一页/黑屏/结束）+ 服务端控制帧 + 桌面 `_remote_control`；
+- **修复真实 bug**：`SyncServer.start()` 在 `_running=True` 之前启动 WS accept 线程，导致 WebSocket 监听循环立即退出；loopback 测试已覆盖。
+
 **S2：蜜演母版设置 MVP（2026-10-29）**
 - 新增 `beeoffice/plugins/beeshow_master_dialog.py`：主题批量应用、正文字体/字号、强调色、页脚文字/Logo；
 - `_get_layout_css` 追加 `_master_css`；工具菜单“🎨 母版设置”；`插入版式…` 复用现有版式选择器；

@@ -231,13 +231,16 @@ class SyncServer:
             return True
 
         try:
+            # 0. 先置运行标志：accept 线程启动后立即检查 _running，
+            #    若先起线程再置 True，WS accept 循环会立刻退出。
+            self._running = True
+
             # 1. 启动 HTTP 服务器（提供观众页面）
             self._start_http_server()
 
             # 2. 启动 WebSocket 服务器（广播通道）
             self._start_ws_server()
 
-            self._running = True
             logging.info(
                 f"同步服务器已启动："
                 f"HTTP :{self.http_port} / WS :{self.ws_port}"

@@ -89,6 +89,10 @@ hiddenimports = [
     "matplotlib.backends.backend_agg",
     # 大 xlsx 快速读值引擎（beesheet_workbook 延迟导入；PyInstaller 静态分析漏掉）
     "python_calamine",
+    # 投屏遥控二维码（S3，延迟导入）
+    "qrcode",
+    "qrcode.image.pil",
+    "PIL.Image",
 ]
 
 # 自动收集插件包下所有子模块
