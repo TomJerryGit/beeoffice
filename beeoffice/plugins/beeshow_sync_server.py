@@ -196,6 +196,8 @@ class SyncServer:
         # 一次性访问令牌：HTTP 接口与 WebSocket 握手都要求携带，
         # 只出现在服务端生成并展示给演示者的观众 URL 里。
         self.token = secrets.token_urlsafe(16)
+        # 手机遥控回调：收到 {"type":"control","action":...} 时由桌面处理
+        self.on_control = None
 
         # 观众连接列表
         self._viewers: List[ViewerConnection] = []
@@ -469,6 +471,36 @@ class SyncServer:
             )
             t.start()
 
+    @staticmethod
+    def decode_text_frame(data: bytes):
+        """解码客户端文本帧（browser→server 一定带 mask）。"""
+        if len(data) < 2 or (data[0] & 0x0F) != 0x1:
+            return None
+        length = data[1] & 0x7F
+        offset = 2
+        if length == 126:
+            if len(data) < 4:
+                return None
+            length = int.from_bytes(data[2:4], "big")
+            offset = 4
+        elif length == 127:
+            if len(data) < 10:
+                return None
+            length = int.from_bytes(data[2:10], "big")
+            offset = 10
+        if len(data) < offset + 4 + length:
+            return None
+        mask = data[offset:offset + 4]
+        payload = bytes(
+            b ^ mask[i % 4] for i, b in enumerate(
+                data[offset + 4:offset + 4 + length]
+            )
+        )
+        try:
+            return json.loads(payload.decode("utf-8"))
+        except Exception:  # noqa: BLE001
+            return None
+
     def _handle_viewer(self, client: socket.socket, addr):
         """处理单个观众连接"""
         try:
@@ -499,6 +531,13 @@ class SyncServer:
                         break
                     if WebSocketFrame.decode_close_frame(data):
                         break
+                    message = self.decode_text_frame(data)
+                    if (message and message.get("type") == "control"
+                            and self.on_control is not None):
+                        try:
+                            self.on_control(str(message.get("action", "")))
+                        except Exception as e:  # noqa: BLE001
+                            logging.debug(f"遥控回调失败：{e}")
                 except socket.timeout:
                     continue
                 except Exception:

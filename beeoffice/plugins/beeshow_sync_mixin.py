@@ -95,7 +95,8 @@ class SyncMixin:
                 return
 
             self._sync_enabled = True
-            self._sync_url = self._sync_server.get_viewer_url()
+            self._sync_server.on_control = self._remote_control
+        self._sync_url = self._sync_server.get_viewer_url()
 
             # 广播当前状态
             self._broadcast_slide()
@@ -110,6 +111,20 @@ class SyncMixin:
         except Exception as e:
             logging.error(f"开启同步失败：{e}")
             QMessageBox.warning(self, "失败", str(e))
+            self._stop_sync_mode()
+
+    def _remote_control(self, action: str):
+        """手机遥控：next/prev/black/end。"""
+        if action == "next":
+            self._show_slide(min(
+                getattr(self, "_current_slide", 0) + 1,
+                max(0, len(getattr(self, "_slides_html", [])) - 1),
+            ))
+        elif action == "prev":
+            self._show_slide(max(0, getattr(self, "_current_slide", 0) - 1))
+        elif action == "black":
+            self._broadcast_black_screen(True)
+        elif action == "end":
             self._stop_sync_mode()
 
     def _stop_sync_mode(self):
