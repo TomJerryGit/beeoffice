@@ -1,6 +1,4 @@
 """S3 宏控制台：白名单/审计/回放/UI 冒烟。"""
-import json
-
 import pytest
 
 from beeoffice.macro_console import MacroAudit, MacroError, MacroRegistry, MacroRunner
