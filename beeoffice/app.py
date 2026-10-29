@@ -1583,6 +1583,12 @@ class BeeApp(QMainWindow):
             plugin_dir, app_version=__version__, host=self.plugin_host
         )
 
+    def show_proofread_dialog(self):
+        """S2 校对体检 MVP。"""
+        from beeoffice.plugins.proofread_dialog import ProofreadDialog
+
+        ProofreadDialog(self).exec()
+
     def show_pdf_toolbox(self):
         """打开 PDF 工具箱（S1：复用 beecmd v0.5.0 / pdf_tools）。"""
         from beeoffice.plugins.pdf_toolbox_dialog import PdfToolboxDialog

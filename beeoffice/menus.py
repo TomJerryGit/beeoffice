@@ -342,6 +342,10 @@ def setup_menus(main_window):
     pdf_toolbox_action = tools_menu.addAction("🧰 PDF 工具箱")
     pdf_toolbox_action.triggered.connect(main_window.show_pdf_toolbox)
 
+    # ---- 校对体检（S2） ----
+    proof_action = tools_menu.addAction("🔎 校对体检")
+    proof_action.triggered.connect(main_window.show_proofread_dialog)
+
     # ---- AI 任务窗格（S1） ----
     ai_pane_action = tools_menu.addAction("✨ AI 助手")
     ai_pane_action.triggered.connect(main_window.show_ai_task_pane)

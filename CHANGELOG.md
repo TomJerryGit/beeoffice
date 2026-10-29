@@ -40,6 +40,10 @@
 - `PluginContext`/`PluginLoader` 支持 host，`BeeApp.plugin_host` + `load_plugin_v1()`；
 - 新增 host 集成测试（真实 RibbonBar + QTextEdit + 假 TaskPaneManager）。
 
+**S2：校对体检 MVP（2026-10-29）**
+- 新增 `beeoffice/plugins/proofread_dialog.py`：多余空格/重复标点/中英文标点混用/待办标记/行尾空白；
+- 工具菜单“🔎 校对体检”；新增规则与对话框回归测试。
+
 ---
 ## [5.0.30] - 2026-10-28
 
