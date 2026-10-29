@@ -10,6 +10,16 @@
 
 **修复：全屏时 Ribbon 与表格之间的大块空白。**
 
+### 工程与验证（干净 worktree，commit `0127c99`）
+- **46/46 门禁 PASS**：45 项批量 PASS + `fidelity-corpus` 单独 PASS（724.6s）；
+- 全量 `fidelity+unit`：**1636 passed / 4 skipped / 0 failed**（807.36s，
+  `_ptmp/analysis/pytest_clean_5030.log`）。
+
+### 发行
+- `BeeOffice-v5.0.30-windows.zip`：**3155 个条目**，sha256
+  `a357cbac39e65d075bf419a884f5f96767d92400c71429b2137a88123c5d2e0d`；
+- tag `v5.0.30` = `0127c99`；归档 `release-archive/`；`verify_release.py` 5/5 通过。
+
 ### 工程（S0 原型）
 - `tools/bench_wps_vs_bee.py`：同机 WPS/BeeOffice 基准（DOCX/XLSX/PPTX/PDF；warmup+repeat；P50/P95；WPS COM 可选）；
 - `docs/plugin-api-v1-draft.md`：插件 API v1 草案（manifest/权限/扩展点/文档事务/安全）；
