@@ -85,3 +85,6 @@ fonttools>=4.45.0
 #             因体积较大（~150MB Chromium），默认注释掉，
 #             需要精确版式的用户手动安装
 # playwright>=1.40.0
+
+# qrcode：投屏遥控二维码（S3）
+qrcode[pil]>=8.0

@@ -46,3 +46,14 @@ def test_viewer_has_remote_controls():
     assert "remoteControl" in html
     assert "上一页" in html and "下一页" in html
     assert "type: 'control'" in html
+
+
+def test_qr_pixmap(qtbot):
+    from io import BytesIO
+    import qrcode
+    from PySide6.QtGui import QPixmap
+    buf = BytesIO()
+    qrcode.make("http://127.0.0.1:8765/viewer?t=x").save(buf, "PNG")
+    pix = QPixmap()
+    assert pix.loadFromData(buf.getvalue())
+    assert not pix.isNull() and pix.width() > 0

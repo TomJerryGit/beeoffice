@@ -214,6 +214,26 @@ class SyncMixin:
         )
         layout.addWidget(title)
 
+        # 二维码（S3）：有 qrcode 就显示，没有就降级为链接
+        try:
+            from io import BytesIO
+
+            import qrcode
+            from PySide6.QtGui import QPixmap
+
+            buf = BytesIO()
+            qrcode.make(self._sync_url).save(buf, "PNG")
+            pix = QPixmap()
+            pix.loadFromData(buf.getvalue())
+            qr_label = QLabel()
+            qr_label.setPixmap(pix.scaled(
+                180, 180, Qt.KeepAspectRatio, Qt.SmoothTransformation
+            ))
+            qr_label.setAlignment(Qt.AlignCenter)
+            layout.addWidget(qr_label)
+        except Exception:  # noqa: BLE001 - 无依赖时降级为链接
+            pass
+
         # 观众 URL
         url_label = QLabel(self._sync_url)
         url_label.setStyleSheet(

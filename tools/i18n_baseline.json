@@ -128,7 +128,7 @@
     "beeoffice/templates.py": 35,
     "beeoffice/utils.py": 1
   },
-  "generated_at": "2026-10-29 16:29",
-  "commit": "eff9b25",
+  "generated_at": "2026-10-29 16:40",
+  "commit": "7cc9e1f",
   "note": "硬编码中文文案棘轮基线；只许减少。更新方式：python tools/i18n_audit.py --write-baseline"
 }
