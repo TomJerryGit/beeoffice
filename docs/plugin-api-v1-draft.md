@@ -1,5 +1,12 @@
 # BeeOffice 插件 API v1 草案（S0，2026-10-28）
 
+> **S1 进度（2026-10-29）**：核心契约已落地到
+> [`beeoffice/plugin_api.py`](../beeoffice/plugin_api.py)：
+> manifest 校验、权限白名单/运行时校验、Ribbon/UI/Commands/Events/Document/AI/Settings
+> 的 PluginContext、BeePlugin 生命周期、PluginLoader；对应测试
+> `tests/unit/test_plugin_api.py`。UI 实际挂载、DocumentAPI 宿主注入、插件市场接入
+> 仍按本文 S1 验收项继续。
+
 > 状态：草案，供 S1 实现；当前 `Plugin` 只支持“一个插件 = 一个编辑器 Tab”，
 > 本文定义 WPS 式加载项所需的**扩展点/权限/生命周期**，不改变现有 4 个内置插件。
 > 目标：让 AI 助手、PDF 工具箱、模板中心、数据工具箱等可以**注入现有编辑器**，
