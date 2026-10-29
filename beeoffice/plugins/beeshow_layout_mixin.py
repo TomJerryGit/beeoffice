@@ -198,4 +198,4 @@ class LayoutMixin:
         在 _show_slide / _show_play_slide 中与主题 CSS 拼接使用：
           full_css = theme_css + LAYOUT_CSS
         """
-        return LAYOUT_CSS
+        return LAYOUT_CSS + getattr(self, "_master_css", "")

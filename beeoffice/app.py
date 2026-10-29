@@ -1583,6 +1583,15 @@ class BeeApp(QMainWindow):
             plugin_dir, app_version=__version__, host=self.plugin_host
         )
 
+    def show_beeshow_master_dialog(self):
+        """S2 蜜演母版设置（主题/字体/强调色/页脚 Logo）。"""
+        from beeoffice.plugins.beeshow_master_dialog import BeeShowMasterDialog
+
+        view = self.tab_manager.currentWidget()
+        if view is None or not hasattr(view, "_show_layout_picker"):
+            return
+        BeeShowMasterDialog(view, self).exec()
+
     def show_data_toolbox(self):
         """S2 数据工具箱（当前蜜算工作表）。"""
         from beeoffice.plugins.data_toolbox_dialog import DataToolboxDialog

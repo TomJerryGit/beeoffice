@@ -1,5 +1,5 @@
 {
-  "total": 4045,
+  "total": 4062,
   "by_file": {
     "beeoffice/__version__.py": 1,
     "beeoffice/ai_settings.py": 22,
@@ -17,7 +17,7 @@
     "beeoffice/crash_handler.py": 8,
     "beeoffice/drafts.py": 5,
     "beeoffice/main.py": 1,
-    "beeoffice/menus.py": 14,
+    "beeoffice/menus.py": 15,
     "beeoffice/mobile.py": 26,
     "beeoffice/plugin_api.py": 47,
     "beeoffice/plugin_base.py": 3,
@@ -63,6 +63,7 @@
     "beeoffice/plugins/beeshow_image_suggest.py": 48,
     "beeoffice/plugins/beeshow_image_suggester_dialog.py": 7,
     "beeoffice/plugins/beeshow_layout_mixin.py": 6,
+    "beeoffice/plugins/beeshow_master_dialog.py": 16,
     "beeoffice/plugins/beeshow_morph_mixin.py": 2,
     "beeoffice/plugins/beeshow_notes_mixin.py": 38,
     "beeoffice/plugins/beeshow_play_mixin.py": 17,
@@ -127,7 +128,7 @@
     "beeoffice/templates.py": 35,
     "beeoffice/utils.py": 1
   },
-  "generated_at": "2026-10-29 16:03",
-  "commit": "8d94fcc",
+  "generated_at": "2026-10-29 16:12",
+  "commit": "9b1ab1d",
   "note": "硬编码中文文案棘轮基线；只许减少。更新方式：python tools/i18n_audit.py --write-baseline"
 }

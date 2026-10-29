@@ -48,6 +48,11 @@
 - 新增 `beeoffice/plugins/data_toolbox_dialog.py`：删除重复行/去除首尾空白/统计摘要/多级排序入口；
 - 工具菜单“🧰 数据工具箱”；新增纯逻辑与 GUI 冒烟测试。
 
+**S2：蜜演母版设置 MVP（2026-10-29）**
+- 新增 `beeoffice/plugins/beeshow_master_dialog.py`：主题批量应用、正文字体/字号、强调色、页脚文字/Logo；
+- `_get_layout_css` 追加 `_master_css`；工具菜单“🎨 母版设置”；`插入版式…` 复用现有版式选择器；
+- 新增 CSS/对话框测试。
+
 ---
 ## [5.0.30] - 2026-10-28
 
