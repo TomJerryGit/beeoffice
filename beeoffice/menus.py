@@ -342,6 +342,10 @@ def setup_menus(main_window):
     pdf_toolbox_action = tools_menu.addAction("🧰 PDF 工具箱")
     pdf_toolbox_action.triggered.connect(main_window.show_pdf_toolbox)
 
+    # ---- 数据工具箱（S2） ----
+    data_action = tools_menu.addAction("🧰 数据工具箱")
+    data_action.triggered.connect(main_window.show_data_toolbox)
+
     # ---- 校对体检（S2） ----
     proof_action = tools_menu.addAction("🔎 校对体检")
     proof_action.triggered.connect(main_window.show_proofread_dialog)

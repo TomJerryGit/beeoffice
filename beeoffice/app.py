@@ -1583,6 +1583,15 @@ class BeeApp(QMainWindow):
             plugin_dir, app_version=__version__, host=self.plugin_host
         )
 
+    def show_data_toolbox(self):
+        """S2 数据工具箱（当前蜜算工作表）。"""
+        from beeoffice.plugins.data_toolbox_dialog import DataToolboxDialog
+
+        view = self.tab_manager.currentWidget()
+        if view is None or not hasattr(view, "model"):
+            return
+        DataToolboxDialog(view, self).exec()
+
     def show_proofread_dialog(self):
         """S2 校对体检 MVP。"""
         from beeoffice.plugins.proofread_dialog import ProofreadDialog
