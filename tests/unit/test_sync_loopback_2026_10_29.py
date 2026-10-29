@@ -3,7 +3,6 @@ import base64
 import json
 import os
 import socket
-import struct
 import time
 
 from beeoffice.plugins.beeshow_sync_server import SyncServer

@@ -341,3 +341,83 @@ def extract_images(src, outdir, pages: Optional[str] = None) -> dict:
         doc.close()
     return {"source": str(src_path), "output_dir": str(outdir),
             "count": len(saved), "images": saved}
+
+
+# ==================== 书签 / 图片签名（S3） ====================
+
+def list_bookmarks(src) -> list[dict]:
+    """读取 PDF 书签（TOC），返回 [{level,title,page}]，page 为 1 基。"""
+    src_path = Path(src)
+    if not src_path.is_file():
+        raise PdfToolError(f"文件不存在: {src_path}")
+    doc = fitz.open(str(src_path))
+    try:
+        return [
+            {"level": int(level), "title": str(title), "page": int(page)}
+            for level, title, page in (doc.get_toc() or [])
+        ]
+    finally:
+        doc.close()
+
+
+def add_bookmark(src, out, title: str, page: int = 1) -> dict:
+    """在末尾追加一个一级书签；不修改源文件。"""
+    src_path, out_path = Path(src), Path(out)
+    if not src_path.is_file():
+        raise PdfToolError(f"文件不存在: {src_path}")
+    if src_path.resolve() == out_path.resolve():
+        raise PdfToolError("输出不能覆盖源文件")
+    doc = fitz.open(str(src_path))
+    try:
+        if not 1 <= int(page) <= doc.page_count:
+            raise PdfToolError(f"页码越界: {page}（共 {doc.page_count} 页）")
+        toc = doc.get_toc() or []
+        toc.append([1, str(title).strip() or "书签", int(page)])
+        doc.set_toc(toc)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        doc.save(str(out_path))
+    finally:
+        doc.close()
+    return {"source": str(src_path), "output": str(out_path), "title": title, "page": int(page)}
+
+
+def stamp_image(src, out, image_path, page: int = 1,
+                x: float = 0.6, y: float = 0.65,
+                width_ratio: float = 0.25, opacity: float = 1.0) -> dict:
+    """把图片（手写签名/图章）叠加到指定页；坐标为相对页面宽高的左上角。"""
+    src_path, out_path, img_path = Path(src), Path(out), Path(image_path)
+    if not src_path.is_file():
+        raise PdfToolError(f"文件不存在: {src_path}")
+    if not img_path.is_file():
+        raise PdfToolError(f"签名图片不存在: {img_path}")
+    if src_path.resolve() == out_path.resolve():
+        raise PdfToolError("输出不能覆盖源文件")
+    doc = fitz.open(str(src_path))
+    try:
+        if not 1 <= int(page) <= doc.page_count:
+            raise PdfToolError(f"页码越界: {page}（共 {doc.page_count} 页）")
+        pdf_page = doc[int(page) - 1]
+        rect = pdf_page.rect
+        w = max(0.02, min(1.0, float(width_ratio))) * rect.width
+        # 按图片宽高比计算高度
+        try:
+            from PIL import Image
+            with Image.open(img_path) as im:
+                aspect = im.height / max(1, im.width)
+        except Exception:  # noqa: BLE001
+            aspect = 0.4
+        h = w * aspect
+        left = max(0.0, min(1.0, float(x))) * rect.width
+        top = max(0.0, min(1.0, float(y))) * rect.height
+        clip = fitz.Rect(left, top, min(rect.width, left + w),
+                         min(rect.height, top + h))
+        pdf_page.insert_image(
+            clip, filename=str(img_path), overlay=True,
+            rotate=0, keep_proportion=True,
+        )
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        doc.save(str(out_path))
+    finally:
+        doc.close()
+    return {"source": str(src_path), "output": str(out_path),
+            "image": str(img_path), "page": int(page)}
