@@ -205,6 +205,9 @@ class BeeApp(QMainWindow):
         QShortcut(QKeySequence("Ctrl+Alt+P"), self).activated.connect(
             self.show_task_pane_demo
         )
+        QShortcut(QKeySequence("Ctrl+Alt+A"), self).activated.connect(
+            self.show_ai_task_pane
+        )
 
         # 启动期的延迟初始化：使用**绑定到本窗口**的单次 QTimer，
         # 而不是 QTimer.singleShot(ms, callable)。
@@ -1575,6 +1578,13 @@ class BeeApp(QMainWindow):
 
         dialog = PdfToolboxDialog(self)
         dialog.exec()
+
+    def show_ai_task_pane(self):
+        """打开 AI 任务窗格 MVP（S1）。"""
+        from beeoffice.plugins.ai_task_pane import AiTaskPane
+
+        widget = AiTaskPane(self)
+        return self.show_task_pane("AI 助手", widget, pane_id="ai")
 
     def show_task_pane(self, title, content_widget, pane_id="default"):
         """显示/更新右侧任务窗格（S0 壳；S1 由插件 API 调用）。"""

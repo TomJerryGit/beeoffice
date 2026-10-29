@@ -21,6 +21,12 @@
 - 工具菜单入口“🧰 PDF 工具箱”；
 - 新增 GUI 冒烟测试；i18n 基线随新增文案更新。
 
+**S1：AI 任务窗格 MVP（2026-10-29）**
+- 新增 `beeoffice/plugins/ai_task_pane.py`：选区改写/解释/翻译/摘要 + 基于当前文档的问答；
+- 复用 `AIClient`（Ollama/OpenAI 兼容），AI 调用在 QThread 中执行，不阻塞 UI；
+- 工具菜单“✨ AI 助手”，快捷键 `Ctrl+Alt+A`；
+- 新增 AI 窗格冒烟/提示词测试。
+
 ---
 ## [5.0.30] - 2026-10-28
 

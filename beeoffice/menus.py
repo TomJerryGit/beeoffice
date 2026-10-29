@@ -342,6 +342,10 @@ def setup_menus(main_window):
     pdf_toolbox_action = tools_menu.addAction("🧰 PDF 工具箱")
     pdf_toolbox_action.triggered.connect(main_window.show_pdf_toolbox)
 
+    # ---- AI 任务窗格（S1） ----
+    ai_pane_action = tools_menu.addAction("✨ AI 助手")
+    ai_pane_action.triggered.connect(main_window.show_ai_task_pane)
+
     # ==================== 视图菜单 ====================
     view_menu = menu_bar.addMenu(tr("menu.view", "视图"))
 
