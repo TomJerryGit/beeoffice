@@ -6,6 +6,17 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ---
+## [Unreleased]
+
+**S1：插件 API v1 核心实现（2026-10-29）**
+- `beeoffice/plugin_api.py`：PluginManifest 校验（id/api_version/entry/权限/min_app_version）、
+  权限白名单与运行时校验、PluginContext（Ribbon/UI/Commands/Events/Document/AI/Settings）、
+  BeePlugin 生命周期、PluginLoader 目录加载；
+- 新增 `tests/unit/test_plugin_api.py` 13 条契约测试（manifest 非法、权限、命令、事件、
+  任务窗格声明、加载/卸载）。
+- 文档：`docs/plugin-api-v1-draft.md` 标记 S1 进度。
+
+---
 ## [5.0.30] - 2026-10-28
 
 **修复：全屏时 Ribbon 与表格之间的大块空白。**
