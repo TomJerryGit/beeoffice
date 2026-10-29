@@ -1,6 +1,5 @@
 """S2 数据工具箱纯逻辑 + GUI 冒烟。"""
 import pandas as pd
-from PySide6.QtWidgets import QTextEdit
 
 from beeoffice.plugins.data_toolbox_dialog import (
     DataToolboxDialog, dedupe_df, summary_text, trim_df,
