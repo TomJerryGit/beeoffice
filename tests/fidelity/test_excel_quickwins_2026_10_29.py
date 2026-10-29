@@ -55,3 +55,32 @@ def test_number_formats_wan_and_sign(qtbot):
     view._apply_num_format("正负号")
     shown = view.model.index(0, 0).data()
     assert str(shown).startswith("+")
+
+
+def test_freeze_button_is_ribbon_dropdown(qtbot):
+    from PySide6.QtWidgets import QToolButton
+
+    view = _view(qtbot)
+    assert isinstance(view._freeze_btn, QToolButton)
+    assert view._freeze_btn.menu() is not None
+
+
+def test_custom_number_format(qtbot):
+    view = _view(qtbot)
+    view.model.set_full_dataframe(pd.DataFrame({"金额": [12.5]}))
+    idx = view.model.index(0, 0)
+    view.table_view.setCurrentIndex(idx)
+    view.table_view.selectionModel().select(
+        idx, view.table_view.selectionModel().SelectionFlag.ClearAndSelect
+    )
+    view._custom_format_edit.setText('0.00" 元"')
+    view._apply_custom_number_format()
+    assert "元" in str(view.model.index(0, 0).data())
+
+
+def test_custom_sequence_sort(qtbot):
+    view = _view(qtbot)
+    view.model.set_full_dataframe(pd.DataFrame({"优先级": ["低", "高", "中"]}))
+    view.sort_by_custom_sequence(0, ["高", "中", "低"])
+    rows = [view.model.index(r, 0).data() for r in range(3)]
+    assert rows == ["高", "中", "低"]

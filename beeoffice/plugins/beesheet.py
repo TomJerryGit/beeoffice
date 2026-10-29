@@ -932,6 +932,27 @@ class BeeSheetView(
         """按列排序（单级，保留给旧调用；内部走多级排序）"""
         return self.sort_by_columns([(col, ascending)])
 
+    def sort_by_custom_sequence(self, col: int, sequence: list[str], ascending: bool = True):
+        """按自定义序列排序（WPS 常用：部门/优先级/月份顺序）。"""
+        if not (0 <= int(col) < len(self.model.df.columns)):
+            raise ValueError(f"排序列越界：{col}")
+        seq = [str(x).strip() for x in sequence if str(x).strip()]
+        if not seq:
+            raise ValueError("自定义序列不能为空")
+        base = self.model.df
+        order = {value: index for index, value in enumerate(seq)}
+        old = base.copy()
+        keys = base.iloc[:, int(col)].astype(str).map(order).fillna(len(seq))
+        new_df = (
+            base.assign(__custom_sort_key=keys)
+            .sort_values("__custom_sort_key", ascending=ascending,
+                         kind="mergesort", ignore_index=True)
+            .drop(columns=["__custom_sort_key"])
+        )
+        self._push_command(SortCommand(old, new_df))
+        self._set_status(f"已按自定义序列排序：{base.columns[int(col)]}", 3000)
+        return True
+
     def _show_sort_dialog(self):
         """多级排序对话框（最多 3 个排序键，WPS 式；2026-10-22）"""
         # R1 安全门：排序会重排整表，必须在数据完整时做
@@ -957,6 +978,12 @@ class BeeSheetView(
             row.addWidget(order_combo)
             form.addRow(f"第{index + 1}级:", row)
             rows.append((col_combo, order_combo))
+        mode_combo = QComboBox()
+        mode_combo.addItems(["按值", "自定义序列"])
+        custom_edit = QLineEdit()
+        custom_edit.setPlaceholderText("自定义顺序，逗号分隔，如：高,中,低")
+        form.addRow("排序方式:", mode_combo)
+        form.addRow("自定义序列:", custom_edit)
         tip = QLabel("按优先级从高到低选择；选“（无）”的级别不参与排序。")
         tip.setWordWrap(True)
         form.addRow(tip)
@@ -975,7 +1002,14 @@ class BeeSheetView(
                 QMessageBox.warning(dlg, "排序", "请至少选择一级排序列")
                 return
             try:
-                self.sort_by_columns(keys)
+                if mode_combo.currentText() == "自定义序列":
+                    seq = [x.strip() for x in custom_edit.text().split(",") if x.strip()]
+                    if not seq:
+                        QMessageBox.warning(dlg, "排序", "请填写自定义序列")
+                        return
+                    self.sort_by_custom_sequence(keys[0][0], seq, keys[0][1])
+                else:
+                    self.sort_by_columns(keys)
             except Exception as e:  # noqa: BLE001
                 QMessageBox.warning(dlg, "排序失败", str(e))
                 return

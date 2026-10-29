@@ -85,6 +85,24 @@ class StyleMixin:
         self._apply_format_to_selection('align', 'right')
 
     # ==================== 数字格式 ====================
+    def _apply_custom_number_format(self):
+        """应用工具栏自定义格式串（显示层，不改原始值）。"""
+        code = self._custom_format_edit.text().strip()
+        if not code:
+            return
+        indexes = self._get_selected_indexes()
+        if not indexes:
+            self._set_status("请先选择单元格", 2500)
+            return
+        for idx in indexes:
+            k = (idx.row(), idx.column())
+            fmt = self._cell_formats.setdefault(k, {})
+            fmt['number_format'] = '自定义'
+            fmt['custom_format'] = code
+            fmt['decimals'] = self._decimal_spin.value()
+            self.model.dataChanged.emit(idx, idx)
+        self._set_status(f"已应用自定义格式: {code}", 3000)
+
     def _apply_num_format(self, text):
         """应用数字格式下拉框中选择的格式"""
         indexes = self._get_selected_indexes()

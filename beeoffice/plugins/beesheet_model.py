@@ -381,7 +381,45 @@ class SheetDataModel(QAbstractTableModel):
             return f"{num / 10000.0:,.{decimals}f}万"
         elif num_format == '正负号':
             return f"{num:+,.{decimals}f}"
+        elif num_format == '自定义':
+            return self._format_custom_value(num, str(fmt.get('custom_format', '')))
         return str(val) if not pd.isna(val) else ""
+
+    @staticmethod
+    def _format_custom_value(num: float, code: str) -> str:
+        """MVP：支持 0/#/./,/%/+ 和引号前后缀，覆盖常见自定义格式。"""
+        code = code.strip()
+        if not code:
+            return str(num)
+        percent = '%' in code
+        plus = code.lstrip().startswith('+')
+        suffix = ''
+        prefix = ''
+        if '"' in code:
+            import re
+            quoted = re.search(r'"([^"]*)"', code)
+            if quoted:
+                text = quoted.group(1)
+                if code.strip().startswith('"'):
+                    prefix = text
+                else:
+                    suffix = text
+        core = code
+        for terminal in (';', '%'):
+            core = core.split(terminal)[0]
+        decimals = 0
+        if '.' in core:
+            tail = core.split('.', 1)[1]
+            decimals = len(tail) - len(tail.lstrip('0#'))
+        v = num * 100 if percent else num
+        sign = '+' if plus else ''
+        from decimal import Decimal, ROUND_HALF_UP
+        q = Decimal(1).scaleb(-decimals)
+        v = float(Decimal(str(v)).quantize(q, rounding=ROUND_HALF_UP))
+        text = f"{v:{sign},.{decimals}f}"
+        if percent:
+            text += '%'
+        return f"{prefix}{text}{suffix}"
 
     def data(self, index, role=Qt.DisplayRole):
         # P0-B：热路径。一帧约 1500 次调用，所以这里刻意做了几件事：

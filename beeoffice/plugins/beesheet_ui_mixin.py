@@ -40,7 +40,7 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableView, QHeaderView,
     QLineEdit, QLabel, QPushButton, QComboBox, QSpinBox,
-    QListWidget, QProgressBar, QAbstractButton, QTabBar, QMenu,
+    QListWidget, QProgressBar, QAbstractButton, QTabBar, QMenu, QToolButton,
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QShortcut, QKeySequence
@@ -387,8 +387,10 @@ class UIMixin:
         self._wps_headers_btn.clicked.connect(self._toggle_wps_headers)
         self._t4.addWidget(self._wps_headers_btn)
 
-        self._freeze_btn = QPushButton("❄️ 冻结")
-        self._freeze_btn.setToolTip("冻结首行/首列/当前单元格（WPS 式）")
+        self._freeze_btn = QToolButton()
+        self._freeze_btn.setText("❄️ 冻结窗格")
+        self._freeze_btn.setToolTip("冻结首行/首列/当前单元格（WPS 式下拉）")
+        self._freeze_btn.setPopupMode(QToolButton.InstantPopup)
         freeze_menu = QMenu(self._freeze_btn)
         self._make_freeze_menu(freeze_menu)
         self._freeze_btn.setMenu(freeze_menu)
@@ -469,6 +471,13 @@ class UIMixin:
         self._decimal_spin.setToolTip("小数位数")
         self._t5.addWidget(QLabel("小数:"))
         self._t5.addWidget(self._decimal_spin)
+
+        self._custom_format_edit = QLineEdit()
+        self._custom_format_edit.setPlaceholderText('自定义格式，如 0.00" 元"')
+        self._custom_format_edit.setMaximumWidth(170)
+        self._custom_format_edit.setToolTip("输入 Excel 风格格式串，回车应用（如 0.00、#,##0、0.0%）")
+        self._custom_format_edit.returnPressed.connect(self._apply_custom_number_format)
+        self._t5.addWidget(self._custom_format_edit)
 
         self._t5.addStretch()
         tc.addLayout(self._t5)
