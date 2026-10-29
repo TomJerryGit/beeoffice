@@ -338,6 +338,10 @@ def setup_menus(main_window):
     pdf_action = tools_menu.addAction(tr("cmd.pdf_annotator", "PDF 批注"))
     pdf_action.triggered.connect(lambda: main_window._open_pdf_annotator())
 
+    # ---- PDF 工具箱（S1） ----
+    pdf_toolbox_action = tools_menu.addAction("🧰 PDF 工具箱")
+    pdf_toolbox_action.triggered.connect(main_window.show_pdf_toolbox)
+
     # ==================== 视图菜单 ====================
     view_menu = menu_bar.addMenu(tr("menu.view", "视图"))
 

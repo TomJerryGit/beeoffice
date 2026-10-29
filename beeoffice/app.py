@@ -1569,6 +1569,13 @@ class BeeApp(QMainWindow):
         self.settings.save()
         self._apply_theme()
 
+    def show_pdf_toolbox(self):
+        """打开 PDF 工具箱（S1：复用 beecmd v0.5.0 / pdf_tools）。"""
+        from beeoffice.plugins.pdf_toolbox_dialog import PdfToolboxDialog
+
+        dialog = PdfToolboxDialog(self)
+        dialog.exec()
+
     def show_task_pane(self, title, content_widget, pane_id="default"):
         """显示/更新右侧任务窗格（S0 壳；S1 由插件 API 调用）。"""
         return self.task_pane_manager.show_pane(

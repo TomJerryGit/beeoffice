@@ -16,6 +16,11 @@
   任务窗格声明、加载/卸载）。
 - 文档：`docs/plugin-api-v1-draft.md` 标记 S1 进度。
 
+**S1：PDF 工具箱 GUI（2026-10-29）**
+- 新增 `beeoffice/plugins/pdf_toolbox_dialog.py`：合并/拆分/提取页/删除页/加密/水印/提取文本/提取图片，复用 `pdf_tools`；
+- 工具菜单入口“🧰 PDF 工具箱”；
+- 新增 GUI 冒烟测试；i18n 基线随新增文案更新。
+
 ---
 ## [5.0.30] - 2026-10-28
 
