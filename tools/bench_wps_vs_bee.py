@@ -326,16 +326,16 @@ def render_markdown(results: list[BenchResult], files: list[BenchFile]) -> str:
     by_key = {}
     for r in results:
         if r.samples and not r.error:
-            by_key.setdefault((r.operation, r.name), {})[r.engine] = r
+            by_key.setdefault((r.kind, r.name), {})[r.engine] = r
     lines.append("| 操作 | 文件 | BeeOffice P50 | WPS P50 | WPS/Bee |")
     lines.append("|---|---|---:|---:|---:|")
-    for (op, name), engines in by_key.items():
+    for (kind, name), engines in by_key.items():
         bee = engines.get("beeoffice")
         wps = engines.get("wps")
         if bee and wps and wps.p50:
             ratio = bee.p50 / wps.p50
             lines.append(
-                f"| {op} | {name} | {bee.p50:.1f} ms | "
+                f"| {kind} | {name} | {bee.p50:.1f} ms | "
                 f"{wps.p50:.1f} ms | {ratio:.2f}x |"
             )
     lines += [
