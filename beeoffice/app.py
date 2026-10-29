@@ -1583,6 +1583,12 @@ class BeeApp(QMainWindow):
             plugin_dir, app_version=__version__, host=self.plugin_host
         )
 
+    def show_macro_console(self):
+        """S3 宏控制台（白名单命令 + 审计）。"""
+        from beeoffice.plugins.macro_console_dialog import MacroConsoleDialog
+
+        MacroConsoleDialog(self).exec()
+
     def show_beeshow_master_dialog(self):
         """S2 蜜演母版设置（主题/字体/强调色/页脚 Logo）。"""
         from beeoffice.plugins.beeshow_master_dialog import BeeShowMasterDialog

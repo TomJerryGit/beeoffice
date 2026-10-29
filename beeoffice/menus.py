@@ -342,6 +342,10 @@ def setup_menus(main_window):
     pdf_toolbox_action = tools_menu.addAction("🧰 PDF 工具箱")
     pdf_toolbox_action.triggered.connect(main_window.show_pdf_toolbox)
 
+    # ---- 宏控制台（S3） ----
+    macro_action = tools_menu.addAction("⚙ 宏控制台")
+    macro_action.triggered.connect(main_window.show_macro_console)
+
     # ---- 母版设置（S2，蜜演） ----
     master_action = tools_menu.addAction("🎨 母版设置")
     master_action.triggered.connect(main_window.show_beeshow_master_dialog)
