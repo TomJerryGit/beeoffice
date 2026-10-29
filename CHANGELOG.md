@@ -35,6 +35,11 @@
 - 可见新增：冻结改为 Ribbon `QToolButton` 独立下拉；数字格式新增自定义格式串输入（如 `0.00" 元"`）；排序对话框新增“自定义序列”排序；
 - 新增 6 条回归（含冻结下拉/自定义格式/自定义序列）。
 
+**S1：PluginContext 真实接入（2026-10-29）**
+- 新增 `beeoffice/plugin_host.py`：Ribbon 注入（按钮回调→命令注册表）、TaskPane 显示、Writer 选区/替换/单步事务；
+- `PluginContext`/`PluginLoader` 支持 host，`BeeApp.plugin_host` + `load_plugin_v1()`；
+- 新增 host 集成测试（真实 RibbonBar + QTextEdit + 假 TaskPaneManager）。
+
 ---
 ## [5.0.30] - 2026-10-28
 

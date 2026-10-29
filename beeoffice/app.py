@@ -141,7 +141,9 @@ class BeeApp(QMainWindow):
         self.setCentralWidget(self.tab_manager)
         self.tab_manager.currentChanged.connect(self._sync_wps_shell)
         from beeoffice.task_pane import TaskPaneManager
+        from beeoffice.plugin_host import PluginHost
         self.task_pane_manager = TaskPaneManager(self)
+        self.plugin_host = PluginHost(self)
 
         from beeoffice.menus import setup_menus
         setup_menus(self)
@@ -1571,6 +1573,15 @@ class BeeApp(QMainWindow):
         self.settings.accent_color = accent_name
         self.settings.save()
         self._apply_theme()
+
+    def load_plugin_v1(self, plugin_dir):
+        """加载 v1 插件目录并接到真实 Ribbon/TaskPane/文档事务。"""
+        from beeoffice.plugin_api import PluginLoader
+        from beeoffice.__version__ import __version__
+
+        return PluginLoader.load(
+            plugin_dir, app_version=__version__, host=self.plugin_host
+        )
 
     def show_pdf_toolbox(self):
         """打开 PDF 工具箱（S1：复用 beecmd v0.5.0 / pdf_tools）。"""

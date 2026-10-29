@@ -215,9 +215,11 @@ class RibbonDeclaration:
 
 
 class RibbonAPI:
-    """收集插件 Ribbon 贡献；S2 再接到真实 Ribbon。"""
+    """收集插件 Ribbon 贡献；有 host 时同步接到真实 Ribbon。"""
 
-    def __init__(self):
+    def __init__(self, host=None, commands=None):
+        self._host = host
+        self._commands = commands
         self.tabs: dict[str, list[RibbonDeclaration]] = {}
 
     def add_tab(self, title: str, order: int = 100):
@@ -233,6 +235,13 @@ class RibbonAPI:
         tab, group_title = group
         decl = RibbonDeclaration(tab, group_title, text, command, icon, large)
         self.tabs.setdefault(tab, []).append(decl)
+        if self._host is not None and command:
+            callback = None
+            if self._commands is not None:
+                callback = lambda c=command: self._commands.invoke(c)
+            self._host.add_ribbon_button(
+                tab, group_title, text, callback, icon
+            )
         return decl
 
     def declarations(self) -> list[RibbonDeclaration]:
@@ -248,7 +257,8 @@ class TaskPaneDeclaration:
 
 
 class UiAPI:
-    def __init__(self):
+    def __init__(self, host=None):
+        self._host = host
         self.task_panes: dict[str, TaskPaneDeclaration] = {}
 
     def add_task_pane(self, pane_id: str, title: str, *,
@@ -261,6 +271,8 @@ class UiAPI:
             raise ValueError(f"任务窗格重复: {pane_id}")
         decl = TaskPaneDeclaration(pane_id, title, side, widget)
         self.task_panes[pane_id] = decl
+        if self._host is not None:
+            self._host.show_task_pane(pane_id, title, side, widget)
         return decl
 
 
@@ -337,7 +349,10 @@ class DocumentAPI:
         return self._need("replace_selection").replace_selection(text)
 
     def transaction(self, label: str):
-        return self._need("transaction").transaction(label)
+        host = self._need("transaction")
+        if hasattr(host, "transaction_context"):
+            return host.transaction_context(label)
+        return host.transaction(label)
 
 
 class AIAPI:
@@ -367,16 +382,17 @@ class SettingsAPI:
 class PluginContext:
     """插件唯一可依赖的宿主接口。"""
 
-    def __init__(self, manifest: PluginManifest, app_version: str = APP_VERSION_FALLBACK):
+    def __init__(self, manifest: PluginManifest,
+                 app_version: str = APP_VERSION_FALLBACK, host=None):
         self.manifest = manifest
         self.plugin_id = manifest.id
         self.app_version = app_version
         self.log = logging.getLogger(f"beeoffice.plugin.{manifest.id}")
-        self.ribbon = RibbonAPI()
-        self.ui = UiAPI()
         self.commands = CommandRegistry()
+        self.ribbon = RibbonAPI(host, self.commands)
+        self.ui = UiAPI(host)
         self.events = EventBus()
-        self.doc = DocumentAPI()
+        self.doc = DocumentAPI(host)
         self.ai = AIAPI()
         self.settings = SettingsAPI()
         self._active = True
@@ -423,7 +439,8 @@ class PluginLoader:
     """从目录加载 v1 插件；不做 UI 挂载，只返回契约对象。"""
 
     @staticmethod
-    def load(plugin_dir: str | Path, *, app_version: str = APP_VERSION_FALLBACK) -> LoadedPlugin:
+    def load(plugin_dir: str | Path, *,
+             app_version: str = APP_VERSION_FALLBACK, host=None) -> LoadedPlugin:
         plugin_dir = Path(plugin_dir).resolve()
         manifest = PluginManifest.from_file(plugin_dir, app_version=app_version)
         entry = manifest.entry_path()
@@ -447,7 +464,7 @@ class PluginLoader:
                     "entry 中没有 BeePlugin 子类"
                 )
             plugin = candidates[0]()
-            context = PluginContext(manifest, app_version)
+            context = PluginContext(manifest, app_version, host=host)
             plugin.activate(context)
             return LoadedPlugin(plugin, context, manifest)
         except Exception:
