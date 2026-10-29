@@ -421,3 +421,59 @@ def stamp_image(src, out, image_path, page: int = 1,
         doc.close()
     return {"source": str(src_path), "output": str(out_path),
             "image": str(img_path), "page": int(page)}
+
+
+def _bookmark_index(toc, index: int) -> int:
+    if not toc:
+        raise PdfToolError("该 PDF 没有书签")
+    if not 0 <= int(index) < len(toc):
+        raise PdfToolError(f"书签序号越界: {index}（共 {len(toc)} 条）")
+    return int(index)
+
+
+def delete_bookmark(src, out, index: int) -> dict:
+    """删除第 index 条书签（0 基），其余书签保持不变。"""
+    src_path, out_path = Path(src), Path(out)
+    if not src_path.is_file():
+        raise PdfToolError(f"文件不存在: {src_path}")
+    if src_path.resolve() == out_path.resolve():
+        raise PdfToolError("输出不能覆盖源文件")
+    doc = fitz.open(str(src_path))
+    try:
+        toc = doc.get_toc() or []
+        idx = _bookmark_index(toc, index)
+        removed = toc.pop(idx)
+        doc.set_toc(toc)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        doc.save(str(out_path))
+    finally:
+        doc.close()
+    return {"source": str(src_path), "output": str(out_path),
+            "removed": {"title": removed[1], "page": int(removed[2])}}
+
+
+def update_bookmark(src, out, index: int, title: str | None = None,
+                    page: int | None = None) -> dict:
+    """修改第 index 条书签的标题/页码；index 为 0 基。"""
+    src_path, out_path = Path(src), Path(out)
+    if not src_path.is_file():
+        raise PdfToolError(f"文件不存在: {src_path}")
+    if src_path.resolve() == out_path.resolve():
+        raise PdfToolError("输出不能覆盖源文件")
+    doc = fitz.open(str(src_path))
+    try:
+        toc = doc.get_toc() or []
+        idx = _bookmark_index(toc, index)
+        level, old_title, old_page = toc[idx]
+        new_title = str(title).strip() if title is not None else old_title
+        new_page = int(page) if page is not None else int(old_page)
+        if not 1 <= new_page <= doc.page_count:
+            raise PdfToolError(f"页码越界: {new_page}（共 {doc.page_count} 页）")
+        toc[idx] = [level, new_title or old_title, new_page]
+        doc.set_toc(toc)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        doc.save(str(out_path))
+    finally:
+        doc.close()
+    return {"source": str(src_path), "output": str(out_path),
+            "title": new_title, "page": new_page}

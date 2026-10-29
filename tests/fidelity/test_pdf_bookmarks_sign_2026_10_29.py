@@ -2,7 +2,9 @@
 import fitz
 from PIL import Image
 
-from beeoffice.pdf_tools import add_bookmark, list_bookmarks, stamp_image
+from beeoffice.pdf_tools import (
+    add_bookmark, delete_bookmark, list_bookmarks, stamp_image, update_bookmark,
+)
 
 
 def test_bookmark_roundtrip(tmp_path):
@@ -27,3 +29,20 @@ def test_stamp_image(tmp_path):
         assert doc[0].get_images(full=True)
     finally:
         doc.close()
+
+
+def test_delete_and_update_bookmark(tmp_path):
+    import fitz
+    src = tmp_path / "a.pdf"
+    doc = fitz.open(); doc.new_page(); doc.new_page(); doc.save(src); doc.close()
+    b = tmp_path / "b.pdf"
+    add_bookmark(src, b, "一", 1)
+    c = tmp_path / "c.pdf"
+    add_bookmark(b, c, "二", 2)
+    d = tmp_path / "d.pdf"
+    delete_bookmark(c, d, 0)
+    assert [x["title"] for x in list_bookmarks(d)] == ["二"]
+    e = tmp_path / "e.pdf"
+    update_bookmark(d, e, 0, title="新二", page=1)
+    toc = list_bookmarks(e)
+    assert toc[0]["title"] == "新二" and toc[0]["page"] == 1
