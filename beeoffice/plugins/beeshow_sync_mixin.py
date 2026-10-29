@@ -96,7 +96,7 @@ class SyncMixin:
 
             self._sync_enabled = True
             self._sync_server.on_control = self._remote_control
-        self._sync_url = self._sync_server.get_viewer_url()
+            self._sync_url = self._sync_server.get_viewer_url()
 
             # 广播当前状态
             self._broadcast_slide()
