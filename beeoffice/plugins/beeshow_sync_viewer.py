@@ -414,5 +414,19 @@ html, body {{
 
 }})();
 </script>
+
+<div id="remote-controls" style="position:fixed;left:0;right:0;bottom:36px;display:flex;gap:8px;justify-content:center;z-index:99999;">
+  <button onclick="remoteControl('prev')" style="padding:10px 18px;font-size:18px;border-radius:8px;">◀ 上一页</button>
+  <button onclick="remoteControl('next')" style="padding:10px 18px;font-size:18px;border-radius:8px;">下一页 ▶</button>
+  <button onclick="remoteControl('black')" style="padding:10px 18px;font-size:18px;border-radius:8px;">黑屏</button>
+  <button onclick="remoteControl('end')" style="padding:10px 18px;font-size:18px;border-radius:8px;">结束</button>
+</div>
+<script>
+function remoteControl(action) {{
+    if (ws && ws.readyState === 1) {{
+        ws.send(JSON.stringify({{type: 'control', action: action}}));
+    }}
+}}
+</script>
 </body>
 </html>"""

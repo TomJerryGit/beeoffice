@@ -38,3 +38,11 @@ def test_remote_control_dispatch():
     SyncMixin._remote_control(v, "prev")
     SyncMixin._remote_control(v, "black")
     assert v.actions == [("slide", 2), ("slide", 0), ("black", True)]
+
+
+def test_viewer_has_remote_controls():
+    from beeoffice.plugins.beeshow_sync_viewer import get_viewer_html
+    html = get_viewer_html(8766, "tok")
+    assert "remoteControl" in html
+    assert "上一页" in html and "下一页" in html
+    assert "type: 'control'" in html
