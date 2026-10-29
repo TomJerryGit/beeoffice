@@ -28,6 +28,8 @@ OPERATIONS = {
     "watermark": ("添加水印", False, False, True, False, True),
     "text": ("提取文本", False, False, True, False, False),
     "images": ("提取图片", False, True, True, False, False),
+    "bookmark": ("添加书签", False, False, True, False, True),
+    "sign": ("图片签名/图章", False, False, True, False, True),
 }
 
 
@@ -112,6 +114,10 @@ class PdfToolboxDialog(QDialog):
         self.pages_edit.setVisible(needs_pages)
         self.password_edit.setVisible(needs_pwd)
         self.watermark_edit.setVisible(needs_wm)
+        if key in ("bookmark", "sign"):
+            self.watermark_edit.setPlaceholderText(
+                "书签标题" if key == "bookmark" else "签名/图章图片路径"
+            )
         self.allow_print.setVisible(needs_pwd)
         self.allow_copy.setVisible(needs_pwd)
         self.input_edit.setPlaceholderText(
@@ -214,6 +220,16 @@ class PdfToolboxDialog(QDialog):
                 info = pdf_tools.extract_text(files[0], out, self._page_text())
             elif key == "images":
                 info = pdf_tools.extract_images(files[0], out, self._page_text())
+            elif key == "bookmark":
+                page = int((self._page_text() or "1").split("-")[0] or 1)
+                info = pdf_tools.add_bookmark(
+                    files[0], out, self.watermark_edit.text().strip(), page
+                )
+            elif key == "sign":
+                page = int((self._page_text() or "1").split("-")[0] or 1)
+                info = pdf_tools.stamp_image(
+                    files[0], out, self.watermark_edit.text().strip(), page
+                )
             else:
                 raise ValueError(f"未知操作: {key}")
             self._append(f"✅ 完成：{info}")
