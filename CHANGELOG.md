@@ -8,6 +8,14 @@
 ---
 ## [5.1.0] - 2026-10-30
 
+### 发布验证（2026-10-30）
+- 发行包：`BeeOffice-v5.1.0-windows.zip`（237,665,679 B，3155 条目）
+- sha256：`b28361a584243629e17609766164da51aac61dbfcd0dd8f5ea77adebe995f511`
+- `tools/verify_release.py`：5/5 通过
+- CI run 39（`2d27dea`）：46 门禁 PASS、1660 passed / 3 skipped
+- tag：`v5.1.0` = `eecf882`
+- 说明：`docs/发布说明-v5.1.0-2026-10-30.md`
+
 **S1：插件 API v1 核心实现（2026-10-29）**
 - `beeoffice/plugin_api.py`：PluginManifest 校验（id/api_version/entry/权限/min_app_version）、
   权限白名单与运行时校验、PluginContext（Ribbon/UI/Commands/Events/Document/AI/Settings）、
