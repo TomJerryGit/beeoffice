@@ -286,6 +286,11 @@ class ToolbarMixin:
         btn_toc_field.clicked.connect(self._enable_toc_field)
         toolbar.addWidget(btn_toc_field)
 
+        btn_caption = QPushButton("🖼 题注")
+        btn_caption.setToolTip("插入图/表题注（静态编号）")
+        btn_caption.clicked.connect(self._insert_caption)
+        toolbar.addWidget(btn_caption)
+
         btn_compare = QPushButton("📊 对比")
         btn_compare.clicked.connect(self._compare_with_original)
         toolbar.addWidget(btn_compare)

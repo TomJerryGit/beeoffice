@@ -11,7 +11,8 @@ v5.0.1 修复（P1-11）：
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QFormLayout, QLabel, QLineEdit,
     QComboBox, QSpinBox, QDoubleSpinBox, QCheckBox,
-    QDialogButtonBox, QColorDialog, QPushButton
+    QDialogButtonBox, QColorDialog, QPushButton,
+    QHBoxLayout, QFileDialog,
 )
 from PySide6.QtGui import QColor
 
@@ -256,6 +257,24 @@ class HeaderFooterDialog(QDialog):
         self._even_header_edit.setPlaceholderText("偶数页页眉（可选）")
         self._even_footer_edit = QLineEdit()
         self._even_footer_edit.setPlaceholderText("偶数页页脚（可选）")
+        self._header_logo_edit = QLineEdit()
+        self._header_logo_edit.setPlaceholderText("页眉 Logo 图片路径（可选）")
+        self._footer_logo_edit = QLineEdit()
+        self._footer_logo_edit.setPlaceholderText("页脚 Logo 图片路径（可选）")
+        header_logo_row = QHBoxLayout()
+        header_logo_row.addWidget(self._header_logo_edit, 1)
+        header_logo_btn = QPushButton("浏览…")
+        header_logo_btn.clicked.connect(
+            lambda: self._browse_logo(self._header_logo_edit)
+        )
+        header_logo_row.addWidget(header_logo_btn)
+        footer_logo_row = QHBoxLayout()
+        footer_logo_row.addWidget(self._footer_logo_edit, 1)
+        footer_logo_btn = QPushButton("浏览…")
+        footer_logo_btn.clicked.connect(
+            lambda: self._browse_logo(self._footer_logo_edit)
+        )
+        footer_logo_row.addWidget(footer_logo_btn)
         form.addRow("页眉:", self._header_edit)
         form.addRow("页脚:", self._footer_edit)
         form.addRow("", self._first_check)
@@ -264,6 +283,8 @@ class HeaderFooterDialog(QDialog):
         form.addRow("", self._odd_even_check)
         form.addRow("偶数页页眉:", self._even_header_edit)
         form.addRow("偶数页页脚:", self._even_footer_edit)
+        form.addRow("页眉 Logo:", header_logo_row)
+        form.addRow("页脚 Logo:", footer_logo_row)
         opts = options or {}
         self._first_check.setChecked(bool(opts.get("different_first")))
         self._odd_even_check.setChecked(bool(opts.get("odd_even")))
@@ -271,6 +292,8 @@ class HeaderFooterDialog(QDialog):
         self._first_footer_edit.setText(str(opts.get("first_footer", "")))
         self._even_header_edit.setText(str(opts.get("even_header", "")))
         self._even_footer_edit.setText(str(opts.get("even_footer", "")))
+        self._header_logo_edit.setText(str(opts.get("header_logo", "")))
+        self._footer_logo_edit.setText(str(opts.get("footer_logo", "")))
         layout.addLayout(form)
         tip = QLabel(
             "💡 页眉页脚会写入 DOCX 导出件；分节文档只改第 1 节，"
@@ -300,7 +323,16 @@ class HeaderFooterDialog(QDialog):
             "first_footer": self._first_footer_edit.text().strip(),
             "even_header": self._even_header_edit.text().strip(),
             "even_footer": self._even_footer_edit.text().strip(),
+            "header_logo": self._header_logo_edit.text().strip(),
+            "footer_logo": self._footer_logo_edit.text().strip(),
         }
+
+    def _browse_logo(self, edit):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "选择 Logo", "", "图片 (*.png *.jpg *.jpeg)"
+        )
+        if path:
+            edit.setText(path)
 
 
 # ==================== 导出时注入 CSS ====================

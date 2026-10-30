@@ -42,6 +42,7 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QDialogButtonBox,
     QMessageBox,
+    QLineEdit,
     QTextEdit,
 )
 
@@ -52,6 +53,15 @@ from beeoffice.plugins.beewrite_page_extras import (
 
 
 # ==================== DocMixin ====================
+def build_caption(kind: str, number: str, text: str) -> str:
+    """生成静态题注文字：图 1：说明。"""
+    kind = (kind or "图").strip()
+    number = str(number or "").strip()
+    text = (text or "").strip()
+    prefix = f"{kind} {number}" if number else kind
+    return f"{prefix}：{text}" if text else prefix
+
+
 class DocMixin:
     """蜜写文档级操作 Mixin"""
 
@@ -100,6 +110,48 @@ class DocMixin:
             pass
         try:
             self.contentChanged.emit()
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _insert_caption(self):
+        """插入静态题注（图/表 + 编号 + 说明）。"""
+        dlg = QDialog(self)
+        dlg.setWindowTitle("🖼 插入题注")
+        form = QFormLayout(dlg)
+        kind = QComboBox()
+        kind.addItems(["图", "表"])
+        number = QComboBox()
+        number.setEditable(True)
+        number.addItems([str(i) for i in range(1, 21)])
+        text = QLineEdit()
+        text.setPlaceholderText("题注说明，如：系统架构")
+        form.addRow("类型:", kind)
+        form.addRow("编号:", number)
+        form.addRow("说明:", text)
+        btns = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        form.addRow(btns)
+        if not dlg.exec():
+            return
+        caption = build_caption(
+            kind.currentText(), number.currentText(), text.text()
+        )
+        editor = getattr(self, "rich_editor", None)
+        if editor is None or not editor.isVisible():
+            editor = getattr(self, "markdown_editor", None)
+        if editor is None:
+            return
+        cursor = editor.textCursor()
+        if not cursor.hasSelection() and cursor.position() > 0:
+            cursor.insertText("\n")
+        cursor.insertText(caption + "\n")
+        editor.setTextCursor(cursor)
+        editor.setFocus()
+        try:
+            self._set_status(f"已插入题注：{caption}", 3000)
         except Exception:  # noqa: BLE001
             pass
 

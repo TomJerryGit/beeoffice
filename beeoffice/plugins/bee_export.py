@@ -1313,6 +1313,21 @@ def apply_header_footer(doc, header_text=None, footer_text=None,
                 else:
                     part.add_paragraph(text)
                 applied = True
+            # 页眉/页脚 Logo 图片
+            from pathlib import Path as _Path
+            from docx.shared import Cm
+
+            for key, part in (
+                ("header_logo", section.header),
+                ("footer_logo", section.footer),
+            ):
+                logo = str(options.get(key, "") or "").strip()
+                if not logo or not _Path(logo).is_file():
+                    continue
+                paragraphs = part.paragraphs
+                para = paragraphs[0] if paragraphs else part.add_paragraph()
+                para.add_run().add_picture(logo, width=Cm(2.0))
+                applied = True
         except Exception as e:  # noqa: BLE001
             logging.warning(f"写入首页/奇偶页眉页脚失败: {e}")
 

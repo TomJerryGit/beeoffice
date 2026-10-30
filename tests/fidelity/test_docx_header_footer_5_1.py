@@ -4,7 +4,7 @@ from docx import Document
 from PySide6.QtWidgets import QLineEdit
 
 from beeoffice.plugins.bee_export import apply_header_footer
-from beeoffice.plugins.beewrite_doc_mixin import DocMixin
+from beeoffice.plugins.beewrite_doc_mixin import DocMixin, build_caption
 from beeoffice.plugins.beewrite_page_extras import HeaderFooterDialog
 
 
@@ -77,6 +77,31 @@ def test_docx_export_first_and_even_header_footer(tmp_path):
     assert section.first_page_footer.paragraphs[0].text == "首页页脚"
     assert section.even_page_header.paragraphs[0].text == "偶数页眉"
     assert section.even_page_footer.paragraphs[0].text == "偶数页脚"
+
+
+def test_build_caption():
+    assert build_caption("图", "1", "系统架构") == "图 1：系统架构"
+    assert build_caption("表", "2", "") == "表 2"
+
+
+def test_header_footer_logo_options_and_export(qapp, tmp_path):
+    from PIL import Image
+
+    logo = tmp_path / "logo.png"
+    Image.new("RGBA", (20, 10), (0, 128, 255, 255)).save(logo)
+    dlg = HeaderFooterDialog()
+    dlg._header_logo_edit.setText(str(logo))
+    assert dlg.options()["header_logo"] == str(logo)
+
+    doc = Document()
+    assert apply_header_footer(
+        doc, header_footer_options={"header_logo": str(logo)}
+    )
+    out = tmp_path / "hf_logo.docx"
+    doc.save(str(out))
+    reopened = Document(str(out))
+    xml = reopened.sections[0].header._element.xml
+    assert "w:drawing" in xml
 
 
 def test_docx_export_writes_header_footer_text(tmp_path):
