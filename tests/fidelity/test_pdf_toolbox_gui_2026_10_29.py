@@ -41,3 +41,30 @@ def test_delete_requires_page_range(qtbot, tmp_path):
     dlg.output_edit.setText(str(tmp_path / "out.pdf"))
     assert dlg._validate() is None
     assert "删除页面必须填写页码范围" in dlg.log.toPlainText()
+
+
+def test_sign_fields_and_bookmark_manager(qtbot, tmp_path):
+    import fitz
+
+    from beeoffice.plugins.bookmark_manager_dialog import BookmarkManagerDialog
+
+    pdf = tmp_path / "a.pdf"
+    doc = fitz.open()
+    doc.new_page()
+    doc.set_toc([[1, "旧标题", 1]])
+    doc.save(pdf)
+    doc.close()
+
+    dlg = PdfToolboxDialog()
+    qtbot.addWidget(dlg)
+    dlg.op_combo.setCurrentIndex(dlg.op_combo.findData("sign"))
+    assert dlg.x_spin.isVisibleTo(dlg)
+    assert dlg.width_spin.value() == 25
+
+    mgr = BookmarkManagerDialog(pdf, tmp_path / "out.pdf")
+    qtbot.addWidget(mgr)
+    assert mgr.list.count() == 1
+    mgr.list.setCurrentRow(0)
+    mgr.title_edit.setText("新标题")
+    mgr._save_one()
+    assert "新标题" in mgr.list.item(0).text()

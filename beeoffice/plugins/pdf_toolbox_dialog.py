@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
+    QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
     QHBoxLayout,
@@ -71,6 +72,22 @@ class PdfToolboxDialog(QDialog):
         self.allow_print.setChecked(True)
         self.allow_copy = QCheckBox("允许复制")
         self.allow_copy.setChecked(True)
+        self.x_spin = QDoubleSpinBox()
+        self.x_spin.setRange(0, 100)
+        self.x_spin.setValue(60)
+        self.x_spin.setSuffix(" %")
+        self.y_spin = QDoubleSpinBox()
+        self.y_spin.setRange(0, 100)
+        self.y_spin.setValue(65)
+        self.y_spin.setSuffix(" %")
+        self.width_spin = QDoubleSpinBox()
+        self.width_spin.setRange(5, 80)
+        self.width_spin.setValue(25)
+        self.width_spin.setSuffix(" %")
+        self.opacity_spin = QDoubleSpinBox()
+        self.opacity_spin.setRange(0.1, 1.0)
+        self.opacity_spin.setSingleStep(0.1)
+        self.opacity_spin.setValue(1.0)
 
         form = QFormLayout()
         form.addRow("操作：", self.op_combo)
@@ -81,6 +98,10 @@ class PdfToolboxDialog(QDialog):
         form.addRow("水印文字：", self.watermark_edit)
         form.addRow("权限：", self.allow_print)
         form.addRow("", self.allow_copy)
+        form.addRow("签名 X：", self.x_spin)
+        form.addRow("签名 Y：", self.y_spin)
+        form.addRow("签名宽度：", self.width_spin)
+        form.addRow("签名透明度：", self.opacity_spin)
 
         self.log = QTextEdit()
         self.log.setReadOnly(True)
@@ -90,6 +111,9 @@ class PdfToolboxDialog(QDialog):
         close_btn = QPushButton("关闭")
         close_btn.clicked.connect(self.reject)
         buttons = QHBoxLayout()
+        bookmark_mgr_btn = QPushButton("书签管理…")
+        bookmark_mgr_btn.clicked.connect(self._open_bookmark_manager)
+        buttons.addWidget(bookmark_mgr_btn)
         buttons.addStretch()
         buttons.addWidget(self.run_btn)
         buttons.addWidget(close_btn)
@@ -120,6 +144,10 @@ class PdfToolboxDialog(QDialog):
             )
         self.allow_print.setVisible(needs_pwd)
         self.allow_copy.setVisible(needs_pwd)
+        sign_mode = key == "sign"
+        for widget in (self.x_spin, self.y_spin,
+                       self.width_spin, self.opacity_spin):
+            widget.setVisible(sign_mode)
         self.input_edit.setPlaceholderText(
             "选择多个 PDF，用 ; 分隔" if multi else "选择 PDF"
         )
@@ -184,6 +212,18 @@ class PdfToolboxDialog(QDialog):
             return None
         return files + [out]
 
+    def _open_bookmark_manager(self):
+        path = self.input_edit.text().strip().split(";")[0].strip()
+        if not path or not Path(path).is_file():
+            self._append("✗ 请先选择一个 PDF")
+            return
+        out = self.output_edit.text().strip() or None
+        from beeoffice.plugins.bookmark_manager_dialog import (
+            BookmarkManagerDialog,
+        )
+
+        BookmarkManagerDialog(path, out, self).exec()
+
     # ---------- execution ----------
     def _run(self):
         args = self._validate()
@@ -228,7 +268,11 @@ class PdfToolboxDialog(QDialog):
             elif key == "sign":
                 page = int((self._page_text() or "1").split("-")[0] or 1)
                 info = pdf_tools.stamp_image(
-                    files[0], out, self.watermark_edit.text().strip(), page
+                    files[0], out, self.watermark_edit.text().strip(), page,
+                    x=self.x_spin.value() / 100.0,
+                    y=self.y_spin.value() / 100.0,
+                    width_ratio=self.width_spin.value() / 100.0,
+                    opacity=self.opacity_spin.value(),
                 )
             else:
                 raise ValueError(f"未知操作: {key}")
