@@ -36,6 +36,28 @@ def test_page_numbers_all_sections(tmp_path):
     assert "w:pgNumType" in pg and "lowerRoman" in pg
 
 
+def test_page_numbers_section_overrides(tmp_path):
+    doc = Document()
+    doc.add_paragraph("A")
+    doc.add_section()
+    doc.add_paragraph("B")
+    config = {
+        "enabled": True, "position": "底部居中", "format": "1",
+        "start": 1, "all_sections": True,
+        "section_overrides": [
+            {},
+            {"start": 5, "num_format": "upperRoman", "position": "底部右侧"},
+        ],
+    }
+    assert apply_page_numbers(doc, config) is True
+    out = tmp_path / "override.docx"
+    doc.save(str(out))
+    reopened = Document(str(out))
+    second = reopened.sections[1]._sectPr.xml
+    assert 'w:start="5"' in second
+    assert "upperRoman" in second
+
+
 def test_header_footer_dialog_all_sections(qapp):
     dlg = HeaderFooterDialog()
     dlg._all_sections_check.setChecked(True)

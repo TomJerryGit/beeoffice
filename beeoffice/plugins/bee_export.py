@@ -1515,14 +1515,40 @@ def apply_page_numbers(doc, config=None):
         run._r.append(end)
         return run
 
-    for section in sections:
-        part = section.header if top else section.footer
+    base_fmt = fmt
+    overrides = config.get("section_overrides") or []
+    for idx, section in enumerate(sections):
+        sec_cfg = {}
+        if idx < len(overrides) and isinstance(overrides[idx], dict):
+            sec_cfg = overrides[idx]
+        sec_position = str(sec_cfg.get("position", position))
+        sec_fmt = str(sec_cfg.get("format", fmt))
+        sec_num_format = str(sec_cfg.get("num_format", num_format))
+        sec_start = int(sec_cfg.get("start", start) or start)
+        sec_top = sec_position.startswith("顶部")
+        sec_align = WD_ALIGN_PARAGRAPH.CENTER
+        for key, value in align_map.items():
+            if key in sec_position:
+                sec_align = value
+                break
+        if idx == 0 or sec_cfg:
+            pg = section._sectPr.find(qn("w:pgNumType"))
+            if pg is None:
+                pg = OxmlElement("w:pgNumType")
+                section._sectPr.append(pg)
+            pg.set(qn("w:start"), str(max(1, sec_start)))
+            if sec_num_format in ("lowerRoman", "upperRoman"):
+                pg.set(qn("w:fmt"), sec_num_format)
+            else:
+                pg.attrib.pop(qn("w:fmt"), None)
+        part = section.header if sec_top else section.footer
         part.is_linked_to_previous = False
         paragraph = (
             part.paragraphs[0] if part.paragraphs else part.add_paragraph()
         )
-        paragraph.alignment = align
+        paragraph.alignment = sec_align
         paragraph.clear()
+        fmt = sec_fmt
         if fmt == "第 1 页":
             paragraph.add_run("第 ")
             _field(paragraph, "PAGE")
@@ -1546,6 +1572,7 @@ def apply_page_numbers(doc, config=None):
                 _field(paragraph, "NUMPAGES")
         else:
             _field(paragraph, "PAGE")
+        fmt = base_fmt
     return True
 
 
