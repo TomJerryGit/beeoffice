@@ -5,6 +5,7 @@ from beeoffice.plugins.beeshow_pptx_engine import (
     MeasuredElement,
     MeasuredSlide,
     PPTXGenerator,
+    add_shape_animations,
     add_shape_fade,
     selector_matches,
 )
@@ -28,6 +29,21 @@ def test_add_shape_fade_xml():
     assert "p:timing" in xml
     assert 'filter="fade"' in xml
     assert f'spid="{shape.shape_id}"' in xml
+
+
+def test_add_shape_animations_sequence():
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    a = slide.shapes.add_textbox(100, 100, 300, 80)
+    b = slide.shapes.add_textbox(100, 220, 300, 80)
+    assert add_shape_animations(slide, [
+        (a, "fade_in", 400, 0),
+        (b, "fade_out", 300, 100),
+    ]) is True
+    xml = slide._element.xml
+    assert xml.count("<p:animEffect ") == 2
+    assert 'transition="in"' in xml
+    assert 'transition="out"' in xml
 
 
 def test_generate_element_fade(tmp_path):

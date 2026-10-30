@@ -59,7 +59,7 @@ class AnimationPanelDialog(QDialog):
         form = QFormLayout()
         form.addRow("切换效果:", self._transition)
         self._pptx_check = QCheckBox(
-            "导出 PPTX 时包含逐元素动画（实验：仅进入·淡入）"
+            "导出 PPTX 时包含逐元素动画（实验：淡入/淡出/强调）"
         )
         self._pptx_check.setChecked(bool(config.get("pptx_element")))
         form.addRow("", self._pptx_check)
