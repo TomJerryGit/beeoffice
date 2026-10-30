@@ -108,6 +108,7 @@ class SlideMixin:
 
         self._slides_html = []
         self._slides_md = []           # P1-13：同步清空
+        self._slide_animations = []
         self._speaker_notes = []
         self._slide_titles = []
 
@@ -140,6 +141,8 @@ class SlideMixin:
             # `beeshow_notes_mixin._remove_plain_comment()` 的 docstring 也明确
             # 写着这些前缀必须保留 —— 说明 _slides_md 的设计意图本就是保留标记。
             source = part
+            from beeoffice.plugins.beeshow_animation import parse_animation
+            anim_cfg, cleaned_part = parse_animation(part)
 
             # 预览 HTML：只剥掉 comments（它就是一段 HTML 注释，留着不可见但没必要）；
             # beeoffice-style / beeoffice-image 必须**交给** _md_to_html ——
@@ -148,7 +151,7 @@ class SlideMixin:
             html_part = re.sub(
                 r'<!--\s*comments:.*?-->',
                 '',
-                part,
+                cleaned_part,
                 flags=re.DOTALL,
             ).strip()
 
@@ -156,6 +159,7 @@ class SlideMixin:
                 html = self._md_to_html(html_part)
                 self._slides_html.append(html)
                 self._slides_md.append(source)    # P1-13：保留源文本（含特殊标记）
+                self._slide_animations.append(anim_cfg)
 
                 # 提取标题
                 title_match = re.search(
@@ -179,6 +183,26 @@ class SlideMixin:
             self._save_snapshot()
         except AttributeError:
             pass
+
+    def _show_animation_panel(self):
+        """打开动画面板，编辑当前页选择器动画/切换效果。"""
+        from beeoffice.plugins.beeshow_animation_panel import (
+            AnimationPanelDialog,
+        )
+
+        try:
+            current = self._slide_animations[self._current_slide] or {}
+        except (AttributeError, IndexError):
+            current = {}
+        dlg = AnimationPanelDialog(current, self)
+        if dlg.exec() == dlg.Accepted:
+            self._slide_animations[self._current_slide] = dlg.get_config()
+            self._show_slide(self._current_slide)
+            self._set_status("🎬 动画已更新", 2500)
+            try:
+                self.contentChanged.emit()
+            except Exception:  # noqa: BLE001
+                pass
 
     def _md_to_html(self, md_text: str) -> str:
         """

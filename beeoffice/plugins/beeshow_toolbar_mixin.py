@@ -384,6 +384,11 @@ class ToolbarMixin:
         )
         info_bar.addWidget(self._anim_combo)
 
+        anim_panel_btn = QPushButton("🎬 动画…")
+        anim_panel_btn.setToolTip("逐元素动画顺序 / 进入退出强调 / 切换效果")
+        anim_panel_btn.clicked.connect(self._show_animation_panel)
+        info_bar.addWidget(anim_panel_btn)
+
         return info_bar
 
     # ==================== 主分屏 ====================

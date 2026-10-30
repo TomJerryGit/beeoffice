@@ -130,7 +130,12 @@ class BeeShowView(
         if editor is None:
             return ""
         try:
-            return editor.toPlainText()
+            text = editor.toPlainText()
+            configs = getattr(self, "_slide_animations", None)
+            if configs:
+                from beeoffice.plugins.beeshow_animation import inject_markers
+                text = inject_markers(text, configs)
+            return text
         except RuntimeError:             # 控件已销毁
             return ""
 

@@ -1,5 +1,5 @@
 {
-  "total": 4133,
+  "total": 4179,
   "by_file": {
     "beeoffice/__version__.py": 1,
     "beeoffice/ai_settings.py": 22,
@@ -27,7 +27,7 @@
     "beeoffice/plugins/ai_client.py": 25,
     "beeoffice/plugins/ai_errors.py": 31,
     "beeoffice/plugins/ai_task_pane.py": 26,
-    "beeoffice/plugins/bee_export.py": 40,
+    "beeoffice/plugins/bee_export.py": 43,
     "beeoffice/plugins/beesheet.py": 110,
     "beeoffice/plugins/beesheet_ai_mixin.py": 124,
     "beeoffice/plugins/beesheet_audit_mixin.py": 128,
@@ -51,6 +51,8 @@
     "beeoffice/plugins/beeshow.py": 7,
     "beeoffice/plugins/beeshow_ai_mixin.py": 41,
     "beeoffice/plugins/beeshow_ai_service.py": 56,
+    "beeoffice/plugins/beeshow_animation.py": 27,
+    "beeoffice/plugins/beeshow_animation_panel.py": 13,
     "beeoffice/plugins/beeshow_comment_mixin.py": 26,
     "beeoffice/plugins/beeshow_comment_panel.py": 10,
     "beeoffice/plugins/beeshow_constants.py": 68,
@@ -72,12 +74,12 @@
     "beeoffice/plugins/beeshow_pptx_engine.py": 3,
     "beeoffice/plugins/beeshow_pptx_import.py": 24,
     "beeoffice/plugins/beeshow_print_mixin.py": 30,
-    "beeoffice/plugins/beeshow_slide_mixin.py": 10,
+    "beeoffice/plugins/beeshow_slide_mixin.py": 11,
     "beeoffice/plugins/beeshow_sync_mixin.py": 13,
     "beeoffice/plugins/beeshow_sync_server.py": 3,
     "beeoffice/plugins/beeshow_sync_viewer.py": 2,
     "beeoffice/plugins/beeshow_table_mixin.py": 30,
-    "beeoffice/plugins/beeshow_toolbar_mixin.py": 93,
+    "beeoffice/plugins/beeshow_toolbar_mixin.py": 95,
     "beeoffice/plugins/beeshow_video_mixin.py": 7,
     "beeoffice/plugins/beewrite.py": 90,
     "beeoffice/plugins/beewrite_ai_mixin.py": 42,
@@ -130,7 +132,7 @@
     "beeoffice/templates.py": 35,
     "beeoffice/utils.py": 1
   },
-  "generated_at": "2026-10-30 15:52",
-  "commit": "cea6eab",
+  "generated_at": "2026-10-30 16:17",
+  "commit": "49e5dfe",
   "note": "硬编码中文文案棘轮基线；只许减少。更新方式：python tools/i18n_audit.py --write-baseline"
 }

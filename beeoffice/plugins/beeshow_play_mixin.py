@@ -206,6 +206,22 @@ class PlayMixin:
                         f"to{{transform:scale(1);opacity:1}}}}"
                     )
 
+            # 动画面板配置（选择器动画 + 切换效果）优先于全局动画
+            try:
+                from beeoffice.plugins.beeshow_animation import (
+                    build_animation_css,
+                    build_transition_css,
+                )
+                cfg = self._slide_animations[self._current_slide]
+                if cfg:
+                    anim_css = (
+                        build_animation_css(cfg)
+                        + "\n"
+                        + build_transition_css(cfg.get("transition", "none"))
+                    )
+            except (AttributeError, IndexError):
+                pass
+
             # 底部控制栏
             elapsed = int(time.time() - self._start_time)
             control_bar = (
