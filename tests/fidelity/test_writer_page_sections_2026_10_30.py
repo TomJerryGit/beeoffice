@@ -5,7 +5,29 @@ from beeoffice.plugins.bee_export import apply_header_footer, apply_page_numbers
 from beeoffice.plugins.beewrite_page_extras import (
     HeaderFooterDialog,
     PageNumberDialog,
+    SectionPageNumberDialog,
 )
+
+
+def test_section_page_number_dialog(qapp):
+    dlg = SectionPageNumberDialog(2)
+    dlg._rows[1][0].setValue(5)
+    dlg._rows[1][2].setCurrentIndex(
+        dlg._rows[1][2].findData("upperRoman")
+    )
+    cfg = dlg.get_config()
+    assert cfg["all_sections"] is True
+    assert len(cfg["section_overrides"]) == 2
+    assert cfg["section_overrides"][1]["start"] == 5
+    assert cfg["section_overrides"][1]["num_format"] == "upperRoman"
+
+
+def test_page_number_dialog_has_section_button(qapp):
+    from PySide6.QtWidgets import QPushButton
+
+    dlg = PageNumberDialog(section_count=2)
+    assert dlg._section_count == 2
+    assert any("分节" in b.text() for b in dlg.findChildren(QPushButton))
 
 
 def test_page_number_dialog_all_sections(qapp):

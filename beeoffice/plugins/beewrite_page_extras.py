@@ -136,15 +136,94 @@ class WatermarkDialog(QDialog):
         }
 
 
+class SectionPageNumberDialog(QDialog):
+    """按节设置页码：起始页码/数字格式/位置。"""
+
+    POSITIONS = [
+        "底部居中", "底部右侧", "底部左侧",
+        "顶部居中", "顶部右侧", "顶部左侧",
+    ]
+
+    def __init__(self, section_count=1, config=None, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("📄 分节页码")
+        self.resize(620, 360)
+        self._rows = []
+        config = config or {}
+        overrides = config.get("section_overrides") or []
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+        for index in range(max(1, int(section_count))):
+            row_cfg = overrides[index] if index < len(overrides) else {}
+            row = QHBoxLayout()
+            start = QSpinBox()
+            start.setRange(1, 9999)
+            start.setValue(int(row_cfg.get("start", config.get("start", 1))))
+            fmt = QComboBox()
+            fmt.addItems([
+                "1", "第 1 页", "第 1 页 / 共 N 页",
+                "1 / N", "Page 1", "Page 1 of N",
+            ])
+            fmt.setCurrentText(str(row_cfg.get(
+                "format", config.get("format", "第 1 页 / 共 N 页")
+            )))
+            num = QComboBox()
+            num.addItem("阿拉伯", "arabic")
+            num.addItem("小写罗马", "lowerRoman")
+            num.addItem("大写罗马", "upperRoman")
+            num.setCurrentIndex(max(0, num.findData(str(row_cfg.get(
+                "num_format", config.get("num_format", "arabic")
+            )))))
+            pos = QComboBox()
+            pos.addItems(self.POSITIONS)
+            pos.setCurrentText(str(row_cfg.get(
+                "position", config.get("position", "底部居中")
+            )))
+            row.addWidget(QLabel(f"第 {index + 1} 节 起始:"))
+            row.addWidget(start)
+            row.addWidget(QLabel("格式:"))
+            row.addWidget(fmt)
+            row.addWidget(QLabel("数字:"))
+            row.addWidget(num)
+            row.addWidget(QLabel("位置:"))
+            row.addWidget(pos)
+            form.addRow(row)
+            self._rows.append((start, fmt, num, pos))
+        layout.addLayout(form)
+        btns = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+        btns.accepted.connect(self.accept)
+        btns.rejected.connect(self.reject)
+        layout.addWidget(btns)
+
+    def get_config(self):
+        overrides = []
+        for start, fmt, num, pos in self._rows:
+            overrides.append({
+                "start": start.value(),
+                "format": fmt.currentText(),
+                "num_format": num.currentData() or "arabic",
+                "position": pos.currentText(),
+            })
+        return {
+            "enabled": True,
+            "all_sections": True,
+            "section_overrides": overrides,
+        }
+
+
 class PageNumberDialog(QDialog):
     """页码设置对话框"""
 
-    def __init__(self, config=None, parent=None):
+    def __init__(self, config=None, parent=None, section_count=1):
         super().__init__(parent)
         self.setWindowTitle("📄 页码设置")
-        self.resize(400, 280)
-
-        config = config or {}
+        self.resize(400, 300)
+        self._section_count = max(1, int(section_count))
+        self._config = dict(config or {})
+        config = self._config
+        self._section_overrides = list(config.get("section_overrides") or [])
         layout = QVBoxLayout(self)
         form = QFormLayout()
 
@@ -222,6 +301,11 @@ class PageNumberDialog(QDialog):
         tip.setWordWrap(True)
         layout.addWidget(tip)
 
+        if self._section_count > 1:
+            section_btn = QPushButton("分节独立格式…")
+            section_btn.clicked.connect(self._open_section_dialog)
+            layout.addWidget(section_btn)
+
         btns = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel
         )
@@ -229,8 +313,15 @@ class PageNumberDialog(QDialog):
         btns.rejected.connect(self.reject)
         layout.addWidget(btns)
 
+    def _open_section_dialog(self):
+        dlg = SectionPageNumberDialog(
+            self._section_count, self.get_config(), self
+        )
+        if dlg.exec() == QDialog.Accepted:
+            self._section_overrides = dlg.get_config()["section_overrides"]
+
     def get_config(self):
-        return {
+        config = {
             "enabled": self._enable_check.isChecked(),
             "position": self._position_combo.currentText(),
             "format": self._format_combo.currentText(),
@@ -239,6 +330,9 @@ class PageNumberDialog(QDialog):
             "num_format": self._num_format_combo.currentData() or "arabic",
             "all_sections": self._pn_all_sections_check.isChecked(),
         }
+        if self._section_overrides:
+            config["section_overrides"] = self._section_overrides
+        return config
 
 
 class HeaderFooterDialog(QDialog):

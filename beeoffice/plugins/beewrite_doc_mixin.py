@@ -219,7 +219,12 @@ class DocMixin:
     # ==================================================================
     def _set_page_number(self):
         """打开页码设置对话框，保存配置（导出 PDF 时生效）"""
-        dlg = PageNumberDialog(self._page_number_config, self)
+        parts = getattr(self, "_docx_section_parts", None) or []
+        sections = getattr(self, "_docx_sections", None) or []
+        section_count = max(1, len(parts) or len(sections))
+        dlg = PageNumberDialog(
+            self._page_number_config, self, section_count=section_count
+        )
         if dlg.exec() != QDialog.Accepted:
             return
         config = dlg.get_config()
