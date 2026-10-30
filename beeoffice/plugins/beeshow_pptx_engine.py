@@ -85,6 +85,40 @@ DEFAULT_CJK_FONT = "微软雅黑"
 
 
 # ==================== 数据结构 ====================
+def add_slide_transition(slide, transition: str) -> bool:
+    """给 python-pptx 幻灯片写入 p:transition（阶段 B：切换效果）。"""
+    transition = (transition or "none").lower()
+    if transition == "none":
+        return False
+    from pptx.oxml.xmlchemy import OxmlElement
+    from pptx.oxml.ns import qn
+
+    effects = {
+        "fade": ("p:fade", {}),
+        "push": ("p:push", {"dir": "r"}),
+        "wipe": ("p:wipe", {"dir": "r"}),
+        "cover": ("p:cover", {"dir": "r"}),
+    }
+    if transition not in effects:
+        return False
+    tag, attrs = effects[transition]
+    element = slide._element
+    for old in element.findall(qn("p:transition")):
+        element.remove(old)
+    trans = OxmlElement("p:transition")
+    trans.set("spd", "med")
+    effect = OxmlElement(tag)
+    for key, value in attrs.items():
+        effect.set(key, value)
+    trans.append(effect)
+    # schema 顺序：clrMapOvr 之后
+    clr = element.find(qn("p:clrMapOvr"))
+    if clr is not None:
+        clr.addnext(trans)
+    else:
+        element.append(trans)
+    return True
+
 @dataclass
 class MeasuredElement:
     """
@@ -505,6 +539,7 @@ class PPTXGenerator:
         self,
         slides: List[MeasuredSlide],
         output_path: str,
+        transitions: Optional[List[str]] = None,
     ) -> bool:
         """
         生成 PPTX 文件。
@@ -526,8 +561,10 @@ class PPTXGenerator:
             # 空白布局（不用占位符，全部手动放）
             blank_layout = prs.slide_layouts[6]
 
-            for ms in slides:
+            for index, ms in enumerate(slides):
                 slide = prs.slides.add_slide(blank_layout)
+                if transitions and index < len(transitions):
+                    add_slide_transition(slide, transitions[index])
 
                 # 背景色
                 if ms.bg_color and ms.bg_color != "#FFFFFF":
@@ -789,6 +826,7 @@ class PPTXEngine:
         slide_width: Optional[float] = None,
         slide_height: Optional[float] = None,
         base_dir: Optional[str] = None,
+        transitions: Optional[List[str]] = None,
     ) -> bool:
         """
         执行导出。
@@ -839,7 +877,9 @@ class PPTXEngine:
                 closer()
 
         # 生成 PPTX
-        success = self.generator.generate(measured_slides, output_path)
+        success = self.generator.generate(
+            measured_slides, output_path, transitions=transitions
+        )
         if not success:
             return False
 

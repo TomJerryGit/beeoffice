@@ -113,6 +113,9 @@ class ExportMixin:
                 export_slides.append(s)
 
             engine = PPTXEngine(slide_width=10.0, slide_height=7.5)
+            transitions = []
+            for cfg in getattr(self, "_slide_animations", []):
+                transitions.append((cfg or {}).get("transition", "none"))
             # 优化规划 §2.7：把文档所在目录作为相对路径图片的基准
             #（引擎会注入 <base href>）——否则幻灯片里的相对图片一律加载失败，
             # 导出的 PPTX 里图片整张消失。
@@ -123,6 +126,7 @@ class ExportMixin:
                 theme_css=theme["css"],
                 bg_color=bg_solid,
                 base_dir=str(Path(src_path).parent) if src_path else None,
+                transitions=transitions,
             )
 
             if success:
