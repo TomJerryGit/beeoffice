@@ -26,9 +26,20 @@ def test_figure_toc_field(tmp_path):
     assert "SEQ 图" in xml
 
 
+def test_cross_reference_ref_field(tmp_path):
+    md = "# 第一章\n\n正文\n\n【见：第一章】\n"
+    out = tmp_path / "cross.docx"
+    assert export_to_docx(md, str(out)) is True
+    doc = Document(str(out))
+    xml = doc.element.body.xml
+    assert "_BeeHeading_1" in xml
+    assert "REF _BeeHeading_1" in xml
+
+
 def test_normal_paragraph_not_caption(tmp_path):
     md = "这是普通段落，不是题注。\n"
     out = tmp_path / "normal.docx"
     assert export_to_docx(md, str(out)) is True
     doc = Document(str(out))
     assert "SEQ " not in doc.element.body.xml
+

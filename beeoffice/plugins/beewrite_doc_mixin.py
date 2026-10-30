@@ -113,9 +113,48 @@ class DocMixin:
         except Exception:  # noqa: BLE001
             pass
 
-    def _insert_caption(self):
-        """插入静态题注（图/表 + 编号 + 说明）。"""
+    def _insert_cross_reference(self):
+        """插入【见：标题】占位，导出 DOCX 时转成 REF 域。"""
+        import re as _re
+
+        headings = [
+            m.group(2).strip()
+            for m in _re.finditer(
+                r"^(#{1,6})\s+(.+?)\s*$", self.content(), _re.M
+            )
+        ]
+        if not headings:
+            self._set_status("当前文档没有标题可引用", 2500)
+            return
         dlg = QDialog(self)
+        dlg.setWindowTitle("🔗 交叉引用")
+        form = QFormLayout(dlg)
+        combo = QComboBox()
+        combo.addItems(headings)
+        form.addRow("引用标题:", combo)
+        btns = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        form.addRow(btns)
+        if not dlg.exec():
+            return
+        editor = getattr(self, "rich_editor", None)
+        if editor is None or not editor.isVisible():
+            editor = getattr(self, "markdown_editor", None)
+        if editor is None:
+            return
+        cursor = editor.textCursor()
+        if cursor.position() > 0:
+            cursor.insertText("\n")
+        cursor.insertText(f"【见：{combo.currentText()}】\n")
+        editor.setTextCursor(cursor)
+        editor.setFocus()
+        self._set_status("已插入交叉引用（导出后为 REF 域）", 3000)
+
+    def _insert_caption(self):
+        """插入静态题注（图/表 + 编号 + 说明）。"""        dlg = QDialog(self)
         dlg.setWindowTitle("🖼 插入题注")
         form = QFormLayout(dlg)
         kind = QComboBox()

@@ -1,5 +1,5 @@
 {
-  "total": 4170,
+  "total": 4133,
   "by_file": {
     "beeoffice/__version__.py": 1,
     "beeoffice/ai_settings.py": 22,
@@ -27,7 +27,7 @@
     "beeoffice/plugins/ai_client.py": 25,
     "beeoffice/plugins/ai_errors.py": 31,
     "beeoffice/plugins/ai_task_pane.py": 26,
-    "beeoffice/plugins/bee_export.py": 34,
+    "beeoffice/plugins/bee_export.py": 40,
     "beeoffice/plugins/beesheet.py": 110,
     "beeoffice/plugins/beesheet_ai_mixin.py": 124,
     "beeoffice/plugins/beesheet_audit_mixin.py": 128,
@@ -83,7 +83,6 @@
     "beeoffice/plugins/beewrite_ai_mixin.py": 42,
     "beeoffice/plugins/beewrite_comment.py": 16,
     "beeoffice/plugins/beewrite_comment_mixin.py": 55,
-    "beeoffice/plugins/beewrite_doc_mixin.py": 47,
     "beeoffice/plugins/beewrite_export_mixin.py": 55,
     "beeoffice/plugins/beewrite_formula.py": 53,
     "beeoffice/plugins/beewrite_hyperlink.py": 10,
@@ -100,7 +99,7 @@
     "beeoffice/plugins/beewrite_spellcheck_dialog.py": 31,
     "beeoffice/plugins/beewrite_table_mixin.py": 72,
     "beeoffice/plugins/beewrite_textbox.py": 14,
-    "beeoffice/plugins/beewrite_toolbar_mixin.py": 109,
+    "beeoffice/plugins/beewrite_toolbar_mixin.py": 113,
     "beeoffice/plugins/beewrite_view_mixin.py": 25,
     "beeoffice/plugins/bookmark_manager_dialog.py": 14,
     "beeoffice/plugins/data_binding.py": 5,
@@ -131,7 +130,7 @@
     "beeoffice/templates.py": 35,
     "beeoffice/utils.py": 1
   },
-  "generated_at": "2026-10-30 15:20",
-  "commit": "a6d9126",
+  "generated_at": "2026-10-30 15:52",
+  "commit": "cea6eab",
   "note": "硬编码中文文案棘轮基线；只许减少。更新方式：python tools/i18n_audit.py --write-baseline"
 }

@@ -298,6 +298,11 @@ class ToolbarMixin:
         btn_figure_toc.clicked.connect(self._enable_figure_toc)
         toolbar.addWidget(btn_figure_toc)
 
+        btn_cross_ref = QPushButton("🔗 交叉引用")
+        btn_cross_ref.setToolTip("插入【见：标题】，导出 DOCX 后为 REF 域")
+        btn_cross_ref.clicked.connect(self._insert_cross_reference)
+        toolbar.addWidget(btn_cross_ref)
+
         btn_compare = QPushButton("📊 对比")
         btn_compare.clicked.connect(self._compare_with_original)
         toolbar.addWidget(btn_compare)

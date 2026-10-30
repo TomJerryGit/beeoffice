@@ -1712,6 +1712,13 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
         # 所以必须连**样式定义**一起搬（否则 doc.styles[name] 直接 KeyError）。
         apply_paragraph_styles(doc, paragraph_styles, style_definitions)
 
+        # 标题书签 + 交叉引用【见：标题】→ REF 域
+        try:
+            heading_map = apply_heading_bookmarks(doc)
+            apply_cross_references(doc, heading_map)
+        except Exception as e:  # noqa: BLE001
+            logging.warning(f"写入交叉引用失败: {e}")
+
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         # P0 止血：先写同目录临时文件再原子替换 —— 写到一半崩溃不会把
         # 用户原有的 docx 留成半份（审计 §4.3 G2）。
@@ -1844,6 +1851,59 @@ def _add_field(paragraph, instruction, cached="1"):
 _CAPTION_RE = __import__("re").compile(
     r"^(图|表)\s*(\d+)?\s*[:：]\s*(.*)$"
 )
+
+
+def apply_heading_bookmarks(doc) -> dict:
+    """给所有 Heading 段落加书签，返回 {标题: 书签名}。"""
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    mapping = {}
+    index = 0
+    for para in doc.paragraphs:
+        try:
+            style_name = para.style.name or ""
+        except Exception:  # noqa: BLE001
+            style_name = ""
+        if not style_name.lower().startswith("heading"):
+            continue
+        title = para.text.strip()
+        if not title:
+            continue
+        index += 1
+        name = f"_BeeHeading_{index}"
+        mapping.setdefault(title, name)
+        start = OxmlElement("w:bookmarkStart")
+        start.set(qn("w:id"), str(1000 + index))
+        start.set(qn("w:name"), name)
+        end = OxmlElement("w:bookmarkEnd")
+        end.set(qn("w:id"), str(1000 + index))
+        para._p.insert(0, start)
+        para._p.append(end)
+    return mapping
+
+
+def apply_cross_references(doc, mapping: dict) -> int:
+    """把独立段落里的【见：标题】替换为 REF 域；返回替换数。"""
+    import re as _re
+
+    if not mapping:
+        return 0
+    count = 0
+    for para in doc.paragraphs:
+        text = para.text.strip()
+        match = _re.fullmatch(r"【见[:：](.+?)】", text)
+        if not match:
+            continue
+        title = match.group(1).strip()
+        name = mapping.get(title)
+        if not name:
+            continue
+        para.clear()
+        para.add_run("见 ")
+        _add_field(para, f"REF {name} \\h", cached=title)
+        count += 1
+    return count
 
 
 def _write_caption_paragraph(p, text):
