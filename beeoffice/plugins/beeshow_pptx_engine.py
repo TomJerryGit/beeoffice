@@ -202,10 +202,16 @@ def add_shape_animations(slide, items) -> bool:
         effect_ctn.append(cond)
         child = node("p:childTnLst")
         effect_ctn.append(child)
-        if kind in ("fade_in", "fade_out"):
-            anim = node("p:animEffect",
-                        transition="in" if kind == "fade_in" else "out",
-                        filter="fade")
+        if kind in ("fade_in", "fade_out", "slide_in", "zoom_in"):
+            if kind == "fade_in":
+                direction, filt = "in", "fade"
+            elif kind == "fade_out":
+                direction, filt = "out", "fade"
+            elif kind == "slide_in":
+                direction, filt = "in", "slide(fromLeft)"
+            else:
+                direction, filt = "in", "zoom(in)"
+            anim = node("p:animEffect", transition=direction, filter=filt)
             cbhvr = node("p:cBhvr")
             cbhvr.append(node("p:cTn", id=next_id, dur=duration))
             next_id += 1
@@ -793,7 +799,10 @@ class PPTXGenerator:
                         items = []
                         for entry in cfg.get("entries", []):
                             effect = entry.get("effect")
-                            if effect not in ("fade_in", "fade_out", "pulse"):
+                            if effect not in (
+                                "fade_in", "fade_out", "slide_in",
+                                "zoom_in", "pulse",
+                            ):
                                 continue
                             for el, shape in added_shapes:
                                 if selector_matches(

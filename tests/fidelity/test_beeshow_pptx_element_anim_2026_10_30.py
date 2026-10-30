@@ -67,3 +67,16 @@ def test_generate_element_fade(tmp_path):
     ) is True
     reopened = Presentation(str(out))
     assert "p:timing" in reopened.slides[0]._element.xml
+
+
+def test_slide_zoom_effects():
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    a = slide.shapes.add_textbox(10, 10, 200, 50)
+    b = slide.shapes.add_textbox(10, 100, 200, 50)
+    assert add_shape_animations(slide, [
+        (a, "slide_in", 400, 0), (b, "zoom_in", 300, 100),
+    ]) is True
+    xml = slide._element.xml
+    assert "slide(fromLeft)" in xml
+    assert "zoom(in)" in xml
