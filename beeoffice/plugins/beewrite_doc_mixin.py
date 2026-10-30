@@ -419,13 +419,14 @@ class DocMixin:
         parts = getattr(self, "_docx_section_parts", None)
         if parts:
             try:
-                entry = parts[0]
-                entry["header_text"] = self._docx_header_text
-                entry["footer_text"] = self._docx_footer_text
-                entry["header_xml"] = ""
-                entry["footer_xml"] = ""
-                entry["header_linked"] = False
-                entry["footer_linked"] = False
+                entries = parts if (options or {}).get("all_sections") else parts[:1]
+                for entry in entries:
+                    entry["header_text"] = self._docx_header_text
+                    entry["footer_text"] = self._docx_footer_text
+                    entry["header_xml"] = ""
+                    entry["footer_xml"] = ""
+                    entry["header_linked"] = False
+                    entry["footer_linked"] = False
             except Exception as e:  # noqa: BLE001
                 logging.debug(f"[蜜写] 更新分节页眉页脚失败: {e}")
         try:

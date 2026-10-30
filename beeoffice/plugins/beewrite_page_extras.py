@@ -195,6 +195,12 @@ class PageNumberDialog(QDialog):
         self._start_spin.setValue(config.get("start", 1))
         form.addRow("起始页码:", self._start_spin)
 
+        self._pn_all_sections_check = QCheckBox("应用到所有节")
+        self._pn_all_sections_check.setChecked(
+            bool(config.get("all_sections"))
+        )
+        form.addRow("", self._pn_all_sections_check)
+
         # 字号
         self._fontsize_spin = QSpinBox()
         self._fontsize_spin.setRange(8, 24)
@@ -231,6 +237,7 @@ class PageNumberDialog(QDialog):
             "start": self._start_spin.value(),
             "fontsize": self._fontsize_spin.value(),
             "num_format": self._num_format_combo.currentData() or "arabic",
+            "all_sections": self._pn_all_sections_check.isChecked(),
         }
 
 
@@ -249,6 +256,7 @@ class HeaderFooterDialog(QDialog):
         self._footer_edit.setPlaceholderText("页脚文字，留空表示不写页脚")
         self._first_check = QCheckBox("首页不同")
         self._odd_even_check = QCheckBox("奇偶页不同")
+        self._all_sections_check = QCheckBox("应用到所有节")
         self._first_header_edit = QLineEdit()
         self._first_header_edit.setPlaceholderText("首页页眉（可选）")
         self._first_footer_edit = QLineEdit()
@@ -285,6 +293,7 @@ class HeaderFooterDialog(QDialog):
         form.addRow("偶数页页脚:", self._even_footer_edit)
         form.addRow("页眉 Logo:", header_logo_row)
         form.addRow("页脚 Logo:", footer_logo_row)
+        form.addRow("", self._all_sections_check)
         opts = options or {}
         self._first_check.setChecked(bool(opts.get("different_first")))
         self._odd_even_check.setChecked(bool(opts.get("odd_even")))
@@ -294,6 +303,7 @@ class HeaderFooterDialog(QDialog):
         self._even_footer_edit.setText(str(opts.get("even_footer", "")))
         self._header_logo_edit.setText(str(opts.get("header_logo", "")))
         self._footer_logo_edit.setText(str(opts.get("footer_logo", "")))
+        self._all_sections_check.setChecked(bool(opts.get("all_sections")))
         layout.addLayout(form)
         tip = QLabel(
             "💡 页眉页脚会写入 DOCX 导出件；分节文档只改第 1 节，"
@@ -325,6 +335,7 @@ class HeaderFooterDialog(QDialog):
             "even_footer": self._even_footer_edit.text().strip(),
             "header_logo": self._header_logo_edit.text().strip(),
             "footer_logo": self._footer_logo_edit.text().strip(),
+            "all_sections": self._all_sections_check.isChecked(),
         }
 
     def _browse_logo(self, edit):

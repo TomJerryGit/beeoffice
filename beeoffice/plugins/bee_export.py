@@ -1452,10 +1452,10 @@ def apply_toc_field(doc, title="目录"):
 # ==================== 页码（5.3，2026-10-22） ====================
 def apply_page_numbers(doc, config=None):
     """
-    把页码配置写进 DOCX 第 1 节（WPS/Word 打开可见、可随分页更新）。
+    把页码配置写进 DOCX 页眉/页脚（Word 域，可随分页更新）。
 
     支持：位置（上/下 + 左/中/右）、起始页码、数字格式（阿拉伯/小写罗马/大写罗马）；
-    格式串里的 PAGE / NUMPAGES 用 Word 域，不是静态文字。
+    `all_sections=True` 时写入每一节，起始页码只作用于第一节，后续节连续编号。
     """
     if not config or not config.get("enabled"):
         return False
@@ -1466,7 +1466,9 @@ def apply_page_numbers(doc, config=None):
     except Exception:  # noqa: BLE001
         return False
 
-    section = doc.sections[0]
+    sections = list(doc.sections)
+    if not config.get("all_sections"):
+        sections = sections[:1]
     position = str(config.get("position", "底部居中"))
     fmt = str(config.get("format", "1"))
     num_format = str(config.get("num_format", "arabic"))
@@ -1484,23 +1486,17 @@ def apply_page_numbers(doc, config=None):
             align = value
             break
 
-    # 记录起始页码/数字格式（Word 的“页码格式”）
-    sect_pr = section._sectPr
-    pg_num = sect_pr.find(qn("w:pgNumType"))
+    # 起始页码/数字格式只写第一节；后续节不设置 start，保持连续编号。
+    first_sect_pr = sections[0]._sectPr
+    pg_num = first_sect_pr.find(qn("w:pgNumType"))
     if pg_num is None:
         pg_num = OxmlElement("w:pgNumType")
-        sect_pr.append(pg_num)
+        first_sect_pr.append(pg_num)
     pg_num.set(qn("w:start"), str(start))
     if num_format in ("lowerRoman", "upperRoman"):
         pg_num.set(qn("w:fmt"), num_format)
     else:
         pg_num.attrib.pop(qn("w:fmt"), None)
-
-    part = section.header if top else section.footer
-    part.is_linked_to_previous = False
-    paragraph = part.paragraphs[0] if part.paragraphs else part.add_paragraph()
-    paragraph.alignment = align
-    paragraph.clear()
 
     def _field(par, instruction):
         run = par.add_run()
@@ -1519,29 +1515,37 @@ def apply_page_numbers(doc, config=None):
         run._r.append(end)
         return run
 
-    if fmt == "第 1 页":
-        paragraph.add_run("第 ")
-        _field(paragraph, "PAGE")
-        paragraph.add_run(" 页")
-    elif fmt in ("第 1 页 / 共 N 页", "1 / N"):
-        if fmt.startswith("第"):
+    for section in sections:
+        part = section.header if top else section.footer
+        part.is_linked_to_previous = False
+        paragraph = (
+            part.paragraphs[0] if part.paragraphs else part.add_paragraph()
+        )
+        paragraph.alignment = align
+        paragraph.clear()
+        if fmt == "第 1 页":
             paragraph.add_run("第 ")
-        _field(paragraph, "PAGE")
-        if fmt.startswith("第"):
-            paragraph.add_run(" 页 / 共 ")
-        else:
-            paragraph.add_run(" / ")
-        _field(paragraph, "NUMPAGES")
-        if fmt.startswith("第"):
+            _field(paragraph, "PAGE")
             paragraph.add_run(" 页")
-    elif fmt in ("Page 1", "Page 1 of N"):
-        paragraph.add_run("Page ")
-        _field(paragraph, "PAGE")
-        if fmt.endswith("N"):
-            paragraph.add_run(" of ")
+        elif fmt in ("第 1 页 / 共 N 页", "1 / N"):
+            if fmt.startswith("第"):
+                paragraph.add_run("第 ")
+            _field(paragraph, "PAGE")
+            if fmt.startswith("第"):
+                paragraph.add_run(" 页 / 共 ")
+            else:
+                paragraph.add_run(" / ")
             _field(paragraph, "NUMPAGES")
-    else:
-        _field(paragraph, "PAGE")
+            if fmt.startswith("第"):
+                paragraph.add_run(" 页")
+        elif fmt in ("Page 1", "Page 1 of N"):
+            paragraph.add_run("Page ")
+            _field(paragraph, "PAGE")
+            if fmt.endswith("N"):
+                paragraph.add_run(" of ")
+                _field(paragraph, "NUMPAGES")
+        else:
+            _field(paragraph, "PAGE")
     return True
 
 
