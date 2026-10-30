@@ -1884,15 +1884,88 @@ def _write_inline(element, paragraph, base_dir=None):
                 run.font.color.rgb = RGBColor(0xD3, 0x2F, 0x2F)
 
 
+def _apply_floating_wrap(run, mode="square", x_cm=0.0, y_cm=0.0):
+    """把 run 里的内联图片改成 wp:anchor 浮动图，并按 mode 设置环绕。
+
+    python-docx 没有浮动图片 API，这里直接改 DrawingML XML。
+    失败时保持内联，不破坏导出。
+    """
+    try:
+        from docx.oxml import OxmlElement
+        from docx.oxml.ns import qn
+        from docx.shared import Cm
+
+        drawing = run._r.find(qn("w:drawing"))
+        if drawing is None:
+            return False
+        inline = drawing.find(qn("wp:inline"))
+        if inline is None:
+            return False
+        anchor = OxmlElement("wp:anchor")
+        anchor.set("distT", "0")
+        anchor.set("distB", "0")
+        anchor.set("distL", "0")
+        anchor.set("distR", "0")
+        anchor.set("simplePos", "0")
+        anchor.set("relativeHeight", "251658240")
+        anchor.set("behindDoc", "1" if mode == "behind" else "0")
+        anchor.set("locked", "0")
+        anchor.set("layoutInCell", "1")
+        anchor.set("allowOverlap", "1")
+
+        simple = OxmlElement("wp:simplePos")
+        simple.set("x", "0")
+        simple.set("y", "0")
+        anchor.append(simple)
+
+        for axis, offset in (("H", x_cm), ("V", y_cm)):
+            pos = OxmlElement(f"wp:position{axis}")
+            pos.set("relativeFrom", "column" if axis == "H" else "paragraph")
+            off = OxmlElement("wp:posOffset")
+            off.text = str(int(Cm(offset).emu))
+            pos.append(off)
+            anchor.append(pos)
+
+        for child_name in ("wp:extent", "wp:effectExtent"):
+            child = inline.find(qn(child_name))
+            if child is not None:
+                anchor.append(child)
+
+        if mode == "behind":
+            anchor.append(OxmlElement("wp:wrapNone"))
+        elif mode == "top-bottom":
+            wrap = OxmlElement("wp:wrapTopAndBottom")
+            anchor.append(wrap)
+        else:
+            wrap = OxmlElement("wp:wrapSquare")
+            wrap.set("wrapText", "bothSides")
+            anchor.append(wrap)
+
+        for child_name in ("wp:docPr", "wp:cNvGraphicFramePr", "a:graphic"):
+            child = inline.find(qn(child_name))
+            if child is not None:
+                anchor.append(child)
+
+        drawing.remove(inline)
+        drawing.append(anchor)
+        return True
+    except Exception as e:  # noqa: BLE001
+        logging.warning(f"浮动图片环绕转换失败，保留内联: {e}")
+        return False
+
+
 def _write_inline_image(img_tag, paragraph, base_dir=None):
     """
     把 `<img>` 嵌入段落（优化规划 §2.6）。
 
     找不到文件或格式不受支持时插入**可见占位文字**，而不是静默丢弃——
     用户需要知道"这里本来有张图，但没被导出"。
+
+    `data-wrap` 可选：square（四周型）/ top-bottom（上下型）/ behind（衬于文字下方）。
     """
     src = (img_tag.get("src") or "").strip()
     alt = (img_tag.get("alt") or "").strip()
+    wrap_mode = (img_tag.get("data-wrap") or "").strip().lower()
     path = _resolve_image_path(src, base_dir)
 
     if path is None:
@@ -1920,6 +1993,8 @@ def _write_inline_image(img_tag, paragraph, base_dir=None):
             run.add_picture(str(path), width=width)
         else:
             run.add_picture(str(path))
+        if wrap_mode in ("square", "top-bottom", "behind"):
+            _apply_floating_wrap(run, wrap_mode)
     except Exception as e:
         logging.warning(f"嵌入图片失败 {path}: {e}")
         run = paragraph.add_run(f"[图片未导出: {alt or src}]")

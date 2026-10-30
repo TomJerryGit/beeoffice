@@ -7,6 +7,13 @@
 
 ---
 ## [Unreleased]
+**Writer 浮动图片环绕（导出层，2026-10-30）**
+- DOCX 导出支持 `<img data-wrap="square|top-bottom|behind">`：
+  - square：四周型（`wp:wrapSquare`）
+  - top-bottom：上下型（`wp:wrapTopAndBottom`）
+  - behind：衬于文字下方（`wp:wrapNone` + behindDoc）
+- 内联图片行为不变；新增 XML 级测试。
+
 **Writer 图片裁剪 + 重复标题行（2026-10-30）**
 - 图片编辑对话框新增左/右/上/下百分比裁剪；导出前真实裁掉像素；
 - 确认表格首行写入 `w:tblHeader`（WPS/Word 跨页重复标题行），补导出测试。
