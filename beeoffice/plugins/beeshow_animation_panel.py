@@ -63,6 +63,9 @@ class AnimationPanelDialog(QDialog):
         )
         self._pptx_check.setChecked(bool(config.get("pptx_element")))
         form.addRow("", self._pptx_check)
+        self._click_check = QCheckBox("按点击逐步播放（每个动画一步）")
+        self._click_check.setChecked(bool(config.get("click_each")))
+        form.addRow("", self._click_check)
         layout = QVBoxLayout(self)
         layout.addLayout(form)
         layout.addWidget(QLabel("动画按列表顺序依次播放；目标填 CSS 选择器（如 h1、.card、img）。"))
@@ -142,6 +145,7 @@ class AnimationPanelDialog(QDialog):
             self._transition.currentData() or "none", entries
         )
         self._config["pptx_element"] = self._pptx_check.isChecked()
+        self._config["click_each"] = self._click_check.isChecked()
         self.accept()
 
     def get_config(self):

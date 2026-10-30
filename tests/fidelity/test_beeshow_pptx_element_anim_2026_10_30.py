@@ -6,6 +6,7 @@ from beeoffice.plugins.beeshow_pptx_engine import (
     MeasuredSlide,
     PPTXGenerator,
     add_shape_animations,
+    add_shape_animations_click,
     add_shape_fade,
     selector_matches,
 )
@@ -80,3 +81,16 @@ def test_slide_zoom_effects():
     xml = slide._element.xml
     assert "slide(fromLeft)" in xml
     assert "zoom(in)" in xml
+
+
+def test_click_each_timeline():
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    a = slide.shapes.add_textbox(10, 10, 200, 50)
+    b = slide.shapes.add_textbox(10, 100, 200, 50)
+    assert add_shape_animations_click(slide, [
+        (a, "fade_in", 400, 0), (b, "fade_out", 300, 0),
+    ]) is True
+    xml = slide._element.xml
+    assert xml.count('delay="indefinite"') == 2
+    assert xml.count("<p:animEffect ") == 2
