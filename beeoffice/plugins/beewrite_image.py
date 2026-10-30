@@ -93,6 +93,23 @@ class ImageEditorDialog(QDialog):
         params_group = QGroupBox("调整")
         params_layout = QFormLayout(params_group)
 
+        # 裁剪（按百分比，导出前真实裁掉像素）
+        crop_row = QHBoxLayout()
+        self._crop_spins = {}
+        for key, label, default in (
+            ("left", "左", 0), ("right", "右", 0),
+            ("top", "上", 0), ("bottom", "下", 0),
+        ):
+            spin = QSpinBox()
+            spin.setRange(0, 45)
+            spin.setValue(default)
+            spin.setSuffix("%")
+            spin.valueChanged.connect(self._refresh_preview)
+            crop_row.addWidget(QLabel(label))
+            crop_row.addWidget(spin)
+            self._crop_spins[key] = spin
+        params_layout.addRow("裁剪:", crop_row)
+
         # 缩放
         self._scale_combo = QComboBox()
         self._scale_combo.addItems([
@@ -318,11 +335,23 @@ class ImageEditorDialog(QDialog):
 
         img = self._original_image.copy()
 
-        # 缩放
+        # 缩放（先缩放再裁剪，保证裁剪后的尺寸不被还原）
         w = self._width_spin.value()
         h = self._height_spin.value()
         if w != img.width or h != img.height:
             img = img.resize((w, h), Image.LANCZOS)
+
+        # 裁剪（百分比 → 像素）
+        if getattr(self, "_crop_spins", None):
+            w, h = img.size
+            left = int(w * self._crop_spins["left"].value() / 100)
+            right = int(w * self._crop_spins["right"].value() / 100)
+            top = int(h * self._crop_spins["top"].value() / 100)
+            bottom = int(h * self._crop_spins["bottom"].value() / 100)
+            box = (left, top, max(left + 1, w - right),
+                   max(top + 1, h - bottom))
+            if box != (0, 0, w, h):
+                img = img.crop(box)
 
         # 旋转
         if self._rotation:
@@ -392,6 +421,10 @@ class ImageEditorDialog(QDialog):
         self._brightness = 1.0
         self._blur = 0
         self._scale_combo.setCurrentText("原始大小")
+        for spin in getattr(self, "_crop_spins", {}).values():
+            spin.blockSignals(True)
+            spin.setValue(0)
+            spin.blockSignals(False)
         self._flip_h_check.setChecked(False)
         self._flip_v_check.setChecked(False)
         self._grayscale_check.setChecked(False)
