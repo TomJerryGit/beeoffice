@@ -6,7 +6,7 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ---
-## [Unreleased]
+## [5.1.0] - 2026-10-30
 
 **S1：插件 API v1 核心实现（2026-10-29）**
 - `beeoffice/plugin_api.py`：PluginManifest 校验（id/api_version/entry/权限/min_app_version）、
