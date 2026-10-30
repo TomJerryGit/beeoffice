@@ -2789,12 +2789,23 @@ def _paragraph_text(para):
 
     用它替代 `para.text` —— 后者会漏掉嵌在 `w:hyperlink`、复杂域、
     `w:smartTag` 等容器里的文字（实测页脚页码就是这样被漏掉的）。
+
+    REF 域（交叉引用）导入时还原成 `【见：标题】` 占位，便于再次导出。
     """
     from docx.text.run import Run
 
-    return "".join(
+    text = "".join(
         Run(element, para).text for element, _ in _iter_para_children(para)
     )
+    try:
+        xml = para._p.xml
+        if "REF " in xml and "instrText" in xml:
+            visible = text.strip()
+            if visible.startswith("见 "):
+                return f"【见：{visible[2:].strip()}】"
+    except Exception:  # noqa: BLE001
+        pass
+    return text
 
 
 def _hyperlink_target(hyperlink, para):
@@ -2922,6 +2933,16 @@ def _para_to_md(para):
     真正的 `w:hyperlink`，于是超链接可以完整往返。
     """
     from docx.text.run import Run
+
+    # 交叉引用 REF 域：还原为【见：标题】占位，保证导出/导入往返
+    try:
+        xml = para._p.xml
+        if "REF " in xml and "instrText" in xml:
+            placeholder = _paragraph_text(para)
+            if placeholder.startswith("【见："):
+                return placeholder
+    except Exception:  # noqa: BLE001
+        pass
 
     parts = []
     for element, url in _iter_para_children(para):

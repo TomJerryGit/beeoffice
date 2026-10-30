@@ -1,7 +1,7 @@
 """Writer 题注：静态文字 → Word SEQ 域。"""
 from docx import Document
 
-from beeoffice.plugins.bee_export import export_to_docx
+from beeoffice.plugins.bee_export import export_to_docx, import_from_docx
 
 
 def test_caption_exports_seq_field(tmp_path):
@@ -34,6 +34,14 @@ def test_cross_reference_ref_field(tmp_path):
     xml = doc.element.body.xml
     assert "_BeeHeading_1" in xml
     assert "REF _BeeHeading_1" in xml
+
+
+def test_cross_reference_roundtrip(tmp_path):
+    md = "# 第一章\n\n正文\n\n【见：第一章】\n"
+    out = tmp_path / "cross_roundtrip.docx"
+    assert export_to_docx(md, str(out)) is True
+    imported = import_from_docx(str(out))
+    assert "【见：第一章】" in imported
 
 
 def test_normal_paragraph_not_caption(tmp_path):
