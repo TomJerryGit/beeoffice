@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDialog,
     QFormLayout,
@@ -57,6 +58,11 @@ class AnimationPanelDialog(QDialog):
 
         form = QFormLayout()
         form.addRow("切换效果:", self._transition)
+        self._pptx_check = QCheckBox(
+            "导出 PPTX 时包含逐元素动画（实验：仅进入·淡入）"
+        )
+        self._pptx_check.setChecked(bool(config.get("pptx_element")))
+        form.addRow("", self._pptx_check)
         layout = QVBoxLayout(self)
         layout.addLayout(form)
         layout.addWidget(QLabel("动画按列表顺序依次播放；目标填 CSS 选择器（如 h1、.card、img）。"))
@@ -135,6 +141,7 @@ class AnimationPanelDialog(QDialog):
         self._config = config_dict(
             self._transition.currentData() or "none", entries
         )
+        self._config["pptx_element"] = self._pptx_check.isChecked()
         self.accept()
 
     def get_config(self):

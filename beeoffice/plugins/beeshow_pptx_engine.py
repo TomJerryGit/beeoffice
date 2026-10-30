@@ -119,6 +119,98 @@ def add_slide_transition(slide, transition: str) -> bool:
         element.append(trans)
     return True
 
+def selector_matches(element, selector: str) -> bool:
+    """简化选择器匹配：tag / #id / .class / tag.class。"""
+    selector = (selector or "").strip()
+    if not selector:
+        return False
+    if selector.startswith("#"):
+        return element.element_id == selector[1:]
+    if selector.startswith("."):
+        return selector[1:] in (element.class_name or "").split()
+    if "." in selector:
+        tag, cls = selector.split(".", 1)
+        return (element.tag == tag.lower()
+                and cls in (element.class_name or "").split())
+    return element.tag == selector.lower()
+
+
+def add_shape_fade(slide, shape, duration: int = 500, delay: int = 0) -> bool:
+    """实验性：给单个 shape 写入进入淡入的 p:timing 树。"""
+    duration = max(100, min(5000, int(duration)))
+    delay = max(0, min(10000, int(delay)))
+    from pptx.oxml.xmlchemy import OxmlElement
+    from pptx.oxml.ns import qn
+
+    element = slide._element
+    for old in element.findall(qn("p:timing")):
+        element.remove(old)
+
+    def node(tag, **attrs):
+        el = OxmlElement(tag)
+        for key, value in attrs.items():
+            el.set(key, str(value))
+        return el
+
+    timing = node("p:timing")
+    tn_lst = node("p:tnLst")
+    timing.append(tn_lst)
+    outer_par = node("p:par")
+    tn_lst.append(outer_par)
+    root = node("p:cTn", id=1, dur="indefinite", restart="never",
+                nodeType="tmRoot")
+    outer_par.append(root)
+    root_child = node("p:childTnLst")
+    root.append(root_child)
+    seq = node("p:seq", concurrent="1", nextAc="seek")
+    root_child.append(seq)
+    seq_ctn = node("p:cTn", id=2, dur="indefinite", nodeType="mainSeq")
+    seq.append(seq_ctn)
+    seq_child = node("p:childTnLst")
+    seq_ctn.append(seq_child)
+
+    click_par = node("p:par")
+    seq_child.append(click_par)
+    click_ctn = node("p:cTn", id=3, fill="hold")
+    click_par.append(click_ctn)
+    click_cond = node("p:stCondLst")
+    click_cond.append(node("p:cond", delay=delay))
+    click_ctn.append(click_cond)
+    click_child = node("p:childTnLst")
+    click_ctn.append(click_child)
+
+    effect_par = node("p:par")
+    click_child.append(effect_par)
+    effect_ctn = node("p:cTn", id=4, presetID=10, presetClass="entr",
+                      presetSubtype=0, fill="hold", nodeType="clickEffect")
+    effect_par.append(effect_ctn)
+    effect_cond = node("p:stCondLst")
+    effect_cond.append(node("p:cond", delay=0))
+    effect_ctn.append(effect_cond)
+    effect_child = node("p:childTnLst")
+    effect_ctn.append(effect_child)
+
+    anim = node("p:animEffect", transition="in", filter="fade")
+    cbhvr = node("p:cBhvr")
+    ctn = node("p:cTn", id=5, dur=duration)
+    cbhvr.append(ctn)
+    tgt = node("p:tgtEl")
+    tgt.append(node("p:spTgt", spid=shape.shape_id))
+    cbhvr.append(tgt)
+    anim.append(cbhvr)
+    effect_child.append(anim)
+
+    clr = element.find(qn("p:clrMapOvr"))
+    trans = element.find(qn("p:transition"))
+    if trans is not None:
+        trans.addnext(timing)
+    elif clr is not None:
+        clr.addnext(timing)
+    else:
+        element.append(timing)
+    return True
+
+
 @dataclass
 class MeasuredElement:
     """
@@ -141,6 +233,8 @@ class MeasuredElement:
     """
     tag: str = ""
     text: str = ""
+    element_id: str = ""
+    class_name: str = ""
     x: float = 0.0
     y: float = 0.0
     width: float = 0.0
@@ -213,6 +307,8 @@ class ElementMeasurer:
                 results.push({
                     tag: tag,
                     text: text,
+                    element_id: el.id || '',
+                    class_name: el.className || '',
                     x: rect.left - slideRect.left,
                     y: rect.top - slideRect.top,
                     width: rect.width,
@@ -230,6 +326,8 @@ class ElementMeasurer:
                 results.push({
                     tag: 'img',
                     text: el.alt || '',
+                    element_id: el.id || '',
+                    class_name: el.className || '',
                     x: rect.left - slideRect.left,
                     y: rect.top - slideRect.top,
                     width: rect.width,
@@ -469,6 +567,8 @@ class ElementMeasurer:
             elements.append(MeasuredElement(
                 tag=item.get("tag", ""),
                 text=item.get("text", ""),
+                element_id=item.get("element_id", "") or "",
+                class_name=item.get("class_name", "") or "",
                 x=float(item.get("x", 0)),
                 y=float(item.get("y", 0)),
                 width=float(item.get("width", 0)),
@@ -540,6 +640,7 @@ class PPTXGenerator:
         slides: List[MeasuredSlide],
         output_path: str,
         transitions: Optional[List[str]] = None,
+        element_animations: Optional[List[dict]] = None,
     ) -> bool:
         """
         生成 PPTX 文件。
@@ -571,11 +672,34 @@ class PPTXGenerator:
                     self._set_slide_bg(slide, ms.bg_color)
 
                 # 逐个元素
+                added_shapes = []
                 for el in ms.elements:
                     try:
+                        before = len(slide.shapes)
                         self._add_element(slide, el, prs)
+                        if len(slide.shapes) > before:
+                            added_shapes.append((el, slide.shapes[-1]))
                     except Exception as e:
                         logging.warning(f"添加元素失败 {el.tag}：{e}")
+
+                # 实验性：只导出单元素「进入·淡入」
+                if element_animations and index < len(element_animations):
+                    cfg = element_animations[index] or {}
+                    if cfg.get("pptx_element"):
+                        for entry in cfg.get("entries", []):
+                            if entry.get("effect") != "fade_in":
+                                continue
+                            for el, shape in added_shapes:
+                                if selector_matches(
+                                    el, entry.get("selector", "")
+                                ):
+                                    add_shape_fade(
+                                        slide, shape,
+                                        duration=entry.get("duration", 500),
+                                        delay=entry.get("delay", 0),
+                                    )
+                                    break
+                            break
 
             prs.save(output_path)
             logging.info(f"PPTX 已生成：{output_path}")
@@ -827,6 +951,7 @@ class PPTXEngine:
         slide_height: Optional[float] = None,
         base_dir: Optional[str] = None,
         transitions: Optional[List[str]] = None,
+        element_animations: Optional[List[dict]] = None,
     ) -> bool:
         """
         执行导出。
@@ -878,7 +1003,8 @@ class PPTXEngine:
 
         # 生成 PPTX
         success = self.generator.generate(
-            measured_slides, output_path, transitions=transitions
+            measured_slides, output_path, transitions=transitions,
+            element_animations=element_animations,
         )
         if not success:
             return False
