@@ -6,6 +6,13 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ---
+## [Unreleased]
+
+**Writer 页眉页脚增强（2026-10-30）**
+- 页眉页脚对话框新增：首页不同、奇偶页不同，以及对应首页/偶数页页眉页脚文字；
+- DOCX 导出写入 `titlePg` / `evenAndOddHeaders` 与 first/even header/footer；
+- 打开对话框时回显已保存选项；新增导出/对话框测试。
+
 ## [5.1.0] - 2026-10-30
 
 ### 发布验证（2026-10-30）

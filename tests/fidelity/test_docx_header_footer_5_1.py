@@ -46,6 +46,39 @@ def test_apply_updates_first_section(qapp):
     assert any("页眉/页脚" in s for s in fake._status)
 
 
+def test_dialog_first_and_odd_even_options(qapp):
+    dlg = HeaderFooterDialog()
+    dlg._first_check.setChecked(True)
+    dlg._first_header_edit.setText("首页眉")
+    dlg._odd_even_check.setChecked(True)
+    dlg._even_footer_edit.setText("偶数页脚")
+    opts = dlg.options()
+    assert opts["different_first"] is True
+    assert opts["first_header"] == "首页眉"
+    assert opts["odd_even"] is True
+    assert opts["even_footer"] == "偶数页脚"
+
+
+def test_docx_export_first_and_even_header_footer(tmp_path):
+    doc = Document()
+    options = {
+        "different_first": True, "odd_even": True,
+        "first_header": "首页页眉", "first_footer": "首页页脚",
+        "even_header": "偶数页眉", "even_footer": "偶数页脚",
+    }
+    assert apply_header_footer(doc, header_footer_options=options)
+    out = tmp_path / "hf_first_even.docx"
+    doc.save(str(out))
+    reopened = Document(str(out))
+    section = reopened.sections[0]
+    assert section.different_first_page_header_footer is True
+    assert reopened.settings.odd_and_even_pages_header_footer is True
+    assert section.first_page_header.paragraphs[0].text == "首页页眉"
+    assert section.first_page_footer.paragraphs[0].text == "首页页脚"
+    assert section.even_page_header.paragraphs[0].text == "偶数页眉"
+    assert section.even_page_footer.paragraphs[0].text == "偶数页脚"
+
+
 def test_docx_export_writes_header_footer_text(tmp_path):
     doc = Document()
     assert apply_header_footer(doc, header_text="页眉文字", footer_text="页脚文字")

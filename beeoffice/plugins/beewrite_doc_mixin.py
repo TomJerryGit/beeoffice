@@ -349,17 +349,21 @@ class DocMixin:
                 getattr(self, "_docx_header_text", "") or "",
                 getattr(self, "_docx_footer_text", "") or "",
                 self,
+                options=getattr(self, "_docx_header_footer_options", {}),
             )
             if dlg.exec():
                 header, footer = dlg.values()
-                self._apply_header_footer_texts(header, footer)
+                options = dlg.options() if hasattr(dlg, "options") else None
+                self._apply_header_footer_texts(header, footer, options)
         except Exception as e:  # noqa: BLE001
             logging.warning(f"[蜜写] 页眉页脚编辑失败: {e}")
 
-    def _apply_header_footer_texts(self, header: str, footer: str):
+    def _apply_header_footer_texts(self, header: str, footer: str, options=None):
         """写入第 1 节页眉/页脚文字（分节文档保留其他节不动）。"""
         self._docx_header_text = header or ""
         self._docx_footer_text = footer or ""
+        if options:
+            self._docx_header_footer_options = dict(options)
         parts = getattr(self, "_docx_section_parts", None)
         if parts:
             try:
@@ -471,6 +475,9 @@ class DocMixin:
             "footer_text": getattr(self, "_docx_footer_text", ""),
             "header_xml": getattr(self, "_docx_header_xml", ""),
             "footer_xml": getattr(self, "_docx_footer_xml", ""),
+            "header_footer_options": getattr(
+                self, "_docx_header_footer_options", {}
+            ),
             "section_parts": getattr(self, "_docx_section_parts", []),
             "table_merges": getattr(self, "_docx_table_merges", []),
             "nested_tables": getattr(self, "_docx_nested_tables", []),

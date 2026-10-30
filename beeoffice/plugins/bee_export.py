@@ -1264,7 +1264,8 @@ def _part_has_external_refs(xml: str) -> bool:
 
 
 def apply_header_footer(doc, header_text=None, footer_text=None,
-                        header_xml="", footer_xml="", section_parts=None):
+                        header_xml="", footer_xml="", section_parts=None,
+                        header_footer_options=None):
     """
     写回页眉/页脚。
 
@@ -1278,13 +1279,42 @@ def apply_header_footer(doc, header_text=None, footer_text=None,
     空字符串视为"不写"，避免把用户原本没有的页眉变成空段落。
     """
     if not any((header_text, footer_text, header_xml, footer_xml,
-                section_parts)):
+                section_parts, header_footer_options)):
         return False
 
     from docx.oxml import parse_xml
 
     section = doc.sections[0]
     applied = False
+
+    # ---- 首页不同 / 奇偶页不同（5.5） ----
+    options = header_footer_options or {}
+    if options:
+        try:
+            section.different_first_page_header_footer = bool(
+                options.get("different_first")
+            )
+            doc.settings.odd_and_even_pages_header_footer = bool(
+                options.get("odd_even")
+            )
+            targets = (
+                ("first_header", section.first_page_header),
+                ("first_footer", section.first_page_footer),
+                ("even_header", section.even_page_header),
+                ("even_footer", section.even_page_footer),
+            )
+            for key, part in targets:
+                text = str(options.get(key, "") or "").strip()
+                if not text:
+                    continue
+                paragraphs = part.paragraphs
+                if paragraphs:
+                    paragraphs[0].text = text
+                else:
+                    part.add_paragraph(text)
+                applied = True
+        except Exception as e:  # noqa: BLE001
+            logging.warning(f"写入首页/奇偶页眉页脚失败: {e}")
 
     # ---- 逐节还原（新路径）----
     if section_parts:
@@ -1507,7 +1537,8 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
                    header_xml="", footer_xml="",
                    paragraph_styles=None, style_definitions=None,
                    nested_tables=None, section_parts=None,
-                   page_number=None, toc_field=False):
+                   page_number=None, toc_field=False,
+                   header_footer_options=None):
     """
     Markdown 导出为 DOCX 文件
 
@@ -1576,6 +1607,7 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
             doc, header_text, footer_text,
             header_xml=header_xml, footer_xml=footer_xml,
             section_parts=section_parts,
+            header_footer_options=header_footer_options,
         )
 
         # 表格合并（保真度阶段 A 最后一项）：Markdown 表格语法表达不了合并，
