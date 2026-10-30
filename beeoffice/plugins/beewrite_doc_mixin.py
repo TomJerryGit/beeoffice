@@ -155,6 +155,20 @@ class DocMixin:
         except Exception:  # noqa: BLE001
             pass
 
+    def _enable_figure_toc(self):
+        """启用图表目录域（TOC \\c "图"），导出后在 Word/WPS 更新域生成。"""
+        self._docx_figure_toc = True
+        try:
+            self._set_status(
+                "📑 已启用图表目录（导出 DOCX 后更新域生成）", 4000
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            self.contentChanged.emit()
+        except Exception:  # noqa: BLE001
+            pass
+
     def _insert_toc(self):
         """
         根据当前文档标题生成目录并插入到光标处。

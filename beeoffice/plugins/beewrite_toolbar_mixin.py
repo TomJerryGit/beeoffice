@@ -291,6 +291,13 @@ class ToolbarMixin:
         btn_caption.clicked.connect(self._insert_caption)
         toolbar.addWidget(btn_caption)
 
+        btn_figure_toc = QPushButton("📑 图表目录")
+        btn_figure_toc.setToolTip(
+            "启用图表目录域：导出 DOCX 后更新域生成图/表目录"
+        )
+        btn_figure_toc.clicked.connect(self._enable_figure_toc)
+        toolbar.addWidget(btn_figure_toc)
+
         btn_compare = QPushButton("📊 对比")
         btn_compare.clicked.connect(self._compare_with_original)
         toolbar.addWidget(btn_compare)

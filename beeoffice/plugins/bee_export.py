@@ -1577,6 +1577,35 @@ def apply_page_numbers(doc, config=None):
 
 
 # ==================== 导出 DOCX ====================
+def apply_table_of_figures(doc, label="图", title="图表目录"):
+    """插入图表目录域（TOC \c "图"），在 Word/WPS 中更新域后生成。"""
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    para = doc.add_paragraph()
+    try:
+        para.style = "Heading 1"
+    except Exception:  # noqa: BLE001
+        pass
+    para.add_run(title)
+    field_para = doc.add_paragraph()
+    run = field_para.add_run()
+    begin = OxmlElement("w:fldChar")
+    begin.set(qn("w:fldCharType"), "begin")
+    instr = OxmlElement("w:instrText")
+    instr.set(qn("xml:space"), "preserve")
+    instr.text = ' TOC \\h \\z \\c "图" '
+    sep = OxmlElement("w:fldChar")
+    sep.set(qn("w:fldCharType"), "separate")
+    end = OxmlElement("w:fldChar")
+    end.set(qn("w:fldCharType"), "end")
+    run._r.append(begin)
+    run._r.append(instr)
+    run._r.append(sep)
+    run._r.append(end)
+    return True
+
+
 def export_to_docx(content, output_path, page_settings=None, base_dir=None,
                    header_text=None, footer_text=None, table_merges=None,
                    sections=None, bookmarks=None,
@@ -1584,7 +1613,7 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
                    paragraph_styles=None, style_definitions=None,
                    nested_tables=None, section_parts=None,
                    page_number=None, toc_field=False,
-                   header_footer_options=None):
+                   header_footer_options=None, figure_toc=False):
     """
     Markdown 导出为 DOCX 文件
 
@@ -1664,6 +1693,11 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
             apply_page_numbers(doc, page_number)
         except Exception as e:  # noqa: BLE001
             logging.warning(f"写入页码失败: {e}")
+        if figure_toc:
+            try:
+                apply_table_of_figures(doc)
+            except Exception as e:  # noqa: BLE001
+                logging.warning(f"写入图表目录失败: {e}")
 
         # 嵌套表格（阶段 A 收尾）：Markdown 更表达不了"单元格里的表格"，
         # 不还原就会整块消失（实测 表 2→1、内层文字一并丢）。
@@ -1779,6 +1813,55 @@ def _add_hyperlink(paragraph, url, text):
     return hyperlink
 
 
+def _add_field(paragraph, instruction, cached="1"):
+    """在段落末尾追加一个 Word 域（begin/instr/separate/结果/end）。"""
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    begin_run = paragraph.add_run()
+    begin = OxmlElement("w:fldChar")
+    begin.set(qn("w:fldCharType"), "begin")
+    begin_run._r.append(begin)
+
+    instr_run = paragraph.add_run()
+    instr = OxmlElement("w:instrText")
+    instr.set(qn("xml:space"), "preserve")
+    instr.text = f" {instruction} "
+    instr_run._r.append(instr)
+
+    sep_run = paragraph.add_run()
+    sep = OxmlElement("w:fldChar")
+    sep.set(qn("w:fldCharType"), "separate")
+    sep_run._r.append(sep)
+
+    result_run = paragraph.add_run(str(cached))
+    end_run = paragraph.add_run()
+    end = OxmlElement("w:fldChar")
+    end.set(qn("w:fldCharType"), "end")
+    end_run._r.append(end)
+
+
+_CAPTION_RE = __import__("re").compile(
+    r"^(图|表)\s*(\d+)?\s*[:：]\s*(.*)$"
+)
+
+
+def _write_caption_paragraph(p, text):
+    """把「图 1：说明」写成 Word SEQ 域题注，支持后续图表目录。"""
+    match = _CAPTION_RE.match(text.strip())
+    if not match:
+        return False
+    kind, number, desc = match.group(1), match.group(2) or "1", match.group(3)
+    try:
+        p.style = "Caption"
+    except Exception:  # noqa: BLE001
+        pass
+    p.add_run(f"{kind} ")
+    _add_field(p, f"SEQ {kind} \\* ARABIC", cached=number)
+    p.add_run(f"：{desc}")
+    return True
+
+
 def _write_element(element, doc, parent_para=None, base_dir=None):
     """递归写入单个 HTML 元素到 docx"""
     from bs4 import NavigableString, Tag
@@ -1810,6 +1893,8 @@ def _write_element(element, doc, parent_para=None, base_dir=None):
         has_image = element.find("img") is not None
         if text or has_image:
             p = doc.add_paragraph()
+            if not has_image and _write_caption_paragraph(p, text):
+                return
             _write_inline(element, p, base_dir)
         return
 
