@@ -331,7 +331,18 @@ class RichTextEditor(QTextEdit):
                         if name:
                             # 统一用 POSIX 风格路径
                             md_path = str(name).replace("\\", "/")
-                            parts.append(f"![]({md_path})")
+                            from beeoffice.plugins.beewrite_image import (
+                                IMAGE_WRAP_PROPERTY,
+                            )
+                            wrap = img_fmt.property(IMAGE_WRAP_PROPERTY)
+                            if wrap in ("square", "top-bottom", "behind"):
+                                from html import escape
+                                parts.append(
+                                    f'<img src="{escape(md_path, quote=True)}" '
+                                    f'data-wrap="{wrap}">'
+                                )
+                            else:
+                                parts.append(f"![]({md_path})")
                     else:
                         txt = fragment.text()
                         if txt:

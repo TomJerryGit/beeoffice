@@ -61,7 +61,10 @@ from beeoffice.plugins.beewrite_hyperlink import (
     HyperlinkDialog,
     HyperlinkManagerDialog,
 )
-from beeoffice.plugins.beewrite_image import ImageEditorDialog
+from beeoffice.plugins.beewrite_image import (
+    ImageEditorDialog,
+    IMAGE_WRAP_PROPERTY,
+)
 from beeoffice.plugins.beewrite_formula import FormulaDialog
 from beeoffice.plugins.beewrite_textbox import TextBoxDialog, insert_textbox
 
@@ -332,6 +335,7 @@ class LinkMixin:
 
             fmt = QTextImageFormat()
             fmt.setName(result_path)
+            fmt.setProperty(IMAGE_WRAP_PROPERTY, dlg.wrap_mode())
             # 宽度超过 600px 时按比例缩小
             if img.width() > 600:
                 ratio = 600 / img.width()

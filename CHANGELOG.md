@@ -7,6 +7,12 @@
 
 ---
 ## [Unreleased]
+**Writer 图片环绕 UI + 往返（2026-10-30）**
+- 图片编辑对话框新增环绕方式：嵌入型/四周型/上下型/衬于文字下方；
+- 选择结果写入图片格式自定义属性；富文本→Markdown 输出 `<img data-wrap=...>`；
+- Markdown→DOCX 导出转换为浮动图片（wp:anchor + wrap）；
+- 新增端到端测试（富文本→Markdown→DOCX）。
+
 **Writer 浮动图片环绕（导出层，2026-10-30）**
 - DOCX 导出支持 `<img data-wrap="square|top-bottom|behind">`：
   - square：四周型（`wp:wrapSquare`）

@@ -20,7 +20,9 @@ from PySide6.QtWidgets import (
     QGroupBox
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap, QImage
+from PySide6.QtGui import QPixmap, QImage, QTextFormat
+
+IMAGE_WRAP_PROPERTY = int(QTextFormat.UserProperty) + 41
 
 try:
     from PIL import Image, ImageEnhance, ImageFilter, ImageOps
@@ -92,6 +94,14 @@ class ImageEditorDialog(QDialog):
         # 参数区
         params_group = QGroupBox("调整")
         params_layout = QFormLayout(params_group)
+
+        # 文字环绕（导出 DOCX 时转浮动图片）
+        self._wrap_combo = QComboBox()
+        self._wrap_combo.addItem("嵌入型", "")
+        self._wrap_combo.addItem("四周型", "square")
+        self._wrap_combo.addItem("上下型", "top-bottom")
+        self._wrap_combo.addItem("衬于文字下方", "behind")
+        params_layout.addRow("环绕:", self._wrap_combo)
 
         # 裁剪（按百分比，导出前真实裁掉像素）
         crop_row = QHBoxLayout()
@@ -328,6 +338,10 @@ class ImageEditorDialog(QDialog):
         self._refresh_preview()
 
     # ==================== 处理与预览 ====================
+    def wrap_mode(self) -> str:
+        """返回导出用的环绕模式：''/square/top-bottom/behind。"""
+        return self._wrap_combo.currentData() or ""
+
     def _process_image(self):
         """应用所有调整，返回 PIL Image"""
         if not self._original_image:
