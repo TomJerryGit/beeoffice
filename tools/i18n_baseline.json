@@ -1,5 +1,5 @@
 {
-  "total": 4179,
+  "total": 4234,
   "by_file": {
     "beeoffice/__version__.py": 1,
     "beeoffice/ai_settings.py": 22,
@@ -52,7 +52,7 @@
     "beeoffice/plugins/beeshow_ai_mixin.py": 41,
     "beeoffice/plugins/beeshow_ai_service.py": 56,
     "beeoffice/plugins/beeshow_animation.py": 27,
-    "beeoffice/plugins/beeshow_animation_panel.py": 13,
+    "beeoffice/plugins/beeshow_animation_panel.py": 15,
     "beeoffice/plugins/beeshow_comment_mixin.py": 26,
     "beeoffice/plugins/beeshow_comment_panel.py": 10,
     "beeoffice/plugins/beeshow_constants.py": 68,
@@ -85,6 +85,7 @@
     "beeoffice/plugins/beewrite_ai_mixin.py": 42,
     "beeoffice/plugins/beewrite_comment.py": 16,
     "beeoffice/plugins/beewrite_comment_mixin.py": 55,
+    "beeoffice/plugins/beewrite_doc_mixin.py": 53,
     "beeoffice/plugins/beewrite_export_mixin.py": 55,
     "beeoffice/plugins/beewrite_formula.py": 53,
     "beeoffice/plugins/beewrite_hyperlink.py": 10,
@@ -132,7 +133,7 @@
     "beeoffice/templates.py": 35,
     "beeoffice/utils.py": 1
   },
-  "generated_at": "2026-10-30 16:17",
-  "commit": "49e5dfe",
+  "generated_at": "2026-10-30 17:25",
+  "commit": "89ed185",
   "note": "硬编码中文文案棘轮基线；只许减少。更新方式：python tools/i18n_audit.py --write-baseline"
 }

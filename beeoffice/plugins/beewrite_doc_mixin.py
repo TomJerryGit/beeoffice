@@ -154,7 +154,8 @@ class DocMixin:
         self._set_status("已插入交叉引用（导出后为 REF 域）", 3000)
 
     def _insert_caption(self):
-        """插入静态题注（图/表 + 编号 + 说明）。"""        dlg = QDialog(self)
+        """插入静态题注（图/表 + 编号 + 说明）。"""
+        dlg = QDialog(self)
         dlg.setWindowTitle("🖼 插入题注")
         form = QFormLayout(dlg)
         kind = QComboBox()
