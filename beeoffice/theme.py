@@ -44,6 +44,66 @@ class Theme:
         return cls._current_theme == "dark"
 
     @classmethod
+    def tokens(cls) -> dict:
+        """当前主题的颜色 token（控件内联样式统一从这里取值）。"""
+        dark = cls.is_dark()
+        accent = cls.get_accent_color("primary")
+        light = cls.get_accent_color("light")
+        dark_color = cls.get_accent_color("dark")
+        if dark:
+            return {
+                "bg": "#1E1E1E", "surface": "#252525",
+                "surface_alt": "#2D2D2D", "toolbar": "#2D2D2D",
+                "text": "#DDDDDD", "muted": "#999999",
+                "border": "#444444", "accent": accent,
+                "accent_light": light, "accent_dark": dark_color,
+                "danger": "#CF6679", "success": "#81C784",
+                "is_dark": True,
+            }
+        return {
+            "bg": "#F5F5F5", "surface": "#FFFFFF",
+            "surface_alt": "#FAFAFA", "toolbar": "#FFFFFF",
+            "text": "#333333", "muted": "#666666",
+            "border": "#D0D0D0", "accent": accent,
+            "accent_light": light, "accent_dark": dark_color,
+            "danger": "#C62828", "success": "#2E7D32",
+            "is_dark": False,
+        }
+
+    @classmethod
+    def button_qss(cls, kind: str = "normal", small: bool = False) -> str:
+        """主题化按钮 QSS；plugins 不再写死 #EEE/#CCC。"""
+        t = cls.tokens()
+        pad = "2px 7px" if small else "5px 12px"
+        radius = "3px" if small else "6px"
+        if kind == "primary":
+            bg, fg, border = t["accent"], "#000000" if t["is_dark"] else "#FFFFFF", t["accent_dark"]
+        elif kind == "danger":
+            bg, fg, border = t["danger"], "#FFFFFF", t["danger"]
+        elif kind == "ghost":
+            bg, fg, border = "transparent", t["text"], t["border"]
+        else:
+            bg, fg, border = t["surface_alt"], t["text"], t["border"]
+        hover = t["accent_light"] if not t["is_dark"] else "#3A3A3A"
+        return (
+            f"QPushButton{{background:{bg};color:{fg};border:1px solid {border};"
+            f"border-radius:{radius};padding:{pad};}}"
+            f"QPushButton:hover{{background:{hover};border-color:{t['accent']};}}"
+            f"QPushButton:checked{{background:{t['accent']};color:#000;}}"
+        )
+
+    @classmethod
+    def toolbar_qss(cls) -> str:
+        """主题化工具栏 QSS（蜜写/蜜演 QToolBar 共用）。"""
+        t = cls.tokens()
+        return (
+            f"QToolBar{{background:{t['toolbar']};border-bottom:1px solid {t['border']};"
+            "padding:2px;spacing:4px}"
+            f"QToolBar QToolButton{{padding:4px 8px;border-radius:3px;color:{t['text']};}}"
+            f"QToolBar QToolButton:hover{{background:{t['accent_light'] if not t['is_dark'] else '#3A3A3A'};}}"
+        )
+
+    @classmethod
     def get_stylesheet(cls) -> str:
         """获取当前主题的完整样式表"""
         accent = cls.get_accent_color("primary")
