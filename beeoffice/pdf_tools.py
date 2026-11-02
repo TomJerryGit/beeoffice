@@ -477,3 +477,83 @@ def update_bookmark(src, out, index: int, title: str | None = None,
         doc.close()
     return {"source": str(src_path), "output": str(out_path),
             "title": new_title, "page": new_page}
+
+
+def crop_pages(src, out, top_mm=0, bottom_mm=0, left_mm=0, right_mm=0) -> dict:
+    """按毫米边距裁剪页面（设置 CropBox，不删除内容）。"""
+    doc = _open_doc(src)
+    try:
+        if min(top_mm, bottom_mm, left_mm, right_mm) < 0:
+            raise ValueError("边距不能为负")
+        mm = 72.0 / 25.4
+        for page in doc:
+            rect = page.rect
+            new_rect = fitz.Rect(
+                rect.x0 + left_mm * mm,
+                rect.y0 + top_mm * mm,
+                rect.x1 - right_mm * mm,
+                rect.y1 - bottom_mm * mm,
+            )
+            if new_rect.width < 10 or new_rect.height < 10:
+                raise ValueError("裁剪边距过大，页面剩余区域过小")
+            page.set_cropbox(new_rect)
+        out = Path(out)
+        _save(doc, out)
+        return _result_dict([Path(src)], out, pages=len(doc),
+                            operation="crop")
+    finally:
+        doc.close()
+
+
+def insert_pages(src, insert_src, out, at: int = 1) -> dict:
+    """把另一个 PDF 的全部页面插入到指定页之前（at 从 1 开始）。"""
+    doc = _open_doc(src)
+    other = _open_doc(insert_src)
+    try:
+        at = max(1, min(int(at), len(doc) + 1))
+        doc.insert_pdf(other, start_at=at - 1)
+        out = Path(out)
+        _save(doc, out)
+        return _result_dict([Path(src), Path(insert_src)], out,
+                            pages=len(doc), operation="insert", at=at)
+    finally:
+        other.close()
+        doc.close()
+
+
+def replace_pages(src, replace_src, out, pages: str) -> dict:
+    """用另一个 PDF 的全部页面替换源 PDF 的指定页。"""
+    doc = _open_doc(src)
+    targets = parse_page_spec(pages, len(doc))
+    other = _open_doc(replace_src)
+    try:
+        if not targets:
+            raise ValueError("未指定要替换的页码")
+        start = targets[0]
+        for index in sorted(targets, reverse=True):
+            doc.delete_page(index)
+        doc.insert_pdf(other, start_at=start)
+        out = Path(out)
+        _save(doc, out)
+        return _result_dict([Path(src), Path(replace_src)], out,
+                            pages=len(doc), operation="replace",
+                            replaced=len(targets))
+    finally:
+        other.close()
+        doc.close()
+
+
+def compress_pdf(src, out) -> dict:
+    """压缩 PDF：清理冗余对象、deflate 压缩流、去重。"""
+    doc = _open_doc(src)
+    try:
+        out = Path(out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        doc.save(str(out), garbage=4, deflate=True, clean=True)
+        before = Path(src).stat().st_size
+        after = out.stat().st_size
+        return _result_dict([Path(src)], out, pages=len(doc),
+                            operation="compress",
+                            before_bytes=before, after_bytes=after)
+    finally:
+        doc.close()
