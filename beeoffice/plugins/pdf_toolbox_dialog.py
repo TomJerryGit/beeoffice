@@ -31,6 +31,10 @@ OPERATIONS = {
     "images": ("提取图片", False, True, True, False, False),
     "bookmark": ("添加书签", False, False, True, False, True),
     "sign": ("图片签名/图章", False, False, True, False, True),
+    "crop": ("裁剪页面", False, False, False, False, False),
+    "insert": ("插入页面", True, False, True, False, False),
+    "replace": ("替换页面", True, False, True, False, False),
+    "compress": ("压缩 PDF", False, False, False, False, False),
 }
 
 
@@ -88,6 +92,13 @@ class PdfToolboxDialog(QDialog):
         self.opacity_spin.setRange(0.1, 1.0)
         self.opacity_spin.setSingleStep(0.1)
         self.opacity_spin.setValue(1.0)
+        self.margin_spins = {}
+        for label in ("上", "下", "左", "右"):
+            spin = QDoubleSpinBox()
+            spin.setRange(0, 100)
+            spin.setSingleStep(5)
+            spin.setSuffix(" mm")
+            self.margin_spins[label] = spin
 
         form = QFormLayout()
         form.addRow("操作：", self.op_combo)
@@ -102,6 +113,8 @@ class PdfToolboxDialog(QDialog):
         form.addRow("签名 Y：", self.y_spin)
         form.addRow("签名宽度：", self.width_spin)
         form.addRow("签名透明度：", self.opacity_spin)
+        for label, spin in self.margin_spins.items():
+            form.addRow(f"裁剪边距（{label}）：", spin)
 
         self.log = QTextEdit()
         self.log.setReadOnly(True)
@@ -148,6 +161,15 @@ class PdfToolboxDialog(QDialog):
         for widget in (self.x_spin, self.y_spin,
                        self.width_spin, self.opacity_spin):
             widget.setVisible(sign_mode)
+        crop_mode = key == "crop"
+        for spin in self.margin_spins.values():
+            spin.setVisible(crop_mode)
+        if key in ("insert", "replace"):
+            self.pages_edit.setPlaceholderText(
+                "插入位置（如 2）" if key == "insert" else "要替换的页码（如 2-3）"
+            )
+        elif key == "crop":
+            self.pages_edit.setPlaceholderText("裁剪操作不需要页码")
         self.input_edit.setPlaceholderText(
             "选择多个 PDF，用 ; 分隔" if multi else "选择 PDF"
         )
@@ -206,6 +228,17 @@ class PdfToolboxDialog(QDialog):
             return None
         if key == "delete" and not self._page_text():
             self._append("✗ 删除页面必须填写页码范围")
+            return None
+        if key == "replace" and not self._page_text():
+            self._append("✗ 替换页面必须填写要替换的页码")
+            return None
+        if key in ("insert", "replace") and len(files) != 2:
+            self._append("✗ 请用 ; 分隔源 PDF 和另一份 PDF")
+            return None
+        if key == "crop" and not any(
+            spin.value() > 0 for spin in self.margin_spins.values()
+        ):
+            self._append("✗ 裁剪至少需要一个边距大于 0")
             return None
         if needs_wm and not self.watermark_edit.text().strip():
             self._append("✗ 水印文字不能为空")
@@ -274,6 +307,25 @@ class PdfToolboxDialog(QDialog):
                     width_ratio=self.width_spin.value() / 100.0,
                     opacity=self.opacity_spin.value(),
                 )
+            elif key == "crop":
+                info = pdf_tools.crop_pages(
+                    files[0], out,
+                    top_mm=self.margin_spins["上"].value(),
+                    bottom_mm=self.margin_spins["下"].value(),
+                    left_mm=self.margin_spins["左"].value(),
+                    right_mm=self.margin_spins["右"].value(),
+                )
+            elif key == "insert":
+                info = pdf_tools.insert_pages(
+                    files[0], files[1], out,
+                    at=int((self._page_text() or "1").split("-")[0] or 1),
+                )
+            elif key == "replace":
+                info = pdf_tools.replace_pages(
+                    files[0], files[1], out, self._page_text() or ""
+                )
+            elif key == "compress":
+                info = pdf_tools.compress_pdf(files[0], out)
             else:
                 raise ValueError(f"未知操作: {key}")
             self._append(f"✅ 完成：{info}")
