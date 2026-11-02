@@ -6,11 +6,14 @@ import pandas as pd
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QPushButton,
     QTextEdit,
     QVBoxLayout,
 )
+
+from beeoffice.plugins.data_insights import clean_table, recommend_charts
 
 
 def dedupe_df(df: pd.DataFrame) -> pd.DataFrame:
@@ -56,12 +59,22 @@ class DataToolboxDialog(QDialog):
             btn = QPushButton(text)
             btn.clicked.connect(slot)
             row.addWidget(btn)
+        row2 = QHBoxLayout()
+        for text, slot in [
+            ("数据透视表…", self._pivot),
+            ("图表推荐…", self._recommend_chart),
+            ("一键清洗", self._clean),
+        ]:
+            btn = QPushButton(text)
+            btn.clicked.connect(slot)
+            row2.addWidget(btn)
         close_btn = QPushButton("关闭")
         close_btn.clicked.connect(self.reject)
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.info)
         layout.addLayout(row)
+        layout.addLayout(row2)
         layout.addWidget(self.log, 1)
         layout.addWidget(close_btn)
 
@@ -90,3 +103,44 @@ class DataToolboxDialog(QDialog):
             self._view._show_sort_dialog()
         except Exception as e:  # noqa: BLE001
             self.log.append(f"✗ 排序入口失败：{type(e).__name__}: {e}")
+
+    def _pivot(self):
+        if not hasattr(self._view, "_show_pivot_table"):
+            self.log.append("✗ 当前视图不支持数据透视表")
+            return
+        try:
+            self._view._show_pivot_table()
+            self.log.append("✅ 已打开数据透视表对话框")
+        except Exception as e:  # noqa: BLE001
+            self.log.append(f"✗ 透视表失败：{type(e).__name__}: {e}")
+
+    def _recommend_chart(self):
+        recs = recommend_charts(self._df())
+        if not recs:
+            self.log.append("✗ 当前数据没有可推荐的图表（需要数值/分类列）")
+            return
+        labels = [f"{r['label']}：{r['reason']}" for r in recs]
+        item, ok = QInputDialog.getItem(
+            self, "图表推荐", "选择推荐图表：", labels, 0, False
+        )
+        if not ok or not item:
+            return
+        index = labels.index(item)
+        try:
+            self._view.table_view.selectAll()
+            self._view._generate_chart(recs[index]["type"])
+            self.log.append(f"✅ 已生成推荐图表：{recs[index]['label']}")
+        except Exception as e:  # noqa: BLE001
+            self.log.append(f"✗ 生成图表失败：{type(e).__name__}: {e}")
+
+    def _clean(self):
+        out, report = clean_table(self._df())
+        details = (
+            f"空行 -{report['dropped_empty_rows']}，"
+            f"空列 -{report['dropped_empty_cols']}，"
+            f"重复 -{report['dropped_duplicates']}，"
+            f"去空白 {report['trimmed_cells']} 处"
+        )
+        self._replace(out, f"一键清洗（{details}）")
+        if report["numeric_cols"]:
+            self.log.append("数字列：" + "、".join(report["numeric_cols"]))
