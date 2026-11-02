@@ -93,6 +93,7 @@ from beeoffice.plugins.beewrite_outline import OutlinePanel
 
 # ==================== Mixin 层 ====================
 from beeoffice.plugins.beewrite_toolbar_mixin import ToolbarMixin
+from beeoffice.plugins.ribbon_widget import RibbonBar
 from beeoffice.plugins.beewrite_mode_mixin import ModeMixin
 from beeoffice.plugins.beewrite_paragraph_mixin import ParagraphMixin
 from beeoffice.plugins.beewrite_table_mixin import TableMixin
@@ -243,15 +244,149 @@ class BeeWriteEditor(
         toolbar_container = QVBoxLayout()
         toolbar_container.setContentsMargins(0, 0, 0, 0)
         toolbar_container.setSpacing(1)
-        toolbar_container.addWidget(self._toolbar1)
-        toolbar_container.addWidget(self._toolbar2)
+        # WPS 式 Ribbon：把两行平铺工具栏收进「开始 / 插入」标签页
+        self._ribbon = RibbonBar()
+
+        def _clone_click(toolbar, target):
+            """复用现有工具栏按钮的点击逻辑，避免复制业务代码。"""
+            def _go():
+                for action in toolbar.actions():
+                    widget = toolbar.widgetForAction(action)
+                    if (widget is not None and hasattr(widget, "text")
+                            and target in widget.text()):
+                        widget.click()
+                        return
+            return _go
+
+        _ICONS = {
+            "页面设置": "page", "页眉页脚": "page", "页面视图": "view",
+            "目录": "toc", "目录域": "toc", "交叉引用": "link", "链接": "link",
+            "页码": "page", "水印": "comment", "拼写检查": "search",
+            "批注": "comment", "批注栏": "comment", "修订": "track",
+            "查看修改": "track", "大纲": "toc", "阅读": "view",
+            "双屏": "view", "收起": "view",
+        }
+
+        def _add_large(group, label, target, toolbar):
+            group.add_large_button(
+                label, target, _clone_click(toolbar, target),
+                icon_name=_ICONS.get(target),
+            )
+
+        # 文件：保存/导出/页面设置等高频文件操作（原快速栏）
+        page = self._ribbon.add_tab("文件")
+        group = self._ribbon.add_group(page, "📄 文件与导出")
+        group.add_layout(self._quick_toolbar)
+
+        # 开始：模式切换（Markdown/所见即所得）+ 字体/段落
+        page = self._ribbon.add_tab("开始")
+        group = self._ribbon.add_group(page, "📝 模式")
+        group.add_layout(self._mode_toolbar)
+        group = self._ribbon.add_group(page, "🖋 字体与段落")
+        group.add_widget(self._toolbar1)
+
+        # 插入：表格/图片/链接/分页/批注/修订等
+        page = self._ribbon.add_tab("插入")
+        group = self._ribbon.add_group(page, "📋 插入与对象")
+        group.add_widget(self._toolbar2)
+
+        # 页面：页面设置/页眉页脚/页面视图/打印
+        page = self._ribbon.add_tab("页面")
+        group = self._ribbon.add_group(page, "📄 页面设置")
+        # 多行组：左侧大按钮 + 下方小按钮行
+        group.add_large_button(
+            "📄\n页面设置", "页面设置",
+            _clone_click(self._quick_toolbar, "页面设置"),
+            icon_name="page",
+        )
+        group.add_row()
+        for label, target in (
+            ("页眉页脚", "页眉页脚"),
+            ("页面视图", "页面视图"),
+        ):
+            group.add_small_button(
+                label, target,
+                _clone_click(self._quick_toolbar, target),
+                icon_name="page" if target == "页眉页脚" else "view",
+            )
+
+        # 引用：目录/交叉引用/页码/分节符/水印
+        page = self._ribbon.add_tab("引用")
+        group = self._ribbon.add_group(page, "📑 引用与目录")
+        for label, target in (
+            ("📑\n目录", "目录"),
+            ("📑\n目录域", "目录域"),
+            ("🔢\n交叉引用", "交叉引用"),
+            ("🔗\n链接", "链接"),
+            ("📄\n页码", "页码"),
+            ("💧\n水印", "水印"),
+        ):
+            _add_large(group, label, target, self._toolbar2)
+
+        # 审阅：拼写/批注/修订
+        page = self._ribbon.add_tab("审阅")
+        group = self._ribbon.add_group(page, "🔤 校对与审阅")
+        group.add_large_button(
+            "🔤\n拼写检查", "拼写检查",
+            _clone_click(self._quick_toolbar, "拼写检查"),
+            icon_name="search",
+        )
+        group.add_large_button(
+            "💬\n批注", "批注",
+            _clone_click(self._toolbar2, "批注"),
+            icon_name="comment",
+        )
+        group.add_row()
+        for label, target, icon_name in (
+            ("批注栏", "批注栏", "comment"),
+            ("修订", "修订", "track"),
+            ("查看修改", "查看修改", "track"),
+        ):
+            group.add_small_button(
+                label, target, _clone_click(self._toolbar2, target),
+                icon_name=icon_name,
+            )
+
+        # 视图：大纲/阅读/双屏/折叠
+        page = self._ribbon.add_tab("视图")
+        group = self._ribbon.add_group(page, "👁 视图")
+        _add_large(group, "📄\n页面视图", "页面视图", self._quick_toolbar)
+        for label, target in (
+            ("📑\n大纲", "大纲"),
+            ("📖\n阅读", "阅读"),
+            ("📊\n双屏", "双屏"),
+            ("▲\n收起", "收起"),
+        ):
+            _add_large(group, label, target, self._toolbar2)
+
+        # 上下文标签：光标进入表格时出现“表格工具”
+        ctx = self._ribbon.add_context_tab("表格工具")
+        ctx_group = self._ribbon.add_group(ctx, "📋 表格")
+        for label, target, icon_name in (
+            ("📋\n表格", "表格", "table"),
+            ("🔗\n合并", "合并", "table"),
+            ("🔲\n拆分", "拆分", "table"),
+            ("▦\n底纹", "底色", "data"),
+        ):
+            ctx_group.add_large_button(
+                label, target, _clone_click(self._toolbar2, target),
+                icon_name=icon_name,
+            )
+        if hasattr(self, "_update_table_context"):
+            try:
+                self.rich_editor.cursorPositionChanged.connect(
+                    self._update_table_context
+                )
+            except Exception:  # noqa: BLE001
+                pass
+        toolbar_container.addWidget(self._ribbon)
+        self._ribbon.add_quick_action("💾", "保存 (Ctrl+S)", self.save, icon_name="save")
+        self._ribbon.add_quick_action("🖨", "页面视图", self._print_preview, icon_name="print")
 
         # ---------- 总布局 ----------
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        layout.addLayout(self._mode_toolbar)
-        layout.addLayout(self._quick_toolbar)
         layout.addLayout(toolbar_container)
         # 关键修复：加 stretch=1，让分屏占满剩余空间，消除下方空白
         layout.addWidget(splitter, 1)
