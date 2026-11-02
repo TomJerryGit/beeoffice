@@ -1514,5 +1514,7 @@
   "pdf.pages.need_source": "Choose a source file first",
   "pdf.pages.finished": "Done",
   "pdf.pages.command": "PDF: Page Tools",
-  "pdf.pages.command_desc": "Merge / extract / delete / rotate / split PDF pages"
+  "pdf.pages.command_desc": "Merge / extract / delete / rotate / split PDF pages",
+  "pdf.extra.command": "PDF: Bookmarks & Signature",
+  "macro.console.command": "Macro Console"
 }

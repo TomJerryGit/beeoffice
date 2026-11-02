@@ -19,7 +19,7 @@ from datetime import datetime
 # ---------- 版本信息读取 ----------
 def get_version() -> str:
     """从 beeoffice/__version__.py 读取版本号"""
-    version_file = Path(__file__).parent / "beeoffice" / "__version__.py"
+    version_file = Path(__file__).resolve().parent.parent / "beeoffice" / "__version__.py"
     if not version_file.exists():
         return "0.0.0"
     try:
@@ -198,7 +198,7 @@ def main():
     print()
 
     # 基本信息
-    root = Path(__file__).parent.resolve()
+    root = Path(__file__).resolve().parent.parent
     version = get_version()
 
     print(f"📁 项目目录:   {root}")

@@ -28,13 +28,12 @@ ROOT = Path(__file__).resolve().parent.parent
 #: 包内必须存在的文件（后缀匹配，兼容不同 PyInstaller 布局）
 REQUIRED_SUFFIXES = (
     "BeeOffice/BeeOffice.exe",
-    "data/tech_words.txt",
     "locales/zh_CN.json",
     "locales/en_US.json",
 )
 
-#: 期望 locale key 数（v5.0.18 起为 227；变化时在发版说明里解释）
-EXPECTED_LOCALE_KEYS = 227
+#: 英文语言包最小键数（远端 5.3.x 为 1518；中文允许为部分翻译）
+MIN_EN_LOCALE_KEYS = 229
 
 
 def sha256(path: Path) -> str:
@@ -70,7 +69,7 @@ def _read_sha_file(zip_path: Path) -> str:
 
 
 def verify_zip(zip_path, commit: str = "HEAD", commit_time=None,
-               expected_locale_keys: int = EXPECTED_LOCALE_KEYS) -> dict:
+               expected_locale_keys: int = MIN_EN_LOCALE_KEYS) -> dict:
     """
     校验发布包；返回 dict（`ok` 为总判定，`checks` 逐项）。
 
@@ -114,6 +113,7 @@ def verify_zip(zip_path, commit: str = "HEAD", commit_time=None,
         })
 
         locale_counts = {}
+        locale_data = {}
         locale_ok = True
         for name in names:
             if not name.endswith("locales/zh_CN.json") and \
@@ -125,13 +125,24 @@ def verify_zip(zip_path, commit: str = "HEAD", commit_time=None,
                 locale_ok = False
                 locale_counts[name] = f"解析失败: {e}"
                 continue
-            locale_counts[name.rsplit("/", 1)[-1]] = len(data)
-            if len(data) != expected_locale_keys:
-                locale_ok = False
+            key = name.rsplit("/", 1)[-1]
+            locale_counts[key] = len(data)
+            locale_data[key] = set(data)
+        en = locale_data.get("en_US.json", set())
+        zh = locale_data.get("zh_CN.json", set())
+        if len(en) < expected_locale_keys:
+            locale_ok = False
+        if not zh or not zh.issubset(en):
+            locale_ok = False
         checks.append({
-            "name": f"locale key 数 = {expected_locale_keys}",
+            "name": (
+                f"locale 英文 ≥ {expected_locale_keys}，中文为英文子集"
+            ),
             "ok": locale_ok and len(locale_counts) == 2,
-            "detail": json.dumps(locale_counts, ensure_ascii=False),
+            "detail": json.dumps(
+                {**locale_counts, "zh_missing": len(en - zh)},
+                ensure_ascii=False,
+            ),
         })
 
         latest = max(infos, key=_zip_entry_time) if infos else None

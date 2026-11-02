@@ -64,7 +64,7 @@
     - 详见 CHANGELOG.md
 """
 
-__version__ = "5.3.1"
+__version__ = "5.3.2"
 __author__ = "TomJerryGit"
 __email__ = "1265338136@qq.com"
 __slogan__ = "百花寻觅，酿得甜蜜。"
