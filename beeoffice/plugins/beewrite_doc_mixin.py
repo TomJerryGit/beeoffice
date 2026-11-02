@@ -600,6 +600,8 @@ class DocMixin:
         }
         if not extras["section_parts"]:
             extras.pop("section_parts", None)
+        if not extras["header_footer_options"]:
+            extras.pop("header_footer_options", None)
         return extras
 
     # ==================================================================

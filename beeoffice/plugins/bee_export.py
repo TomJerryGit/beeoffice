@@ -1713,11 +1713,13 @@ def export_to_docx(content, output_path, page_settings=None, base_dir=None,
         apply_paragraph_styles(doc, paragraph_styles, style_definitions)
 
         # 标题书签 + 交叉引用【见：标题】→ REF 域
-        try:
-            heading_map = apply_heading_bookmarks(doc)
-            apply_cross_references(doc, heading_map)
-        except Exception as e:  # noqa: BLE001
-            logging.warning(f"写入交叉引用失败: {e}")
+        # 只在文档确实有交叉引用占位时添加标题书签，避免普通文档书签数变化。
+        if "【见：" in (content or ""):
+            try:
+                heading_map = apply_heading_bookmarks(doc)
+                apply_cross_references(doc, heading_map)
+            except Exception as e:  # noqa: BLE001
+                logging.warning(f"写入交叉引用失败: {e}")
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         # P0 止血：先写同目录临时文件再原子替换 —— 写到一半崩溃不会把
