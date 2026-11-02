@@ -15,26 +15,38 @@ from beeoffice.__version__ import __version__
 
 
 def setup_logging():
-    """配置全局日志，输出到文件"""
-    log_dir = CrashHandler.LOG_DIR
-    log_dir.mkdir(exist_ok=True)
-    log_file = log_dir / "app.log"
+    """配置全局日志，输出到文件（用户目录不可写时回退到临时目录）。"""
+    import tempfile
 
-    # 注意：logging.basicConfig(encoding=...) 是 Python 3.9 才支持的参数，
-    # 在 3.8 上会直接抛 ValueError: Unrecognised argument(s): encoding，
-    # 表现为"双击 run.bat 闪退"。这里显式构造 FileHandler，
-    # 既兼容 3.8，又能保证中文日志按 UTF-8 写入。
+    log_dirs = [
+        CrashHandler.LOG_DIR,
+        Path(tempfile.gettempdir()) / "BeeOffice_logs",
+    ]
+
     root = logging.getLogger()
     for h in root.handlers:
         if isinstance(h, logging.FileHandler):
             return  # 避免重复添加
 
-    handler = logging.FileHandler(str(log_file), encoding="utf-8")
-    handler.setFormatter(logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    ))
-    root.setLevel(logging.INFO)
-    root.addHandler(handler)
+    handler = None
+    for log_dir in log_dirs:
+        try:
+            log_dir.mkdir(parents=True, exist_ok=True)
+            handler = logging.FileHandler(
+                str(log_dir / "app.log"), encoding="utf-8"
+            )
+            break
+        except OSError as e:
+            print(f"[BeeOffice] 日志目录不可写 {log_dir}: {e}", file=sys.stderr)
+
+    if handler is None:
+        logging.basicConfig(level=logging.INFO)
+    else:
+        handler.setFormatter(logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        ))
+        root.setLevel(logging.INFO)
+        root.addHandler(handler)
 
     logging.info("=" * 50)
     logging.info("🐝 蜜蜂办公启动")
