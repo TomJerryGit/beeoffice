@@ -491,8 +491,8 @@ class BeeWriteEditor(
         # ---------- 初始化状态 ----------
         self._refresh_preview()
         self._refresh_variables()
-        self._toolbar1.setVisible(False)
-        self._toolbar2.setVisible(False)
+        # Ribbon 模式下工具栏必须保持可见；原实现初始化时隐藏，
+        # 导致“开始/插入”标签页只剩分组标题、没有任何按钮。
 
         self._update_status_bar()
         self._update_cursor_position()
