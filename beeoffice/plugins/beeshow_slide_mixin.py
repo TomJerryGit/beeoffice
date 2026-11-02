@@ -53,13 +53,15 @@ v5.1.1 修复：
 import re
 import logging
 
+from beeoffice.plugins.beeshow_html import render_slide_html
+
 from PySide6.QtWidgets import (
-    QListWidgetItem, QInputDialog, QColorDialog, QMessageBox,
+    QListWidgetItem, QInputDialog, QColorDialog,
 )
 from PySide6.QtCore import QTimer
+from PySide6.QtGui import QTextCursor
 
 from beeoffice.plugins.beeshow_constants import SLIDE_THEMES
-from beeoffice.i18n import tr
 
 
 class SlideMixin:
@@ -104,66 +106,76 @@ class SlideMixin:
 
         raw_parts = re.split(r'\n---', text)
 
-        # 只丢弃文件末尾的空段（结尾的 "---"），**保留中间空段**。
-        # 若把所有空段都丢掉，_slides_html 的下标就与 Markdown 的分页号对不上，
-        # 备注/评论写入时会整体错位。
-        while len(raw_parts) > 1 and not raw_parts[-1].strip():
-            raw_parts.pop()
-
         self._slides_html = []
         self._slides_md = []           # P1-13：同步清空
+        self._slide_animations = []
         self._speaker_notes = []
         self._slide_titles = []
 
         for part in raw_parts:
             part = part.strip()
-            note = ""
+            if not part:
+                continue
 
-            # 提取 <!-- 备注 -->
-            nm = re.search(r'<!--\s*(.*?)\s*-->', part, re.DOTALL)
+            # 提取演讲备注：**只匹配普通注释**。
+            # 优化规划 §2.7：原正则 `<!--\s*(.*?)\s*-->` 会匹配第一个注释而不看
+            # 内容，于是 `<!-- beeoffice-style: {...} -->` 这类特殊标记会被当成
+            # 演讲备注（备注里塞进一段 JSON），同时该标记也被删掉。
+            # 负向前瞻放在 `<!--` 之后、`\s*` 之前，避免 `\s*` 回溯后又匹配上。
+            nm = re.search(
+                r'<!--(?!\s*(?:comments:|beeoffice-style:|beeoffice-image:'
+                r'|morph-id:))\s*(.*?)\s*-->',
+                part,
+                re.DOTALL,
+            )
             if nm:
-                note = nm.group(1).strip()
-                part = part.replace(nm.group(0), '').strip()
+                self._speaker_notes.append(nm.group(1).strip())
+                part = part.replace(nm.group(0), '', 1).strip()
+            else:
+                self._speaker_notes.append('')
 
-            # 任务 4.2：剥离 comments 注释
-            part = re.sub(
+            # 优化规划 §2.7：特殊标记必须**留在 _slides_md** 里。
+            # `_on_slides_reordered()` 会用 _slides_md 重建整个编辑器文本，
+            # 此前这里把三类标记全部剥掉，导致**任何一次拖动排序都会永久删除**
+            # 该页的评论 / 样式覆盖 / 图片位置。
+            # `beeshow_notes_mixin._remove_plain_comment()` 的 docstring 也明确
+            # 写着这些前缀必须保留 —— 说明 _slides_md 的设计意图本就是保留标记。
+            source = part
+            from beeoffice.plugins.beeshow_animation import parse_animation
+            anim_cfg, cleaned_part = parse_animation(part)
+
+            # 预览 HTML：只剥掉 comments（它就是一段 HTML 注释，留着不可见但没必要）；
+            # beeoffice-style / beeoffice-image 必须**交给** _md_to_html ——
+            # 它自己会先 extract_styles / 提取图片信息再剥离渲染。此前提前剥掉
+            # 会让预览丢失用户的样式覆盖与图片位置。
+            html_part = re.sub(
                 r'<!--\s*comments:.*?-->',
                 '',
-                part,
+                cleaned_part,
                 flags=re.DOTALL,
             ).strip()
 
-            # 任务 2.2 / 2.3：剥离 beeoffice-style / beeoffice-image 注释
-            part = re.sub(
-                r'<!--\s*beeoffice-(style|image):.*?-->',
-                '',
-                part,
-                flags=re.DOTALL,
-            ).strip()
+            if source:
+                html = self._md_to_html(html_part)
+                self._slides_html.append(html)
+                self._slides_md.append(source)    # P1-13：保留源文本（含特殊标记）
+                self._slide_animations.append(anim_cfg)
 
-            # 关键：备注与幻灯片必须**一一对应**。
-            # 原实现先 append 备注、再判断 part 是否为空，
-            # 一个"只有注释"的分页会让两者错位，备注从此写到别的页上。
-            self._speaker_notes.append(note)
-
-            html = self._md_to_html(part) if part else ""
-            self._slides_html.append(html)
-            self._slides_md.append(part)      # P1-13：保留源文本
-
-            title_match = re.search(
-                r'<h[1-3][^>]*>(.*?)</h[1-3]>', html
-            )
-            self._slide_titles.append(
-                title_match.group(1) if title_match
-                else f"幻灯片 {len(self._slides_html)}"
-            )
+                # 提取标题
+                title_match = re.search(
+                    r'<h[1-3][^>]*>(.*?)</h[1-3]>', html
+                )
+                self._slide_titles.append(
+                    title_match.group(1) if title_match
+                    else f"幻灯片 {len(self._slides_html)}"
+                )
 
         self._update_thumbnails()
         if self._slides_html:
             self._show_slide(
                 min(self._current_slide, len(self._slides_html) - 1)
             )
-        self._slide_label.setText(tr("auto.beeshow_slide_mixin.1875b86d", "幻灯片: {0} 页").format(len(self._slides_html)))
+        self._slide_label.setText(f"幻灯片: {len(self._slides_html)} 页")
 
         # 任务 4.1：自动保存版本快照
         # 用 try/except 保护：HistoryMixin 未挂载时不影响主流程
@@ -171,6 +183,26 @@ class SlideMixin:
             self._save_snapshot()
         except AttributeError:
             pass
+
+    def _show_animation_panel(self):
+        """打开动画面板，编辑当前页选择器动画/切换效果。"""
+        from beeoffice.plugins.beeshow_animation_panel import (
+            AnimationPanelDialog,
+        )
+
+        try:
+            current = self._slide_animations[self._current_slide] or {}
+        except (AttributeError, IndexError):
+            current = {}
+        dlg = AnimationPanelDialog(current, self)
+        if dlg.exec() == dlg.Accepted:
+            self._slide_animations[self._current_slide] = dlg.get_config()
+            self._show_slide(self._current_slide)
+            self._set_status("🎬 动画已更新", 2500)
+            try:
+                self.contentChanged.emit()
+            except Exception:  # noqa: BLE001
+                pass
 
     def _md_to_html(self, md_text: str) -> str:
         """
@@ -246,7 +278,7 @@ class SlideMixin:
                     html, styles_map
                 )
             except Exception as e:
-                logging.warning(tr("auto.beeshow_slide_mixin.5f4bb5b3", "应用元素样式失败：{e}").format(e=e))
+                logging.warning(f"应用元素样式失败：{e}")
 
         # 任务 2.3：应用图片信息
         images_map = {}
@@ -262,7 +294,7 @@ class SlideMixin:
                     html, images_map
                 )
         except Exception as e:
-            logging.warning(tr("auto.beeshow_slide_mixin.a30d0539", "应用图片样式失败：{e}").format(e=e))
+            logging.warning(f"应用图片样式失败：{e}")
 
         # 任务 5.2：应用 morph id
         try:
@@ -294,7 +326,7 @@ class SlideMixin:
         if not (0 <= idx < len(self._slide_titles)):
             return
         new_title, ok = QInputDialog.getText(
-            self, tr("auto.beeshow_slide_mixin.1cd80fd7", "重命名"), tr("auto.beeshow_slide_mixin.cc35063f", "幻灯片标题:"), text=self._slide_titles[idx]
+            self, "重命名", "幻灯片标题:", text=self._slide_titles[idx]
         )
         if ok and new_title.strip():
             self._slide_titles[idx] = new_title.strip()
@@ -343,8 +375,20 @@ class SlideMixin:
 
     # ==================== 增删 ====================
     def _add_slide(self):
-        """在光标处插入新幻灯片（--- 分隔 + 默认标题）"""
-        self._editor.textCursor().insertText("\n\n---\n\n## 新幻灯片")
+        """在文档末尾追加新幻灯片（`---` 分隔 + 默认标题）。
+
+        2026-10-21 修复（GUI 实跑发现）：
+        - 原实现 `insertText("\\n\\n---\\n\\n## 新幻灯片")` **结尾没有换行**，
+          且插入点取当前光标（新建演示时光标在文首）；
+        - 结果：`## 新幻灯片` 与原有首行 `# 欢迎使用蜜演` 粘成同一标题
+          （`新幻灯片# 欢迎使用蜜演 🎥`），按 `\\n---` 切分后**页数不变**（2→2）。
+
+        修复：光标移到文末再插入，并保证插入串以换行结尾 → 页数 +1、标题独立。
+        """
+        cursor = self._editor.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        cursor.insertText("\n\n---\n\n## 新幻灯片\n")
+        self._editor.setTextCursor(cursor)
         self._update_preview()
 
     def _delete_slide(self):
@@ -385,6 +429,9 @@ class SlideMixin:
           - 广播翻页（任务 4.3）
         """
         if 0 <= index < len(self._slides_html):
+            # 4.6：编辑器内翻页时也累计当前页排练耗时（若正在排练）
+            if hasattr(self, "_record_rehearsal_page"):
+                self._record_rehearsal_page(self._current_slide)
             self._current_slide = index
             theme = SLIDE_THEMES[self._current_theme]
             bg = self._custom_bg or theme.get("bg", "#FFF")
@@ -417,10 +464,18 @@ class SlideMixin:
                 pass
 
             # 任务 2.1：拼入版式 CSS
-            full_html = f"""<!DOCTYPE html><html><head><meta charset="utf-8">
-            <style>{theme['css']}{self._get_layout_css()} body {{ background: {bg}; }}</style></head>
-            <body><div class="slide">{self._slides_html[index]}</div>
-            <div class="slide-number">{index+1}/{len(self._slides_html)}</div>{dynamic_js}{editor_js}{image_js}</body></html>"""
+            # 优化规划 §3.3：骨架统一走 beeshow_html.render_slide_html()
+            full_html = render_slide_html(
+                self._slides_html[index],
+                theme_css=theme['css'],
+                layout_css=self._get_layout_css(),
+                bg=bg,
+                body_extra=(
+                    f'<div class="slide-number">'
+                    f"{index + 1}/{len(self._slides_html)}</div>"
+                    f"{dynamic_js}{editor_js}{image_js}"
+                ),
+            )
 
             self._preview.setHtml(full_html)
             self._update_thumbnails()
@@ -508,11 +563,11 @@ class SlideMixin:
                 self._editor.setPlainText('\n---\n'.join(parts))
                 self._editor.blockSignals(False)
                 self._update_preview()
-                self._set_status(tr("auto.beeshow_slide_mixin.a3a83ca4", "✅ 样式已应用"), 2000)
+                self._set_status("✅ 样式已应用", 2000)
 
         except Exception as e:
             logging.error(f"应用元素编辑失败：{e}")
-            self._set_status(tr("auto.beeshow_slide_mixin.628c9d07", "❌ 应用失败：{e}").format(e=e), 3000)
+            self._set_status(f"❌ 应用失败：{e}", 3000)
 
     # ==================== 图片编辑回调（任务 2.3） ====================
     def _on_image_edit_applied(self, data: dict):
@@ -554,8 +609,8 @@ class SlideMixin:
                 self._editor.setPlainText('\n---\n'.join(parts))
                 self._editor.blockSignals(False)
                 self._update_preview()
-                self._set_status(tr("auto.beeshow_slide_mixin.4f66081e", "✅ 图片样式已应用"), 2000)
+                self._set_status("✅ 图片样式已应用", 2000)
 
         except Exception as e:
             logging.error(f"应用图片编辑失败：{e}")
-            self._set_status(tr("auto.beeshow_slide_mixin.628c9d07", "❌ 应用失败：{e}").format(e=e), 3000)
+            self._set_status(f"❌ 应用失败：{e}", 3000)
