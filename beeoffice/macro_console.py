@@ -88,6 +88,59 @@ class MacroRegistry:
         return result
 
 
+def validate_steps(steps: Any) -> list[dict]:
+    """校验脚本步骤结构；接受 {"steps": [...]} 或直接列表。"""
+    if isinstance(steps, dict):
+        steps = steps.get("steps")
+    if not isinstance(steps, list):
+        raise MacroError("脚本必须是 JSON 步骤列表")
+    cleaned = []
+    for index, step in enumerate(steps, 1):
+        if not isinstance(step, dict) or not step.get("command"):
+            raise MacroError(f"第 {index} 步格式错误")
+        args = step.get("args") or {}
+        if not isinstance(args, dict):
+            raise MacroError(f"第 {index} 步 args 必须是对象")
+        cleaned.append({"command": str(step["command"]), "args": args})
+    return cleaned
+
+
+def load_script(path: str | Path) -> list[dict]:
+    """从 JSON 文件读取宏脚本。"""
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except Exception as e:  # noqa: BLE001
+        raise MacroError(f"读取脚本失败: {e}") from e
+    return validate_steps(data)
+
+
+def save_script(path: str | Path, steps: Any) -> Path:
+    """把脚本写成 JSON 文件（含 steps 包装）。"""
+    cleaned = validate_steps(steps)
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps({"steps": cleaned}, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return target
+
+
+def needs_risk_ack(path: str | Path | None = None) -> bool:
+    """首次打开宏控制台是否需要风险确认。"""
+    marker = (Path(path) if path
+              else Path.home() / ".beeoffice" / "macro_console_ack")
+    return not marker.exists()
+
+
+def mark_risk_ack(path: str | Path | None = None) -> Path:
+    marker = (Path(path) if path
+              else Path.home() / ".beeoffice" / "macro_console_ack")
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text("ack\n", encoding="utf-8")
+    return marker
+
+
 class MacroRunner:
     """回放 JSON 步骤：[{"command": "...", "args": {...}}, ...]。"""
 
