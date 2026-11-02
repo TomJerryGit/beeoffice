@@ -8,7 +8,8 @@ from datetime import datetime
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTabWidget,
     QListWidget, QListWidgetItem, QTextBrowser, QSplitter,
-    QPushButton, QInputDialog, QMessageBox
+    QPushButton, QInputDialog, QMessageBox, QFileDialog,
+    QApplication,
 )
 from PySide6.QtCore import Qt
 
@@ -20,15 +21,17 @@ def show_template_picker(parent):
     """
     try:
         from beeoffice.resources.template_manager import TemplateManager
+        from beeoffice.resources.asset_manager import AssetManager
         tm = TemplateManager()
         templates = tm.get_all_templates()
+        assets = AssetManager()
     except Exception as e:
         logging.error(f"加载模板失败: {e}")
         QMessageBox.warning(parent, "错误", f"加载模板失败：\n{e}")
         return
 
     dialog = QDialog(parent)
-    dialog.setWindowTitle("📄 选择模板")
+    dialog.setWindowTitle("📚 模板与素材中心")
     dialog.resize(750, 500)
     layout = QVBoxLayout(dialog)
 
@@ -67,6 +70,15 @@ def show_template_picker(parent):
         tpl = item.data(Qt.UserRole)
         if not tpl:
             preview.clear()
+            return
+        if tpl.get("_asset"):
+            asset = tpl["_asset"]
+            size_kb = asset.size / 1024
+            preview.setHtml(
+                f"<h3>{asset.name}</h3>"
+                f"<p>大小：{size_kb:.1f} KB</p>"
+                f'<img src="file:///{asset.path}" style="max-width:100%;">'
+            )
             return
         content = tpl.get("content", "")
         # 替换 {date} 占位符
@@ -115,6 +127,25 @@ def show_template_picker(parent):
         if isinstance(first_list, QListWidget) and first_list.count() > 0:
             first_list.setCurrentRow(0)
 
+    asset_lst = QListWidget()
+    asset_lst.setAlternatingRowColors(True)
+    for entry in assets.list_assets():
+        item = QListWidgetItem(f"🖼 {entry.name}")
+        item.setData(Qt.UserRole, {"_asset": entry})
+        asset_lst.addItem(item)
+    asset_lst.itemSelectionChanged.connect(
+        lambda l=asset_lst: on_item_selected(l)
+    )
+
+    def _copy_asset_path(item):
+        data = item.data(Qt.UserRole) or {}
+        asset = data.get("_asset")
+        if asset:
+            QApplication.clipboard().setText(asset.path)
+
+    asset_lst.itemDoubleClicked.connect(_copy_asset_path)
+    tabs.addTab(asset_lst, "  素材库  ")
+
     splitter.addWidget(tabs)
     splitter.addWidget(preview)
     splitter.setSizes([400, 350])
@@ -122,6 +153,8 @@ def show_template_picker(parent):
 
     # 底部按钮
     btn_layout = QHBoxLayout()
+    import_asset_btn = QPushButton("🖼 导入素材")
+    copy_asset_btn = QPushButton("复制素材路径")
     new_cat_btn = QPushButton("+ 新建分类")
     open_btn = QPushButton("使用此模板")
     cancel_btn = QPushButton("取消")
@@ -140,6 +173,31 @@ def show_template_picker(parent):
             _create_from_template(parent, tpl)
             dialog.accept()
 
+    def import_asset():
+        path, _ = QFileDialog.getOpenFileName(
+            dialog, "导入素材", "",
+            "图片 (*.png *.jpg *.jpeg *.gif *.webp *.bmp *.svg)",
+        )
+        if not path:
+            return
+        try:
+            entry = assets.import_asset(path)
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.warning(dialog, "导入失败", str(e))
+            return
+        item = QListWidgetItem(f"🖼 {entry.name}")
+        item.setData(Qt.UserRole, {"_asset": entry})
+        asset_lst.addItem(item)
+        tabs.setCurrentWidget(asset_lst)
+        asset_lst.setCurrentItem(item)
+
+    def copy_asset():
+        item = asset_lst.currentItem()
+        data = item.data(Qt.UserRole) if item else None
+        asset = (data or {}).get("_asset")
+        if asset:
+            QApplication.clipboard().setText(asset.path)
+
     def add_new_category():
         """新建分类（用于快速保存模板时的分类选择，本处仅提示）"""
         text, ok = QInputDialog.getText(dialog, "新建分类", "输入分类名称：")
@@ -153,9 +211,13 @@ def show_template_picker(parent):
             tabs.setCurrentWidget(new_lst)
 
     new_cat_btn.clicked.connect(add_new_category)
+    import_asset_btn.clicked.connect(import_asset)
+    copy_asset_btn.clicked.connect(copy_asset)
     open_btn.clicked.connect(use_current_template)
     cancel_btn.clicked.connect(dialog.reject)
 
+    btn_layout.addWidget(import_asset_btn)
+    btn_layout.addWidget(copy_asset_btn)
     btn_layout.addWidget(new_cat_btn)
     btn_layout.addStretch()
     btn_layout.addWidget(open_btn)
