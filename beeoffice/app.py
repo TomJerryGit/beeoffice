@@ -818,6 +818,18 @@ class BeeApp(QMainWindow):
         if widget is not None and hasattr(widget, "save_as_template"):
             widget.save_as_template()
 
+    def _open_pdf_toolbox_extra(self):
+        """PDF 书签管理 + 图片签名（在远端页面工具之外的增量能力）。"""
+        from beeoffice.plugins.pdf_toolbox_dialog import PdfToolboxDialog
+
+        PdfToolboxDialog(self).exec()
+
+    def _open_macro_console(self):
+        """宏控制台：白名单命令 + 审计日志。"""
+        from beeoffice.plugins.macro_console_dialog import MacroConsoleDialog
+
+        MacroConsoleDialog(self).exec()
+
     # ==================================================================
     # 导出
     # ==================================================================
