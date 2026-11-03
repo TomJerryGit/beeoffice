@@ -636,10 +636,40 @@ class PypdfBackend(PdfBackend):
                 "image": str(img_path), "page": int(page)}
 
     def extract_text(self, src, out, pages=None) -> dict:
-        self._todo("extract_text")
+        reader = self._reader(src)
+        indexes = parse_page_spec(pages, len(reader.pages))
+        chunks = []
+        for i in indexes:
+            text = reader.pages[i].extract_text() or ""
+            chunks.append(f"===== 第 {i + 1} 页 =====\n{text}")
+        out = Path(out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text("\n".join(chunks), encoding="utf-8")
+        return self._result([Path(src)], out, pages=len(indexes))
 
     def extract_images(self, src, outdir, pages=None) -> dict:
-        self._todo("extract_images")
+        reader = self._reader(src)
+        indexes = parse_page_spec(pages, len(reader.pages))
+        outdir = Path(outdir)
+        outdir.mkdir(parents=True, exist_ok=True)
+        stem = Path(src).stem
+        saved = []
+        for i in indexes:
+            try:
+                images = list(reader.pages[i].images)
+            except Exception:  # noqa: BLE001
+                continue
+            for n, image in enumerate(images):
+                try:
+                    data = image.data
+                except Exception:  # noqa: BLE001
+                    continue
+                suffix = Path(image.name).suffix.lstrip(".") or "png"
+                target = outdir / f"{stem}_p{i + 1}_{n + 1}.{suffix}"
+                target.write_bytes(data)
+                saved.append(str(target))
+        return {"source": str(src), "output_dir": str(outdir),
+                "count": len(saved), "images": saved}
 
 
 _BACKENDS = {"fitz": FitzBackend, "pypdf": PypdfBackend}

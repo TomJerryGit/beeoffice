@@ -1,5 +1,7 @@
 """pypdf 文档能力：书签、加密、水印、图片签名。"""
 import fitz
+from pathlib import Path
+
 from PIL import Image
 from pypdf import PdfReader
 
@@ -60,3 +62,28 @@ def test_pypdf_watermark_and_stamp(tmp_path):
     stamped = tmp_path / "stamped.pdf"
     backend.stamp_image(src, stamped, img, page=1, width_ratio=0.2)
     assert len(PdfReader(str(stamped)).pages) == 2
+
+
+def test_pypdf_extract_text_and_images(tmp_path):
+    src = tmp_path / "src.pdf"
+    _make_pdf(src, 2, "A")
+    backend = PypdfBackend()
+
+    out = tmp_path / "text.txt"
+    backend.extract_text(src, out, "2")
+    text = out.read_text(encoding="utf-8")
+    assert "第 2 页" in text and "A2" in text
+
+    img = tmp_path / "pic.png"
+    Image.new("RGB", (30, 20), "red").save(img)
+    doc = fitz.open()
+    page = doc.new_page(width=300, height=400)
+    page.insert_image(fitz.Rect(20, 20, 120, 90), filename=str(img))
+    with_img = tmp_path / "with_image.pdf"
+    doc.save(str(with_img))
+    doc.close()
+
+    outdir = tmp_path / "imgs"
+    info = backend.extract_images(with_img, outdir)
+    assert info["count"] >= 1
+    assert all(Path(p).is_file() for p in info["images"])

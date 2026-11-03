@@ -51,10 +51,9 @@ def test_fitz_backend_delegates_merge(tmp_path):
     assert info["pages"] == 3
 
 
-def test_pypdf_backend_skeleton_raises(tmp_path):
+def test_pypdf_backend_is_instantiable():
     backend = PypdfBackend()
-    with pytest.raises(NotImplementedError):
-        backend.extract_text(tmp_path / "x.pdf", tmp_path / "out.txt")
+    assert backend.name == "pypdf"
 
 
 def test_all_backends_implement_interface():
