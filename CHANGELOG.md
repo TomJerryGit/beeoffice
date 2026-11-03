@@ -6,7 +6,7 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ---
-## [Unreleased]
+## [5.2.2] - 2026-11-03
 
 **PPTX 动画时间轴修复（2026-11-03）**
 - 新增 `tools/verify_pptx_animations.py` 结构校验（可选 PowerPoint COM）；
