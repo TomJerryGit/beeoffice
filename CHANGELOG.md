@@ -6,6 +6,14 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ---
+## [Unreleased]
+
+**PPTX 动画时间轴修复（2026-11-03）**
+- 逐帧验证发现旧 `p:timing` 不被 PowerPoint 识别（MainSequence=0）；
+- 按 PowerPoint 实际结构补 `p:set` / `p:bldLst` / `grpId` / `nodeType`；
+- 实测 PowerPoint 识别：淡入/脉冲 3 个效果、时长正确，自动动画触发=3、点击动画触发=1；
+- BeeShow CSS 播放逐帧截图确认淡入与延迟生效。
+
 ## [5.2.1] - 2026-11-02
 
 **本版新增**

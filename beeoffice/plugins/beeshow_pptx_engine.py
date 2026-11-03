@@ -232,6 +232,166 @@ def add_shape_animations_click(slide, items) -> bool:
     return True
 
 
+def add_shape_animations_valid(slide, items, click_each=False) -> bool:
+    """按 PowerPoint 实际生成的时间轴结构写动画（可被 MainSequence 识别）。"""
+    items = list(items or [])
+    if not items:
+        return False
+    from pptx.oxml.xmlchemy import OxmlElement
+    from pptx.oxml.ns import qn
+
+    element = slide._element
+    for old in element.findall(qn("p:timing")):
+        element.remove(old)
+
+    ids = [1]
+
+    def nid():
+        ids[0] += 1
+        return ids[0] - 1
+
+    def node(tag, **attrs):
+        el = OxmlElement(tag)
+        for k, v in attrs.items():
+            el.set(k, str(v))
+        return el
+
+    def cond(parent, delay):
+        st = node("p:stCondLst")
+        st.append(node("p:cond", delay=delay))
+        parent.append(st)
+
+    def add_set(parent, spid, visible, duration):
+        s = node("p:set")
+        cb = node("p:cBhvr")
+        ctn = node("p:cTn", id=nid(), dur=duration, fill="hold")
+        cond(ctn, 0)
+        cb.append(ctn)
+        tgt = node("p:tgtEl")
+        tgt.append(node("p:spTgt", spid=spid))
+        cb.append(tgt)
+        names = node("p:attrNameLst")
+        names.append(node("p:attrName", text="style.visibility"))
+        cb.append(names)
+        s.append(cb)
+        to = node("p:to")
+        to.append(node("p:strVal",
+                       val="visible" if visible else "hidden"))
+        s.append(to)
+        parent.append(s)
+
+    def add_effect_body(parent, shape, kind, duration, grp, node_type='clickEffect'):
+        preset = 10 if kind in ("fade_in", "fade_out") else 6
+        cls = "exit" if kind == "fade_out" else (
+            "emph" if kind in ("pulse", "shake") else "entr"
+        )
+        par = node("p:par")
+        parent.append(par)
+        ctn = node("p:cTn", id=nid(), presetID=preset, presetClass=cls,
+                   presetSubtype=0, fill="hold", grpId=grp,
+                   nodeType=node_type)
+        par.append(ctn)
+        cond(ctn, 0)
+        body = node("p:childTnLst")
+        ctn.append(body)
+        add_set(body, shape.shape_id, kind != "fade_out", 1)
+        if kind in ("fade_in", "fade_out"):
+            anim = node("p:animEffect",
+                        transition="in" if kind == "fade_in" else "out",
+                        filter="fade")
+        elif kind == "slide_in":
+            anim = node("p:animEffect", transition="in",
+                        filter="slide(fromLeft)")
+        elif kind == "zoom_in":
+            anim = node("p:animEffect", transition="in", filter="zoom(in)")
+        elif kind == "shake":
+            anim = node("p:anim")
+        else:
+            anim = node("p:animScale")
+        cb = node("p:cBhvr")
+        cb.append(node("p:cTn", id=nid(), dur=duration))
+        tgt = node("p:tgtEl")
+        tgt.append(node("p:spTgt", spid=shape.shape_id))
+        cb.append(tgt)
+        anim.append(cb)
+        if kind == "shake":
+            names = node("p:attrNameLst")
+            names.append(node("p:attrName", text="ppt_x"))
+            cb.append(names)
+            tavs = node("p:tavLst")
+            for tm, val in ((0, "#ppt_x"), (25000, "#ppt_x-0.02"),
+                            (50000, "#ppt_x+0.02"),
+                            (75000, "#ppt_x-0.01"), (100000, "#ppt_x")):
+                tav = node("p:tav", tm=tm)
+                v = node("p:val")
+                v.append(node("p:strVal", val=val))
+                tav.append(v)
+                tavs.append(tav)
+            anim.append(tavs)
+        if kind == "pulse":
+            anim.append(node("p:by", x=105000, y=105000))
+        body.append(anim)
+
+    timing = node("p:timing")
+    tn = node("p:tnLst")
+    timing.append(tn)
+    par = node("p:par")
+    tn.append(par)
+    root = node("p:cTn", id=nid(), dur="indefinite", restart="never",
+                nodeType="tmRoot")
+    par.append(root)
+    root_child = node("p:childTnLst")
+    root.append(root_child)
+    seq = node("p:seq", concurrent="1", nextAc="seek")
+    root_child.append(seq)
+    seq_ctn = node("p:cTn", id=nid(), dur="indefinite", nodeType="mainSeq")
+    seq.append(seq_ctn)
+    seq_child = node("p:childTnLst")
+    seq_ctn.append(seq_child)
+
+    bld = node("p:bldLst")
+
+    def add_click_blocks(block_items, click_block=False):
+        click_par = node("p:par")
+        seq_child.append(click_par)
+        click_ctn = node("p:cTn", id=nid(), fill="hold")
+        click_par.append(click_ctn)
+        cond(click_ctn, "indefinite")
+        click_child = node("p:childTnLst")
+        click_ctn.append(click_child)
+        for index, (shape, kind, duration, delay) in enumerate(block_items):
+            par2 = node("p:par")
+            click_child.append(par2)
+            ctn2 = node("p:cTn", id=nid(), fill="hold")
+            par2.append(ctn2)
+            cond(ctn2, delay if index else 0)
+            child2 = node("p:childTnLst")
+            ctn2.append(child2)
+            node_type = ("clickEffect" if (click_block or index == 0)
+                         else "afterEffect")
+            add_effect_body(child2, shape, kind, duration, len(bld),
+                            node_type=node_type)
+            bld.append(node("p:bldP", spid=shape.shape_id,
+                            grpId=len(bld)))
+
+    if click_each:
+        for item in items:
+            add_click_blocks([item], True)
+    else:
+        add_click_blocks(items)
+
+    timing.append(bld)
+    clr = element.find(qn("p:clrMapOvr"))
+    trans = element.find(qn("p:transition"))
+    if trans is not None:
+        trans.addnext(timing)
+    elif clr is not None:
+        clr.addnext(timing)
+    else:
+        element.append(timing)
+    return True
+
+
 def add_shape_animations(slide, items) -> bool:
     """给多个 shape 写入顺序动画（实验：淡入/淡出/强调脉冲）。"""
     items = list(items or [])
@@ -935,10 +1095,10 @@ class PPTXGenerator:
                                     ))
                                     break
                         if items:
-                            if cfg.get("click_each"):
-                                add_shape_animations_click(slide, items)
-                            else:
-                                add_shape_animations(slide, items)
+                            add_shape_animations_valid(
+                                slide, items,
+                                click_each=bool(cfg.get("click_each")),
+                            )
 
             prs.save(output_path)
             logging.info(f"PPTX 已生成：{output_path}")
