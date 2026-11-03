@@ -62,14 +62,11 @@ v5.1 增量汇总：
   - 任务 3.2 的字体嵌入失败不影响主流程（PPTX 已生成）
 """
 
-import json
 import logging
-import subprocess
-import tempfile
+from beeoffice.plugins.beeshow_html import render_slide_html
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Dict, Any
-from beeoffice.i18n import tr
 
 
 # ==================== 常量 ====================
@@ -80,8 +77,530 @@ PX_TO_EMU = 9525
 DEFAULT_SLIDE_WIDTH = 10.0
 DEFAULT_SLIDE_HEIGHT = 7.5
 
+# 默认文本字体（优化规划 §2.7）。
+# 必须显式写入 run 的 a:latin / a:ea，否则 PowerPoint 用主题默认字体渲染，
+# 中文容易被替换成其他字形；同时字体嵌入也需要一个明确的字体名。
+# 选用 Windows 自带、覆盖中文的字体；缺失时 PowerPoint 会自行回退。
+DEFAULT_CJK_FONT = "微软雅黑"
+
 
 # ==================== 数据结构 ====================
+def add_slide_transition(slide, transition: str) -> bool:
+    """给 python-pptx 幻灯片写入 p:transition（阶段 B：切换效果）。"""
+    transition = (transition or "none").lower()
+    if transition == "none":
+        return False
+    from pptx.oxml.xmlchemy import OxmlElement
+    from pptx.oxml.ns import qn
+
+    effects = {
+        "fade": ("p:fade", {}),
+        "push": ("p:push", {"dir": "r"}),
+        "wipe": ("p:wipe", {"dir": "r"}),
+        "cover": ("p:cover", {"dir": "r"}),
+    }
+    if transition not in effects:
+        return False
+    tag, attrs = effects[transition]
+    element = slide._element
+    for old in element.findall(qn("p:transition")):
+        element.remove(old)
+    trans = OxmlElement("p:transition")
+    trans.set("spd", "med")
+    effect = OxmlElement(tag)
+    for key, value in attrs.items():
+        effect.set(key, value)
+    trans.append(effect)
+    # schema 顺序：clrMapOvr 之后
+    clr = element.find(qn("p:clrMapOvr"))
+    if clr is not None:
+        clr.addnext(trans)
+    else:
+        element.append(trans)
+    return True
+
+def selector_matches(element, selector: str) -> bool:
+    """简化选择器匹配：tag / #id / .class / tag.class。"""
+    selector = (selector or "").strip()
+    if not selector:
+        return False
+    if selector.startswith("#"):
+        return element.element_id == selector[1:]
+    if selector.startswith("."):
+        return selector[1:] in (element.class_name or "").split()
+    if "." in selector:
+        tag, cls = selector.split(".", 1)
+        return (element.tag == tag.lower()
+                and cls in (element.class_name or "").split())
+    return element.tag == selector.lower()
+
+
+def add_shape_animations_click(slide, items) -> bool:
+    """每个动画一个独立点击步骤（实验）。"""
+    items = list(items or [])
+    if not items:
+        return False
+    from pptx.oxml.xmlchemy import OxmlElement
+    from pptx.oxml.ns import qn
+
+    element = slide._element
+    for old in element.findall(qn("p:timing")):
+        element.remove(old)
+
+    def node(tag, **attrs):
+        el = OxmlElement(tag)
+        for key, value in attrs.items():
+            el.set(key, str(value))
+        return el
+
+    timing = node("p:timing")
+    tn_lst = node("p:tnLst")
+    timing.append(tn_lst)
+    par = node("p:par")
+    tn_lst.append(par)
+    root = node("p:cTn", id=1, dur="indefinite", restart="never",
+                nodeType="tmRoot")
+    par.append(root)
+    root_child = node("p:childTnLst")
+    root.append(root_child)
+    seq = node("p:seq", concurrent="1", nextAc="seek")
+    root_child.append(seq)
+    seq_ctn = node("p:cTn", id=2, dur="indefinite", nodeType="mainSeq")
+    seq.append(seq_ctn)
+    seq_child = node("p:childTnLst")
+    seq_ctn.append(seq_child)
+
+    next_id = 3
+    for shape, kind, duration, _delay in items:
+        duration = max(100, min(5000, int(duration)))
+        click_par = node("p:par")
+        seq_child.append(click_par)
+        click_ctn = node("p:cTn", id=next_id, fill="hold")
+        next_id += 1
+        click_par.append(click_ctn)
+        cond = node("p:stCondLst")
+        cond.append(node("p:cond", delay="indefinite"))
+        click_ctn.append(cond)
+        click_child = node("p:childTnLst")
+        click_ctn.append(click_child)
+
+        effect_par = node("p:par")
+        click_child.append(effect_par)
+        effect_ctn = node("p:cTn", id=next_id, presetID=10,
+                          presetClass="entr", presetSubtype=0,
+                          fill="hold", nodeType="clickEffect")
+        next_id += 1
+        effect_par.append(effect_ctn)
+        cond2 = node("p:stCondLst")
+        cond2.append(node("p:cond", delay=0))
+        effect_ctn.append(cond2)
+        child = node("p:childTnLst")
+        effect_ctn.append(child)
+
+        if kind == "fade_out":
+            effect_ctn.set("presetClass", "exit")
+            anim = node("p:animEffect", transition="out", filter="fade")
+        elif kind == "slide_in":
+            anim = node("p:animEffect", transition="in",
+                        filter="slide(fromLeft)")
+        elif kind == "zoom_in":
+            anim = node("p:animEffect", transition="in", filter="zoom(in)")
+        elif kind == "pulse":
+            effect_ctn.set("presetClass", "emph")
+            anim = node("p:animScale")
+        else:
+            anim = node("p:animEffect", transition="in", filter="fade")
+        cbhvr = node("p:cBhvr")
+        cbhvr.append(node("p:cTn", id=next_id, dur=duration))
+        next_id += 1
+        tgt = node("p:tgtEl")
+        tgt.append(node("p:spTgt", spid=shape.shape_id))
+        cbhvr.append(tgt)
+        anim.append(cbhvr)
+        if kind == "pulse":
+            anim.append(node("p:by", x=105000, y=105000))
+        child.append(anim)
+
+    clr = element.find(qn("p:clrMapOvr"))
+    trans = element.find(qn("p:transition"))
+    if trans is not None:
+        trans.addnext(timing)
+    elif clr is not None:
+        clr.addnext(timing)
+    else:
+        element.append(timing)
+    return True
+
+
+def add_shape_animations_valid(slide, items, click_each=False) -> bool:
+    """按 PowerPoint 实际生成的时间轴结构写动画（可被 MainSequence 识别）。"""
+    items = list(items or [])
+    if not items:
+        return False
+    from pptx.oxml.xmlchemy import OxmlElement
+    from pptx.oxml.ns import qn
+
+    element = slide._element
+    for old in element.findall(qn("p:timing")):
+        element.remove(old)
+
+    ids = [1]
+
+    def nid():
+        ids[0] += 1
+        return ids[0] - 1
+
+    def node(tag, **attrs):
+        el = OxmlElement(tag)
+        for k, v in attrs.items():
+            el.set(k, str(v))
+        return el
+
+    def cond(parent, delay):
+        st = node("p:stCondLst")
+        st.append(node("p:cond", delay=delay))
+        parent.append(st)
+
+    def add_set(parent, spid, visible, duration):
+        s = node("p:set")
+        cb = node("p:cBhvr")
+        ctn = node("p:cTn", id=nid(), dur=duration, fill="hold")
+        cond(ctn, 0)
+        cb.append(ctn)
+        tgt = node("p:tgtEl")
+        tgt.append(node("p:spTgt", spid=spid))
+        cb.append(tgt)
+        names = node("p:attrNameLst")
+        names.append(node("p:attrName", text="style.visibility"))
+        cb.append(names)
+        s.append(cb)
+        to = node("p:to")
+        to.append(node("p:strVal",
+                       val="visible" if visible else "hidden"))
+        s.append(to)
+        parent.append(s)
+
+    def add_effect_body(parent, shape, kind, duration, grp, node_type='clickEffect'):
+        preset = 10 if kind in ("fade_in", "fade_out") else 6
+        cls = "exit" if kind == "fade_out" else (
+            "emph" if kind in ("pulse", "shake") else "entr"
+        )
+        par = node("p:par")
+        parent.append(par)
+        ctn = node("p:cTn", id=nid(), presetID=preset, presetClass=cls,
+                   presetSubtype=0, fill="hold", grpId=grp,
+                   nodeType=node_type)
+        par.append(ctn)
+        cond(ctn, 0)
+        body = node("p:childTnLst")
+        ctn.append(body)
+        add_set(body, shape.shape_id, kind != "fade_out", 1)
+        if kind in ("fade_in", "fade_out"):
+            anim = node("p:animEffect",
+                        transition="in" if kind == "fade_in" else "out",
+                        filter="fade")
+        elif kind == "slide_in":
+            anim = node("p:animEffect", transition="in",
+                        filter="slide(fromLeft)")
+        elif kind == "zoom_in":
+            anim = node("p:animEffect", transition="in", filter="zoom(in)")
+        elif kind == "shake":
+            anim = node("p:anim")
+        else:
+            anim = node("p:animScale")
+        cb = node("p:cBhvr")
+        cb.append(node("p:cTn", id=nid(), dur=duration))
+        tgt = node("p:tgtEl")
+        tgt.append(node("p:spTgt", spid=shape.shape_id))
+        cb.append(tgt)
+        anim.append(cb)
+        if kind == "shake":
+            names = node("p:attrNameLst")
+            names.append(node("p:attrName", text="ppt_x"))
+            cb.append(names)
+            tavs = node("p:tavLst")
+            for tm, val in ((0, "#ppt_x"), (25000, "#ppt_x-0.02"),
+                            (50000, "#ppt_x+0.02"),
+                            (75000, "#ppt_x-0.01"), (100000, "#ppt_x")):
+                tav = node("p:tav", tm=tm)
+                v = node("p:val")
+                v.append(node("p:strVal", val=val))
+                tav.append(v)
+                tavs.append(tav)
+            anim.append(tavs)
+        if kind == "pulse":
+            anim.append(node("p:by", x=105000, y=105000))
+        body.append(anim)
+
+    timing = node("p:timing")
+    tn = node("p:tnLst")
+    timing.append(tn)
+    par = node("p:par")
+    tn.append(par)
+    root = node("p:cTn", id=nid(), dur="indefinite", restart="never",
+                nodeType="tmRoot")
+    par.append(root)
+    root_child = node("p:childTnLst")
+    root.append(root_child)
+    seq = node("p:seq", concurrent="1", nextAc="seek")
+    root_child.append(seq)
+    seq_ctn = node("p:cTn", id=nid(), dur="indefinite", nodeType="mainSeq")
+    seq.append(seq_ctn)
+    seq_child = node("p:childTnLst")
+    seq_ctn.append(seq_child)
+
+    bld = node("p:bldLst")
+
+    def add_click_blocks(block_items, click_block=False):
+        click_par = node("p:par")
+        seq_child.append(click_par)
+        click_ctn = node("p:cTn", id=nid(), fill="hold")
+        click_par.append(click_ctn)
+        cond(click_ctn, "indefinite")
+        click_child = node("p:childTnLst")
+        click_ctn.append(click_child)
+        for index, (shape, kind, duration, delay) in enumerate(block_items):
+            par2 = node("p:par")
+            click_child.append(par2)
+            ctn2 = node("p:cTn", id=nid(), fill="hold")
+            par2.append(ctn2)
+            cond(ctn2, delay if index else 0)
+            child2 = node("p:childTnLst")
+            ctn2.append(child2)
+            node_type = ("clickEffect" if (click_block or index == 0)
+                         else "afterEffect")
+            add_effect_body(child2, shape, kind, duration, len(bld),
+                            node_type=node_type)
+            bld.append(node("p:bldP", spid=shape.shape_id,
+                            grpId=len(bld)))
+
+    if click_each:
+        for item in items:
+            add_click_blocks([item], True)
+    else:
+        add_click_blocks(items)
+
+    timing.append(bld)
+    clr = element.find(qn("p:clrMapOvr"))
+    trans = element.find(qn("p:transition"))
+    if trans is not None:
+        trans.addnext(timing)
+    elif clr is not None:
+        clr.addnext(timing)
+    else:
+        element.append(timing)
+    return True
+
+
+def add_shape_animations(slide, items) -> bool:
+    """给多个 shape 写入顺序动画（实验：淡入/淡出/强调脉冲）。"""
+    items = list(items or [])
+    if not items:
+        return False
+    from pptx.oxml.xmlchemy import OxmlElement
+    from pptx.oxml.ns import qn
+
+    element = slide._element
+    for old in element.findall(qn("p:timing")):
+        element.remove(old)
+
+    def node(tag, **attrs):
+        el = OxmlElement(tag)
+        for key, value in attrs.items():
+            el.set(key, str(value))
+        return el
+
+    timing = node("p:timing")
+    tn_lst = node("p:tnLst")
+    timing.append(tn_lst)
+    par = node("p:par")
+    tn_lst.append(par)
+    root = node("p:cTn", id=1, dur="indefinite", restart="never",
+                nodeType="tmRoot")
+    par.append(root)
+    root_child = node("p:childTnLst")
+    root.append(root_child)
+    seq = node("p:seq", concurrent="1", nextAc="seek")
+    root_child.append(seq)
+    seq_ctn = node("p:cTn", id=2, dur="indefinite", nodeType="mainSeq")
+    seq.append(seq_ctn)
+    seq_child = node("p:childTnLst")
+    seq_ctn.append(seq_child)
+    click_par = node("p:par")
+    seq_child.append(click_par)
+    click_ctn = node("p:cTn", id=3, fill="hold")
+    click_par.append(click_ctn)
+    click_cond = node("p:stCondLst")
+    click_cond.append(node("p:cond", delay=0))
+    click_ctn.append(click_cond)
+    click_child = node("p:childTnLst")
+    click_ctn.append(click_child)
+
+    next_id = 4
+    cursor = 0
+    for shape, kind, duration, delay in items:
+        duration = max(100, min(5000, int(duration)))
+        delay = max(0, min(10000, int(delay)))
+        effect_par = node("p:par")
+        click_child.append(effect_par)
+        if kind == "fade_in":
+            preset = (10, "entr")
+        elif kind == "fade_out":
+            preset = (10, "exit")
+        else:
+            preset = (6, "emph")
+        effect_ctn = node("p:cTn", id=next_id, presetID=preset[0],
+                          presetClass=preset[1], presetSubtype=0,
+                          fill="hold", nodeType="clickEffect")
+        next_id += 1
+        effect_par.append(effect_ctn)
+        cond = node("p:stCondLst")
+        cond.append(node("p:cond", delay=cursor + delay))
+        effect_ctn.append(cond)
+        child = node("p:childTnLst")
+        effect_ctn.append(child)
+        if kind in ("fade_in", "fade_out", "slide_in", "zoom_in"):
+            if kind == "fade_in":
+                direction, filt = "in", "fade"
+            elif kind == "fade_out":
+                direction, filt = "out", "fade"
+            elif kind == "slide_in":
+                direction, filt = "in", "slide(fromLeft)"
+            else:
+                direction, filt = "in", "zoom(in)"
+            anim = node("p:animEffect", transition=direction, filter=filt)
+            cbhvr = node("p:cBhvr")
+            cbhvr.append(node("p:cTn", id=next_id, dur=duration))
+            next_id += 1
+            tgt = node("p:tgtEl")
+            tgt.append(node("p:spTgt", spid=shape.shape_id))
+            cbhvr.append(tgt)
+            anim.append(cbhvr)
+            child.append(anim)
+        elif kind == "shake":
+            anim = node("p:anim")
+            cbhvr = node("p:cBhvr")
+            cbhvr.append(node("p:cTn", id=next_id, dur=duration))
+            next_id += 1
+            tgt = node("p:tgtEl")
+            tgt.append(node("p:spTgt", spid=shape.shape_id))
+            cbhvr.append(tgt)
+            names = node("p:attrNameLst")
+            names.append(node("p:attrName", text="ppt_x"))
+            cbhvr.append(names)
+            anim.append(cbhvr)
+            tavs = node("p:tavLst")
+            for tm, val in ((0, "#ppt_x"), (25000, "#ppt_x-0.02"),
+                            (50000, "#ppt_x+0.02"), (75000, "#ppt_x-0.01"),
+                            (100000, "#ppt_x")):
+                tav = node("p:tav", tm=tm)
+                value = node("p:val")
+                value.append(node("p:strVal", val=val))
+                tav.append(value)
+                tavs.append(tav)
+            anim.append(tavs)
+            child.append(anim)
+        else:
+            anim = node("p:animScale")
+            cbhvr = node("p:cBhvr")
+            cbhvr.append(node("p:cTn", id=next_id, dur=duration))
+            next_id += 1
+            tgt = node("p:tgtEl")
+            tgt.append(node("p:spTgt", spid=shape.shape_id))
+            cbhvr.append(tgt)
+            anim.append(cbhvr)
+            by = node("p:by", x=105000, y=105000)
+            anim.append(by)
+            child.append(anim)
+        cursor += duration
+
+    clr = element.find(qn("p:clrMapOvr"))
+    trans = element.find(qn("p:transition"))
+    if trans is not None:
+        trans.addnext(timing)
+    elif clr is not None:
+        clr.addnext(timing)
+    else:
+        element.append(timing)
+    return True
+
+
+def add_shape_fade(slide, shape, duration: int = 500, delay: int = 0) -> bool:
+    """实验性：给单个 shape 写入进入淡入的 p:timing 树。"""
+    duration = max(100, min(5000, int(duration)))
+    delay = max(0, min(10000, int(delay)))
+    from pptx.oxml.xmlchemy import OxmlElement
+    from pptx.oxml.ns import qn
+
+    element = slide._element
+    for old in element.findall(qn("p:timing")):
+        element.remove(old)
+
+    def node(tag, **attrs):
+        el = OxmlElement(tag)
+        for key, value in attrs.items():
+            el.set(key, str(value))
+        return el
+
+    timing = node("p:timing")
+    tn_lst = node("p:tnLst")
+    timing.append(tn_lst)
+    outer_par = node("p:par")
+    tn_lst.append(outer_par)
+    root = node("p:cTn", id=1, dur="indefinite", restart="never",
+                nodeType="tmRoot")
+    outer_par.append(root)
+    root_child = node("p:childTnLst")
+    root.append(root_child)
+    seq = node("p:seq", concurrent="1", nextAc="seek")
+    root_child.append(seq)
+    seq_ctn = node("p:cTn", id=2, dur="indefinite", nodeType="mainSeq")
+    seq.append(seq_ctn)
+    seq_child = node("p:childTnLst")
+    seq_ctn.append(seq_child)
+
+    click_par = node("p:par")
+    seq_child.append(click_par)
+    click_ctn = node("p:cTn", id=3, fill="hold")
+    click_par.append(click_ctn)
+    click_cond = node("p:stCondLst")
+    click_cond.append(node("p:cond", delay=delay))
+    click_ctn.append(click_cond)
+    click_child = node("p:childTnLst")
+    click_ctn.append(click_child)
+
+    effect_par = node("p:par")
+    click_child.append(effect_par)
+    effect_ctn = node("p:cTn", id=4, presetID=10, presetClass="entr",
+                      presetSubtype=0, fill="hold", nodeType="clickEffect")
+    effect_par.append(effect_ctn)
+    effect_cond = node("p:stCondLst")
+    effect_cond.append(node("p:cond", delay=0))
+    effect_ctn.append(effect_cond)
+    effect_child = node("p:childTnLst")
+    effect_ctn.append(effect_child)
+
+    anim = node("p:animEffect", transition="in", filter="fade")
+    cbhvr = node("p:cBhvr")
+    ctn = node("p:cTn", id=5, dur=duration)
+    cbhvr.append(ctn)
+    tgt = node("p:tgtEl")
+    tgt.append(node("p:spTgt", spid=shape.shape_id))
+    cbhvr.append(tgt)
+    anim.append(cbhvr)
+    effect_child.append(anim)
+
+    clr = element.find(qn("p:clrMapOvr"))
+    trans = element.find(qn("p:transition"))
+    if trans is not None:
+        trans.addnext(timing)
+    elif clr is not None:
+        clr.addnext(timing)
+    else:
+        element.append(timing)
+    return True
+
+
 @dataclass
 class MeasuredElement:
     """
@@ -104,6 +623,8 @@ class MeasuredElement:
     """
     tag: str = ""
     text: str = ""
+    element_id: str = ""
+    class_name: str = ""
     x: float = 0.0
     y: float = 0.0
     width: float = 0.0
@@ -116,6 +637,8 @@ class MeasuredElement:
     src: str = ""
     bg_color: str = ""
     z_index: int = 0
+    #: 元素字体族（可选；测量端提供时用于设置 PPTX 的字体）
+    font_family: str = ""
 
 
 @dataclass
@@ -174,6 +697,8 @@ class ElementMeasurer:
                 results.push({
                     tag: tag,
                     text: text,
+                    element_id: el.id || '',
+                    class_name: el.className || '',
                     x: rect.left - slideRect.left,
                     y: rect.top - slideRect.top,
                     width: rect.width,
@@ -191,6 +716,8 @@ class ElementMeasurer:
                 results.push({
                     tag: 'img',
                     text: el.alt || '',
+                    element_id: el.id || '',
+                    class_name: el.className || '',
                     x: rect.left - slideRect.left,
                     y: rect.top - slideRect.top,
                     width: rect.width,
@@ -257,6 +784,11 @@ class ElementMeasurer:
     def __init__(self, timeout: int = 30):
         self.timeout = timeout
         self._playwright_available = self._check_playwright()
+        # 优化规划 §2.7：整份导出复用同一个浏览器会话。
+        # 原实现每页都 `chromium.launch()` + `close()`，一页一次冷启动，
+        # 几十页的演示文稿光启动 Chromium 就要几十秒。
+        self._pw = None
+        self._browser = None
 
     def _check_playwright(self) -> bool:
         """检查 playwright 是否可用"""
@@ -265,6 +797,41 @@ class ElementMeasurer:
             return True
         except ImportError:
             return False
+
+    # ---------- 浏览器会话（优化规划 §2.7） ----------
+    def start_session(self) -> bool:
+        """
+        启动一次浏览器会话，供多页测量复用。
+
+        :return: 会话是否可用
+        """
+        if self._browser is not None:
+            return True
+        if not self._playwright_available:
+            return False
+        try:
+            from playwright.sync_api import sync_playwright
+
+            self._pw = sync_playwright().start()
+            self._browser = self._pw.chromium.launch(headless=True)
+            return True
+        except Exception as e:
+            logging.warning(f"启动浏览器会话失败，降级为纯文本测量：{e}")
+            self.close_session()
+            self._playwright_available = False
+            return False
+
+    def close_session(self) -> None:
+        """释放浏览器会话（可重复调用）。"""
+        for obj, method in ((self._browser, "close"), (self._pw, "stop")):
+            if obj is None:
+                continue
+            try:
+                getattr(obj, method)()
+            except Exception:
+                pass
+        self._browser = None
+        self._pw = None
 
     def measure(
         self, full_html: str, width: int = 1280, height: int = 960
@@ -277,39 +844,58 @@ class ElementMeasurer:
         :param height: 视口高
         :return: MeasuredSlide
         """
-        if self._playwright_available:
+        if self._playwright_available and self.start_session():
             return self._measure_playwright(full_html, width, height)
-        else:
-            return self._measure_fallback(full_html)
+        return self._measure_fallback(full_html)
 
     # ---------- 路径 1：Playwright ----------
     def _measure_playwright(
         self, full_html: str, width: int, height: int
     ) -> MeasuredSlide:
-        """用 Playwright 测量（精确）"""
+        """
+        用 Playwright 测量（精确）。
+
+        复用 `self._browser`（由 `measure()` 通过 `start_session()` 建立），
+        每页只新开一个 page 并在结束时关掉，不再重启 Chromium。
+        """
+        page = None
         try:
-            from playwright.sync_api import sync_playwright
+            page = self._browser.new_page(
+                viewport={"width": width, "height": height}
+            )
+            page.set_content(full_html)
 
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                page = browser.new_page(
-                    viewport={"width": width, "height": height}
+            # 等待图片真正加载完成（优化规划 §2.7）：
+            # 图片没加载完时测出来的尺寸/位置是错的，生成的 PPTX 里图片会错位。
+            try:
+                page.evaluate(
+                    "() => Promise.all(Array.from(document.images).map("
+                    "img => img.complete ? null : new Promise(res => {"
+                    "img.addEventListener('load', res);"
+                    "img.addEventListener('error', res);})))"
                 )
-                page.set_content(full_html)
-                page.wait_for_timeout(300)
+            except Exception:
+                pass
 
-                raw = page.evaluate(self.MEASURE_JS)
-                bg = page.evaluate(
-                    "() => getComputedStyle("
-                    "document.querySelector('.slide')"
-                    ").backgroundColor"
-                )
-                browser.close()
+            page.wait_for_timeout(300)
 
-                return self._parse_measure_result(raw, bg)
+            raw = page.evaluate(self.MEASURE_JS)
+            bg = page.evaluate(
+                "() => getComputedStyle("
+                "document.querySelector('.slide')"
+                ").backgroundColor"
+            )
+
+            return self._parse_measure_result(raw, bg)
         except Exception as e:
             logging.error(f"Playwright 测量失败：{e}")
             return MeasuredSlide(error=str(e))
+        finally:
+            if page is not None:
+                try:
+                    page.close()
+                except Exception:
+                    pass
 
     # ---------- 路径 2：纯文本降级 ----------
     def _measure_fallback(self, full_html: str) -> MeasuredSlide:
@@ -371,6 +957,8 @@ class ElementMeasurer:
             elements.append(MeasuredElement(
                 tag=item.get("tag", ""),
                 text=item.get("text", ""),
+                element_id=item.get("element_id", "") or "",
+                class_name=item.get("class_name", "") or "",
                 x=float(item.get("x", 0)),
                 y=float(item.get("y", 0)),
                 width=float(item.get("width", 0)),
@@ -426,17 +1014,23 @@ class PPTXGenerator:
         self,
         slide_width: float = DEFAULT_SLIDE_WIDTH,
         slide_height: float = DEFAULT_SLIDE_HEIGHT,
+        default_font: str = DEFAULT_CJK_FONT,
     ):
         self.slide_width = slide_width
         self.slide_height = slide_height
         # 测量时的视口宽（需与 ElementMeasurer 一致）
         self.view_width = 1280.0
         self.view_height = 960.0
+        # 优化规划 §2.7：文本框必须显式声明字体，否则 PowerPoint 会用主题
+        # 默认字体渲染（中文尤其容易变形），且字体嵌入无从对应。
+        self.default_font = default_font
 
     def generate(
         self,
         slides: List[MeasuredSlide],
         output_path: str,
+        transitions: Optional[List[str]] = None,
+        element_animations: Optional[List[dict]] = None,
     ) -> bool:
         """
         生成 PPTX 文件。
@@ -447,9 +1041,9 @@ class PPTXGenerator:
         """
         try:
             from pptx import Presentation
-            from pptx.util import Inches, Pt, Emu
-            from pptx.dml.color import RGBColor
-            from pptx.enum.text import PP_ALIGN
+            # 只导入本段真的用到的名字（Pt/Emu/RGBColor/PP_ALIGN 全文件未使用；
+            # 第十一批 F401 清理核实，将来用到会被 F821 门禁拦下）
+            from pptx.util import Inches
 
             prs = Presentation()
             prs.slide_width = Inches(self.slide_width)
@@ -458,19 +1052,53 @@ class PPTXGenerator:
             # 空白布局（不用占位符，全部手动放）
             blank_layout = prs.slide_layouts[6]
 
-            for ms in slides:
+            for index, ms in enumerate(slides):
                 slide = prs.slides.add_slide(blank_layout)
+                if transitions and index < len(transitions):
+                    add_slide_transition(slide, transitions[index])
 
                 # 背景色
                 if ms.bg_color and ms.bg_color != "#FFFFFF":
                     self._set_slide_bg(slide, ms.bg_color)
 
                 # 逐个元素
+                added_shapes = []
                 for el in ms.elements:
                     try:
+                        before = len(slide.shapes)
                         self._add_element(slide, el, prs)
+                        if len(slide.shapes) > before:
+                            added_shapes.append((el, slide.shapes[-1]))
                     except Exception as e:
-                        logging.warning(tr("auto.beeshow_pptx_engine.6935a005", "添加元素失败 {0}：{1}").format(el.tag, e))
+                        logging.warning(f"添加元素失败 {el.tag}：{e}")
+
+                # 实验性：进入淡入/退出淡出/强调脉冲（多元素按顺序）
+                if element_animations and index < len(element_animations):
+                    cfg = element_animations[index] or {}
+                    if cfg.get("pptx_element"):
+                        items = []
+                        for entry in cfg.get("entries", []):
+                            effect = entry.get("effect")
+                            if effect not in (
+                                "fade_in", "fade_out", "slide_in",
+                                "zoom_in", "pulse", "shake",
+                            ):
+                                continue
+                            for el, shape in added_shapes:
+                                if selector_matches(
+                                    el, entry.get("selector", "")
+                                ):
+                                    items.append((
+                                        shape, effect,
+                                        entry.get("duration", 500),
+                                        entry.get("delay", 0),
+                                    ))
+                                    break
+                        if items:
+                            add_shape_animations_valid(
+                                slide, items,
+                                click_each=bool(cfg.get("click_each")),
+                            )
 
             prs.save(output_path)
             logging.info(f"PPTX 已生成：{output_path}")
@@ -511,7 +1139,7 @@ class PPTXGenerator:
     # ---------- 文本框 ----------
     def _add_textbox(self, slide, el: MeasuredElement):
         """添加原生文本框（可编辑、可搜索）"""
-        from pptx.util import Emu, Pt
+        from pptx.util import Pt
         from pptx.dml.color import RGBColor
         from pptx.enum.text import PP_ALIGN
 
@@ -536,6 +1164,21 @@ class PPTXGenerator:
         run.font.size = Pt(el.font_size * 0.75)
         run.font.bold = el.bold
         run.font.italic = el.italic
+
+        # 优化规划 §2.7：**必须**显式设置字体名。
+        # 原实现只设了字号/粗斜/颜色，run 上既没有 a:latin 也没有 a:ea，
+        # 于是 PowerPoint 只能用主题默认字体：中文常被替换成别的字形，
+        # 而"字体嵌入"（FontEmbedder）也就没有对应的字体名可嵌。
+        font_name = (
+            getattr(el, "font_family", "") or self.default_font or ""
+        ).strip()
+        if font_name:
+            try:
+                run.font.name = font_name          # a:latin
+                self._set_east_asian_font(run, font_name)   # a:ea（中文用）
+            except Exception as e:
+                logging.warning(f"设置 PPTX 字体失败（{font_name}）：{e}")
+
         if el.color:
             try:
                 run.font.color.rgb = RGBColor.from_string(
@@ -552,6 +1195,25 @@ class PPTXGenerator:
             "justify": PP_ALIGN.JUSTIFY,
         }
         p.alignment = align_map.get(el.align, PP_ALIGN.LEFT)
+
+    @staticmethod
+    def _set_east_asian_font(run, font_name: str) -> None:
+        """
+        设置东亚字体（`a:ea`）。
+
+        python-pptx 的 `font.name` 只写 `a:latin`；中文/日文/韩文等东亚字符
+        实际由 `a:ea` 决定。只设 latin 的话，PowerPoint 渲染中文时仍会回退到
+        主题默认字体（优化规划 §2.7 的"run.font.name 必须设置"即指此）。
+        """
+        from pptx.oxml.ns import qn
+
+        rPr = run._r.get_or_add_rPr()
+        ea = rPr.find(qn("a:ea"))
+        if ea is None:
+            ea = rPr.makeelement(qn("a:ea"), {})
+            # a:ea 紧跟 a:latin 之后，符合 DrawingML 的元素顺序要求
+            rPr.append(ea)
+        ea.set("typeface", font_name)
 
     # ---------- 图片 ----------
     def _add_picture(self, slide, el: MeasuredElement):
@@ -585,7 +1247,7 @@ class PPTXGenerator:
         这里采用简单策略：按行拆分为单列表格。
         如需完整表格，需测量器额外提供行列数据（后续迭代）。
         """
-        from pptx.util import Emu, Pt
+        from pptx.util import Pt
 
         lines = [l for l in el.text.split("\n") if l.strip()]
         if not lines:
@@ -613,7 +1275,6 @@ class PPTXGenerator:
     # ---------- 矩形背景 ----------
     def _add_rect(self, slide, el: MeasuredElement):
         """添加矩形背景（用于容器的背景色）"""
-        from pptx.util import Emu
         from pptx.dml.color import RGBColor
         from pptx.enum.shapes import MSO_SHAPE
 
@@ -687,6 +1348,9 @@ class PPTXEngine:
         bg_color: str = "#FFFFFF",
         slide_width: Optional[float] = None,
         slide_height: Optional[float] = None,
+        base_dir: Optional[str] = None,
+        transitions: Optional[List[str]] = None,
+        element_animations: Optional[List[dict]] = None,
     ) -> bool:
         """
         执行导出。
@@ -697,6 +1361,8 @@ class PPTXEngine:
         :param bg_color: 背景色
         :param slide_width: 覆盖默认宽
         :param slide_height: 覆盖默认高
+        :param base_dir: 幻灯片里**相对路径图片**的基准目录（优化规划 §2.7）。
+            不传时用 `<base href>` 指向输出文件所在目录。
         :return: 是否成功
 
         任务 3.2：PPTX 生成后自动调用字体子集化 + 嵌入。
@@ -709,26 +1375,37 @@ class PPTXEngine:
             self.generator.slide_height = slide_height
 
         if not slides_html:
-            logging.warning(tr("auto.beeshow_pptx_engine.1192cfac", "无幻灯片可导出"))
+            logging.warning("无幻灯片可导出")
             return False
 
+        # 优化规划 §2.7：注入 <base href>，让幻灯片里的相对路径图片能被
+        # Chromium 解析到 —— 原实现直接 set_content(html) 且没有 base URL，
+        # 相对路径的 <img> 一律加载失败，导出结果里图片整张消失。
+        base_href = self._make_base_href(base_dir, output_path)
+
         measured_slides = []
-        for i, html_fragment in enumerate(slides_html):
-            full_html = self._wrap_html(html_fragment, theme_css, bg_color)
-            ms = self.measurer.measure(full_html)
-            if ms.error:
-                # 测量失败意味着这一页的版式一定是错的（文字位置、图片尺寸全部退化）。
-                # 原来的行为是"记一条 warning 然后继续生成并返回 True"，
-                # 用户拿到的是一个能打开、但排版错乱的文件——比直接失败更糟。
-                # 现在首错即中止，交由上层回退到图片版导出。
-                logging.error(
-                    f"PPTX 导出中止：第 {i+1}/{len(slides_html)} 页测量失败：{ms.error}"
+        try:
+            for i, html_fragment in enumerate(slides_html):
+                full_html = self._wrap_html(
+                    html_fragment, theme_css, bg_color, base_href
                 )
-                return False
-            measured_slides.append(ms)
+                ms = self.measurer.measure(full_html)
+                if ms.error:
+                    logging.warning(f"第 {i+1} 页测量失败：{ms.error}")
+                    return False
+                measured_slides.append(ms)
+        finally:
+            # 优化规划 §2.7：导出结束（含异常）必须释放浏览器会话，
+            # 否则会留下一个 Chromium 进程。
+            closer = getattr(self.measurer, "close_session", None)
+            if callable(closer):
+                closer()
 
         # 生成 PPTX
-        success = self.generator.generate(measured_slides, output_path)
+        success = self.generator.generate(
+            measured_slides, output_path, transitions=transitions,
+            element_animations=element_animations,
+        )
         if not success:
             return False
 
@@ -748,21 +1425,54 @@ class PPTXEngine:
                     "导出正常但目标机器可能缺字体"
                 )
         except Exception as e:
-            logging.warning(tr("auto.beeshow_pptx_engine.7fa7da0f", "字体嵌入异常（不影响导出）：{e}").format(e=e))
+            logging.warning(f"字体嵌入异常（不影响导出）：{e}")
 
         return True
 
+    @staticmethod
+    def _make_base_href(base_dir: Optional[str], output_path: str) -> str:
+        """
+        计算 `<base href>`（file:/// 形式，末尾带斜杠）。
+
+        优先用调用方给的基准目录（通常是被导出的文档所在目录），
+        否则退回输出文件所在目录 —— 两者都比"没有 base URL"好得多。
+        """
+        candidates = []
+        if base_dir:
+            candidates.append(base_dir)
+        if output_path:
+            try:
+                candidates.append(str(Path(output_path).resolve().parent))
+            except Exception:
+                pass
+
+        for candidate in candidates:
+            try:
+                return Path(candidate).resolve().as_uri().rstrip("/") + "/"
+            except Exception:
+                continue
+        return ""
+
     def _wrap_html(
-        self, fragment: str, theme_css: str, bg_color: str
+        self,
+        fragment: str,
+        theme_css: str,
+        bg_color: str,
+        base_href: str = "",
     ) -> str:
-        """拼装完整 HTML"""
-        return (
-            f'<!DOCTYPE html><html><head><meta charset="utf-8">'
-            f'<style>{theme_css} '
-            f'body{{margin:0;background:{bg_color};}}'
-            f'.slide{{width:1280px;height:960px;}}'
-            f'</style></head>'
-            f'<body><div class="slide">{fragment}</div></body></html>'
+        """
+        拼装完整 HTML（可选注入 <base href> 以解析相对路径图片）
+
+        优化规划 §3.3：骨架统一走 `beeshow_html.render_slide_html()`。
+        PPTX 与前几处不同之处是画布固定 1280×960，且没有版式 CSS。
+        """
+        base_tag = f'<base href="{base_href}">' if base_href else ""
+        return render_slide_html(
+            fragment,
+            theme_css=theme_css,
+            bg=bg_color,
+            extra_css="body{margin:0}.slide{width:1280px;height:960px;}",
+            head_extra=base_tag,
         )
 
 
