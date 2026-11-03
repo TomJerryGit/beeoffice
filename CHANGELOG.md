@@ -43,6 +43,14 @@
 - requirements.txt 移除 PyMuPDF，测试依赖移至 requirements-dev.txt；
 - 运行时阻断 fitz 导入验证通过；PDF 相关 81 passed。
 
+## [5.2.3] - 2026-11-03
+
+**PDF 后端替换里程碑**
+- 默认 PDF 后端由 PyMuPDF 切换为 pypdfium2 + pypdf + reportlab；
+- 页面结构、书签、加密、水印、签名、文本/图片提取、批注/烧录全部迁移；
+- 运行时移除 PyMuPDF（AGPL 风险），测试专用依赖移至 requirements-dev.txt；
+- 删除 `pdf_tools_fitz.py` 与 FitzBackend；运行时 `import fitz` 清零。
+
 ## [5.2.2] - 2026-11-03
 
 **PPTX 动画时间轴修复（2026-11-03）**
