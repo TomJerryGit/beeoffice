@@ -93,6 +93,9 @@ class PdfBackend(ABC):
                     width_ratio: float = 0.25,
                     opacity: float = 1.0) -> dict: ...
 
+    @abstractmethod
+    def burn_annotations(self, src, out, annotations: list[dict]) -> dict: ...
+
 
 class FitzBackend(PdfBackend):
     """阶段 1 兼容后端：文档能力委托 pdf_tools_fitz，页面/渲染由 fitz 完成。"""
@@ -220,6 +223,33 @@ class FitzBackend(PdfBackend):
             src, out, image_path, page,
             x=x, y=y, width_ratio=width_ratio, opacity=opacity,
         )
+
+
+    def burn_annotations(self, src, out, annotations: list[dict]) -> dict:
+        fitz = self._fitz()
+        doc = fitz.open(str(src))
+        try:
+            for data in annotations or []:
+                page = doc[int(data.get("page", 0))]
+                rect = fitz.Rect(data.get("rect") or [0, 0, 0, 0])
+                kind = data.get("type", "highlight")
+                if kind == "highlight":
+                    anno = page.add_highlight_annot(rect)
+                elif kind == "underline":
+                    anno = page.add_underline_annot(rect)
+                elif kind == "strikethrough":
+                    anno = page.add_strikeout_annot(rect)
+                elif kind == "text":
+                    anno = page.add_text_annot(rect.tl, data.get("text", ""))
+                else:
+                    continue
+                if kind != "text" and data.get("color"):
+                    anno.set_colors(stroke=tuple(data["color"]))
+            doc.save(str(out))
+            return {"source": str(src), "output": str(out),
+                    "annotations": len(annotations or [])}
+        finally:
+            doc.close()
 
 
 class PypdfBackend(PdfBackend):
@@ -670,6 +700,51 @@ class PypdfBackend(PdfBackend):
                 saved.append(str(target))
         return {"source": str(src), "output_dir": str(outdir),
                 "count": len(saved), "images": saved}
+
+
+    def burn_annotations(self, src, out, annotations: list[dict]) -> dict:
+        from pypdf import PdfWriter
+        reader = self._reader(src)
+        by_page = {}
+        for data in annotations or []:
+            by_page.setdefault(int(data.get("page", 0)), []).append(data)
+        writer = PdfWriter()
+        for i, page in enumerate(reader.pages):
+            items = by_page.get(i)
+            if items:
+                h = float(page.mediabox.height)
+
+                def draw(c, w, hh):
+                    for data in items:
+                        rect = data.get("rect") or [0, 0, 0, 0]
+                        x0, y0, x1, y1 = [float(v) for v in rect]
+                        color = data.get("color") or [1, 0.8, 0]
+                        c.setFillColorRGB(*[float(v) for v in color])
+                        c.setStrokeColorRGB(*[float(v) for v in color])
+                        kind = data.get("type", "highlight")
+                        if kind == "highlight":
+                            c.setFillAlpha(0.3)
+                            c.rect(x0, hh - y1, max(0, x1 - x0),
+                                   max(0, y1 - y0), fill=1, stroke=0)
+                        elif kind == "underline":
+                            c.setLineWidth(1.5)
+                            c.line(x0, hh - y1, x1, hh - y1)
+                        elif kind == "strikethrough":
+                            c.setLineWidth(1.5)
+                            c.line(x0, hh - (y0 + y1) / 2, x1,
+                                   hh - (y0 + y1) / 2)
+                        elif kind == "text":
+                            c.setFont(self._cjk_font(), 9)
+                            c.drawString(x0, hh - y0, data.get("text", ""))
+
+                page.merge_page(self._overlay_pdf(page, draw))
+            writer.add_page(page)
+        out = Path(out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with open(out, "wb") as f:
+            writer.write(f)
+        return {"source": str(src), "output": str(out),
+                "annotations": len(annotations or [])}
 
 
 _BACKENDS = {"fitz": FitzBackend, "pypdf": PypdfBackend}

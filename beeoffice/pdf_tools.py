@@ -19,6 +19,7 @@ __all__ = [
     "compress_pdf", "encrypt_pdf", "add_watermark", "extract_text",
     "extract_images", "list_bookmarks", "add_bookmark",
     "delete_bookmark", "update_bookmark", "stamp_image",
+    "burn_annotations",
 ]
 
 
@@ -116,3 +117,7 @@ def stamp_image(src, out, image_path, page: int = 1,
         src, out, image_path, page,
         x=x, y=y, width_ratio=width_ratio, opacity=opacity,
     )
+
+
+def burn_annotations(src, out, annotations) -> dict:
+    return _b().burn_annotations(src, out, annotations)

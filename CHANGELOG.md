@@ -30,6 +30,12 @@
 - pypdf 后端实现文本提取（保持页码分隔格式）与图片导出；
 - beecmd PDF 工具在 pypdf 后端下 13 passed。
 
+**PDF 批注/撤销迁移 B2f（2026-11-03）**
+- annotator 移除直接 fitz 依赖，渲染/翻页改走 `pdf_backend`；
+- 新增轻量 `AnnoRect`，旁挂批注格式保持兼容；
+- 新增 `burn_annotations`：fitz 原生批注 / pypdf reportlab 叠加层；
+- 批注回归 16 passed（fitz 与 pypdf 后端各一轮）。
+
 ## [5.2.2] - 2026-11-03
 
 **PPTX 动画时间轴修复（2026-11-03）**

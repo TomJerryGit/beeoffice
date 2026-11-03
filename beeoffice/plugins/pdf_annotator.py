@@ -22,20 +22,50 @@ v5.0.5 数据保全修复（优化规划 §1.8）：
      用户在 UI 里选的颜色只存在于屏幕叠加层。现在调用 set_colors()。
 """
 import logging
-
-import fitz
+import tempfile
 import json
 from pathlib import Path
 from datetime import datetime
+
+from beeoffice.pdf_backend import get_backend
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
                                 QListWidget, QListWidgetItem, QTextEdit, QFileDialog,
                                 QMessageBox, QSplitter, QDialog, QDialogButtonBox,
                                 QGraphicsView, QGraphicsScene, QColorDialog)
 from PySide6.QtCore import Qt, QRectF, Signal, QPointF
-from PySide6.QtGui import (QPixmap, QImage, QPainter, QColor, QPen, QFont)
+from PySide6.QtGui import (QPixmap, QPainter, QColor, QPen, QFont)
 
 from beeoffice.utils import atomic_write_json
+
+
+class AnnoRect:
+    """轻量矩形（替代 fitz.Rect），坐标为 PDF 点、左上原点。"""
+
+    def __init__(self, *args):
+        if len(args) == 1 and not isinstance(args[0], (int, float)):
+            args = tuple(args[0])
+        self.x0, self.y0, self.x1, self.y1 = [float(v) for v in args]
+        if self.x1 < self.x0:
+            self.x0, self.x1 = self.x1, self.x0
+        if self.y1 < self.y0:
+            self.y0, self.y1 = self.y1, self.y0
+
+    @property
+    def width(self):
+        return self.x1 - self.x0
+
+    @property
+    def height(self):
+        return self.y1 - self.y0
+
+    @property
+    def is_empty(self):
+        return self.width <= 0 or self.height <= 0
+
+    def __mul__(self, scale):
+        return AnnoRect(self.x0 * scale, self.y0 * scale,
+                        self.x1 * scale, self.y1 * scale)
 
 
 class Annotation:
@@ -43,6 +73,9 @@ class Annotation:
     FORMAT_VERSION = 1
 
     def __init__(self, page, rect, anno_type="highlight", text="", color=(1,1,0)):
+        if not isinstance(rect, AnnoRect):
+            rect = AnnoRect(rect.x0, rect.y0, rect.x1, rect.y1) \
+                if hasattr(rect, "x0") else AnnoRect(rect)
         self.page=page; self.rect=rect; self.type=anno_type; self.text=text; self.color=color
         self.created=datetime.now().isoformat()
     def to_dict(self): return {"page":self.page,"rect":[self.rect.x0,self.rect.y0,self.rect.x1,self.rect.y1],"type":self.type,"text":self.text,"color":list(self.color),"created":self.created}
@@ -63,9 +96,9 @@ class Annotation:
 
         rect = data.get("rect") or [0, 0, 0, 0]
         try:
-            rect_obj = fitz.Rect(rect)
+            rect_obj = AnnoRect(rect)
         except Exception:
-            rect_obj = fitz.Rect(0, 0, 0, 0)
+            rect_obj = AnnoRect(0, 0, 0, 0)
 
         color = data.get("color") or (1, 1, 0)
         try:
@@ -95,13 +128,24 @@ class PDFPageView(QGraphicsView):
         self._page=None; self._annotations=[]; self._current_tool="highlight"; self._current_color=(1,0.8,0)
         self._rubberband_start=None; self._scale=1.0
         self.setRenderHint(QPainter.SmoothPixmapTransform)
-    def set_page(self, page, annotations):
-        self._page=page; self._annotations=[a for a in annotations if a.page==page.number]; self._render_page()
+    def set_page(self, page, annotations, src=None, backend=None):
+        self._page=page; self._src=src; self._backend=backend
+        self._annotations=[a for a in annotations if a.page==page]; self._render_page()
     def _render_page(self):
-        if not self._page: return
-        mat=fitz.Matrix(self._scale, self._scale); pix=self._page.get_pixmap(matrix=mat)
-        img=QImage(pix.samples, pix.width, pix.height, pix.stride, QImage.Format_RGB888)
-        pixmap=QPixmap.fromImage(img); self._scene.clear(); self._scene.addPixmap(pixmap)
+        if self._page is None or not self._src or self._backend is None:
+            return
+        tmp = None
+        try:
+            tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+            tmp.close()
+            self._backend.render_page_png(
+                self._src, self._page + 1, tmp.name, scale=self._scale
+            )
+            pixmap = QPixmap(tmp.name)
+            self._scene.clear(); self._scene.addPixmap(pixmap)
+        finally:
+            if tmp:
+                Path(tmp.name).unlink(missing_ok=True)
         for a in self._annotations:
             r=a.rect*self._scale; c=QColor(int(a.color[0]*255),int(a.color[1]*255),int(a.color[2]*255),80)
             if a.type=="highlight": self._scene.addRect(r.x0,r.y0,r.width,r.height,QPen(Qt.NoPen),c)
@@ -127,8 +171,8 @@ class PDFPageView(QGraphicsView):
             ep=self.mapToScene(event.position().toPoint())
             sp=QPointF(self._rubberband_start.x()/self._scale, self._rubberband_start.y()/self._scale)
             ep2=QPointF(ep.x()/self._scale, ep.y()/self._scale)
-            rect=fitz.Rect(sp.x(),sp.y(),ep2.x(),ep2.y())
-            if not rect.is_empty and self._page:
+            rect=AnnoRect(sp.x(),sp.y(),ep2.x(),ep2.y())
+            if not rect.is_empty and self._page is not None:
                 self.annotation_added.emit(Annotation(self._page.number,rect,self._current_tool,color=self._current_color))
             self._rubberband_start=None; self._render_page()
         else: super().mouseReleaseEvent(event)
@@ -141,6 +185,7 @@ class PDFAnnotator(QWidget):
         super().__init__(parent)
         self.setWindowTitle("🐝 PDF 批注"); self.resize(1100,750)
         self._doc=None; self._filepath=None; self._annotations=[]; self._current_page=0
+        self._page_count=0; self._backend=get_backend()
         self._current_color=(1,0.8,0)
         # 优化规划 §1.8：用于 closeEvent 判断是否存在未落盘的批注
         self._dirty_annotations=False
@@ -170,7 +215,8 @@ class PDFAnnotator(QWidget):
         """
         # 第一步：打开 PDF —— 这一步失败才是真正的"打不开"
         try:
-            self._doc = fitz.open(filepath)
+            self._page_count = self._backend.page_count(filepath)
+            self._doc = filepath
         except Exception as e:
             logging.error(f"打开 PDF 失败: {e}")
             QMessageBox.warning(self, "打开失败", f"无法打开 PDF：{e}")
@@ -227,8 +273,13 @@ class PDFAnnotator(QWidget):
     # ==================== 视图 ====================
     def _update_view(self):
         if not self._doc: return
-        self._page_view.set_page(self._doc[self._current_page], self._annotations)
-        self._page_label.setText(f"第 {self._current_page+1}/{len(self._doc)} 页")
+        self._page_view.set_page(
+            self._current_page, self._annotations,
+            src=self._filepath, backend=self._backend,
+        )
+        self._page_label.setText(
+            f"第 {self._current_page+1}/{self._page_count} 页"
+        )
         self._anno_list.clear()
         for i,a in enumerate([a for a in self._annotations if a.page==self._current_page]):
             self._anno_list.addItem(QListWidgetItem(f"{i+1}. [{a.type}] {a.text[:20]}"))
@@ -239,7 +290,8 @@ class PDFAnnotator(QWidget):
     def _prev_page(self):
         if self._current_page>0: self._current_page-=1; self._update_view()
     def _next_page(self):
-        if self._doc and self._current_page<len(self._doc)-1: self._current_page+=1; self._update_view()
+        if self._doc and self._current_page < self._page_count - 1:
+            self._current_page += 1; self._update_view()
     def _on_annotation_added(self, anno):
         if anno.type=="text":
             dlg=QDialog(self); dlg.setWindowTitle("添加文字批注"); ed=QTextEdit()
@@ -309,22 +361,11 @@ class PDFAnnotator(QWidget):
         p,_=QFileDialog.getSaveFileName(self,"保存已批注 PDF","","PDF (*.pdf)")
         if not p: return
         try:
-            nd=fitz.open(self._filepath)
-            for a in self._annotations:
-                pg=nd[a.page]
-                anno=None
-                if a.type=="highlight": anno=pg.add_highlight_annot(a.rect)
-                elif a.type=="underline": anno=pg.add_underline_annot(a.rect)
-                elif a.type=="strikethrough": anno=pg.add_strikeout_annot(a.rect)
-                elif a.type=="text": anno=pg.add_text_annot(a.rect.tl, a.text)
-                # 优化规划 §1.8：原实现不传颜色，烧出来永远是库默认色
-                # （高亮黄／下划线红）——用户在 UI 里选的颜色只存在于屏幕叠加层。
-                if anno is not None and a.type != "text":
-                    try:
-                        anno.set_colors(stroke=tuple(a.color))
-                    except Exception as e:
-                        logging.warning(f"设置批注颜色失败: {e}")
-            nd.save(p); nd.close(); QMessageBox.information(self,"烧录成功",f"已保存至：\n{p}")
+            from beeoffice.pdf_tools import burn_annotations
+            burn_annotations(
+                self._filepath, p, [a.to_dict() for a in self._annotations]
+            )
+            QMessageBox.information(self,"烧录成功",f"已保存至：\n{p}")
         except Exception as e:
             logging.error(f"烧录批注失败: {e}")
             QMessageBox.warning(self,"烧录失败",str(e))

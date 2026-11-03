@@ -87,3 +87,18 @@ def test_pypdf_extract_text_and_images(tmp_path):
     info = backend.extract_images(with_img, outdir)
     assert info["count"] >= 1
     assert all(Path(p).is_file() for p in info["images"])
+
+
+def test_pypdf_burn_annotations(tmp_path):
+    src = tmp_path / "src.pdf"
+    _make_pdf(src, 2)
+    out = tmp_path / "burned.pdf"
+    backend = PypdfBackend()
+    info = backend.burn_annotations(src, out, [
+        {"page": 0, "rect": [10, 10, 80, 30], "type": "highlight",
+         "color": [1, 0, 0], "text": ""},
+        {"page": 1, "rect": [10, 40, 160, 55], "type": "text",
+         "color": [0, 0, 1], "text": "批注"},
+    ])
+    assert info["annotations"] == 2
+    assert len(PdfReader(str(out)).pages) == 2
