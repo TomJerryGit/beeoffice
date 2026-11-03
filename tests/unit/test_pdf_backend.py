@@ -54,7 +54,7 @@ def test_fitz_backend_delegates_merge(tmp_path):
 def test_pypdf_backend_skeleton_raises(tmp_path):
     backend = PypdfBackend()
     with pytest.raises(NotImplementedError):
-        backend.encrypt_pdf(tmp_path / "x.pdf", tmp_path / "out.pdf", "pw")
+        backend.extract_text(tmp_path / "x.pdf", tmp_path / "out.txt")
 
 
 def test_all_backends_implement_interface():

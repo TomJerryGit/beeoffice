@@ -420,41 +420,226 @@ class PypdfBackend(PdfBackend):
             "见 docs/PDF后端迁移映射-2026-11-03.md"
         )
 
+    def _rebuild_with_outline(self, reader, entries, out):
+        from pypdf import PdfWriter
+        writer = PdfWriter()
+        for page in reader.pages:
+            writer.add_page(page)
+        try:
+            if reader.metadata:
+                writer.add_metadata(reader.metadata)
+        except Exception:  # noqa: BLE001
+            pass
+        parents = {0: None}
+        for level, title, page in entries:
+            parent = parents.get(level - 1)
+            node = writer.add_outline_item(title, max(0, page - 1),
+                                           parent=parent)
+            parents[level] = node
+            for key in [k for k in parents if k > level]:
+                parents.pop(key, None)
+        out = Path(out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with open(out, "wb") as f:
+            writer.write(f)
+        return len(entries)
+
+    def _flatten_outline(self, reader):
+        result = []
+
+        def walk(items, level):
+            for item in items:
+                if isinstance(item, list):
+                    walk(item, level + 1)
+                else:
+                    try:
+                        page = reader.get_destination_page_number(item) + 1
+                    except Exception:  # noqa: BLE001
+                        page = 1
+                    result.append([level, str(item.title), int(page)])
+
+        walk(reader.outline or [], 1)
+        return result
+
     def encrypt_pdf(self, src, out, user_password: str,
                     owner_password: str | None = None,
                     allow_print: bool = True,
                     allow_copy: bool = True) -> dict:
-        self._todo("encrypt_pdf")
+        from pypdf import PdfWriter
+        from pypdf.constants import UserAccessPermissions as U
+        if not user_password:
+            raise PdfToolError("必须提供打开密码")
+        reader = self._reader(src)
+        writer = PdfWriter()
+        for page in reader.pages:
+            writer.add_page(page)
+        perms = U.PRINT_TO_REPRESENTATION
+        if allow_print:
+            perms |= U.PRINT
+        if allow_copy:
+            perms |= U.EXTRACT | U.EXTRACT_TEXT_AND_GRAPHICS
+        try:
+            writer.encrypt(user_password=user_password,
+                           owner_password=owner_password or user_password,
+                           permissions_flag=perms)
+        except TypeError:
+            writer.encrypt(user_password, owner_password or user_password,
+                           permissions_flag=perms)
+        out = Path(out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with open(out, "wb") as f:
+            writer.write(f)
+        return self._result([Path(src)], out, encrypted=True,
+                            allow_print=allow_print,
+                            allow_copy=allow_copy)
+
+    def _overlay_pdf(self, page, draw):
+        import io
+        from reportlab.pdfgen import canvas
+        box = page.mediabox
+        w, h = float(box.width), float(box.height)
+        buf = io.BytesIO()
+        c = canvas.Canvas(buf, pagesize=(w, h))
+        draw(c, w, h)
+        c.save()
+        buf.seek(0)
+        from pypdf import PdfReader
+        return PdfReader(buf).pages[0]
+
+    @staticmethod
+    def _cjk_font() -> str:
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        from pathlib import Path
+        for path in (r"C:\Windows\Fonts\msyh.ttc",
+                     r"C:\Windows\Fonts\simsun.ttc",
+                     r"C:\Windows\Fonts\simhei.ttf"):
+            if Path(path).is_file():
+                try:
+                    pdfmetrics.registerFont(TTFont("BeeCJK", path))
+                    return "BeeCJK"
+                except Exception:  # noqa: BLE001
+                    continue
+        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+        pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+        return "STSong-Light"
 
     def add_watermark(self, src, out, text: str, opacity: float = 0.15,
                       fontsize: float = 48.0, pages=None) -> dict:
-        self._todo("add_watermark")
+        from pypdf import PdfWriter
+        if not (text or "").strip():
+            raise PdfToolError("水印文字不能为空")
+        opacity = max(0.0, min(1.0, float(opacity)))
+        reader = self._reader(src)
+        indexes = set(parse_page_spec(pages, len(reader.pages)))
+        font = self._cjk_font()
+        writer = PdfWriter()
+        for i, page in enumerate(reader.pages):
+            if i in indexes:
+                def draw(c, w, h):
+                    c.saveState()
+                    c.setFillAlpha(opacity)
+                    c.setFillColorRGB(0.45, 0.45, 0.45)
+                    c.setFont(font, float(fontsize))
+                    c.translate(w / 2, h / 2)
+                    c.rotate(45)
+                    c.drawCentredString(0, 0, text)
+                    c.restoreState()
+
+                page.merge_page(self._overlay_pdf(page, draw))
+            writer.add_page(page)
+        out = Path(out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with open(out, "wb") as f:
+            writer.write(f)
+        return self._result([Path(src)], out,
+                            watermarked_pages=len(indexes),
+                            opacity=opacity)
+
+    def list_bookmarks(self, src) -> list[dict]:
+        reader = self._reader(src)
+        return [{"level": level, "title": title, "page": page}
+                for level, title, page in self._flatten_outline(reader)]
+
+    def add_bookmark(self, src, out, title: str, page: int = 1) -> dict:
+        reader = self._reader(src)
+        total = len(reader.pages)
+        if not 1 <= int(page) <= total:
+            raise PdfToolError(f"页码越界: {page}（共 {total} 页）")
+        entries = self._flatten_outline(reader)
+        entries.append([1, str(title).strip() or "书签", int(page)])
+        self._rebuild_with_outline(reader, entries, out)
+        return {"source": str(src), "output": str(out),
+                "title": title, "page": int(page)}
+
+    def delete_bookmark(self, src, out, index: int) -> dict:
+        reader = self._reader(src)
+        entries = self._flatten_outline(reader)
+        if not 0 <= int(index) < len(entries):
+            raise PdfToolError(f"书签序号越界: {index}（共 {len(entries)} 条）")
+        removed = entries.pop(int(index))
+        self._rebuild_with_outline(reader, entries, out)
+        return {"source": str(src), "output": str(out),
+                "removed": {"title": removed[1], "page": removed[2]}}
+
+    def update_bookmark(self, src, out, index: int,
+                        title: str | None = None,
+                        page: int | None = None) -> dict:
+        reader = self._reader(src)
+        entries = self._flatten_outline(reader)
+        if not 0 <= int(index) < len(entries):
+            raise PdfToolError(f"书签序号越界: {index}（共 {len(entries)} 条）")
+        entry = entries[int(index)]
+        if title is not None:
+            entry[1] = str(title).strip() or entry[1]
+        if page is not None:
+            if not 1 <= int(page) <= len(reader.pages):
+                raise PdfToolError(f"页码越界: {page}（共 {len(reader.pages)} 页）")
+            entry[2] = int(page)
+        self._rebuild_with_outline(reader, entries, out)
+        return {"source": str(src), "output": str(out),
+                "title": entry[1], "page": entry[2]}
+
+    def stamp_image(self, src, out, image_path, page: int = 1,
+                    x: float = 0.6, y: float = 0.65,
+                    width_ratio: float = 0.25,
+                    opacity: float = 1.0) -> dict:
+        from pypdf import PdfWriter
+        img_path = Path(image_path)
+        if not img_path.is_file():
+            raise PdfToolError(f"签名图片不存在: {img_path}")
+        reader = self._reader(src)
+        if not 1 <= int(page) <= len(reader.pages):
+            raise PdfToolError(f"页码越界: {page}（共 {len(reader.pages)} 页）")
+        target = reader.pages[int(page) - 1]
+
+        def draw(c, w, h):
+            from PIL import Image
+            with Image.open(img_path) as im:
+                aspect = im.height / max(1, im.width)
+            iw = max(0.02, min(1.0, float(width_ratio))) * w
+            ih = iw * aspect
+            left = max(0.0, min(1.0, float(x))) * w
+            top = max(0.0, min(1.0, float(y))) * h
+            c.drawImage(str(img_path), left, h - top - ih,
+                        width=iw, height=ih, mask="auto")
+
+        target.merge_page(self._overlay_pdf(target, draw))
+        writer = PdfWriter()
+        for p in reader.pages:
+            writer.add_page(p)
+        out = Path(out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with open(out, "wb") as f:
+            writer.write(f)
+        return {"source": str(src), "output": str(out),
+                "image": str(img_path), "page": int(page)}
 
     def extract_text(self, src, out, pages=None) -> dict:
         self._todo("extract_text")
 
     def extract_images(self, src, outdir, pages=None) -> dict:
         self._todo("extract_images")
-
-    def list_bookmarks(self, src) -> list[dict]:
-        self._todo("list_bookmarks")
-
-    def add_bookmark(self, src, out, title: str, page: int = 1) -> dict:
-        self._todo("add_bookmark")
-
-    def delete_bookmark(self, src, out, index: int) -> dict:
-        self._todo("delete_bookmark")
-
-    def update_bookmark(self, src, out, index: int,
-                        title: str | None = None,
-                        page: int | None = None) -> dict:
-        self._todo("update_bookmark")
-
-    def stamp_image(self, src, out, image_path, page: int = 1,
-                    x: float = 0.6, y: float = 0.65,
-                    width_ratio: float = 0.25,
-                    opacity: float = 1.0) -> dict:
-        self._todo("stamp_image")
 
 
 _BACKENDS = {"fitz": FitzBackend, "pypdf": PypdfBackend}
