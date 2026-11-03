@@ -1,13 +1,9 @@
 # beeoffice/pdf_backend.py
-"""PDF 后端适配层：把 PyMuPDF(fitz) 隔离在单一入口后面。
+"""PDF 后端适配层：上层只依赖 PdfBackend，不直接 import fitz。
 
-目标（S0/S1）：
-  - 上层只依赖 `PdfBackend`，不再直接 `import fitz`；
-  - 阶段 1：`FitzBackend` 保持现有行为；
-  - 阶段 2：`PypdfBackend` 用 pypdfium2 + pypdf + reportlab 替换；
-  - 最终删除 fitz 依赖。
-
-迁移映射见 docs/PDF后端迁移映射-2026-11-03.md。
+- 阶段 1：FitzBackend（兼容现有行为）；
+- 阶段 2：PypdfBackend（pypdfium2 + pypdf + reportlab）；
+- 迁移映射见 docs/PDF后端迁移映射-2026-11-03.md。
 """
 from __future__ import annotations
 
@@ -15,24 +11,24 @@ import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+from beeoffice.pdf_common import PdfToolError, parse_page_spec
+
 
 class PdfBackendError(RuntimeError):
     pass
 
 
 class PdfBackend(ABC):
-    """PDF 能力抽象；方法签名与 pdf_tools 保持一致，便于逐步迁移。"""
+    """PDF 能力抽象；签名与 pdf_tools 对齐。"""
 
     name = "base"
 
-    # ---------- 查询/渲染 ----------
     @abstractmethod
     def page_count(self, src) -> int: ...
 
     @abstractmethod
     def render_page_png(self, src, page: int, out, scale: float = 2.0) -> dict: ...
 
-    # ---------- 页面结构 ----------
     @abstractmethod
     def merge_pdfs(self, srcs, out) -> dict: ...
 
@@ -44,6 +40,9 @@ class PdfBackend(ABC):
 
     @abstractmethod
     def delete_pages(self, src, out, pages) -> dict: ...
+
+    @abstractmethod
+    def rotate_pages(self, src, out, pages=None, angle: int = 90) -> dict: ...
 
     @abstractmethod
     def crop_pages(self, src, out, top_mm=0, bottom_mm=0,
@@ -58,14 +57,15 @@ class PdfBackend(ABC):
     @abstractmethod
     def compress_pdf(self, src, out) -> dict: ...
 
-    # ---------- 文档能力 ----------
     @abstractmethod
     def encrypt_pdf(self, src, out, user_password: str,
-                    allow_print: bool = True, allow_copy: bool = True) -> dict: ...
+                    owner_password: str | None = None,
+                    allow_print: bool = True,
+                    allow_copy: bool = True) -> dict: ...
 
     @abstractmethod
-    def add_watermark(self, src, out, text: str,
-                      opacity: float = 0.15, pages=None) -> dict: ...
+    def add_watermark(self, src, out, text: str, opacity: float = 0.15,
+                      fontsize: float = 48.0, pages=None) -> dict: ...
 
     @abstractmethod
     def extract_text(self, src, out, pages=None) -> dict: ...
@@ -95,13 +95,13 @@ class PdfBackend(ABC):
 
 
 class FitzBackend(PdfBackend):
-    """阶段 1 兼容后端：委托现有 pdf_tools（内部仍是 PyMuPDF）。"""
+    """阶段 1 兼容后端：文档能力委托 pdf_tools_fitz，页面/渲染由 fitz 完成。"""
 
     name = "fitz"
 
     def _tools(self):
-        from beeoffice import pdf_tools
-        return pdf_tools
+        from beeoffice import pdf_tools_fitz
+        return pdf_tools_fitz
 
     def _fitz(self):
         import fitz
@@ -120,16 +120,18 @@ class FitzBackend(PdfBackend):
         doc = fitz.open(str(src))
         try:
             index = max(0, min(int(page) - 1, len(doc) - 1))
-            mat = fitz.Matrix(scale, scale)
-            pix = doc.load_page(index).get_pixmap(matrix=mat)
+            pix = doc.load_page(index).get_pixmap(
+                matrix=fitz.Matrix(scale, scale)
+            )
             out = Path(out)
             out.parent.mkdir(parents=True, exist_ok=True)
             pix.save(str(out))
-            return {"out": str(out), "page": index + 1, "width": pix.width,
-                    "height": pix.height}
+            return {"out": str(out), "page": index + 1,
+                    "width": pix.width, "height": pix.height}
         finally:
             doc.close()
 
+    # 页面结构交给兼容实现，保证阶段 1 行为不变
     def merge_pdfs(self, srcs, out) -> dict:
         return self._tools().merge_pdfs(srcs, out)
 
@@ -141,6 +143,21 @@ class FitzBackend(PdfBackend):
 
     def delete_pages(self, src, out, pages) -> dict:
         return self._tools().delete_pages(src, out, pages)
+
+    def rotate_pages(self, src, out, pages=None, angle: int = 90) -> dict:
+        fitz = self._fitz()
+        doc = fitz.open(str(src))
+        try:
+            indexes = parse_page_spec(pages, len(doc))
+            for i in indexes:
+                doc[i].set_rotation((doc[i].rotation + int(angle)) % 360)
+            out = Path(out)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            doc.save(str(out), garbage=3, deflate=True)
+            return {"source": str(src), "output": str(out),
+                    "pages": len(indexes), "angle": int(angle)}
+        finally:
+            doc.close()
 
     def crop_pages(self, src, out, top_mm=0, bottom_mm=0,
                    left_mm=0, right_mm=0) -> dict:
@@ -159,16 +176,18 @@ class FitzBackend(PdfBackend):
         return self._tools().compress_pdf(src, out)
 
     def encrypt_pdf(self, src, out, user_password: str,
-                    allow_print: bool = True, allow_copy: bool = True) -> dict:
+                    owner_password: str | None = None,
+                    allow_print: bool = True,
+                    allow_copy: bool = True) -> dict:
         return self._tools().encrypt_pdf(
-            src, out, user_password,
+            src, out, user_password, owner_password=owner_password,
             allow_print=allow_print, allow_copy=allow_copy,
         )
 
-    def add_watermark(self, src, out, text: str,
-                      opacity: float = 0.15, pages=None) -> dict:
+    def add_watermark(self, src, out, text: str, opacity: float = 0.15,
+                      fontsize: float = 48.0, pages=None) -> dict:
         return self._tools().add_watermark(
-            src, out, text, opacity=opacity, pages=pages
+            src, out, text, opacity=opacity, fontsize=fontsize, pages=pages
         )
 
     def extract_text(self, src, out, pages=None) -> dict:
@@ -204,31 +223,20 @@ class FitzBackend(PdfBackend):
 
 
 class PypdfBackend(PdfBackend):
-    """阶段 2 目标后端（骨架）。
-
-    依赖：pypdfium2（渲染/文本）、pypdf（结构/加密/书签）、reportlab（水印/签名）。
-    迁移期间按 docs/PDF后端迁移映射-2026-11-03.md 逐项替换。
-    """
+    """阶段 2 后端：pypdfium2 + pypdf + reportlab。"""
 
     name = "pypdf"
 
-    def _todo(self, method: str):
-        raise NotImplementedError(
-            f"PypdfBackend.{method} 尚未迁移；"
-            "见 docs/PDF后端迁移映射-2026-11-03.md"
-        )
-
+    # ---------- 基础 ----------
     def page_count(self, src) -> int:
-        from pypdf import PdfReader
-        return len(PdfReader(str(src)).pages)
+        return len(self._reader(src).pages)
 
     def render_page_png(self, src, page: int, out, scale: float = 2.0) -> dict:
         import pypdfium2 as pdfium
         pdf = pdfium.PdfDocument(str(src))
         try:
             index = max(0, min(int(page) - 1, len(pdf) - 1))
-            bitmap = pdf[index].render(scale=scale)
-            image = bitmap.to_pil()
+            image = pdf[index].render(scale=scale).to_pil()
             out = Path(out)
             out.parent.mkdir(parents=True, exist_ok=True)
             image.save(str(out))
@@ -237,45 +245,189 @@ class PypdfBackend(PdfBackend):
         finally:
             pdf.close()
 
-    def merge_pdfs(self, srcs, out) -> dict:
+    def _reader(self, src):
+        from pypdf import PdfReader
+        src = Path(src)
+        if not src.is_file():
+            raise PdfToolError(f"PDF 文件不存在：{src}")
+        try:
+            reader = PdfReader(str(src))
+        except Exception as e:  # noqa: BLE001
+            raise PdfToolError(f"无法打开 PDF：{src}（{e}）") from e
+        if reader.is_encrypted:
+            raise PdfToolError("PDF 已加密，需要先解密后再处理")
+        if len(reader.pages) <= 0:
+            raise PdfToolError(f"PDF 没有页面：{src}")
+        return reader
+
+    def _write_pages(self, pages, out):
         from pypdf import PdfWriter
         writer = PdfWriter()
-        for src in srcs:
-            writer.append(str(src))
+        for page in pages:
+            writer.add_page(page)
         out = Path(out)
         out.parent.mkdir(parents=True, exist_ok=True)
         with open(out, "wb") as f:
             writer.write(f)
-        return {"out": str(out), "pages": len(writer.pages)}
+        return len(pages)
+
+    def _result(self, srcs, out, **extra):
+        data = {"sources": [str(p) for p in srcs], "output": str(out)}
+        data.update(extra)
+        return data
+
+    # ---------- 页面结构 ----------
+    def merge_pdfs(self, srcs, out) -> dict:
+        from pypdf import PdfWriter
+        paths = [Path(s) for s in srcs]
+        if not paths:
+            raise PdfToolError("至少需要 1 个 PDF")
+        writer = PdfWriter()
+        counts = []
+        for path in paths:
+            reader = self._reader(path)
+            counts.append(len(reader.pages))
+            for page in reader.pages:
+                writer.add_page(page)
+        out = Path(out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with open(out, "wb") as f:
+            writer.write(f)
+        return self._result(paths, out, pages=sum(counts),
+                            page_counts=counts)
 
     def split_pdf(self, src, outdir, ranges=None) -> dict:
-        self._todo("split_pdf")
+        reader = self._reader(src)
+        total = len(reader.pages)
+        outdir = Path(outdir)
+        outdir.mkdir(parents=True, exist_ok=True)
+        outputs = []
+        stem = Path(src).stem
+        specs = ([s for s in ranges.split(";") if s.strip()]
+                 if ranges else None)
+        groups = ([parse_page_spec(s, total) for s in specs]
+                  if specs else [[i] for i in range(total)])
+        for indexes in groups:
+            name = (f"{stem}_p{indexes[0] + 1}-{indexes[-1] + 1}.pdf"
+                    if len(indexes) > 1 else f"{stem}_p{indexes[0] + 1}.pdf")
+            target = outdir / name
+            self._write_pages([reader.pages[i] for i in indexes], target)
+            outputs.append(str(target))
+        return {"source": str(src), "output_dir": str(outdir),
+                "pages": total, "outputs": outputs}
 
     def extract_pages(self, src, out, pages=None) -> dict:
-        self._todo("extract_pages")
+        reader = self._reader(src)
+        indexes = parse_page_spec(pages, len(reader.pages))
+        self._write_pages([reader.pages[i] for i in indexes], out)
+        return self._result([Path(src)], out, pages=len(indexes),
+                            page_indexes=[i + 1 for i in indexes],
+                            label="extract")
 
     def delete_pages(self, src, out, pages) -> dict:
-        self._todo("delete_pages")
+        reader = self._reader(src)
+        remove = set(parse_page_spec(pages, len(reader.pages)))
+        keep = [i for i in range(len(reader.pages)) if i not in remove]
+        if not keep:
+            raise PdfToolError("不能删除全部页面（结果会为空）")
+        self._write_pages([reader.pages[i] for i in keep], out)
+        return self._result([Path(src)], out, pages=len(keep),
+                            page_indexes=[i + 1 for i in keep],
+                            label="delete")
+
+    def rotate_pages(self, src, out, pages=None, angle: int = 90) -> dict:
+        reader = self._reader(src)
+        indexes = set(parse_page_spec(pages, len(reader.pages)))
+        out_pages = []
+        for i, page in enumerate(reader.pages):
+            if i in indexes:
+                page.rotate(int(angle))
+            out_pages.append(page)
+        self._write_pages(out_pages, out)
+        return self._result([Path(src)], out, pages=len(indexes),
+                            angle=int(angle))
 
     def crop_pages(self, src, out, top_mm=0, bottom_mm=0,
                    left_mm=0, right_mm=0) -> dict:
-        self._todo("crop_pages")
+        from pypdf.generic import RectangleObject
+        reader = self._reader(src)
+        if min(top_mm, bottom_mm, left_mm, right_mm) < 0:
+            raise PdfToolError("边距不能为负")
+        mm = 72.0 / 25.4
+        pages = []
+        for page in reader.pages:
+            box = page.mediabox
+            left = float(box.left) + left_mm * mm
+            bottom = float(box.bottom) + bottom_mm * mm
+            right = float(box.right) - right_mm * mm
+            top = float(box.top) - top_mm * mm
+            if right - left < 10 or top - bottom < 10:
+                raise PdfToolError("裁剪边距过大，页面剩余区域过小")
+            page.cropbox = RectangleObject([left, bottom, right, top])
+            pages.append(page)
+        self._write_pages(pages, out)
+        return self._result([Path(src)], out, pages=len(pages),
+                            operation="crop")
 
     def insert_pages(self, src, insert_src, out, at: int = 1) -> dict:
-        self._todo("insert_pages")
+        reader = self._reader(src)
+        other = self._reader(insert_src)
+        at = max(1, min(int(at), len(reader.pages) + 1))
+        order = (list(reader.pages[:at - 1]) + list(other.pages)
+                 + list(reader.pages[at - 1:]))
+        self._write_pages(order, out)
+        return self._result([Path(src), Path(insert_src)], out,
+                            pages=len(order), operation="insert", at=at)
 
-    def replace_pages(self, src, replace_src, out, pages) -> dict:
-        self._todo("replace_pages")
+    def replace_pages(self, src, replace_src, out, pages: str) -> dict:
+        reader = self._reader(src)
+        targets = parse_page_spec(pages, len(reader.pages))
+        other = self._reader(replace_src)
+        target_set = set(targets)
+        start = targets[0]
+        order = []
+        for i, page in enumerate(reader.pages):
+            if i == start:
+                order.extend(other.pages)
+            if i not in target_set:
+                order.append(page)
+        self._write_pages(order, out)
+        return self._result([Path(src), Path(replace_src)], out,
+                            pages=len(order), operation="replace",
+                            replaced=len(targets))
 
     def compress_pdf(self, src, out) -> dict:
-        self._todo("compress_pdf")
+        from pypdf import PdfWriter
+        reader = self._reader(src)
+        writer = PdfWriter()
+        for page in reader.pages:
+            writer.add_page(page)
+            writer.pages[-1].compress_content_streams()
+        writer.compress_identical_objects()
+        out = Path(out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with open(out, "wb") as f:
+            writer.write(f)
+        return self._result([Path(src)], out, pages=len(reader.pages),
+                            operation="compress",
+                            before_bytes=Path(src).stat().st_size,
+                            after_bytes=out.stat().st_size)
+
+    # ---------- 文档能力（后续迁移） ----------
+    def _todo(self, method: str):
+        raise NotImplementedError(
+            f"PypdfBackend.{method} 尚未迁移；"
+            "见 docs/PDF后端迁移映射-2026-11-03.md"
+        )
 
     def encrypt_pdf(self, src, out, user_password: str,
-                    allow_print: bool = True, allow_copy: bool = True) -> dict:
+                    owner_password: str | None = None,
+                    allow_print: bool = True,
+                    allow_copy: bool = True) -> dict:
         self._todo("encrypt_pdf")
 
-    def add_watermark(self, src, out, text: str,
-                      opacity: float = 0.15, pages=None) -> dict:
+    def add_watermark(self, src, out, text: str, opacity: float = 0.15,
+                      fontsize: float = 48.0, pages=None) -> dict:
         self._todo("add_watermark")
 
     def extract_text(self, src, out, pages=None) -> dict:
@@ -309,7 +461,6 @@ _BACKENDS = {"fitz": FitzBackend, "pypdf": PypdfBackend}
 
 
 def get_backend(name: str | None = None) -> PdfBackend:
-    """按名称/环境变量获取后端；默认 fitz（迁移完成前）。"""
     name = (name or os.environ.get("BEEOFFICE_PDF_BACKEND") or "fitz").lower()
     if name not in _BACKENDS:
         raise PdfBackendError(f"未知 PDF 后端: {name}")

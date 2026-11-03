@@ -14,6 +14,13 @@
 - 生成 `docs/PDF后端迁移映射-2026-11-03.md`（13 个直接调用文件/64 处 + 82 个方法候选）；
 - 新增适配层单元测试。
 
+**PDF 页面结构迁移 B2b/B2c（2026-11-03）**
+- `pdf_tools.py` 全部改为经 `pdf_backend` 调用，不再直接 import fitz；
+- fitz 实现隔离到 `pdf_tools_fitz.py`（迁移期过渡）；
+- pypdf 后端实现：合并/拆分/提取/删除/旋转/裁剪/插入/替换/压缩；
+- 新增 3 个依赖（pypdfium2/pypdf/reportlab）与对应测试；
+- PDF 回归 52 passed + 适配层 8 passed。
+
 ## [5.2.2] - 2026-11-03
 
 **PPTX 动画时间轴修复（2026-11-03）**
