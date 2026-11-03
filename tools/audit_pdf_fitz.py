@@ -140,6 +140,9 @@ def build_markdown(hits: list[Hit], imported: list[str] | None = None) -> str:
         f"doc/page 方法候选：{len(candidates)} 处；"
         f"风险分布：低 {risks.get('低', 0)} / 中 {risks.get('中', 0)} / 高 {risks.get('高', 0)}",
         "",
+        "> **运行时状态（B2h）**：`beeoffice/` 下已无 fitz import；",
+        "> 下列残留仅存在于 tests/tools（开发校验），运行时不依赖 PyMuPDF。",
+        "",
         "## 文件清单",
         "",
     ]

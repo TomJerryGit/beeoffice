@@ -36,6 +36,13 @@
 - 新增 `burn_annotations`：fitz 原生批注 / pypdf reportlab 叠加层；
 - 批注回归 16 passed（fitz 与 pypdf 后端各一轮）。
 
+**PDF 迁移收口 B2g/B2h（2026-11-03）**
+- `beecmd` 文本提取改走 backend；
+- 默认 PDF 后端切换为 pypdf；
+- 删除 `pdf_tools_fitz.py` 与 FitzBackend，运行时 `import fitz` 清零；
+- requirements.txt 移除 PyMuPDF，测试依赖移至 requirements-dev.txt；
+- 运行时阻断 fitz 导入验证通过；PDF 相关 81 passed。
+
 ## [5.2.2] - 2026-11-03
 
 **PPTX 动画时间轴修复（2026-11-03）**

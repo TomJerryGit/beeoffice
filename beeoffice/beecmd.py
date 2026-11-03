@@ -629,10 +629,9 @@ def _extract_text(path: Path) -> str:
                 parts.append("\t".join(cell.text for cell in row.cells))
         return "\n".join(parts)
     if suffix == ".pdf":
-        import fitz
+        from beeoffice.pdf_backend import get_backend
 
-        with fitz.open(str(path)) as pdf:
-            return "\n".join(page.get_text() for page in pdf)
+        return "\n".join(get_backend().read_text_pages(path))
     return path.read_text(encoding="utf-8-sig", errors="replace")
 
 

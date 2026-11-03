@@ -1,7 +1,7 @@
 # beeoffice/pdf_tools.py
 """PDF 工具统一入口：全部经由 `pdf_backend` 适配层。
 
-- 默认后端：fitz（迁移期兼容）；
+- 默认后端：pypdf（pypdfium2 + pypdf + reportlab）；
 - 目标后端：pypdf（pypdfium2 + pypdf + reportlab）；
 - 本模块不再直接 import fitz，方便最终移除 PyMuPDF。
 """

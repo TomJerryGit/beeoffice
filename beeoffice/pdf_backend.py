@@ -1,8 +1,7 @@
 # beeoffice/pdf_backend.py
 """PDF 后端适配层：上层只依赖 PdfBackend，不直接 import fitz。
 
-- 阶段 1：FitzBackend（兼容现有行为）；
-- 阶段 2：PypdfBackend（pypdfium2 + pypdf + reportlab）；
+- 当前后端：PypdfBackend（pypdfium2 + pypdf + reportlab）；
 - 迁移映射见 docs/PDF后端迁移映射-2026-11-03.md。
 """
 from __future__ import annotations
@@ -71,6 +70,9 @@ class PdfBackend(ABC):
     def extract_text(self, src, out, pages=None) -> dict: ...
 
     @abstractmethod
+    def read_text_pages(self, src) -> list[str]: ...
+
+    @abstractmethod
     def extract_images(self, src, outdir, pages=None) -> dict: ...
 
     @abstractmethod
@@ -95,161 +97,6 @@ class PdfBackend(ABC):
 
     @abstractmethod
     def burn_annotations(self, src, out, annotations: list[dict]) -> dict: ...
-
-
-class FitzBackend(PdfBackend):
-    """阶段 1 兼容后端：文档能力委托 pdf_tools_fitz，页面/渲染由 fitz 完成。"""
-
-    name = "fitz"
-
-    def _tools(self):
-        from beeoffice import pdf_tools_fitz
-        return pdf_tools_fitz
-
-    def _fitz(self):
-        import fitz
-        return fitz
-
-    def page_count(self, src) -> int:
-        fitz = self._fitz()
-        doc = fitz.open(str(src))
-        try:
-            return len(doc)
-        finally:
-            doc.close()
-
-    def render_page_png(self, src, page: int, out, scale: float = 2.0) -> dict:
-        fitz = self._fitz()
-        doc = fitz.open(str(src))
-        try:
-            index = max(0, min(int(page) - 1, len(doc) - 1))
-            pix = doc.load_page(index).get_pixmap(
-                matrix=fitz.Matrix(scale, scale)
-            )
-            out = Path(out)
-            out.parent.mkdir(parents=True, exist_ok=True)
-            pix.save(str(out))
-            return {"out": str(out), "page": index + 1,
-                    "width": pix.width, "height": pix.height}
-        finally:
-            doc.close()
-
-    # 页面结构交给兼容实现，保证阶段 1 行为不变
-    def merge_pdfs(self, srcs, out) -> dict:
-        return self._tools().merge_pdfs(srcs, out)
-
-    def split_pdf(self, src, outdir, ranges=None) -> dict:
-        return self._tools().split_pdf(src, outdir, ranges)
-
-    def extract_pages(self, src, out, pages=None) -> dict:
-        return self._tools().extract_pages(src, out, pages)
-
-    def delete_pages(self, src, out, pages) -> dict:
-        return self._tools().delete_pages(src, out, pages)
-
-    def rotate_pages(self, src, out, pages=None, angle: int = 90) -> dict:
-        fitz = self._fitz()
-        doc = fitz.open(str(src))
-        try:
-            indexes = parse_page_spec(pages, len(doc))
-            for i in indexes:
-                doc[i].set_rotation((doc[i].rotation + int(angle)) % 360)
-            out = Path(out)
-            out.parent.mkdir(parents=True, exist_ok=True)
-            doc.save(str(out), garbage=3, deflate=True)
-            return {"source": str(src), "output": str(out),
-                    "pages": len(indexes), "angle": int(angle)}
-        finally:
-            doc.close()
-
-    def crop_pages(self, src, out, top_mm=0, bottom_mm=0,
-                   left_mm=0, right_mm=0) -> dict:
-        return self._tools().crop_pages(
-            src, out, top_mm=top_mm, bottom_mm=bottom_mm,
-            left_mm=left_mm, right_mm=right_mm,
-        )
-
-    def insert_pages(self, src, insert_src, out, at: int = 1) -> dict:
-        return self._tools().insert_pages(src, insert_src, out, at=at)
-
-    def replace_pages(self, src, replace_src, out, pages) -> dict:
-        return self._tools().replace_pages(src, replace_src, out, pages)
-
-    def compress_pdf(self, src, out) -> dict:
-        return self._tools().compress_pdf(src, out)
-
-    def encrypt_pdf(self, src, out, user_password: str,
-                    owner_password: str | None = None,
-                    allow_print: bool = True,
-                    allow_copy: bool = True) -> dict:
-        return self._tools().encrypt_pdf(
-            src, out, user_password, owner_password=owner_password,
-            allow_print=allow_print, allow_copy=allow_copy,
-        )
-
-    def add_watermark(self, src, out, text: str, opacity: float = 0.15,
-                      fontsize: float = 48.0, pages=None) -> dict:
-        return self._tools().add_watermark(
-            src, out, text, opacity=opacity, fontsize=fontsize, pages=pages
-        )
-
-    def extract_text(self, src, out, pages=None) -> dict:
-        return self._tools().extract_text(src, out, pages)
-
-    def extract_images(self, src, outdir, pages=None) -> dict:
-        return self._tools().extract_images(src, outdir, pages)
-
-    def list_bookmarks(self, src) -> list[dict]:
-        return self._tools().list_bookmarks(src)
-
-    def add_bookmark(self, src, out, title: str, page: int = 1) -> dict:
-        return self._tools().add_bookmark(src, out, title, page)
-
-    def delete_bookmark(self, src, out, index: int) -> dict:
-        return self._tools().delete_bookmark(src, out, index)
-
-    def update_bookmark(self, src, out, index: int,
-                        title: str | None = None,
-                        page: int | None = None) -> dict:
-        return self._tools().update_bookmark(
-            src, out, index, title=title, page=page
-        )
-
-    def stamp_image(self, src, out, image_path, page: int = 1,
-                    x: float = 0.6, y: float = 0.65,
-                    width_ratio: float = 0.25,
-                    opacity: float = 1.0) -> dict:
-        return self._tools().stamp_image(
-            src, out, image_path, page,
-            x=x, y=y, width_ratio=width_ratio, opacity=opacity,
-        )
-
-
-    def burn_annotations(self, src, out, annotations: list[dict]) -> dict:
-        fitz = self._fitz()
-        doc = fitz.open(str(src))
-        try:
-            for data in annotations or []:
-                page = doc[int(data.get("page", 0))]
-                rect = fitz.Rect(data.get("rect") or [0, 0, 0, 0])
-                kind = data.get("type", "highlight")
-                if kind == "highlight":
-                    anno = page.add_highlight_annot(rect)
-                elif kind == "underline":
-                    anno = page.add_underline_annot(rect)
-                elif kind == "strikethrough":
-                    anno = page.add_strikeout_annot(rect)
-                elif kind == "text":
-                    anno = page.add_text_annot(rect.tl, data.get("text", ""))
-                else:
-                    continue
-                if kind != "text" and data.get("color"):
-                    anno.set_colors(stroke=tuple(data["color"]))
-            doc.save(str(out))
-            return {"source": str(src), "output": str(out),
-                    "annotations": len(annotations or [])}
-        finally:
-            doc.close()
 
 
 class PypdfBackend(PdfBackend):
@@ -665,6 +512,10 @@ class PypdfBackend(PdfBackend):
         return {"source": str(src), "output": str(out),
                 "image": str(img_path), "page": int(page)}
 
+    def read_text_pages(self, src) -> list[str]:
+        reader = self._reader(src)
+        return [(page.extract_text() or "") for page in reader.pages]
+
     def extract_text(self, src, out, pages=None) -> dict:
         reader = self._reader(src)
         indexes = parse_page_spec(pages, len(reader.pages))
@@ -747,11 +598,11 @@ class PypdfBackend(PdfBackend):
                 "annotations": len(annotations or [])}
 
 
-_BACKENDS = {"fitz": FitzBackend, "pypdf": PypdfBackend}
+_BACKENDS = {"pypdf": PypdfBackend}
 
 
 def get_backend(name: str | None = None) -> PdfBackend:
-    name = (name or os.environ.get("BEEOFFICE_PDF_BACKEND") or "fitz").lower()
+    name = (name or os.environ.get("BEEOFFICE_PDF_BACKEND") or "pypdf").lower()
     if name not in _BACKENDS:
         raise PdfBackendError(f"未知 PDF 后端: {name}")
     return _BACKENDS[name]()
