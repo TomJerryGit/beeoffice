@@ -1392,6 +1392,7 @@ class PPTXEngine:
                 ms = self.measurer.measure(full_html)
                 if ms.error:
                     logging.warning(f"第 {i+1} 页测量失败：{ms.error}")
+                    return False
                 measured_slides.append(ms)
         finally:
             # 优化规划 §2.7：导出结束（含异常）必须释放浏览器会话，
