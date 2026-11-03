@@ -1,4 +1,6 @@
 """PPTX 动画时间轴：被 PowerPoint 识别为 MainSequence（2026-11-03）。"""
+from pathlib import Path
+
 from pptx import Presentation
 
 from beeoffice.plugins.beeshow_pptx_engine import add_shape_animations_valid
@@ -38,3 +40,18 @@ def test_click_each_separate_click_blocks():
     xml = slide._element.xml
     assert xml.count('delay="indefinite"') == 2
     assert xml.count("<p:set>") == 2
+
+
+def test_tool_script_structural(tmp_path):
+    import subprocess
+    import sys
+
+    out = tmp_path / "gate.json"
+    root = Path(__file__).resolve().parents[2]
+    proc = subprocess.run(
+        [sys.executable, str(root / "tools" / "verify_pptx_animations.py"),
+         "--json", str(out)],
+        cwd=str(root), capture_output=True, text=True, timeout=120,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert out.is_file()

@@ -7,7 +7,7 @@
 #   直接在主工作区跑会让 fidelity-corpus 读到本地语料。CI 应在**干净 worktree**里跑，
 #   只复制仓库需要的 tests/fidelity/corpus（小文件），保证结果可复现。
 #
-# 流程：创建干净 worktree → 46 项门禁 → 全量 pytest → 构建发行包 → 上传 artifact。
+# 流程：创建干净 worktree → 47 项门禁 → 全量 pytest → 构建发行包 → 上传 artifact。
 name: self-hosted-ci
 
 on:
@@ -17,7 +17,7 @@ on:
 
 jobs:
   gates-tests-build:
-    name: 46 门禁 + 全量测试 + 构建
+    name: 47 门禁 + 全量测试 + 构建
     runs-on: [self-hosted, windows, x64]
     timeout-minutes: 120
 
@@ -54,7 +54,7 @@ jobs:
           "%PY%" -c "import PySide6, pandas, openpyxl, fitz; print('deps ok')"
           if errorlevel 1 exit /b 1
 
-      - name: 46 项回归门禁
+      - name: 47 项回归门禁
         shell: cmd
         run: |
           cd /d D:\beeoffice_ci_repo
@@ -82,7 +82,7 @@ jobs:
           set PYTHONUNBUFFERED=1
           set BEEOFFICE_DRAFT_DIR=D:\beeoffice_ci_drafts
           echo == pytest start %DATE% %TIME% ==
-          rem test_corpus 的真实文档往返由 46 门禁中的 fidelity-corpus 单独覆盖；
+          rem test_corpus 的真实文档往返由 47 门禁中的 fidelity-corpus 单独覆盖；
           rem 这里排除它，避免 LocalSystem 冷缓存下同一批大文件被重复跑两遍。
           "%PY%" -m pytest tests/fidelity tests/unit --ignore=tests/fidelity/test_corpus.py -x -vv --durations=20 --timeout=900 --timeout-method=thread --no-header -p no:cacheprovider -o log_file= > D:\beeoffice_ci_pytest.log 2>&1
           if errorlevel 1 (

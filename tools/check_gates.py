@@ -316,6 +316,12 @@ GATES = [
         "曾经：AI 功能没有可视化配置入口，用户只能手改 settings.json",
     ),
     Gate(
+        "pptx-animation-timeline",
+        "PPTX 动画时间轴必须被 PowerPoint 识别",
+        "tests/fidelity/test_pptx_animation_timeline_2026_11_03.py",
+        "曾经：旧 p:timing 能打开但 PowerPoint MainSequence=0，逐元素动画根本不放",
+    ),
+    Gate(
         "ruff-bug-classes",
         "确定性 bug 类静态检查（未定义名/重复定义/语法）",
         "beeoffice tests",

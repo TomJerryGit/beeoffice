@@ -9,6 +9,8 @@
 ## [Unreleased]
 
 **PPTX 动画时间轴修复（2026-11-03）**
+- 新增 `tools/verify_pptx_animations.py` 结构校验（可选 PowerPoint COM）；
+- 注册第 47 项回归门禁 `pptx-animation-timeline`；
 - 逐帧验证发现旧 `p:timing` 不被 PowerPoint 识别（MainSequence=0）；
 - 按 PowerPoint 实际结构补 `p:set` / `p:bldLst` / `grpId` / `nodeType`；
 - 实测 PowerPoint 识别：淡入/脉冲 3 个效果、时长正确，自动动画触发=3、点击动画触发=1；
