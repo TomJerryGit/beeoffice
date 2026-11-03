@@ -6,6 +6,14 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ---
+## [Unreleased]
+
+**PDF 后端迁移 S0（2026-11-03）**
+- 新增 `beeoffice/pdf_backend.py`：PdfBackend 接口 + FitzBackend 兼容实现 + PypdfBackend 骨架；
+- 新增 `tools/audit_pdf_fitz.py`，自动生成 fitz 调用迁移映射表；
+- 生成 `docs/PDF后端迁移映射-2026-11-03.md`（13 个直接调用文件/64 处 + 82 个方法候选）；
+- 新增适配层单元测试。
+
 ## [5.2.2] - 2026-11-03
 
 **PPTX 动画时间轴修复（2026-11-03）**
