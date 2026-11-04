@@ -341,6 +341,20 @@ def setup_menus(main_window):
         lambda: main_window._open_pdf_pages()
     )
 
+    pdf_extra_action = tools_menu.addAction(
+        tr("pdf.extra.command", "PDF：书签与签名")
+    )
+    pdf_extra_action.triggered.connect(
+        lambda: main_window._open_pdf_toolbox_extra()
+    )
+
+    macro_console_action = tools_menu.addAction(
+        tr("macro.console.command", "宏控制台")
+    )
+    macro_console_action.triggered.connect(
+        lambda: main_window._open_macro_console()
+    )
+
     # ==================== 视图菜单 ====================
     view_menu = menu_bar.addMenu(tr("menu.view", "视图"))
 

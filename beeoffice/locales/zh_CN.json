@@ -156,5 +156,7 @@
   "cmd.palette.plugin_market_desc": "浏览和安装插件",
   "cmd.palette.mobile": "移动端查看",
   "cmd.palette.mobile_desc": "启动 HTTP 服务供手机访问",
-  "sheet.macro.played_detail": "宏已播放：{n} 个动作（赋值 {s} / 格式 {f} / 切表 {t}）"
+  "sheet.macro.played_detail": "宏已播放：{n} 个动作（赋值 {s} / 格式 {f} / 切表 {t}）",
+  "pdf.extra.command": "PDF：书签与签名",
+  "macro.console.command": "宏控制台"
 }

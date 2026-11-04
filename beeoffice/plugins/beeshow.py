@@ -40,8 +40,11 @@ v5.2 B1 新增 Mixin：
           _stop_play getattr 判空 + 显式置 None（play mixin 里）
 """
 
+import logging
+from pathlib import Path
+
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, Signal
 
 # ==================== Mixin 层 ====================
 from beeoffice.plugins.beeshow_toolbar_mixin import ToolbarMixin
@@ -58,6 +61,7 @@ from beeoffice.plugins.beeshow_comment_mixin import CommentMixin
 from beeoffice.plugins.beeshow_sync_mixin import SyncMixin
 from beeoffice.plugins.beeshow_morph_mixin import MorphMixin
 from beeoffice.plugins.beeshow_ai_mixin import AIMixin
+from beeoffice.plugins.beeshow_print_mixin import ShowPrintMixin
 
 # ==================== 常量 re-export（兼容外部 import） ====================
 from beeoffice.plugins.beeshow_constants import (   # noqa: F401
@@ -86,9 +90,13 @@ class BeeShowView(
     SyncMixin,
     MorphMixin,
     AIMixin,
+    ShowPrintMixin,      # ← P1-B：打印（幻灯片/讲义/备注页/大纲）
     QWidget,
 ):
     """蜜演主视图（组装层）"""
+
+    #: 内容变化信号（供标签页的"● 未保存"标记 —— `tab_manager.addTab` 会接它）
+    contentChanged = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -96,6 +104,194 @@ class BeeShowView(
         self._init_state()
         self._build_ui()
         self._apply_initial_content()
+        # P0 修复：把编辑器的内容变化接到 contentChanged，
+        # 让标签页能点亮"未保存"标记（原先蜜演没有这个信号）。
+        editor = getattr(self, "_editor", None)
+        if editor is not None and hasattr(editor, "textChanged"):
+            try:
+                editor.textChanged.connect(self._on_content_changed)
+            except Exception:            # 控件不支持时忽略
+                pass
+
+    # ==================================================================
+    # 内容接口（标签页未保存检查用）
+    # ==================================================================
+    def content(self) -> str:
+        """
+        返回当前演示文稿的 Markdown 源（供 `tab_manager` 做未保存检查）。
+
+        P0 修复背景：蜜演原先**既没有 `save` 也没有 `content`** →
+        ① Ctrl+S 毫无反应；② 关标签时 `tab_manager` 拿不到内容、
+        记为 None → **静默关闭、稿子直接丢**（蜜演的"历史版本"只在内存里，
+        导出件又是 PPTX/PDF/HTML，回不到编辑器）。
+        这里先补上"能判断有没有改动"这一半（止损），完整的保存链路见审计报告 §2.7。
+        """
+        editor = getattr(self, "_editor", None)
+        if editor is None:
+            return ""
+        try:
+            text = editor.toPlainText()
+            configs = getattr(self, "_slide_animations", None)
+            if configs:
+                from beeoffice.plugins.beeshow_animation import inject_markers
+                text = inject_markers(text, configs)
+            return text
+        except RuntimeError:             # 控件已销毁
+            return ""
+
+    def _on_content_changed(self, *_args):
+        """编辑器有改动 → 通知标签页（点亮"●"未保存标记）。"""
+        try:
+            self.contentChanged.emit()
+        except Exception:
+            pass
+
+    # ==================================================================
+    # 保存 / 打开（P0 剩余项：蜜演原先**整条保存链路不存在**）
+    # ==================================================================
+    def _suggested_deck_name(self) -> str:
+        from beeoffice.plugins import beeshow_doc
+
+        text = self.content()
+        first = ""
+        for line in text.splitlines():
+            if line.strip():
+                first = line
+                break
+        return beeshow_doc.suggested_filename(first)
+
+    def _write_deck(self, path: str) -> bool:
+        """把当前文稿写盘并记住路径（失败**如实提示**，不假装成功）。"""
+        from beeoffice.plugins import beeshow_doc
+
+        if not beeshow_doc.save_deck(
+            path, self.content(),
+            rehearsal=getattr(self, "_rehearsal_page_seconds", None),
+        ):
+            from PySide6.QtWidgets import QMessageBox
+
+            QMessageBox.warning(
+                self, "保存失败",
+                f"没能写入：\n{path}\n\n请检查目录是否可写、文件是否被占用。",
+            )
+            return False
+        self._current_file_path = str(path)
+        self._sync_tab_title(str(path))
+        return True
+
+    def _sync_tab_title(self, path: str):
+        """同步标签标题（主窗口通常有 `sync_tab_title`）。"""
+        try:
+            parent = self.window()
+            if path and hasattr(parent, "sync_tab_title"):
+                parent.sync_tab_title(self, path)
+        except Exception as e:  # noqa: BLE001
+            logging.debug(f"[蜜演] 同步标签标题失败（忽略）: {e}")
+
+    def save(self) -> bool:
+        """
+        保存到**当前文件**；没有当前文件时退化为"另存为"。
+
+        这一条是审计报告里最严重的缺口（§2.7）：蜜演原先没有 `save()`，
+        `app._save_current` 的两个分支都不命中 → **Ctrl+S 毫无反应、也没有提示**，
+        而导出件（PPTX/PDF/HTML）**回不到编辑器** → 做好的稿子关掉就改不了。
+        """
+        self._save_canceled = False
+        path = getattr(self, "_current_file_path", None)
+        if not path:
+            return self.save_as()
+        return self._write_deck(path)
+
+    def save_as(self) -> bool:
+        """另存为（重新选择路径）。"""
+        from PySide6.QtWidgets import QFileDialog
+
+        self._save_canceled = False
+        path, _ = QFileDialog.getSaveFileName(
+            self, "保存演示文稿", self._suggested_deck_name(),
+            "蜜演演示文稿 (*.beshow);;所有文件 (*)",
+        )
+        if not path:
+            self._save_canceled = True
+            return False
+        return self._write_deck(path)
+
+    def open_deck(self, path) -> bool:
+        """
+        打开一份 `.beshow` 文稿（读入编辑器 → 刷新预览 → 记住路径）。
+
+        :return: 成功 True；读失败 False（**不静默变成空文稿**）
+        """
+        from PySide6.QtWidgets import QMessageBox
+
+        from beeoffice.plugins import beeshow_doc
+
+        text = beeshow_doc.load_deck(path)
+        if text is None:
+            QMessageBox.warning(
+                self, "打开失败", f"无法读取：\n{path}\n\n可能是编码或权限问题。"
+            )
+            return False
+        self._editor.setPlainText(text)
+        try:
+            self._update_preview()
+        except Exception as e:  # noqa: BLE001
+            logging.warning(f"[蜜演] 刷新预览失败（已忽略）: {e}")
+        self._current_file_path = str(path)
+        self._sync_tab_title(str(path))
+        try:
+            self._rehearsal_page_seconds = beeshow_doc.load_rehearsal(path)
+        except Exception:  # noqa: BLE001
+            self._rehearsal_page_seconds = {}
+        return True
+
+    def open_pptx(self, path) -> bool:
+        """
+        **导入 `.pptx`**（P0-1：「打开别人的 PPT」）。
+
+        纯转换在 `beeshow_pptx_import.py`（无 Qt），这里只做界面接线：
+        读入编辑器 → 刷新预览 → **不把当前路径设成 .pptx**（保存时必须另存为 `.beshow`，
+        绝不覆盖用户的原始 PPT）→ 有损失时**如实弹一份损失清单**。
+
+        :return: 成功 True；解析失败 False（**不静默变成空文稿**）
+        """
+        from PySide6.QtWidgets import QMessageBox
+
+        from beeoffice.plugins.beeshow_pptx_import import import_pptx, loss_summary
+
+        try:
+            imported, markdown = import_pptx(path)
+        except Exception as e:  # noqa: BLE001 - 解析失败要给可操作提示
+            QMessageBox.warning(
+                self, "导入失败",
+                f"无法读取 {Path(path).name}：\n{e}\n\n"
+                "（.pptx 导入需要 python-pptx：pip install python-pptx）",
+            )
+            return False
+
+        self._editor.setPlainText(markdown)
+        try:
+            self._update_preview()
+        except Exception as e:  # noqa: BLE001
+            logging.warning(f"[蜜演] 刷新预览失败（已忽略）: {e}")
+
+        # ⚠️ 不设 _current_file_path：源文件是 .pptx，本编辑器**不能**写回它。
+        # 保存时走"另存为"，用户自己选 .beshow 路径 —— 这条是数据安全红线。
+        self._current_file_path = None
+        self._sync_tab_title(f"{Path(path).stem}（从 PPT 导入）")
+
+        if imported.has_losses():
+            QMessageBox.information(
+                self, "已导入（部分元素未保留）",
+                loss_summary(imported)
+                + "\n\n保存时会提示另存为 .beshow 文稿；原 .pptx 不会被改动。",
+            )
+        return True
+
+    def set_current_file_path(self, path):
+        """记录当前文件路径（打开/导入路径调用）。"""
+        self._current_file_path = str(path) if path else None
+        self._sync_tab_title(str(path)) if path else None
 
     # ==================== 状态初始化 ====================
     def _init_state(self):
@@ -115,8 +311,6 @@ class BeeShowView(
         self._preloaded_slides = set()
 
         # 播放交互状态
-        self._laser_active = False
-        self._drawing_active = False
         self._custom_bg = None
 
         # P0-4：保持导出时创建的 QWebEngineView 引用，避免被 GC
@@ -133,6 +327,8 @@ class BeeShowView(
         self._rehearsal_timer.timeout.connect(self._update_rehearsal_time)
         self._rehearsal_start_time = None
         self._rehearsal_elapsed = 0
+        self._rehearsal_page_seconds = {}
+        self._rehearsal_page_start = None
 
         self._rehearsal_label = QLabel("")
         self._rehearsal_label.setStyleSheet(
@@ -172,13 +368,13 @@ class BeeShowView(
         if not hasattr(self, "_main_splitter"):
             self._main_splitter = None
 
-        # 任务 1.1：AI 服务（延迟创建，用到时才实例化）
+        # 优化规划 §3.1：原先在此把 _ai_service / _pptx_engine / _font_embedder
+        # 初始化为 None，但全仓（生产代码）没有任何读取点 —— 三者都是"延迟创建"
+        # 的旧设计残留，真正用到的服务都是在调用处即时 import + 实例化
+        # （beeshow_ai_service / PPTXEngine / FontEmbedder）。已删除。
+        # 兼容远端 5.3.1 冒烟测试的属性契约：
         self._ai_service = None
-
-        # 任务 3.1：PPTX 引擎（延迟创建）
         self._pptx_engine = None
-
-        # 任务 3.2：字体嵌入器（延迟创建）
         self._font_embedder = None
 
     # ==================== UI 构建 ====================

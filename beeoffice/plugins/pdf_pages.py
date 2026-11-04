@@ -21,46 +21,21 @@ PDF 页面操作（阶段四 P0-1）
 import re
 from pathlib import Path
 
-try:
-    import fitz  # PyMuPDF
-except Exception:  # pragma: no cover - 缺依赖时由调用方提示安装
-    fitz = None
+from beeoffice.pdf_backend import get_backend
 
 
 class PdfPageError(Exception):
     """页面操作的业务错误（用户可读）。"""
 
 
-def _require_fitz():
-    if fitz is None:
-        raise PdfPageError("未安装 PyMuPDF，无法处理 PDF")
-
-
-def open_pdf(path):
-    """打开 PDF 并做加密检查。"""
-    _require_fitz()
+def page_count(path) -> int:
     p = Path(path)
     if not p.exists():
         raise PdfPageError(f"文件不存在：{p}")
     try:
-        doc = fitz.open(str(p))
-    except Exception as e:
+        return get_backend().page_count(p)
+    except Exception as e:  # noqa: BLE001
         raise PdfPageError(f"无法打开 PDF：{e}") from e
-    if doc.needs_pass:
-        doc.close()
-        raise PdfPageError("该 PDF 已加密，请先解除密码保护")
-    if doc.page_count == 0:
-        doc.close()
-        raise PdfPageError("该 PDF 没有页面")
-    return doc
-
-
-def page_count(path) -> int:
-    doc = open_pdf(path)
-    try:
-        return doc.page_count
-    finally:
-        doc.close()
 
 
 def parse_page_ranges(text: str, total: int) -> list:
@@ -114,80 +89,57 @@ def parse_page_ranges(text: str, total: int) -> list:
     return ordered
 
 
-def _new_doc():
-    _require_fitz()
-    return fitz.open()
+def _spec(pages) -> str:
+    return ",".join(str(n) for n in pages)
 
 
 def merge_pdfs(paths, output) -> int:
-    """把多个 PDF 按给定顺序合并，返回总页数。"""
     paths = [Path(p) for p in paths]
     if not paths:
         raise PdfPageError("请至少选择一个 PDF")
-    out = _new_doc()
+    for p in paths:
+        if not p.exists():
+            raise PdfPageError(f"文件不存在：{p}")
     try:
-        for p in paths:
-            doc = open_pdf(p)
-            try:
-                out.insert_pdf(doc)
-            finally:
-                doc.close()
-        total = out.page_count
-        out.save(str(output))
-        return total
-    finally:
-        out.close()
+        info = get_backend().merge_pdfs(paths, output)
+        return int(info.get("pages", 0))
+    except Exception as e:  # noqa: BLE001
+        raise PdfPageError(f"合并失败：{e}") from e
 
 
 def extract_pages(src, ranges_text, output) -> int:
-    """把指定页提取成新文件，返回新文件页数。"""
-    doc = open_pdf(src)
+    total = page_count(src)
+    pages = parse_page_ranges(ranges_text, total)
     try:
-        pages = parse_page_ranges(ranges_text, doc.page_count)
-        out = _new_doc()
-        try:
-            for n in pages:
-                out.insert_pdf(doc, from_page=n - 1, to_page=n - 1)
-            # 提取时保留原始页面尺寸与旋转
-            out.save(str(output), garbage=3, deflate=True)
-            return out.page_count
-        finally:
-            out.close()
-    finally:
-        doc.close()
+        get_backend().extract_pages(src, output, _spec(pages))
+        return len(pages)
+    except Exception as e:  # noqa: BLE001
+        raise PdfPageError(f"提取失败：{e}") from e
 
 
 def delete_pages(src, ranges_text, output) -> int:
-    """删除指定页，返回剩余页数。"""
-    doc = open_pdf(src)
+    total = page_count(src)
+    pages = parse_page_ranges(ranges_text, total)
+    if len(pages) >= total:
+        raise PdfPageError("不能删除全部页面，请保留至少一页")
     try:
-        pages = parse_page_ranges(ranges_text, doc.page_count)
-        if len(pages) >= doc.page_count:
-            raise PdfPageError("不能删除全部页面，请保留至少一页")
-        # 从后往前删，避免索引漂移
-        for n in sorted(pages, reverse=True):
-            doc.delete_page(n - 1)
-        remaining = doc.page_count
-        doc.save(str(output), garbage=3, deflate=True)
-        return remaining
-    finally:
-        doc.close()
+        get_backend().delete_pages(src, output, _spec(pages))
+        return total - len(pages)
+    except Exception as e:  # noqa: BLE001
+        raise PdfPageError(f"删除失败：{e}") from e
 
 
 def rotate_pages(src, ranges_text, degrees, output) -> int:
-    """旋转指定页（90/180/270），返回处理页数。"""
     if degrees % 90 != 0:
         raise PdfPageError("旋转角度必须是 90 的倍数")
-    doc = open_pdf(src)
+    total = page_count(src)
+    pages = parse_page_ranges(ranges_text, total)
     try:
-        pages = parse_page_ranges(ranges_text, doc.page_count)
-        for n in pages:
-            page = doc[n - 1]
-            page.set_rotation((page.rotation + degrees) % 360)
-        doc.save(str(output), garbage=3, deflate=True)
+        get_backend().rotate_pages(src, output, pages=_spec(pages),
+                                   angle=int(degrees))
         return len(pages)
-    finally:
-        doc.close()
+    except Exception as e:  # noqa: BLE001
+        raise PdfPageError(f"旋转失败：{e}") from e
 
 
 def _out_path(out_dir, prefix, index, total):
@@ -196,72 +148,35 @@ def _out_path(out_dir, prefix, index, total):
     return out_dir / f"{prefix}_{index:03d}.pdf"
 
 
+def _extract_group(src, pages, out_dir, prefix, index, total):
+    path = _out_path(out_dir, prefix, index, total)
+    get_backend().extract_pages(src, path, _spec(pages))
+    return str(path)
+
+
 def split_pages(src, out_dir, prefix="page") -> list:
-    """每页拆成一个文件，返回输出路径列表。"""
-    doc = open_pdf(src)
-    try:
-        results = []
-        for i in range(doc.page_count):
-            out = _new_doc()
-            try:
-                out.insert_pdf(doc, from_page=i, to_page=i)
-                path = _out_path(out_dir, prefix, i + 1, doc.page_count)
-                out.save(str(path), garbage=3, deflate=True)
-                results.append(str(path))
-            finally:
-                out.close()
-        return results
-    finally:
-        doc.close()
+    total = page_count(src)
+    return [_extract_group(src, [i + 1], out_dir, prefix, i + 1, total)
+            for i in range(total)]
 
 
 def split_every(src, chunk_size, out_dir, prefix="part") -> list:
-    """每 N 页拆成一个文件，返回输出路径列表。"""
     if chunk_size <= 0:
         raise PdfPageError("每份页数必须大于 0")
-    doc = open_pdf(src)
-    try:
-        results = []
-        total = doc.page_count
-        index = 1
-        start = 0
-        while start < total:
-            end = min(start + chunk_size - 1, total - 1)
-            out = _new_doc()
-            try:
-                out.insert_pdf(doc, from_page=start, to_page=end)
-                path = _out_path(out_dir, prefix, index, total)
-                out.save(str(path), garbage=3, deflate=True)
-                results.append(str(path))
-            finally:
-                out.close()
-            index += 1
-            start = end + 1
-        return results
-    finally:
-        doc.close()
+    total = page_count(src)
+    results = []
+    index = 1
+    for start in range(1, total + 1, chunk_size):
+        pages = list(range(start, min(start + chunk_size, total + 1)))
+        results.append(_extract_group(src, pages, out_dir, prefix, index, total))
+        index += 1
+    return results
 
 
 def split_ranges(src, ranges_list, out_dir, prefix="part") -> list:
-    """
-    按多段范围拆分，每段一个文件。
-
-    :param ranges_list: 形如 ["1-3", "5", "8-"] 的字符串列表
-    """
-    doc = open_pdf(src)
-    try:
-        results = []
-        for i, ranges_text in enumerate(ranges_list, 1):
-            pages = parse_page_ranges(ranges_text, doc.page_count)
-            out = _new_doc()
-            try:
-                for n in pages:
-                    out.insert_pdf(doc, from_page=n - 1, to_page=n - 1)
-                path = _out_path(out_dir, prefix, i, doc.page_count)
-                out.save(str(path), garbage=3, deflate=True)
-                results.append(str(path))
-            finally:
-                out.close()
-        return results
-    finally:
-        doc.close()
+    total = page_count(src)
+    results = []
+    for i, ranges_text in enumerate(ranges_list, 1):
+        pages = parse_page_ranges(ranges_text, total)
+        results.append(_extract_group(src, pages, out_dir, prefix, i, total))
+    return results
