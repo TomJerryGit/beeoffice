@@ -24,3 +24,6 @@ pyinstaller>=5.13.0
 # ---------- 类型提示 ----------
 types-requests>=2.31.0
 types-python-dateutil>=2.8.0
+
+# 测试样本仍用 fitz 生成/校验；运行时 PDF 后端已切 pypdf，不依赖 PyMuPDF。
+PyMuPDF>=1.23.0
