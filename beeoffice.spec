@@ -20,7 +20,11 @@ BeeOffice PyInstaller 打包配置（参考模板）
 """
 import sys
 from pathlib import Path
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import (
+    collect_data_files,
+    collect_dynamic_libs,
+    collect_submodules,
+)
 
 
 # ==================== 项目根目录 ====================
@@ -113,6 +117,26 @@ except Exception as e:
     print(f"   ⚠ 收集云存储子模块失败: {e}")
 
 
+# PDF 后端：pypdf / reportlab / pypdfium2 均为延迟导入，
+# 静态分析容易漏；缺一都会导致打包后 PDF 功能运行时 ImportError。
+binaries = []
+for _mod in ("pypdf", "reportlab", "pypdfium2"):
+    try:
+        hiddenimports += collect_submodules(_mod)
+        print(f"   + pdf backend: {_mod}")
+    except Exception as e:
+        print(f"   ⚠ 收集 {_mod} 失败: {e}")
+for _mod in ("reportlab", "pypdfium2"):
+    try:
+        datas += collect_data_files(_mod)
+    except Exception as e:
+        print(f"   ⚠ 收集 {_mod} 数据失败: {e}")
+    try:
+        binaries += collect_dynamic_libs(_mod)
+    except Exception as e:
+        print(f"   ⚠ 收集 {_mod} 动态库失败: {e}")
+
+
 # ==================== 排除（减小体积） ====================
 excludes = [
     # 测试相关
@@ -148,7 +172,7 @@ excludes = [
 a = Analysis(
     [str(PROJECT_ROOT / "beeoffice" / "main.py")],
     pathex=[str(PROJECT_ROOT)],
-    binaries=[],
+    binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
