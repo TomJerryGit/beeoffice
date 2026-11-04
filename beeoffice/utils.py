@@ -2,6 +2,8 @@
 """通用工具函数模块"""
 import os
 import sys
+import json
+import uuid
 import platform
 import logging
 from pathlib import Path
@@ -122,3 +124,37 @@ def get_resource_path(relative_path: str) -> str:
     else:
         base = Path(__file__).parent.parent
     return str(base / relative_path)
+
+def atomic_write_text(path, text: str, encoding: str = "utf-8") -> bool:
+    """原子写入文本：临时文件 + os.replace，失败不破坏原文件。"""
+    target = Path(path)
+    tmp_path = None
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = target.parent / (
+            f".{target.name}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp"
+        )
+        with open(tmp_path, "x", encoding=encoding) as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, target)
+        return True
+    except Exception as e:  # noqa: BLE001
+        logging.error(f"原子写入失败 {target}: {e}")
+        try:
+            if tmp_path is not None and tmp_path.exists():
+                tmp_path.unlink()
+        except OSError:
+            pass
+        return False
+
+
+def atomic_write_json(path, obj, indent: int = 2) -> bool:
+    """原子写入 JSON（序列化在打开文件前完成）。"""
+    try:
+        text = json.dumps(obj, indent=indent, ensure_ascii=False)
+    except Exception as e:  # noqa: BLE001
+        logging.error(f"JSON 序列化失败 {path}: {e}")
+        return False
+    return atomic_write_text(path, text)
