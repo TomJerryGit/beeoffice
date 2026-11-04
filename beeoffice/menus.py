@@ -385,6 +385,14 @@ def setup_menus(main_window):
     # ==================== 帮助菜单 ====================
     help_menu = menu_bar.addMenu(tr("menu.help", "帮助"))
 
+    # 检查更新
+    update_action = QAction(
+        tr("menu.help.check_updates", "检查更新…"), main_window
+    )
+    update_action.triggered.connect(main_window.check_for_updates)
+    help_menu.addAction(update_action)
+    help_menu.addSeparator()
+
     # 关于
     about_action = QAction(tr("menu.help.about", "关于"), main_window)
     about_action.triggered.connect(main_window.show_about)

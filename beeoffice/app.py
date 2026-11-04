@@ -1123,6 +1123,37 @@ class BeeApp(QMainWindow):
     # ==================================================================
     # PDF 批注
     # ==================================================================
+    def check_for_updates(self):
+        """检查 GitHub Releases 是否有新版本（不自动安装）。"""
+        from beeoffice.__version__ import __version__
+        from beeoffice.update_checker import UpdateError, check_for_update
+
+        try:
+            info = check_for_update(__version__)
+        except UpdateError as e:
+            QMessageBox.warning(self, tr("msg.update_check_failed", "检查更新失败"), str(e))
+            return
+        if info is None:
+            QMessageBox.information(
+                self,
+                tr("msg.update_none", "已是最新版本"),
+                tr("msg.update_none_detail", "当前版本：{version}").format(version=__version__),
+            )
+            return
+        reply = QMessageBox.question(
+            self,
+            tr("msg.update_available", "发现新版本"),
+            tr("msg.update_available_detail",
+               "当前版本：{current}\n最新版本：{latest}\n\n是否打开下载页面？").format(
+                current=__version__, latest=info.version),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        )
+        if reply == QMessageBox.Yes and info.html_url:
+            from PySide6.QtCore import QUrl
+            from PySide6.QtGui import QDesktopServices
+            QDesktopServices.openUrl(QUrl(info.html_url))
+
     def _open_pdf_pages(self):
         """打开 PDF 页面工具（合并/提取/删除/旋转/拆分）。"""
         from beeoffice.plugins.pdf_pages_dialog import PdfPagesDialog
