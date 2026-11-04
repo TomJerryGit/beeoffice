@@ -22,8 +22,17 @@ v5.0.5 修复：
     避免吞掉 KeyboardInterrupt / SystemExit 等系统异常。
 """
 import re
-import pandas as pd
 from pathlib import Path
+
+_PD = None
+
+
+def _pandas():
+    """延迟导入 pandas：编辑器创建路径不应承担 pandas 的导入成本。"""
+    global _PD
+    if _PD is None:
+        import pandas as _PD
+    return _PD
 
 
 class VariableParser:
@@ -89,12 +98,12 @@ class DataSourceManager:
             import chardet
             with open(path, 'rb') as f:
                 raw = f.read(10000)
-            df = pd.read_csv(
+            df = _pandas().read_csv(
                 path,
                 encoding=chardet.detect(raw).get('encoding', 'utf-8')
             )
         else:
-            df = pd.read_excel(path)
+            df = _pandas().read_excel(path)
         self._sources[name] = df
 
     def get_value(self, source, ref):
@@ -148,7 +157,7 @@ class DataSourceManager:
     @staticmethod
     def _format_value(val):
         """值格式化：NaN → 空串；整数浮点 → 无小数点；其他浮点 → 2 位小数"""
-        if pd.isna(val):
+        if _pandas().isna(val):
             return ""
         if isinstance(val, float):
             if val == int(val):

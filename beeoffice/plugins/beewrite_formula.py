@@ -22,14 +22,22 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap, QImage
 from beeoffice.i18n import tr
 
-# 尝试导入 matplotlib
-try:
+# matplotlib 延迟到真正渲染公式时再导入：
+# 编辑器首次创建时导入 matplotlib 约需 1.2s，
+# 而大多数用户不会立刻插入公式。
+import importlib.util
+
+HAS_MPL = importlib.util.find_spec("matplotlib") is not None
+
+
+def _get_plt():
+    """首次渲染公式时再加载 matplotlib。"""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    HAS_MPL = True
-except ImportError:
-    HAS_MPL = False
+
+    return plt
 
 
 # ==================== 常用公式模板 ====================
@@ -253,6 +261,7 @@ class FormulaDialog(QDialog):
         color = color_map.get(self._color_combo.currentText(), "#000000")
 
         # 渲染
+        plt = _get_plt()
         fig = plt.figure(figsize=(6, 1.2), dpi=dpi)
         fig.patch.set_alpha(0)
 
@@ -302,6 +311,7 @@ class FormulaDialog(QDialog):
                 self._color_combo.currentText(), "#000000"
             )
 
+            plt = _get_plt()
             fig = plt.figure(figsize=(6, 1.2), dpi=dpi)
             fig.patch.set_alpha(0)
             fig.text(
