@@ -173,3 +173,8 @@ backup/
 # 精简版/其它打包输出（PyInstaller --distpath）
 dist*/
 build*/
+
+# 代码签名证书/私钥
+*.pfx
+*.cer
+_ptmp/signing/
