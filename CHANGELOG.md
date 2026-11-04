@@ -7,6 +7,55 @@
 
 ---
 
+## [5.4.0] - 2026-11-04
+
+> **性能与发布工程版本。** 在 v5.3.2 基础上完成性能优化、
+> 安装器/更新工具链、兼容性与内存基线，并将 PR #1 / #2 合并到 main。
+
+### 性能
+
+- 蜜写批量渲染：状态栏全文统计从“逐块触发”改为“渲染完一次”，
+  200 段 Markdown → 富文本从 **12,119 ms 降到 87 ms**；
+- 蜜写首次创建：matplotlib / pandas 延迟导入，
+  从 **3,646 ms 降到 641 ms**；
+- 启动导入：`import beeoffice.app` 从 **2.10 s 降到 1.49 s**；
+- 新增 `tools/perf_baseline.py`，记录启动、渲染、表格、演示导出与内存基线。
+
+### 发布工程
+
+- Inno Setup 安装器（`installer/BeeOffice.iss` + `tools/build_installer.py`）；
+- 自动更新检查：GitHub Releases 版本比较、HTTPS + sha256 校验、帮助菜单入口；
+- Windows 代码签名工具（`tools/sign_windows.py`，支持 PFX/指纹、签名后重算 sha256）；
+- 手动触发的 Windows Release 工作流；
+- PR #1（本地 UI/PDF 后端整合）与 PR #2（S2 工具链）已合并到 main。
+
+### 兼容性与内存
+
+- 真实语料 roundtrip 抽样 **25 / 25 通过**：
+  14 XLSX + 6 DOCX + 3 PPTX + 2 DOCX；
+- 全功能扫描 **30 / 30 通过**；
+- 8 轮编辑器创建/渲染/销毁内存审计：无线性泄漏，
+  首次 +11.5 MB 为字体/文本引擎预热。
+
+### 兼容性说明
+
+- 运行时 PDF 后端仍为 pypdfium2 + pypdf + reportlab；
+- PyMuPDF 仅测试使用，运行时无 `import fitz`。
+
+### 验证
+
+- 全量 `pytest tests`：**986 passed**；
+- 蜜写/绑定/公式定向：107 passed；
+- 性能基线脚本可复测（见 `docs/S3-兼容性与性能基线-2026-11-04.md`）。
+
+### 已知限制
+
+- 安装器当前**未使用受信任代码签名证书**；自签名测试包会触发 SmartScreen，
+  不作为正式签名版分发；
+- 全量语料 roundtrip 目前抽样 25 个，剩余语料后续补齐。
+
+---
+
 ## [5.3.2] - 2026-11-02
 
 > **从本地 UI 发布线搬运功能到 origin/main。** 本版在 v5.3.1 基础上按批次移植，
