@@ -1,0 +1,43 @@
+name: signpath-sign
+
+# SignPath Foundation 审核通过后启用（仅手动触发）。
+# 配置 GitHub Variables：
+#   SIGNPATH_ORGANIZATION_ID / SIGNPATH_PROJECT_SLUG /
+#   SIGNPATH_POLICY_SLUG / SIGNPATH_ARTIFACT_CONFIG_SLUG
+# 配置 GitHub Secrets：
+#   SIGNPATH_API_TOKEN
+#
+# 说明：SignPath 的 artifact-configuration 需要在控制台按项目配置；
+# 本工作流只负责提交签名请求，不包含 artifact config 生成。
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_path:
+        description: "待签名的 exe/zip 路径"
+        required: true
+
+jobs:
+  sign:
+    if: vars.SIGNPATH_ORGANIZATION_ID != ''
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 提交 SignPath 签名请求
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIG_SLUG }}
+          artifact-path: ${{ inputs.artifact_path }}
+          wait-for-completion: true
+
+      - name: 校验签名
+        shell: pwsh
+        run: |
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
+            Select-Object -First 1 -ExpandProperty FullName
+          & $signtool verify /pa /v "${{ inputs.artifact_path }}"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
