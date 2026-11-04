@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import shutil
 import subprocess
@@ -48,6 +49,7 @@ def main() -> int:
         print("❌ 未配置证书：BEEOFFICE_SIGN_PFX 或 BEEOFFICE_SIGN_CERT_SHA1")
         return 1
 
+    signed = []
     for name in args.files:
         path = Path(name)
         if not path.is_file():
@@ -64,6 +66,13 @@ def main() -> int:
         if verify.returncode != 0:
             print(f"❌ 签名校验失败：{path}")
             return verify.returncode
+        signed.append(path)
+    for path in signed:
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        Path(str(path) + ".sha256").write_text(
+            f"{digest}  {path.name}\n", encoding="ascii"
+        )
+        print(f"sha256: {digest}  {path.name}")
     print("✅ 签名完成")
     return 0
 
