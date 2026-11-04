@@ -56,7 +56,21 @@ class ModeMixin:
         if self._edit_mode == "markdown":
             self.markdown_editor.setPlainText(text)
         else:
+            self._set_rich_markdown(text)
+
+    def _set_rich_markdown(self, text):
+        """批量渲染 Markdown → 富文本。
+
+        渲染过程中 blockSignals，避免每个 insertBlock/insertText 都触发
+        textChanged → _update_status_bar → count_words（整篇正则统计），
+        否则 200 段文档会出现 O(n²) 级卡顿；渲染完成后只更新一次状态栏。
+        """
+        self.rich_editor.blockSignals(True)
+        try:
             self.rich_editor.set_markdown(text)
+        finally:
+            self.rich_editor.blockSignals(False)
+        self._update_status_bar()
 
     def get_rendered_content(self):
         """获取渲染后的内容（数据变量已替换）"""
@@ -193,7 +207,7 @@ class ModeMixin:
                 logging.debug(f"同步 rich_editor 目录失败: {e}")
 
             try:
-                self.rich_editor.set_markdown(current_md)
+                self._set_rich_markdown(current_md)
             except Exception as e:
                 import traceback
                 traceback.print_exc()

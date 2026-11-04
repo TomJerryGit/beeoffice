@@ -85,16 +85,24 @@ def main():
     # 蜜写：200 段 Markdown → 富文本 → DOCX
     t0 = time.perf_counter()
     ed = window._new_beewrite()
+    t_editor = (time.perf_counter() - t0) * 1000
     md = "\n\n".join(f"## 第 {i} 节\n\n正文 **加粗** 与 *斜体* 第 {i} 段。" for i in range(200))
+    t0 = time.perf_counter()
     ed.set_content(md)
+    t_content = (time.perf_counter() - t0) * 1000
+    t0 = time.perf_counter()
     ed._switch_mode("rich_text")
-    t_new = (time.perf_counter() - t0) * 1000
+    t_switch = (time.perf_counter() - t0) * 1000
+    t_new = t_editor + t_content + t_switch
     from beeoffice.plugins.bee_export import export_to_docx
     out_docx = tmp / "perf.docx"
     t0 = time.perf_counter()
     ok = export_to_docx(ed.content(), str(out_docx))
     t_docx = (time.perf_counter() - t0) * 1000
     result["operations"]["writer"] = {
+        "new_editor_ms": round(t_editor, 1),
+        "set_content_ms": round(t_content, 1),
+        "markdown_to_rich_ms": round(t_switch, 1),
         "new_and_render_ms": round(t_new, 1),
         "docx_export_ms": round(t_docx, 1),
         "docx_bytes": out_docx.stat().st_size if out_docx.exists() else 0,
