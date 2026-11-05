@@ -412,3 +412,20 @@ class DocMixin:
                 return p._tab_file_paths.get(id(self), "")
             p = p.parent()
         return ""
+    def _open_page_view(self):
+        """打开只读纸张页面视图。"""
+        from beeoffice.plugins.beewrite_page_view import (
+            PageViewDialog, build_page_document,
+        )
+
+        if self._edit_mode == "rich_text":
+            doc = self.rich_editor.document().clone()
+        else:
+            doc = build_page_document(markdown_text=self.content())
+        dialog = PageViewDialog(doc, self._page_settings, self)
+        dialog.setAttribute(Qt.WA_DeleteOnClose)
+        self._page_view_dialog = dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+        return dialog

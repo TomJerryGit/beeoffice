@@ -52,3 +52,15 @@ def test_zoom_controls(beewrite_editor):
     assert ed._zoom_percent == 90
     ed._zoom_reset()
     assert ed._zoom_percent == 100
+
+
+def test_page_view_dialog(beewrite_editor):
+    ed = beewrite_editor
+    _seed(ed)
+    dlg = ed._open_page_view()
+    assert dlg is not None
+    assert dlg._view.pages >= 1
+    assert "共" in dlg._page_label.text()
+    dlg._set_zoom(150)
+    assert dlg._zoom_label.text() == "150%"
+    dlg.close()

@@ -426,6 +426,11 @@ class ToolbarMixin:
         btn_page_setup.clicked.connect(self._show_page_setup_dialog)
         layout.addWidget(btn_page_setup)
 
+        btn_page_view = QPushButton(tr("beewrite.toolbar.page_view", "📖 页面视图"))
+        btn_page_view.setToolTip(tr("beewrite.toolbar.page_view_tip", "纸张分页视图（只读）"))
+        btn_page_view.clicked.connect(self._open_page_view)
+        layout.addWidget(btn_page_view)
+
         btn_print = QPushButton(tr("auto.beewrite_toolbar_mixin.ef39d897", "🖨️ 打印预览"))
         btn_print.clicked.connect(self._print_preview)
         layout.addWidget(btn_print)

@@ -386,7 +386,8 @@ class BeeWriteEditor(
                 pass
         toolbar_container.addWidget(self._ribbon)
         self._ribbon.add_quick_action("💾", "保存 (Ctrl+S)", self.save, icon_name="save")
-        self._ribbon.add_quick_action("🖨", "页面视图", self._print_preview, icon_name="print")
+        self._ribbon.add_quick_action("📖", "页面视图", self._open_page_view, icon_name="view")
+        self._ribbon.add_quick_action("🖨", "打印预览", self._print_preview, icon_name="print")
 
         # ---------- 总布局 ----------
         layout = QVBoxLayout(self)
@@ -453,6 +454,9 @@ class BeeWriteEditor(
         )
         QShortcut(QKeySequence("Ctrl+P"), self).activated.connect(
             self._print_preview
+        )
+        QShortcut(QKeySequence("Ctrl+Alt+P"), self).activated.connect(
+            self._open_page_view
         )
         QShortcut(QKeySequence("Ctrl+Shift+I"), self).activated.connect(
             self._insert_image

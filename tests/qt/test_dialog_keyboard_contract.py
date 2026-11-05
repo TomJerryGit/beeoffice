@@ -66,3 +66,16 @@ def test_focus_chain_reaches_buttons(app, qtbot):
     assert seen, "焦点链为空"
     # 至少能从编辑框走到一个按钮
     assert "QPushButton" in seen, f"Tab 未到达按钮：{seen}"
+
+
+def test_page_view_escape(app, qtbot):
+    from beeoffice.plugins.beewrite_page_view import PageViewDialog, build_page_document
+
+    doc = build_page_document(markdown_text="# 标题\n\n正文")
+    dialog = PageViewDialog(doc, {}, parent=app)
+    qtbot.addWidget(dialog)
+    dialog.show()
+    qtbot.wait(30)
+    QTest.keyClick(dialog, Qt.Key_Escape)
+    qtbot.wait(30)
+    assert not dialog.isVisible()

@@ -31,6 +31,13 @@
       "sha256": "4fcc54729f5fe38b117ffbf45eb841f77522bf9acb3adb3aeba3e407be377c0c",
       "width": 1360,
       "height": 860
+    },
+    {
+      "name": "05-page-view",
+      "file": "05-page-view.png",
+      "sha256": "c34e24425fea0bff446436fec024dcd7fb5d1a13c92ff0b8723ac24c0181fdf6",
+      "width": 980,
+      "height": 760
     }
   ]
 }
