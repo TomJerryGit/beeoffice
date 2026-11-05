@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -23,9 +24,13 @@ def _sha(path: Path) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(ROOT / "docs" / "ui-baseline" / "2026-11-05"))
+    ap.add_argument("--lang", default="")
     args = ap.parse_args()
 
     from PySide6.QtWidgets import QApplication
+    if args.lang:
+        from beeoffice.i18n import set_language
+        set_language(args.lang)
     from beeoffice.app import BeeApp
 
     out = Path(args.out)
@@ -61,7 +66,8 @@ def main() -> int:
     manifest = {
         "date": "2026-11-05",
         "platform": sys.platform,
-        "dpi": "100%",
+        "dpi": os.environ.get("QT_SCALE_FACTOR", "1"),
+        "language": args.lang or "default",
         "shots": shots,
     }
     (out / "manifest.json").write_text(
