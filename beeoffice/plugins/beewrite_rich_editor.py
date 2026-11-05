@@ -128,14 +128,7 @@ class RichTextEditor(QTextEdit):
         super().__init__(parent)
         self.setAcceptRichText(True)
         self._current_file_dir = str(Path.home())
-        self.setStyleSheet("""
-            QTextEdit {
-                border: none; padding: 20px 40px;
-                background-color: #FFFFFF;
-                font-family: "Segoe UI", "微软雅黑", sans-serif;
-                font-size: 14px; line-height: 1.8;
-            }
-        """)
+        self.apply_theme()
         # 光标移动时通知父窗口
         self.cursorPositionChanged.connect(self._notify_cursor_position)
 

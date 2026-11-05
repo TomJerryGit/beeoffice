@@ -179,9 +179,6 @@ class BeeWriteEditor(
         # Markdown 源码编辑器
         self.markdown_editor = QPlainTextEdit()
         self.markdown_editor.setFont(QFont("Consolas", 13))
-        self.markdown_editor.setStyleSheet(
-            "QPlainTextEdit{border:none;padding:8px;background:#FAFAFA}"
-        )
         self.editor_stack.addWidget(self.markdown_editor)
 
         # 富文本编辑器
@@ -196,9 +193,6 @@ class BeeWriteEditor(
         # ---------- 预览区 ----------
         self.preview = QTextEdit()
         self.preview.setReadOnly(True)
-        self.preview.setStyleSheet(
-            "QTextEdit{background:#FFF;border:none;padding:12px}"
-        )
         self.preview.installEventFilter(self)
 
         # ---------- 变量面板（默认隐藏） ----------
@@ -587,6 +581,8 @@ class BeeWriteEditor(
             dark = Theme.is_dark()
         except Exception:
             high, dark = False, False
+        from beeoffice.theme import Theme
+        _t = Theme.tokens()
         if high:
             self.markdown_editor.setStyleSheet(
                 "QPlainTextEdit{border:none;padding:8px;background:#000000;"
@@ -598,17 +594,21 @@ class BeeWriteEditor(
             )
         elif dark:
             self.markdown_editor.setStyleSheet(
-                "QPlainTextEdit{border:none;padding:8px;background:#252525;color:#DDDDDD;}"
+                f"QPlainTextEdit{{border:none;padding:8px;background:{_t['surface_alt']};"
+                f"color:{_t['text']};}}"
             )
             self.preview.setStyleSheet(
-                "QTextEdit{background:#252525;color:#DDDDDD;border:none;padding:12px;}"
+                f"QTextEdit{{background:{_t['surface_alt']};color:{_t['text']};"
+                "border:none;padding:12px;}"
             )
         else:
             self.markdown_editor.setStyleSheet(
-                "QPlainTextEdit{border:none;padding:8px;background:#FAFAFA}"
+                f"QPlainTextEdit{{border:none;padding:8px;background:{_t['surface_alt']};"
+                f"color:{_t['text']};}}"
             )
             self.preview.setStyleSheet(
-                "QTextEdit{background:#FFF;border:none;padding:12px}"
+                f"QTextEdit{{background:{_t['surface']};color:{_t['text']};"
+                "border:none;padding:12px;}"
             )
         if hasattr(self, "rich_editor"):
             self.rich_editor.apply_theme()

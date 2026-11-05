@@ -86,3 +86,23 @@ def test_page_edit_apply_preserves_undo(beewrite_editor):
     assert "修改后的内容" in ed.content()
     ed._undo()
     assert "原始内容" in ed.content()
+
+
+def test_cross_page_table_detection(qtbot):
+    from PySide6.QtCore import QSizeF
+    from PySide6.QtGui import QTextDocument
+    from beeoffice.plugins.beewrite_page_view import (
+        SinglePageEditorDialog, find_cross_page_objects,
+    )
+
+    rows = "".join(f"<tr><td>row {i}</td><td>value {i}</td></tr>" for i in range(40))
+    doc = QTextDocument()
+    doc.setHtml(f"<table>{rows}</table>")
+    doc.setPageSize(QSizeF(300, 200))
+    objects = find_cross_page_objects(doc, 200)
+    assert any(o["type"] == "table" for o in objects), objects
+
+    dialog = SinglePageEditorDialog(doc, {}, 0, cross_objects=objects)
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.close()

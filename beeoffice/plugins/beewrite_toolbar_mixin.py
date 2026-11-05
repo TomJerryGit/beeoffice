@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from beeoffice.i18n import tr
+from beeoffice.theme import Theme
 
 
 _TOOLBAR_STYLE = (
@@ -142,12 +143,13 @@ class ToolbarMixin:
         self._fmt_btn = QPushButton(tr("auto.beewrite_toolbar_mixin.c2cb36d3", "🖌️ 格式刷"))
         self._fmt_btn.setToolTip(tr("auto.beewrite_toolbar_mixin.4d946097", "格式刷：复制格式 → 选中文字自动应用"))
         self._fmt_btn.setCheckable(True)
+        _t = Theme.tokens()
         self._fmt_btn.setStyleSheet(
-            "QPushButton{background:#FAFAFA;border:1px solid #DDD;"
-            "color:#555;font-weight:bold;padding:4px 12px;border-radius:4px;}"
-            "QPushButton:checked{background:#FFB300;color:#000;"
-            "border-color:#FF8F00;}"
-            "QPushButton:hover{background:#FFF3E0;border-color:#FFB300;}"
+            f"QPushButton{{background:{_t['surface_alt']};border:1px solid {_t['border']};"
+            f"color:{_t['text']};font-weight:bold;padding:4px 12px;border-radius:4px;}}"
+            f"QPushButton:checked{{background:{_t['accent']};color:#000;"
+            f"border-color:{_t['accent_dark']};}}"
+            f"QPushButton:hover{{background:{_t['accent_light']};border-color:{_t['accent']};}}"
         )
         self._fmt_btn.clicked.connect(self._toggle_format_painter)
         toolbar.addWidget(self._fmt_btn)
@@ -354,10 +356,11 @@ class ToolbarMixin:
         toolbar.addSeparator()
         self._collapse_btn = QPushButton(tr("auto.beewrite_toolbar_mixin.bf03e410", "▲ 收起"))
         self._collapse_btn.setToolTip(tr("auto.beewrite_toolbar_mixin.dd1591b5", "折叠 / 展开插入工具栏"))
+        _t = Theme.tokens()
         self._collapse_btn.setStyleSheet(
-            "QPushButton{font-size:10px;padding:2px 6px;"
-            "border:1px solid #DDD;border-radius:3px;}"
-            "QPushButton:hover{background:#FFF3E0;border-color:#FFB300;}"
+            f"QPushButton{{font-size:10px;padding:2px 6px;"
+            f"border:1px solid {_t['border']};border-radius:3px;}}"
+            f"QPushButton:hover{{background:{_t['accent_light']};border-color:{_t['accent']};}}"
         )
         self._collapse_btn.clicked.connect(self._toggle_toolbars)
         toolbar.addWidget(self._collapse_btn)
@@ -458,34 +461,35 @@ class ToolbarMixin:
     # ------------------------------------------------------------------
     def _build_status_bar(self) -> QHBoxLayout:
         """构建状态栏（字数 / 字符 / 行列）"""
+        _t = Theme.tokens()
         layout = QHBoxLayout()
         layout.setContentsMargins(8, 2, 8, 2)
         layout.addStretch()
 
         self._word_count_label = QLabel(tr("auto.beewrite_toolbar_mixin.ea64ed9b", "字数：0"))
         self._word_count_label.setStyleSheet(
-            "QLabel{color:#666;font-size:12px;padding:0 12px;}"
+            f"QLabel{{color:{_t['muted']};font-size:12px;padding:0 12px;}}"
         )
         layout.addWidget(self._word_count_label)
 
         self._char_count_label = QLabel(tr("auto.beewrite_toolbar_mixin.fd608933", "字符：0"))
         self._char_count_label.setStyleSheet(
-            "QLabel{color:#666;font-size:12px;padding:0 12px;}"
+            f"QLabel{{color:{_t['muted']};font-size:12px;padding:0 12px;}}"
         )
         layout.addWidget(self._char_count_label)
 
         self._cursor_pos_label = QLabel(tr("auto.beewrite_toolbar_mixin.001ceca9", "行 1 列 1"))
         self._cursor_pos_label.setMinimumWidth(120)
         self._cursor_pos_label.setStyleSheet(
-            "QLabel{color:#666;font-size:12px;padding:0 12px;"
-            "border-left:1px solid #DDD;}"
+            f"QLabel{{color:{_t['muted']};font-size:12px;padding:0 12px;"
+            f"border-left:1px solid {_t['border']};}}"
         )
         layout.addWidget(self._cursor_pos_label)
 
         self._page_count_label = QLabel(tr("auto.beewrite_toolbar_mixin.pages", "页数：1"))
         self._page_count_label.setStyleSheet(
-            "QLabel{color:#666;font-size:12px;padding:0 12px;"
-            "border-left:1px solid #DDD;}"
+            f"QLabel{{color:{_t['muted']};font-size:12px;padding:0 12px;"
+            f"border-left:1px solid {_t['border']};}}"
         )
         layout.addWidget(self._page_count_label)
 
@@ -499,7 +503,7 @@ class ToolbarMixin:
         self._zoom_label = QLabel("100%")
         self._zoom_label.setMinimumWidth(48)
         self._zoom_label.setAlignment(Qt.AlignCenter)
-        self._zoom_label.setStyleSheet("QLabel{color:#666;font-size:12px;}")
+        self._zoom_label.setStyleSheet(f"QLabel{{color:{_t['muted']};font-size:12px;}}")
         layout.addWidget(self._zoom_label)
 
         self._zoom_in_btn = QPushButton("+")

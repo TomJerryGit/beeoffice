@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QPointF, QRectF, QSize, QSizeF, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QPainter, QTextCursor, QTextDocument
+from PySide6.QtGui import (
+    QColor, QFont, QPainter, QTextCursor, QTextDocument, QTextTable,
+)
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -37,6 +39,50 @@ def build_page_document(rich_document=None, markdown_text: str = "") -> QTextDoc
         doc.setMarkdown(markdown_text or "")
     doc.setDocumentMargin(0)
     return doc
+
+
+def find_cross_page_objects(document: QTextDocument, content_h: float) -> list[dict]:
+    """找出跨越页面边界的图片/表格对象。"""
+    content_h = max(1.0, float(content_h))
+    layout = document.documentLayout()
+    found = []
+
+    def _page(rect):
+        return max(0, int(rect.top() // content_h)), max(0, int(rect.bottom() // content_h))
+
+    block = document.begin()
+    while block.isValid():
+        try:
+            has_image = False
+            it = block.begin()
+            while not it.atEnd():
+                frag = it.fragment()
+                if frag.isValid() and frag.charFormat().isImageFormat():
+                    has_image = True
+                    break
+                it += 1
+            if has_image:
+                rect = layout.blockBoundingRect(block)
+                start, end = _page(rect)
+                if start != end:
+                    found.append({"type": "image", "start_page": start,
+                                  "end_page": end, "text": block.text()[:40]})
+        except Exception:
+            pass
+        block = block.next()
+
+    try:
+        frames = list(document.rootFrame().childFrames())
+        for frame in frames:
+            if isinstance(frame, QTextTable):
+                rect = layout.frameBoundingRect(frame)
+                start, end = _page(rect)
+                if start != end:
+                    found.append({"type": "table", "start_page": start,
+                                  "end_page": end, "rows": frame.rows()})
+    except Exception:
+        pass
+    return found
 
 
 class PaperPageView(QWidget):
@@ -217,7 +263,7 @@ class SinglePageEditorDialog(QDialog):
     """
 
     def __init__(self, document: QTextDocument, page_settings: dict,
-                 page_index: int = 0, parent=None):
+                 page_index: int = 0, parent=None, cross_objects=None):
         super().__init__(parent)
         self.setWindowTitle(tr("beewrite.page_view.edit_title", "📝 单页编辑（原型）"))
         self._doc = document
@@ -267,6 +313,13 @@ class SinglePageEditorDialog(QDialog):
         layout.addWidget(QLabel(
             f"原型：已选中第 {page_index + 1} 页范围；编辑只替换该页文本。"
         ))
+        if cross_objects:
+            warn = QLabel(
+                f"⚠ 本页附近有 {len(cross_objects)} 个跨页图片/表格；"
+                "应用时会整篇替换。"
+            )
+            warn.setWordWrap(True)
+            layout.addWidget(warn)
         layout.addWidget(self._edit)
         layout.addLayout(btns)
 
@@ -326,6 +379,8 @@ class PageViewDialog(QDialog):
         self._view = self._make_view(self._source)
         self._view.position_clicked.connect(self.position_clicked)
         self._view.edit_requested.connect(self.edit_requested)
+        self._cross_objects = find_cross_page_objects(
+            self._view._doc, self._view._content_h)
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(False)
         self._scroll.setWidget(self._view)
@@ -333,6 +388,13 @@ class PageViewDialog(QDialog):
 
         layout = QVBoxLayout(self)
         layout.addLayout(toolbar)
+        if self._cross_objects:
+            tip = QLabel(
+                f"⚠ 检测到 {len(self._cross_objects)} 个跨页图片/表格；"
+                "单页编辑会回退为整篇替换。"
+            )
+            tip.setWordWrap(True)
+            layout.addWidget(tip)
         layout.addWidget(self._scroll, 1)
         self._update_label()
 
@@ -384,6 +446,7 @@ class PageViewDialog(QDialog):
         page = self._current_page()
         dialog = SinglePageEditorDialog(
             build_page_document(self._source), self._settings, page, self,
+            cross_objects=self._cross_objects,
         )
         if dialog.exec() == QDialog.Accepted:
             edited = dialog.document().clone()
@@ -421,6 +484,8 @@ class PageViewDialog(QDialog):
         self._view = self._make_view(self._source)
         self._view.position_clicked.connect(self.position_clicked)
         self._view.edit_requested.connect(self.edit_requested)
+        self._cross_objects = find_cross_page_objects(
+            self._view._doc, self._view._content_h)
         self._scroll.setWidget(self._view)
         self._view.set_zoom(self._zoom / 100.0)
         self._update_label()

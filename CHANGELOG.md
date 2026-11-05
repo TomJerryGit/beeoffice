@@ -25,7 +25,8 @@
 - 编辑器内部：Markdown、富文本、预览改为黑底白字；
 - 查找替换栏、大纲面板、统一导航栏黑底白字/黄色边框；
 - 主题 tokens 高对比度分支，Ribbon 等自动跟随；
-- 新增 `tools/high_contrast_audit.py`：49 文件/187 处硬编码颜色待逐项替换。
+- 新增 `tools/high_contrast_audit.py`：AST 审计真实 `setStyleSheet` 硬编码色；
+  已从 106 处降到 86 处，剩余按模块继续。
 
 ### 显示验收
 
@@ -35,7 +36,7 @@
 
 ### 验证
 
-- 全量 `pytest tests`：**1011 passed**。
+- 全量 `pytest tests`：**1012 passed**。
 
 ---
 
