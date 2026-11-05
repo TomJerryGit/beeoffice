@@ -54,7 +54,7 @@ from datetime import datetime
 
 from PySide6.QtWidgets import (
     QMainWindow, QStatusBar, QLabel, QMessageBox, QFileDialog,
-    QDialog, QVBoxLayout, QTextEdit,
+    QDialog, QVBoxLayout, QTextEdit, QWidget,
 )
 from PySide6.QtGui import QAction, QKeySequence, QShortcut
 from PySide6.QtCore import Qt, QTimer, Signal, QFileSystemWatcher
@@ -1055,6 +1055,12 @@ class BeeApp(QMainWindow):
 
     def _apply_theme(self):
         self.setStyleSheet(Theme.get_stylesheet())
+        for widget in self.findChildren(QWidget):
+            if hasattr(widget, "apply_theme"):
+                try:
+                    widget.apply_theme()
+                except Exception:
+                    pass
 
     def _switch_language(self, lang_code):
         set_language(lang_code)

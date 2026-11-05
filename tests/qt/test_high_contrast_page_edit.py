@@ -15,6 +15,22 @@ def test_high_contrast_stylesheet():
         Theme.set_high_contrast(old)
 
 
+def test_high_contrast_editor_styles(beewrite_editor):
+    from beeoffice.theme import Theme
+
+    editor = beewrite_editor
+    old = Theme.is_high_contrast()
+    try:
+        Theme.set_high_contrast(True)
+        editor.apply_theme()
+        assert "#000000" in editor.markdown_editor.styleSheet().lower()
+        assert "#000000" in editor.rich_editor.styleSheet().lower()
+        assert "#000000" in editor.preview.styleSheet().lower()
+    finally:
+        Theme.set_high_contrast(old)
+        editor.apply_theme()
+
+
 def test_single_page_editor_prototype(qtbot):
     from beeoffice.plugins.beewrite_page_view import (
         SinglePageEditorDialog, build_page_document,

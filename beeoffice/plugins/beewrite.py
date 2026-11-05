@@ -397,6 +397,7 @@ class BeeWriteEditor(
         # 关键修复：加 stretch=1，让分屏占满剩余空间，消除下方空白
         layout.addWidget(splitter, 1)
         layout.addLayout(self._status_bar)
+        self.apply_theme()
 
         # ---------- 信号连接 ----------
         self._update_timer = QTimer(self)
@@ -578,6 +579,42 @@ class BeeWriteEditor(
             logging.error(f"同步 rich_editor 目录失败: {e}")
 
     # ==================== v5.0.2 新增：路径访问器 ====================
+    def apply_theme(self):
+        """高对比度/深色主题下刷新编辑器内部样式（内联 QSS 优先于全局）。"""
+        try:
+            from beeoffice.theme import Theme
+            high = Theme.is_high_contrast()
+            dark = Theme.is_dark()
+        except Exception:
+            high, dark = False, False
+        if high:
+            self.markdown_editor.setStyleSheet(
+                "QPlainTextEdit{border:none;padding:8px;background:#000000;"
+                "color:#FFFFFF;selection-background-color:#FFD600;"
+                "selection-color:#000000;}"
+            )
+            self.preview.setStyleSheet(
+                "QTextEdit{background:#000000;color:#FFFFFF;border:none;padding:12px;}"
+            )
+        elif dark:
+            self.markdown_editor.setStyleSheet(
+                "QPlainTextEdit{border:none;padding:8px;background:#252525;color:#DDDDDD;}"
+            )
+            self.preview.setStyleSheet(
+                "QTextEdit{background:#252525;color:#DDDDDD;border:none;padding:12px;}"
+            )
+        else:
+            self.markdown_editor.setStyleSheet(
+                "QPlainTextEdit{border:none;padding:8px;background:#FAFAFA}"
+            )
+            self.preview.setStyleSheet(
+                "QTextEdit{background:#FFF;border:none;padding:12px}"
+            )
+        if hasattr(self, "rich_editor"):
+            self.rich_editor.apply_theme()
+        if hasattr(self, "find_bar") and hasattr(self.find_bar, "apply_theme"):
+            self.find_bar.apply_theme()
+
     def get_current_file_path(self) -> str:
         """
         v5.0.2 新增：返回当前文档路径（可能为 None）。

@@ -139,6 +139,33 @@ class RichTextEditor(QTextEdit):
         # 光标移动时通知父窗口
         self.cursorPositionChanged.connect(self._notify_cursor_position)
 
+    def apply_theme(self):
+        """根据当前主题（含高对比度）刷新编辑器内部样式。"""
+        try:
+            from beeoffice.theme import Theme
+            high = Theme.is_high_contrast()
+        except Exception:
+            high = False
+        if high:
+            self.setStyleSheet("""
+                QTextEdit {
+                    border: none; padding: 20px 40px;
+                    background-color: #000000; color: #FFFFFF;
+                    selection-background-color: #FFD600; selection-color: #000000;
+                    font-family: "Segoe UI", "微软雅黑", sans-serif;
+                    font-size: 14px; line-height: 1.8;
+                }
+            """)
+        else:
+            self.setStyleSheet("""
+                QTextEdit {
+                    border: none; padding: 20px 40px;
+                    background-color: #FFFFFF;
+                    font-family: "Segoe UI", "微软雅黑", sans-serif;
+                    font-size: 14px; line-height: 1.8;
+                }
+            """)
+
     def set_current_file_dir(self, d):
         """设置当前文件目录（用于粘贴图片时保存到 media/）"""
         self._current_file_dir = d
