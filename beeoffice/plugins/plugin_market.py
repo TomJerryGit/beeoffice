@@ -21,6 +21,8 @@ from PySide6.QtWidgets import (
     QTextEdit, QSplitter, QCheckBox, QWidget
 )
 from PySide6.QtCore import Qt
+from beeoffice.theme import Theme
+
 
 from beeoffice.plugin_base import USER_PLUGIN_MARKER
 from beeoffice.i18n import tr
@@ -41,7 +43,8 @@ class PluginMarketDialog(QDialog):
 
         # 顶部说明
         tip_label = QLabel(tr("auto.plugin_market.744bd296", "管理已安装的插件。插件目录：beeoffice/plugins/"))
-        tip_label.setStyleSheet("color: #666; font-size: 12px;")
+        tokens = Theme.tokens()
+        tip_label.setStyleSheet(f"color: {tokens['muted']}; font-size: 12px;")
         layout.addWidget(tip_label)
 
         # 主体：左侧列表 + 右侧详情
@@ -74,7 +77,7 @@ class PluginMarketDialog(QDialog):
         self.detail_text.setReadOnly(True)
         self.detail_text.setStyleSheet(
             "QTextEdit { font-size: 13px; padding: 8px; "
-            "background: #FAFAFA; border: 1px solid #DDD; border-radius: 6px; }"
+            f"background: {tokens['surface_alt']}; border: 1px solid {tokens['border']}; border-radius: 6px; }}"
         )
         right_layout.addWidget(self.detail_text)
 

@@ -3,6 +3,8 @@ from PySide6.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLa
 from PySide6.QtCore import Qt, QRect, Signal
 from PySide6.QtGui import QPainter, QColor, QPen, QFont
 from beeoffice.i18n import tr
+from beeoffice.theme import Theme
+
 
 
 class OnboardingStep:
@@ -65,31 +67,35 @@ class OnboardingOverlay(QWidget):
 
     def _create_tip(self, step):
         self._tip_widget = QWidget(self)
-        self._tip_widget.setStyleSheet("QWidget{background:#FFF;border:2px solid #FFB300;border-radius:12px}")
+        tokens = Theme.tokens()
+        self._tip_widget.setStyleSheet(
+            f"QWidget{{background:{tokens['surface']};color:{tokens['text']};"
+            f"border:2px solid {tokens['accent']};border-radius:12px}}"
+        )
         layout = QVBoxLayout(self._tip_widget)
         layout.setContentsMargins(20, 16, 20, 16)
         layout.setSpacing(8)
         step_label = QLabel(tr("auto.onboarding.e72a4f1e", "第 {0}/{1} 步").format(self._current_step + 1, len(self._steps)))
-        step_label.setStyleSheet("color:#FF8F00;font-size:11px;font-weight:bold")
+        step_label.setStyleSheet(f"color:{tokens['accent_dark']};font-size:11px;font-weight:bold")
         layout.addWidget(step_label)
         title_label = QLabel(step.title)
-        title_label.setStyleSheet("font-size:15px;font-weight:bold;color:#333")
+        title_label.setStyleSheet(f"font-size:15px;font-weight:bold;color:{tokens['text']}")
         title_label.setWordWrap(True)
         layout.addWidget(title_label)
         desc_label = QLabel(step.description)
-        desc_label.setStyleSheet("font-size:12px;color:#666")
+        desc_label.setStyleSheet(f"font-size:12px;color:{tokens['muted']}")
         desc_label.setWordWrap(True)
         desc_label.setMaximumWidth(280)
         layout.addWidget(desc_label)
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
         skip_btn = QPushButton(tr("auto.onboarding.31a98593", "跳过"))
-        skip_btn.setStyleSheet("QPushButton{background:transparent;border:none;color:#999;font-size:12px}QPushButton:hover{color:#666}")
+        skip_btn.setStyleSheet(f"QPushButton{{background:transparent;border:none;color:{tokens['muted']};font-size:12px}}")
         skip_btn.clicked.connect(self._skip_all)
         btn_layout.addWidget(skip_btn)
         next_text = "知道了" if self._current_step == len(self._steps) - 1 else "下一步"
         next_btn = QPushButton(next_text)
-        next_btn.setStyleSheet("QPushButton{background:#FFB300;color:#000;border:none;padding:8px 18px;border-radius:6px;font-weight:bold}QPushButton:hover{background:#FFA000}")
+        next_btn.setStyleSheet(f"QPushButton{{background:{tokens['accent']};color:#000;border:none;padding:8px 18px;border-radius:6px;font-weight:bold}}")
         next_btn.clicked.connect(self._next_step)
         btn_layout.addWidget(next_btn)
         layout.addLayout(btn_layout)

@@ -20,6 +20,8 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLineEdit,
 from PySide6.QtCore import Qt, Signal, QEvent, QTimer
 from PySide6.QtGui import QColor
 from beeoffice.i18n import tr
+from beeoffice.theme import Theme
+
 
 
 class CommandPalette(QDialog):
@@ -52,16 +54,17 @@ class CommandPalette(QDialog):
         header_layout = QHBoxLayout()
         self.input = QLineEdit()
         self.input.setPlaceholderText(tr("auto.command_palette.2d7652e2", "输入命令搜索..."))
+        tokens = Theme.tokens()
         self.input.setStyleSheet(
-            "QLineEdit { border: none; font-size: 15px; padding: 6px; background: transparent; }"
+            f"QLineEdit {{ border: none; font-size: 15px; padding: 6px; background: {tokens['surface']}; color: {tokens['text']}; }}"
         )
         header_layout.addWidget(self.input)
 
         # 上下文标签
         self.context_label = QLabel("")
         self.context_label.setStyleSheet(
-            "QLabel { color: #FF8F00; font-size: 11px; font-weight: bold; "
-            "padding: 4px 8px; background: #FFF3E0; border-radius: 4px; }"
+            f"QLabel {{ color: {tokens['accent_dark']}; font-size: 11px; font-weight: bold; "
+            f"padding: 4px 8px; background: {tokens['accent_light']}; border-radius: 4px; }}"
         )
         self.context_label.hide()
         header_layout.addWidget(self.context_label)

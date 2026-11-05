@@ -6,6 +6,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QTimer, Qt
 from beeoffice.i18n import tr
+from beeoffice.theme import Theme
+
 
 class MemoryMonitor(QDialog):
     def __init__(self, parent=None):
@@ -22,7 +24,8 @@ class MemoryMonitor(QDialog):
         layout.setSpacing(10)
 
         title = QLabel(tr("auto.memory_monitor.19efb576", "📊 内存使用情况"))
-        title.setStyleSheet("font-weight: bold; font-size: 15px; color: #FF8F00;")
+        tokens = Theme.tokens()
+        title.setStyleSheet(f"font-weight: bold; font-size: 15px; color: {tokens['accent_dark']};")
         layout.addWidget(title)
 
         self.current_label = QLabel(tr("auto.memory_monitor.f57b360d", "当前: -- MB"))
@@ -30,7 +33,7 @@ class MemoryMonitor(QDialog):
         layout.addWidget(self.current_label)
 
         self.peak_label = QLabel(tr("auto.memory_monitor.95439aed", "峰值: -- MB"))
-        self.peak_label.setStyleSheet("color: #888;")
+        self.peak_label.setStyleSheet(f"color: {tokens['muted']};")
         layout.addWidget(self.peak_label)
 
         self.progress = QProgressBar()
@@ -40,7 +43,7 @@ class MemoryMonitor(QDialog):
         layout.addWidget(self.progress)
 
         self.trend_label = QLabel(tr("auto.memory_monitor.01f84f88", "趋势: 监测中..."))
-        self.trend_label.setStyleSheet("color: #666; font-size: 12px;")
+        self.trend_label.setStyleSheet(f"color: {tokens['muted']}; font-size: 12px;")
         layout.addWidget(self.trend_label)
 
         btn_layout = QHBoxLayout()
@@ -108,7 +111,7 @@ class MemoryMonitor(QDialog):
                 self.trend_label.setStyleSheet("color: #4CAF50; font-size: 12px;")
             else:
                 self.trend_label.setText(tr("auto.memory_monitor.b3cfa623", "✅ 趋势: 稳定"))
-                self.trend_label.setStyleSheet("color: #666; font-size: 12px;")
+                self.trend_label.setStyleSheet(f"color: {tokens['muted']}; font-size: 12px;")
 
     def _manual_gc(self):
         import gc
