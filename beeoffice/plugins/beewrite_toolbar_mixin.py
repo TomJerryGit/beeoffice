@@ -429,6 +429,13 @@ class ToolbarMixin:
         btn_page_setup.clicked.connect(self._show_page_setup_dialog)
         layout.addWidget(btn_page_setup)
 
+        btn_overlay = QPushButton(tr("beewrite.toolbar.page_overlay", "📐 页面边界"))
+        btn_overlay.setCheckable(True)
+        btn_overlay.setToolTip(tr("beewrite.toolbar.page_overlay_tip", "编辑区显示页边距/页眉页脚参考"))
+        btn_overlay.clicked.connect(self._toggle_page_overlay)
+        self._page_overlay_btn = btn_overlay
+        layout.addWidget(btn_overlay)
+
         btn_page_view = QPushButton(tr("beewrite.toolbar.page_view", "📖 页面视图"))
         btn_page_view.setToolTip(tr("beewrite.toolbar.page_view_tip", "纸张分页视图（只读）"))
         btn_page_view.clicked.connect(self._open_page_view)

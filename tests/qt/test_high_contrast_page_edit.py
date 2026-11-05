@@ -106,3 +106,12 @@ def test_cross_page_table_detection(qtbot):
     qtbot.addWidget(dialog)
     dialog.show()
     dialog.close()
+
+
+def test_page_overlay_toggle(beewrite_editor):
+    ed = beewrite_editor
+    ed._set_page_overlay_enabled(True)
+    assert ed._page_overlay.is_enabled()
+    assert not ed._page_overlay.isHidden()
+    ed._set_page_overlay_enabled(False)
+    assert not ed._page_overlay.is_enabled()

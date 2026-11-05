@@ -38,6 +38,13 @@
       "sha256": "d40c7b13d8eae61fcb1cc967468407806c501b26efd60a97753ac39e358ef7c8",
       "width": 980,
       "height": 760
+    },
+    {
+      "name": "06-page-overlay",
+      "file": "06-page-overlay.png",
+      "sha256": "b5cac0ea18a3cc84109fef04e7b537fee00b9aef7ccb0b4bd5666a3a242382b8",
+      "width": 1200,
+      "height": 800
     }
   ]
 }

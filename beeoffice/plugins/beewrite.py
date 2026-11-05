@@ -90,6 +90,7 @@ from beeoffice.plugins.beewrite_page_extras import (
 
 # ==================== 视图组件（已有文件） ====================
 from beeoffice.plugins.beewrite_nav_panel import NavigationPanel
+from beeoffice.plugins.beewrite_page_overlay import PageLayoutOverlay
 
 # ==================== Mixin 层 ====================
 from beeoffice.plugins.beewrite_toolbar_mixin import ToolbarMixin
@@ -189,6 +190,11 @@ class BeeWriteEditor(
         self.editor_stack.addWidget(self.rich_editor)
         self.rich_editor.installEventFilter(self)
         self.markdown_editor.installEventFilter(self)
+        self._page_overlay = PageLayoutOverlay(
+            self.rich_editor,
+            lambda: self._page_settings,
+            self._page_overlay_info,
+        )
 
         # ---------- 预览区 ----------
         self.preview = QTextEdit()
@@ -573,6 +579,28 @@ class BeeWriteEditor(
             logging.error(f"同步 rich_editor 目录失败: {e}")
 
     # ==================== v5.0.2 新增：路径访问器 ====================
+    def _page_overlay_info(self):
+        return (
+            getattr(self, "_header_text", "") or "",
+            getattr(self, "_footer_text", "") or "",
+            dict(self._page_number_config or {}),
+        )
+
+    def _toggle_page_overlay(self, checked=False):
+        enabled = bool(checked)
+        self._page_overlay.set_enabled(enabled)
+        btn = getattr(self, "_page_overlay_btn", None)
+        if btn is not None:
+            btn.blockSignals(True)
+            btn.setChecked(enabled)
+            btn.blockSignals(False)
+
+    def _set_page_overlay_enabled(self, enabled: bool):
+        self._page_overlay.set_enabled(enabled)
+        btn = getattr(self, "_page_overlay_btn", None)
+        if btn is not None:
+            btn.setChecked(enabled)
+
     def apply_theme(self):
         """高对比度/深色主题下刷新编辑器内部样式（内联 QSS 优先于全局）。"""
         try:
