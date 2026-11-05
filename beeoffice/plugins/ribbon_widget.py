@@ -27,6 +27,18 @@ from PySide6.QtWidgets import (
 )
 
 
+def _set_button_a11y(button, text: str, tooltip: str = "") -> None:
+    """为图标/文字按钮补齐屏幕阅读器可读名称与描述。"""
+    name = (text or "").splitlines()[-1].strip() if text else ""
+    if not name:
+        name = (tooltip or "").strip()
+    if name:
+        button.setAccessibleName(name)
+    if tooltip:
+        button.setAccessibleDescription(tooltip)
+
+
+
 class RibbonGroup(QFrame):
     """Ribbon 分组框：内容在上、组名在下的 WPS/Office 样式。"""
 
@@ -88,6 +100,7 @@ class RibbonGroup(QFrame):
         elif icon is not None:
             button.setIcon(icon)
             button.setIconSize(QSize(22, 22))
+        _set_button_a11y(button, text, tooltip)
         button.setMinimumSize(56, 46)
         button.setStyleSheet(
             "QToolButton{border:none;border-radius:4px;padding:2px;"
@@ -129,6 +142,7 @@ class RibbonGroup(QFrame):
             hover = Theme.tokens()["accent_light"]
         except Exception:  # noqa: BLE001
             color, hover = "#333333", "#E8F0FE"
+        _set_button_a11y(button, text, tooltip)
         button.setStyleSheet(
             "QToolButton{border:none;border-radius:3px;padding:2px 5px;"
             f"font-size:11px;color:{color};}}"
@@ -187,6 +201,7 @@ class RibbonBar(QWidget):
         self._collapse_button = QToolButton()
         self._collapse_button.setText("⌃")
         self._collapse_button.setToolTip("折叠/展开功能区")
+        _set_button_a11y(self._collapse_button, "折叠/展开功能区", "折叠/展开功能区")
         self._collapse_button.setAutoRaise(True)
         self._collapse_button.setFixedSize(22, 20)
         self._collapse_button.clicked.connect(self.toggle_collapse)
@@ -205,6 +220,7 @@ class RibbonBar(QWidget):
         if self._file_button is None:
             self._file_button = QToolButton()
             self._file_button.setText("文件")
+            _set_button_a11y(self._file_button, "文件", "打开文件菜单")
             self._file_button.setPopupMode(QToolButton.InstantPopup)
             self._file_button.setAutoRaise(True)
             self._file_button.setStyleSheet(
@@ -313,6 +329,7 @@ class RibbonBar(QWidget):
         button = QToolButton()
         button.setText(text)
         button.setToolTip(tooltip)
+        _set_button_a11y(button, text, tooltip)
         button.setAutoRaise(True)
         button.setFixedSize(24, 22)
         if icon_name:

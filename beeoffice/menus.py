@@ -157,6 +157,7 @@ def setup_menus(main_window):
     new_doc_action.triggered.connect(main_window._new_beewrite)
 
     new_word_action = new_menu.addAction(tr("menu.file.new_word", "新建 Word 文档"))
+    new_word_action.setShortcut(QKeySequence("Ctrl+Alt+W"))
     new_word_action.triggered.connect(main_window._new_word_doc)
 
     new_sheet_action = new_menu.addAction(tr("menu.file.new_sheet", "新建蜜算表格"))
@@ -164,6 +165,7 @@ def setup_menus(main_window):
     new_sheet_action.triggered.connect(main_window._new_beesheet)
 
     new_show_action = new_menu.addAction(tr("menu.file.new_show", "新建蜜演"))
+    new_show_action.setShortcut(QKeySequence("Ctrl+Alt+V"))
     new_show_action.triggered.connect(main_window._new_beeshow)
 
     new_menu.addSeparator()
@@ -195,6 +197,7 @@ def setup_menus(main_window):
     file_menu.addAction(save_as_action)
 
     save_tpl_action = QAction(tr("cmd.template_save", "保存为模板"), main_window)
+    save_tpl_action.setShortcut(QKeySequence("Ctrl+Alt+T"))
     save_tpl_action.triggered.connect(main_window._save_as_template)
     file_menu.addAction(save_tpl_action)
 
@@ -204,9 +207,11 @@ def setup_menus(main_window):
     export_menu = file_menu.addMenu(tr("menu.file.export", "导出"))
 
     export_docx_action = export_menu.addAction(tr("cmd.export_docx", "导出 DOCX"))
+    export_docx_action.setShortcut(QKeySequence("Ctrl+Alt+D"))
     export_docx_action.triggered.connect(main_window._export_docx)
 
     export_pdf_action = export_menu.addAction(tr("cmd.export_pdf", "导出 PDF"))
+    export_pdf_action.setShortcut(QKeySequence("Ctrl+Alt+F"))
     export_pdf_action.triggered.connect(main_window._export_pdf)
 
     export_html_action = export_menu.addAction(tr("cmd.export_html", "导出 HTML"))
@@ -215,6 +220,7 @@ def setup_menus(main_window):
     export_menu.addSeparator()
 
     export_pptx_action = export_menu.addAction(tr("cmd.export_pptx", "导出 PPTX"))
+    export_pptx_action.setShortcut(QKeySequence("Ctrl+Alt+X"))
     export_pptx_action.triggered.connect(main_window._export_beeshow_pptx)
 
     generate_report_action = export_menu.addAction(
@@ -331,12 +337,14 @@ def setup_menus(main_window):
 
     # ---- PDF 批注 ----
     pdf_action = tools_menu.addAction(tr("cmd.pdf_annotator", "PDF 批注"))
+    pdf_action.setShortcut(QKeySequence("Ctrl+Alt+A"))
     pdf_action.triggered.connect(lambda: main_window._open_pdf_annotator())
 
     # ---- PDF 页面工具（合并/提取/删除/旋转/拆分）----
     pdf_pages_action = tools_menu.addAction(
         tr("pdf.pages.command", "PDF：页面工具")
     )
+    pdf_pages_action.setShortcut(QKeySequence("Ctrl+Alt+G"))
     pdf_pages_action.triggered.connect(
         lambda: main_window._open_pdf_pages()
     )
@@ -351,6 +359,7 @@ def setup_menus(main_window):
     macro_console_action = tools_menu.addAction(
         tr("macro.console.command", "宏控制台")
     )
+    macro_console_action.setShortcut(QKeySequence("Ctrl+Alt+K"))
     macro_console_action.triggered.connect(
         lambda: main_window._open_macro_console()
     )
@@ -389,6 +398,7 @@ def setup_menus(main_window):
     update_action = QAction(
         tr("menu.help.check_updates", "检查更新…"), main_window
     )
+    update_action.setShortcut(QKeySequence("Ctrl+Alt+U"))
     update_action.triggered.connect(main_window.check_for_updates)
     help_menu.addAction(update_action)
     help_menu.addSeparator()
