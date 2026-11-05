@@ -107,7 +107,7 @@ class ModeMixin:
     def _apply_mode_layout(self, mode):
         """切换视图布局（工具栏、预览、分屏宽度、查找栏、大纲）"""
         if mode == "rich_text":
-            self.editor_stack.setCurrentWidget(self.rich_editor)
+            self.editor_stack.setCurrentWidget(getattr(self, '_rich_frame', self.rich_editor))
             self._toolbar1.setVisible(True)
             self._toolbar2.setVisible(True)
             # 隐藏预览栏，编辑区占满

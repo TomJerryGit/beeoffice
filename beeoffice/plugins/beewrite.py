@@ -91,6 +91,7 @@ from beeoffice.plugins.beewrite_page_extras import (
 # ==================== 视图组件（已有文件） ====================
 from beeoffice.plugins.beewrite_nav_panel import NavigationPanel
 from beeoffice.plugins.beewrite_page_overlay import PageLayoutOverlay
+from beeoffice.plugins.beewrite_page_frame import PageEditorFrame
 
 # ==================== Mixin 层 ====================
 from beeoffice.plugins.beewrite_toolbar_mixin import ToolbarMixin
@@ -187,7 +188,12 @@ class BeeWriteEditor(
         self.rich_editor.cursorPositionChanged.connect(
             self._update_format_state
         )
-        self.editor_stack.addWidget(self.rich_editor)
+        self._rich_frame = PageEditorFrame(
+            self.rich_editor,
+            lambda: self._page_settings,
+            self._page_overlay_info,
+        )
+        self.editor_stack.addWidget(self._rich_frame)
         self.rich_editor.installEventFilter(self)
         self.markdown_editor.installEventFilter(self)
         self._page_overlay = PageLayoutOverlay(
@@ -589,6 +595,8 @@ class BeeWriteEditor(
     def _toggle_page_overlay(self, checked=False):
         enabled = bool(checked)
         self._page_overlay.set_enabled(enabled)
+        if hasattr(self, "_rich_frame"):
+            self._rich_frame.set_preview_enabled(enabled)
         btn = getattr(self, "_page_overlay_btn", None)
         if btn is not None:
             btn.blockSignals(True)
@@ -597,6 +605,8 @@ class BeeWriteEditor(
 
     def _set_page_overlay_enabled(self, enabled: bool):
         self._page_overlay.set_enabled(enabled)
+        if hasattr(self, "_rich_frame"):
+            self._rich_frame.set_preview_enabled(enabled)
         btn = getattr(self, "_page_overlay_btn", None)
         if btn is not None:
             btn.setChecked(enabled)
@@ -640,6 +650,8 @@ class BeeWriteEditor(
             )
         if hasattr(self, "rich_editor"):
             self.rich_editor.apply_theme()
+        if hasattr(self, "_rich_frame"):
+            self._rich_frame.refresh()
         if hasattr(self, "find_bar") and hasattr(self.find_bar, "apply_theme"):
             self.find_bar.apply_theme()
         if hasattr(self, "_outline_panel") and hasattr(self._outline_panel, "apply_theme"):

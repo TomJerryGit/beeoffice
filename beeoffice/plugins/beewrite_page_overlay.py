@@ -110,33 +110,6 @@ class PageLayoutOverlay(QWidget):
             painter.drawLine(int(left), int(y + page_h - margin_b),
                              int(left + page_w), int(y + page_h - margin_b))
 
-            # 页眉预览
-            font = QFont("Microsoft YaHei")
-            font.setPointSize(8)
-            painter.setFont(font)
-            painter.setPen(QColor(110, 110, 110))
-            if header:
-                painter.drawText(
-                    QRectF(left + margin_l, y + margin_t - 18,
-                           page_w - margin_l - margin_r, 16),
-                    Qt.AlignHCenter | Qt.AlignVCenter, header,
-                )
-            # 页脚 + 页码预览
-            footer_y = y + page_h - margin_b + 2
-            if footer:
-                painter.drawText(
-                    QRectF(left + margin_l, footer_y,
-                           page_w - margin_l - margin_r, 16),
-                    Qt.AlignLeft | Qt.AlignVCenter, footer,
-                )
-            if page_cfg.get("enabled", True):
-                painter.drawText(
-                    QRectF(left + margin_l, footer_y,
-                           page_w - margin_l - margin_r, 16),
-                    Qt.AlignHCenter | Qt.AlignVCenter,
-                    self._page_number_text(index, total_pages, page_cfg),
-                )
-
             # 页码角标
             painter.setPen(QColor(150, 150, 150))
             painter.drawText(
