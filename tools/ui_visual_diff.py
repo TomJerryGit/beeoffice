@@ -18,6 +18,8 @@ def main() -> int:
     ap.add_argument("--baseline", required=True)
     ap.add_argument("--current", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--max-diff-percent", type=float, default=None,
+                    help="任意截图差异超过该百分比时以非零退出")
     args = ap.parse_args()
     base = Path(args.baseline)
     cur = Path(args.current)
@@ -54,6 +56,12 @@ def main() -> int:
         "\n".join(f"{n}\t{s}\t{r}%" for n, s, r in rows) + "\n",
         encoding="utf-8",
     )
+    if args.max_diff_percent is not None:
+        over = [r for r in rows if isinstance(r[2], (int, float))
+                and r[2] > args.max_diff_percent]
+        if over or any("MISSING" in r[1] or "SIZE" in r[1] for r in rows):
+            print(f"❌ 视觉差异超阈值 {args.max_diff_percent}%：{over}")
+            return 1
     return 0
 
 

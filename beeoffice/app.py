@@ -475,12 +475,15 @@ class BeeApp(QMainWindow):
 
     def _open_recent(self, path):
         if not Path(path).exists():
-            QMessageBox.warning(
+            from beeoffice.ui_dialogs import show_error
+
+            show_error(
                 self,
                 tr("msg.file_not_found", "文件不存在"),
                 tr("msg.file_not_found_detail", "无法找到文件：\n{path}").format(
                     path=path
                 ),
+                details=path,
             )
             if path in self.settings.recent_files:
                 self.settings.recent_files.remove(path)

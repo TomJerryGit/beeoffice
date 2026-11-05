@@ -25,8 +25,24 @@ def _make_cloud(app):
     return CloudSettingsDialog(parent=app)
 
 
+def _make_pdf_toolbox(app):
+    from beeoffice.plugins.pdf_toolbox_dialog import PdfToolboxDialog
+    return PdfToolboxDialog(parent=app)
+
+
+def _make_macro_console(app):
+    from beeoffice.plugins.macro_console_dialog import MacroConsoleDialog
+    return MacroConsoleDialog(app, parent=app)
+
+
+def _make_memory_monitor(app):
+    from beeoffice.plugins.memory_monitor import MemoryMonitor
+    return MemoryMonitor(parent=app)
+
+
 @pytest.mark.parametrize("factory", [
     _make_comment, _make_pdf_pages, _make_formula, _make_cloud,
+    _make_pdf_toolbox, _make_macro_console, _make_memory_monitor,
 ])
 def test_escape_closes_dialog(app, qtbot, factory):
     dialog = factory(app)

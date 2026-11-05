@@ -42,6 +42,7 @@ class PaperPageView(QWidget):
     """把 QTextDocument 按页绘制为纸张，并支持点击定位。"""
 
     position_clicked = Signal(int)
+    edit_requested = Signal(int)
 
     def __init__(self, document: QTextDocument, page_settings: dict,
                  header_text: str = "", footer_text: str = "",
@@ -146,6 +147,12 @@ class PaperPageView(QWidget):
             self.position_clicked.emit(pos)
         super().mousePressEvent(event)
 
+    def mouseDoubleClickEvent(self, event):  # noqa: N802
+        pos = self._position_at(event.position())
+        if pos is not None:
+            self.edit_requested.emit(pos)
+        super().mouseDoubleClickEvent(event)
+
     def _position_at(self, point: QPointF) -> int | None:
         """把视口点击坐标映射为 QTextDocument 位置。"""
         try:
@@ -203,6 +210,7 @@ class PageViewDialog(QDialog):
     """纸张页面视图对话框。"""
 
     position_clicked = Signal(int)
+    edit_requested = Signal(int)
 
     def __init__(self, document: QTextDocument, page_settings: dict, parent=None,
                  header_text: str = "", footer_text: str = "",
@@ -245,6 +253,7 @@ class PageViewDialog(QDialog):
 
         self._view = self._make_view(self._source)
         self._view.position_clicked.connect(self.position_clicked)
+        self._view.edit_requested.connect(self.edit_requested)
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(False)
         self._scroll.setWidget(self._view)
@@ -320,6 +329,7 @@ class PageViewDialog(QDialog):
             old.deleteLater()
         self._view = self._make_view(self._source)
         self._view.position_clicked.connect(self.position_clicked)
+        self._view.edit_requested.connect(self.edit_requested)
         self._scroll.setWidget(self._view)
         self._view.set_zoom(self._zoom / 100.0)
         self._update_label()

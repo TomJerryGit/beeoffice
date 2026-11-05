@@ -440,12 +440,20 @@ class DocMixin:
             provider=self._page_view_payload,
         )
         dialog.position_clicked.connect(self._on_page_view_position)
+        dialog.edit_requested.connect(self._on_page_view_edit)
         dialog.setAttribute(Qt.WA_DeleteOnClose)
         self._page_view_dialog = dialog
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()
         return dialog
+
+    def _on_page_view_edit(self, position: int):
+        """双击页面 → 关闭页面视图并回到编辑区定位（可编辑流程起点）。"""
+        dialog = getattr(self, "_page_view_dialog", None)
+        if dialog is not None:
+            dialog.close()
+        self._on_page_view_position(position)
 
     def _on_page_view_position(self, position: int):
         """页面视图点击 → 在编辑区定位。"""
