@@ -412,20 +412,52 @@ class DocMixin:
                 return p._tab_file_paths.get(id(self), "")
             p = p.parent()
         return ""
-    def _open_page_view(self):
-        """打开只读纸张页面视图。"""
-        from beeoffice.plugins.beewrite_page_view import (
-            PageViewDialog, build_page_document,
-        )
+    def _page_view_payload(self):
+        """返回 (文档, 页面设置, 页眉, 页脚, 页码配置) 供页面视图刷新。"""
+        from beeoffice.plugins.beewrite_page_view import build_page_document
 
         if self._edit_mode == "rich_text":
             doc = self.rich_editor.document().clone()
         else:
             doc = build_page_document(markdown_text=self.content())
-        dialog = PageViewDialog(doc, self._page_settings, self)
+        return (
+            doc,
+            dict(self._page_settings),
+            getattr(self, "_header_text", "") or "",
+            getattr(self, "_footer_text", "") or "",
+            dict(self._page_number_config or {}),
+        )
+
+    def _open_page_view(self):
+        """打开只读纸张页面视图。"""
+        from beeoffice.plugins.beewrite_page_view import PageViewDialog
+
+        doc, settings, header, footer, page_number = self._page_view_payload()
+        dialog = PageViewDialog(
+            doc, settings, self,
+            header_text=header, footer_text=footer,
+            page_number_config=page_number,
+            provider=self._page_view_payload,
+        )
+        dialog.position_clicked.connect(self._on_page_view_position)
         dialog.setAttribute(Qt.WA_DeleteOnClose)
         self._page_view_dialog = dialog
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()
         return dialog
+
+    def _on_page_view_position(self, position: int):
+        """页面视图点击 → 在编辑区定位。"""
+        if self._edit_mode != "rich_text":
+            try:
+                self._switch_mode("rich_text")
+            except Exception:
+                pass
+        editor = self.rich_editor
+        cursor = editor.textCursor()
+        max_pos = max(0, editor.document().characterCount() - 1)
+        cursor.setPosition(max(0, min(int(position), max_pos)))
+        editor.setTextCursor(cursor)
+        editor.ensureCursorVisible()
+        editor.setFocus()

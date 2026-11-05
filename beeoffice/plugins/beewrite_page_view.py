@@ -1,11 +1,8 @@
 # beeoffice/plugins/beewrite_page_view.py
-"""蜜写纸张页面视图：只读分页预览（A4 + 页边距 + 页码 + 缩放）。
-
-第一阶段为只读页面视图；编辑仍在连续富文本/Markdown 视图中完成。
-"""
+"""蜜写纸张页面视图：A4 分页、页边距、页眉页脚、页码、缩放、点击定位。"""
 from __future__ import annotations
 
-from PySide6.QtCore import QRectF, QSize, QSizeF, Qt
+from PySide6.QtCore import QPointF, QRectF, QSize, QSizeF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QPainter, QTextDocument
 from PySide6.QtWidgets import (
     QDialog,
@@ -42,18 +39,27 @@ def build_page_document(rich_document=None, markdown_text: str = "") -> QTextDoc
 
 
 class PaperPageView(QWidget):
-    """把 QTextDocument 按页绘制为纸张。"""
+    """把 QTextDocument 按页绘制为纸张，并支持点击定位。"""
 
-    def __init__(self, document: QTextDocument, page_settings: dict, parent=None):
+    position_clicked = Signal(int)
+
+    def __init__(self, document: QTextDocument, page_settings: dict,
+                 header_text: str = "", footer_text: str = "",
+                 page_number_config: dict | None = None, parent=None):
         super().__init__(parent)
         self._doc = document
         self._settings = dict(page_settings or {})
+        self._header = header_text or ""
+        self._footer = footer_text or ""
+        self._page_number = dict(page_number_config or {})
         self._zoom = 1.0
         self._gap = 22
         self._recalc()
 
     def _recalc(self):
         margins = self._settings
+        self._margin_l = _cm_to_px(margins.get("margin_left", 3.17))
+        self._margin_t = _cm_to_px(margins.get("margin_top", 2.54))
         self._content_w = max(
             120.0,
             _cm_to_px(A4_CM[0] - margins.get("margin_left", 3.17)
@@ -70,7 +76,8 @@ class PaperPageView(QWidget):
         self._pages = max(1, self._doc.pageCount())
         self._scale = self._zoom
         width = int((self._page_w + self._gap * 2) * self._scale)
-        height = int((self._pages * self._page_h + (self._pages + 1) * self._gap) * self._scale)
+        height = int((self._pages * self._page_h
+                      + (self._pages + 1) * self._gap) * self._scale)
         self.setMinimumSize(QSize(width, height))
         self.resize(width, height)
         self.update()
@@ -83,8 +90,79 @@ class PaperPageView(QWidget):
         self._zoom = max(0.5, min(2.0, zoom))
         self._recalc()
 
+    def _page_number_text(self, index: int) -> str:
+        fmt = self._page_number.get("format", "- 1 -")
+        start = int(self._page_number.get("start", 1))
+        current = start + index
+        return (fmt.replace("1", str(current), 1)
+                .replace("N", str(self._pages)))
+
+    def _draw_header_footer(self, painter, page_rect, index):
+        if self._header:
+            font = QFont("Microsoft YaHei")
+            font.setPointSize(9)
+            painter.setFont(font)
+            painter.setPen(QColor("#666666"))
+            rect = QRectF(page_rect.x() + self._margin_l,
+                          page_rect.y() + _cm_to_px(0.7),
+                          self._content_w, _cm_to_px(1.0))
+            painter.drawText(rect, Qt.AlignHCenter | Qt.AlignVCenter, self._header)
+
+        if self._footer:
+            font = QFont("Microsoft YaHei")
+            font.setPointSize(9)
+            painter.setFont(font)
+            painter.setPen(QColor("#666666"))
+            rect = QRectF(page_rect.x() + self._margin_l,
+                          page_rect.y() + self._page_h - _cm_to_px(1.7),
+                          self._content_w, _cm_to_px(1.0))
+            painter.drawText(rect, Qt.AlignLeft | Qt.AlignVCenter, self._footer)
+
+        if self._page_number.get("enabled", True):
+            font = QFont("Microsoft YaHei")
+            font.setPointSize(int(self._page_number.get("fontsize", 9)))
+            painter.setFont(font)
+            painter.setPen(QColor("#888888"))
+            position = self._page_number.get("position", "底部居中")
+            top = "顶部" in position
+            y = (page_rect.y() + _cm_to_px(0.7) if top
+                 else page_rect.y() + self._page_h - _cm_to_px(1.1))
+            rect = QRectF(page_rect.x() + self._margin_l, y,
+                          self._content_w, _cm_to_px(1.0))
+            align = Qt.AlignHCenter
+            if "右" in position:
+                align = Qt.AlignRight
+            elif "左" in position:
+                align = Qt.AlignLeft
+            painter.drawText(rect, align | Qt.AlignVCenter,
+                             self._page_number_text(index))
+
     def sizeHint(self) -> QSize:
         return self.minimumSize()
+
+    def mousePressEvent(self, event):  # noqa: N802
+        pos = self._position_at(event.position())
+        if pos is not None:
+            self.position_clicked.emit(pos)
+        super().mousePressEvent(event)
+
+    def _position_at(self, point: QPointF) -> int | None:
+        """把视口点击坐标映射为 QTextDocument 位置。"""
+        try:
+            x = point.x() / self._scale
+            y = point.y() / self._scale
+            index = int((y - self._gap) // (self._page_h + self._gap))
+            if index < 0 or index >= self._pages:
+                return None
+            page_y = self._gap + index * (self._page_h + self._gap)
+            in_x = x - (self._gap + self._margin_l)
+            in_y = y - (page_y + self._margin_t)
+            if in_x < 0 or in_y < 0 or in_x > self._content_w or in_y > self._content_h:
+                return None
+            layout = self._doc.documentLayout()
+            return layout.hitTest(QPointF(in_x, in_y), Qt.FuzzyHit)
+        except Exception:
+            return None
 
     def paintEvent(self, event):  # noqa: N802
         painter = QPainter(self)
@@ -92,22 +170,15 @@ class PaperPageView(QWidget):
         painter.fillRect(self.rect(), QColor("#E9E9E9"))
         painter.scale(self._scale, self._scale)
 
-        margin_l = _cm_to_px(self._settings.get("margin_left", 3.17))
-        margin_t = _cm_to_px(self._settings.get("margin_top", 2.54))
-        page_font = QFont("Microsoft YaHei")
-        page_font.setPointSize(8)
-        painter.setFont(page_font)
-
         for i in range(self._pages):
             y = self._gap + i * (self._page_h + self._gap)
             page_rect = QRectF(self._gap, y, self._page_w, self._page_h)
             painter.fillRect(page_rect.adjusted(3, 3, 3, 3), QColor(0, 0, 0, 30))
             painter.fillRect(page_rect, QColor("#FFFFFF"))
 
-            # 内容区（页边距内）
             content_rect = QRectF(
-                self._gap + margin_l,
-                y + margin_t,
+                self._gap + self._margin_l,
+                y + self._margin_t,
                 self._content_w,
                 self._content_h,
             )
@@ -121,20 +192,9 @@ class PaperPageView(QWidget):
             )
             painter.restore()
 
-            # 页边距辅助线
             painter.setPen(QColor(0, 0, 0, 18))
             painter.drawRect(content_rect)
-
-            # 页码
-            painter.setPen(QColor("#888888"))
-            footer = QRectF(
-                self._gap,
-                y + self._page_h - _cm_to_px(1.2),
-                self._page_w,
-                _cm_to_px(0.8),
-            )
-            painter.drawText(footer, Qt.AlignHCenter | Qt.AlignVCenter,
-                             f"- {i + 1} -")
+            self._draw_header_footer(painter, page_rect, i)
 
         painter.end()
 
@@ -142,11 +202,22 @@ class PaperPageView(QWidget):
 class PageViewDialog(QDialog):
     """纸张页面视图对话框。"""
 
-    def __init__(self, document: QTextDocument, page_settings: dict, parent=None):
+    position_clicked = Signal(int)
+
+    def __init__(self, document: QTextDocument, page_settings: dict, parent=None,
+                 header_text: str = "", footer_text: str = "",
+                 page_number_config: dict | None = None, provider=None):
         super().__init__(parent)
         self.setWindowTitle(tr("beewrite.page_view.title", "📄 页面视图"))
         self.resize(980, 760)
         self._zoom = 100
+        self._source = document
+        self._settings = dict(page_settings or {})
+        self._header = header_text or ""
+        self._footer = footer_text or ""
+        self._page_number = dict(page_number_config or {})
+        self._provider = provider
+        self._last_settings = self._settings_snapshot()
 
         toolbar = QHBoxLayout()
         self._page_label = QLabel("")
@@ -172,9 +243,8 @@ class PageViewDialog(QDialog):
         close.clicked.connect(self.reject)
         toolbar.addWidget(close)
 
-        self._source = document
-        self._settings = dict(page_settings or {})
-        self._view = PaperPageView(build_page_document(document), self._settings)
+        self._view = self._make_view(self._source)
+        self._view.position_clicked.connect(self.position_clicked)
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(False)
         self._scroll.setWidget(self._view)
@@ -184,6 +254,42 @@ class PageViewDialog(QDialog):
         layout.addLayout(toolbar)
         layout.addWidget(self._scroll, 1)
         self._update_label()
+
+        self._timer = QTimer(self)
+        self._timer.setInterval(700)
+        self._timer.timeout.connect(self._poll_settings)
+        if provider is not None:
+            self._timer.start()
+
+    def _make_view(self, doc):
+        return PaperPageView(
+            doc, self._settings, self._header, self._footer,
+            self._page_number,
+        )
+
+    def _settings_snapshot(self):
+        return (
+            tuple(sorted(self._settings.items())),
+            self._header, self._footer,
+            tuple(sorted(self._page_number.items())),
+        )
+
+    def _poll_settings(self):
+        if self._provider is None or not self.isVisible():
+            return
+        try:
+            doc, settings, header, footer, page_number = self._provider()
+        except Exception:
+            return
+        self._source = doc
+        self._settings = dict(settings or {})
+        self._header = header or ""
+        self._footer = footer or ""
+        self._page_number = dict(page_number or {})
+        snapshot = self._settings_snapshot()
+        if snapshot != self._last_settings:
+            self._last_settings = snapshot
+            self.refresh_document()
 
     def _update_label(self):
         self._page_label.setText(
@@ -198,7 +304,22 @@ class PageViewDialog(QDialog):
         self._update_label()
 
     def refresh_document(self):
-        self._view = PaperPageView(build_page_document(self._source), self._settings)
+        if self._provider is not None:
+            try:
+                doc, settings, header, footer, page_number = self._provider()
+                self._source = doc
+                self._settings = dict(settings or {})
+                self._header = header or ""
+                self._footer = footer or ""
+                self._page_number = dict(page_number or {})
+                self._last_settings = self._settings_snapshot()
+            except Exception:
+                pass
+        old = self._scroll.takeWidget()
+        if old is not None:
+            old.deleteLater()
+        self._view = self._make_view(self._source)
+        self._view.position_clicked.connect(self.position_clicked)
         self._scroll.setWidget(self._view)
         self._view.set_zoom(self._zoom / 100.0)
         self._update_label()

@@ -132,6 +132,7 @@ class Theme:
         QPushButton {{ border: 1px solid #CCC; border-radius: 6px; padding: 6px 14px; background: #FAFAFA; color: #333; font-size: 13px; }}
         QPushButton:hover {{ background: {al}; border-color: {a}; }}
         QPushButton:pressed {{ background: {a}; color: #FFF; }}
+        QPushButton:focus, QToolButton:focus, QComboBox:focus {{ border: 2px solid {a}; }}
         QLineEdit, QTextEdit, QPlainTextEdit {{ border: 1px solid #D0D0D0; border-radius: 6px; padding: 6px 10px; background: #FFF; selection-background-color: {a}; }}
         QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus {{ border-color: {a}; }}
         QListWidget {{ border: 1px solid #E0E0E0; border-radius: 6px; background: #FFF; }}
@@ -178,6 +179,7 @@ class Theme:
         QPushButton {{ border: 1px solid #444; border-radius: 6px; padding: 6px 14px; background: #333; color: #DDD; font-size: 13px; }}
         QPushButton:hover {{ background: #444; border-color: {a}; }}
         QPushButton:pressed {{ background: {a}; color: #000; }}
+        QPushButton:focus, QToolButton:focus, QComboBox:focus {{ border: 2px solid {a}; }}
         QLineEdit, QTextEdit, QPlainTextEdit {{ border: 1px solid #444; border-radius: 6px; padding: 6px 10px; background: #252525; color: #DDD; selection-background-color: {a}; }}
         QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus {{ border-color: {a}; }}
         QListWidget {{ border: 1px solid #3D3D3D; border-radius: 6px; background: #252525; color: #DDD; }}

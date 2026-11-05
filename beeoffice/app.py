@@ -460,7 +460,9 @@ class BeeApp(QMainWindow):
             action.setEnabled(False)
         else:
             for path in self.settings.recent_files:
-                action = self.recent_menu.addAction(path)
+                display = path if len(path) <= 64 else "…" + path[-61:]
+                action = self.recent_menu.addAction(display)
+                action.setToolTip(path)
                 action.triggered.connect(
                     lambda checked=False, p=path: self._open_recent(p)
                 )

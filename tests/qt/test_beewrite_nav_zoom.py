@@ -57,10 +57,34 @@ def test_zoom_controls(beewrite_editor):
 def test_page_view_dialog(beewrite_editor):
     ed = beewrite_editor
     _seed(ed)
+    ed._header_text = "测试页眉"
+    ed._footer_text = "测试页脚"
     dlg = ed._open_page_view()
     assert dlg is not None
     assert dlg._view.pages >= 1
     assert "共" in dlg._page_label.text()
+    assert dlg._view._header == "测试页眉"
+    assert dlg._view._footer == "测试页脚"
     dlg._set_zoom(150)
     assert dlg._zoom_label.text() == "150%"
+    dlg.close()
+
+
+def test_page_view_click_position_and_live_settings(beewrite_editor):
+    from PySide6.QtCore import QPointF
+
+    ed = beewrite_editor
+    _seed(ed)
+    dlg = ed._open_page_view()
+    view = dlg._view
+    pos = view._position_at(QPointF(
+        view._gap + view._margin_l + 20,
+        view._gap + view._margin_t + 20,
+    ))
+    assert pos is not None and pos >= 0
+
+    # 页面设置变化后由 provider 轮询刷新
+    ed._page_settings["margin_left"] = 2.0
+    dlg._poll_settings()
+    assert dlg._view._settings["margin_left"] == 2.0
     dlg.close()
