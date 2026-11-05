@@ -46,3 +46,43 @@ def test_single_page_editor_prototype(qtbot):
     buttons = dialog.findChildren(QPushButton)
     assert any(b.text() == "应用" for b in buttons)
     dialog.close()
+
+
+def test_single_page_selects_page_range(qtbot):
+    from PySide6.QtGui import QTextDocument
+    from beeoffice.plugins.beewrite_page_view import SinglePageEditorDialog
+
+    doc = QTextDocument()
+    doc.setHtml("<p>" + "</p><p>".join(f"第 {i} 段" for i in range(120)) + "</p>")
+    dialog = SinglePageEditorDialog(doc, {}, 0)
+    qtbot.addWidget(dialog)
+    dialog.show()
+    cursor = dialog._edit.textCursor()
+    assert cursor.hasSelection()
+    assert cursor.selectedText().strip()
+    dialog.close()
+
+
+def test_single_page_keeps_table(qtbot):
+    from PySide6.QtGui import QTextDocument
+    from beeoffice.plugins.beewrite_page_view import SinglePageEditorDialog
+
+    doc = QTextDocument()
+    doc.setHtml("<table><tr><td>A</td><td>B</td></tr></table>")
+    dialog = SinglePageEditorDialog(doc, {}, 0)
+    qtbot.addWidget(dialog)
+    assert "<table" in dialog.document().toHtml().lower()
+    dialog.close()
+
+
+def test_page_edit_apply_preserves_undo(beewrite_editor):
+    from beeoffice.plugins.beewrite_page_view import build_page_document
+
+    ed = beewrite_editor
+    ed.set_content("# 原文档\n\n原始内容")
+    ed._switch_mode("rich_text")
+    edited = build_page_document(markdown_text="# 新文档\n\n修改后的内容")
+    ed._apply_page_edit(edited)
+    assert "修改后的内容" in ed.content()
+    ed._undo()
+    assert "原始内容" in ed.content()

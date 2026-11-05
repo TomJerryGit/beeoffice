@@ -49,6 +49,7 @@ from PySide6.QtWidgets import (
     QTextEdit,
 )
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QTextCursor
 
 from beeoffice.plugins.beewrite_page_extras import (
     WatermarkDialog,
@@ -450,10 +451,22 @@ class DocMixin:
         return dialog
 
     def _apply_page_edit(self, document):
-        """M2 原型：把单页编辑后的文档写回蜜写富文本。"""
+        """M2 原型：把单页编辑后的文档写回蜜写富文本。
+
+        用一次 QTextCursor 编辑块替换全文，保留原有撤销栈：
+        页面编辑只产生一个可撤销动作，而不是清空历史。
+        """
         if self._edit_mode != "rich_text":
             self._switch_mode("rich_text")
-        self.rich_editor.setHtml(document.toHtml())
+        editor = self.rich_editor
+        cursor = editor.textCursor()
+        cursor.beginEditBlock()
+        try:
+            cursor.select(QTextCursor.Document)
+            cursor.insertHtml(document.toHtml())
+        finally:
+            cursor.endEditBlock()
+        editor.setTextCursor(cursor)
         self._update_status_bar()
 
     def _on_page_view_edit(self, position: int):

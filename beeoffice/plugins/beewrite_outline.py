@@ -122,6 +122,24 @@ class OutlinePanel(QWidget):
         layout.addWidget(tip)
 
     # ==================== 外部接口 ====================
+    def apply_theme(self):
+        """高对比度下重绘大纲树/搜索/按钮。"""
+        try:
+            from beeoffice.theme import Theme
+            high = Theme.is_high_contrast()
+        except Exception:
+            high = False
+        if high:
+            self._tree.setStyleSheet(
+                "QTreeWidget{background:#000000;color:#FFFFFF;border:2px solid #FFFFFF;"
+                "border-radius:4px;font-size:12px;}"
+                "QTreeWidget::item:selected{background:#FFD600;color:#000000;}"
+                "QTreeWidget::item:hover{background:#333333;}"
+            )
+            self._search_edit.setStyleSheet(
+                "QLineEdit{background:#000000;color:#FFFFFF;border:2px solid #FFFFFF;}"
+            )
+
     def set_editor(self, editor):
         """绑定编辑器"""
         self._editor = editor

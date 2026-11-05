@@ -614,6 +614,8 @@ class BeeWriteEditor(
             self.rich_editor.apply_theme()
         if hasattr(self, "find_bar") and hasattr(self.find_bar, "apply_theme"):
             self.find_bar.apply_theme()
+        if hasattr(self, "_outline_panel") and hasattr(self._outline_panel, "apply_theme"):
+            self._outline_panel.apply_theme()
 
     def get_current_file_path(self) -> str:
         """

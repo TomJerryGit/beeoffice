@@ -108,6 +108,25 @@ class FindReplaceBar(QWidget):
             "QPushButton:hover{background:#FFE0B2;}"
         )
 
+    def apply_theme(self):
+        """高对比度下重绘查找栏。"""
+        try:
+            from beeoffice.theme import Theme
+            high = Theme.is_high_contrast()
+        except Exception:
+            high = False
+        if high:
+            self.setStyleSheet(
+                "FindReplaceBar{background:#000000;border-bottom:2px solid #FFFFFF;}"
+                "QLineEdit{background:#000000;color:#FFFFFF;border:2px solid #FFFFFF;"
+                "border-radius:3px;padding:4px 8px;}"
+                "QPushButton{background:#000000;color:#FFFFFF;border:2px solid #FFFFFF;"
+                "border-radius:3px;padding:4px 10px;}"
+                "QPushButton:hover{background:#FFD600;color:#000000;}"
+                "QLabel{color:#FFFFFF;}"
+                "QCheckBox{color:#FFFFFF;}"
+            )
+
     # ==================== 对外接口 ====================
     def show_for_editor(self, editor):
         """

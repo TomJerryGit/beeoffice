@@ -55,6 +55,17 @@ class Theme:
     @classmethod
     def tokens(cls) -> dict:
         """当前主题的颜色 token（控件内联样式统一从这里取值）。"""
+        if cls.is_high_contrast():
+            accent = cls.get_accent_color("primary")
+            return {
+                "bg": "#000000", "surface": "#000000",
+                "surface_alt": "#000000", "toolbar": "#000000",
+                "text": "#FFFFFF", "muted": "#FFFFFF",
+                "border": "#FFFFFF", "accent": accent,
+                "accent_light": "#000000", "accent_dark": accent,
+                "danger": "#FF5252", "success": "#69F0AE",
+                "is_dark": False,
+            }
         dark = cls.is_dark()
         accent = cls.get_accent_color("primary")
         light = cls.get_accent_color("light")

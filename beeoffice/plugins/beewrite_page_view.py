@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QPointF, QRectF, QSize, QSizeF, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QPainter, QTextDocument
+from PySide6.QtGui import QColor, QFont, QPainter, QTextCursor, QTextDocument
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -229,17 +229,26 @@ class SinglePageEditorDialog(QDialog):
         self._edit = QTextEdit()
         self._edit.setDocument(self._doc)
         self._edit.setFixedSize(int(w), int(h))
+        self._page_index = page_index
         self._edit.setStyleSheet(
             "QTextEdit{background:#FFF;color:#111;border:1px solid #CCC;}"
         )
         self._doc.setPageSize(QSizeF(w, h))
-        # 滚动到指定页起始
+        # 选中指定页范围，编辑时优先只替换这一页
+        page_count = max(1, self._doc.pageCount())
+        page_index = max(0, min(page_index, page_count - 1))
         try:
             layout = self._doc.documentLayout()
-            pos = layout.hitTest(
-                QPointF(0, page_index * h), Qt.FuzzyHit)
+            start = layout.hitTest(QPointF(0, page_index * h), Qt.FuzzyHit)
+            end = layout.hitTest(
+                QPointF(0, min((page_index + 1) * h, self._doc.size().height())),
+                Qt.FuzzyHit,
+            )
+            if end <= start:
+                end = self._doc.characterCount() - 1
             cursor = self._edit.textCursor()
-            cursor.setPosition(max(0, pos))
+            cursor.setPosition(max(0, start))
+            cursor.setPosition(max(0, end), QTextCursor.KeepAnchor)
             self._edit.setTextCursor(cursor)
             self._edit.ensureCursorVisible()
         except Exception:
@@ -255,7 +264,9 @@ class SinglePageEditorDialog(QDialog):
         btns.addWidget(cancel)
 
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("原型：编辑整篇文档副本；窗口按单页尺寸显示。"))
+        layout.addWidget(QLabel(
+            f"原型：已选中第 {page_index + 1} 页范围；编辑只替换该页文本。"
+        ))
         layout.addWidget(self._edit)
         layout.addLayout(btns)
 

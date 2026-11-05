@@ -62,6 +62,26 @@ class NavigationPanel(QWidget):
     # ------------------------------------------------------------------
     # 对外接口
     # ------------------------------------------------------------------
+    def apply_theme(self):
+        """高对比度：刷新导航面板与内嵌大纲/查找栏。"""
+        try:
+            from beeoffice.theme import Theme
+            high = Theme.is_high_contrast()
+        except Exception:
+            high = False
+        if high:
+            self.tabs.setStyleSheet(
+                "QTabWidget::pane{background:#000000;border:2px solid #FFFFFF;}"
+                "QTabBar::tab{background:#000000;color:#FFFFFF;"
+                "border:1px solid #FFFFFF;padding:6px 10px;}"
+                "QTabBar::tab:selected{background:#FFD600;color:#000000;}"
+                "QListWidget{background:#000000;color:#FFFFFF;"
+                "border:2px solid #FFFFFF;}"
+                "QListWidget::item:selected{background:#FFD600;color:#000000;}"
+            )
+        if hasattr(self, "outline"):
+            self.outline.apply_theme()
+
     def attach_find_bar(self, bar):
         self._find_layout.addWidget(bar)
 
