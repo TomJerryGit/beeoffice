@@ -441,12 +441,20 @@ class DocMixin:
         )
         dialog.position_clicked.connect(self._on_page_view_position)
         dialog.edit_requested.connect(self._on_page_view_edit)
+        dialog.document_edited.connect(self._apply_page_edit)
         dialog.setAttribute(Qt.WA_DeleteOnClose)
         self._page_view_dialog = dialog
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()
         return dialog
+
+    def _apply_page_edit(self, document):
+        """M2 原型：把单页编辑后的文档写回蜜写富文本。"""
+        if self._edit_mode != "rich_text":
+            self._switch_mode("rich_text")
+        self.rich_editor.setHtml(document.toHtml())
+        self._update_status_bar()
 
     def _on_page_view_edit(self, position: int):
         """双击页面 → 关闭页面视图并回到编辑区定位（可编辑流程起点）。"""

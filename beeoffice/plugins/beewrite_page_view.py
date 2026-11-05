@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QScrollArea,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -206,11 +207,68 @@ class PaperPageView(QWidget):
         painter.end()
 
 
+class SinglePageEditorDialog(QDialog):
+    """M2 原型：单个纸张页面尺寸的编辑窗口。
+
+    说明：
+      - 编辑的是整篇文档的副本，窗口尺寸限制为一页内容区；
+      - 打开时滚动到指定页起始位置；
+      - 确定后把编辑后的文档副本交给页面视图，再回写蜜写富文本。
+    """
+
+    def __init__(self, document: QTextDocument, page_settings: dict,
+                 page_index: int = 0, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(tr("beewrite.page_view.edit_title", "📝 单页编辑（原型）"))
+        self._doc = document
+        margins = page_settings or {}
+        w = _cm_to_px(A4_CM[0] - margins.get("margin_left", 3.17)
+                      - margins.get("margin_right", 3.17))
+        h = _cm_to_px(A4_CM[1] - margins.get("margin_top", 2.54)
+                      - margins.get("margin_bottom", 2.54))
+        self._edit = QTextEdit()
+        self._edit.setDocument(self._doc)
+        self._edit.setFixedSize(int(w), int(h))
+        self._edit.setStyleSheet(
+            "QTextEdit{background:#FFF;color:#111;border:1px solid #CCC;}"
+        )
+        self._doc.setPageSize(QSizeF(w, h))
+        # 滚动到指定页起始
+        try:
+            layout = self._doc.documentLayout()
+            pos = layout.hitTest(
+                QPointF(0, page_index * h), Qt.FuzzyHit)
+            cursor = self._edit.textCursor()
+            cursor.setPosition(max(0, pos))
+            self._edit.setTextCursor(cursor)
+            self._edit.ensureCursorVisible()
+        except Exception:
+            pass
+
+        btns = QHBoxLayout()
+        btns.addStretch()
+        ok = QPushButton("应用")
+        ok.clicked.connect(self.accept)
+        cancel = QPushButton("取消")
+        cancel.clicked.connect(self.reject)
+        btns.addWidget(ok)
+        btns.addWidget(cancel)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel("原型：编辑整篇文档副本；窗口按单页尺寸显示。"))
+        layout.addWidget(self._edit)
+        layout.addLayout(btns)
+
+    def document(self) -> QTextDocument:
+        return self._doc
+
+
 class PageViewDialog(QDialog):
     """纸张页面视图对话框。"""
 
     position_clicked = Signal(int)
     edit_requested = Signal(int)
+    document_edited = Signal(object)
 
     def __init__(self, document: QTextDocument, page_settings: dict, parent=None,
                  header_text: str = "", footer_text: str = "",
@@ -244,6 +302,9 @@ class PageViewDialog(QDialog):
         plus.setFixedWidth(28)
         plus.clicked.connect(lambda: self._set_zoom(self._zoom + 10))
         toolbar.addWidget(plus)
+        edit_btn = QPushButton(tr("beewrite.page_view.edit", "编辑本页"))
+        edit_btn.clicked.connect(self._open_single_page_editor)
+        toolbar.addWidget(edit_btn)
         refresh = QPushButton(tr("beewrite.page_view.refresh", "刷新"))
         refresh.clicked.connect(self.refresh_document)
         toolbar.addWidget(refresh)
@@ -298,6 +359,25 @@ class PageViewDialog(QDialog):
         snapshot = self._settings_snapshot()
         if snapshot != self._last_settings:
             self._last_settings = snapshot
+            self.refresh_document()
+
+    def _current_page(self) -> int:
+        try:
+            y = self._scroll.verticalScrollBar().value()
+            step = (self._view._page_h + self._view._gap) * self._view._scale
+            return max(0, min(self._view.pages - 1, int(y // step)))
+        except Exception:
+            return 0
+
+    def _open_single_page_editor(self):
+        page = self._current_page()
+        dialog = SinglePageEditorDialog(
+            build_page_document(self._source), self._settings, page, self,
+        )
+        if dialog.exec() == QDialog.Accepted:
+            edited = dialog.document().clone()
+            self._source = edited
+            self.document_edited.emit(edited)
             self.refresh_document()
 
     def _update_label(self):

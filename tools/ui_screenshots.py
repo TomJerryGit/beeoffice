@@ -25,18 +25,26 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(ROOT / "docs" / "ui-baseline" / "2026-11-05"))
     ap.add_argument("--lang", default="")
+    ap.add_argument("--contrast", action="store_true")
     args = ap.parse_args()
 
     from PySide6.QtWidgets import QApplication
     if args.lang:
         from beeoffice.i18n import set_language
         set_language(args.lang)
+    if args.contrast:
+        from beeoffice.theme import Theme
+        Theme.set_high_contrast(True)
     from beeoffice.app import BeeApp
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     app = QApplication.instance() or QApplication([])
     window = BeeApp()
+    if args.contrast:
+        from beeoffice.theme import Theme
+        Theme.set_high_contrast(True)
+        window._apply_theme()
     window.resize(1360, 860)
     window.show()
     window._lazy_load_modules()
@@ -68,6 +76,7 @@ def main() -> int:
         "platform": sys.platform,
         "dpi": os.environ.get("QT_SCALE_FACTOR", "1"),
         "language": args.lang or "default",
+        "high_contrast": bool(args.contrast),
         "shots": shots,
     }
     (out / "manifest.json").write_text(

@@ -37,6 +37,7 @@ class AppSettings:
         self.recent_files = []
         self.open_tabs = []
         self.theme = "light"
+        self.high_contrast = False
         self.accent_color = "amber"
         self.language = "zh_CN"
         self.has_completed_onboarding = False
@@ -126,6 +127,7 @@ class AppSettings:
         self.recent_files = data.get("recent_files", [])
         self.open_tabs = data.get("open_tabs", [])
         self.theme = data.get("theme", "light")
+        self.high_contrast = bool(data.get("high_contrast", False))
         self.accent_color = data.get("accent_color", "amber")
         self.language = data.get("language", "zh_CN")
         self.has_completed_onboarding = data.get("has_completed_onboarding", False)
@@ -243,6 +245,7 @@ class AppSettings:
                     "recent_files": self.recent_files,
                     "open_tabs": self.open_tabs,
                     "theme": self.theme,
+                    "high_contrast": self.high_contrast,
                     "accent_color": self.accent_color,
                     "language": self.language,
                     "has_completed_onboarding": self.has_completed_onboarding,

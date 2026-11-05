@@ -89,6 +89,7 @@ class BeeApp(QMainWindow):
 
         self.settings = AppSettings()
         Theme.set_theme(self.settings.theme)
+        Theme.set_high_contrast(getattr(self.settings, "high_contrast", False))
         Theme.set_accent(self.settings.accent_color)
         set_language(self.settings.language)
 
@@ -1038,6 +1039,12 @@ class BeeApp(QMainWindow):
         Theme.set_theme(mode)
         self.settings.theme = mode
         self.settings.save()
+        self._apply_theme()
+
+    def _toggle_high_contrast(self, checked):
+        self.settings.high_contrast = bool(checked)
+        self.settings.save()
+        Theme.set_high_contrast(bool(checked))
         self._apply_theme()
 
     def _set_accent(self, accent_name):

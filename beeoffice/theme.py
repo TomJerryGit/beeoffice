@@ -13,6 +13,7 @@ class Theme:
     _instance = None
     _current_theme = "light"
     _current_accent = "amber"
+    _high_contrast = False
 
     def __new__(cls):
         if cls._instance is None:
@@ -25,6 +26,14 @@ class Theme:
         if mode not in ("light", "dark"):
             mode = "light"
         cls._current_theme = mode
+
+    @classmethod
+    def set_high_contrast(cls, enabled: bool):
+        cls._high_contrast = bool(enabled)
+
+    @classmethod
+    def is_high_contrast(cls) -> bool:
+        return cls._high_contrast
 
     @classmethod
     def set_accent(cls, accent_name: str):
@@ -109,9 +118,39 @@ class Theme:
         accent = cls.get_accent_color("primary")
         al = cls.get_accent_color("light")
         ad = cls.get_accent_color("dark")
-        if cls.is_dark():
-            return cls._dark_theme(accent, al, ad)
-        return cls._light_theme(accent, al, ad)
+        base = (cls._dark_theme(accent, al, ad)
+                if cls.is_dark() else cls._light_theme(accent, al, ad))
+        if cls._high_contrast:
+            base += cls._high_contrast_qss(accent)
+        return base
+
+    @classmethod
+    def _high_contrast_qss(cls, accent: str) -> str:
+        """高对比度覆盖：黑底白字、黄色焦点/边框。"""
+        return f"""
+        QWidget {{ background-color: #000000; color: #FFFFFF; }}
+        QMainWindow, QDialog {{ background-color: #000000; }}
+        QMenuBar, QMenu, QStatusBar, QToolBar, QToolBar QToolButton {{
+            background-color: #000000; color: #FFFFFF;
+            border: 1px solid #FFFFFF;
+        }}
+        QMenu::item:selected, QMenuBar::item:selected {{
+            background-color: {accent}; color: #000000;
+        }}
+        QPushButton, QLineEdit, QTextEdit, QPlainTextEdit, QComboBox,
+        QListWidget, QTableView, QTabWidget::pane {{
+            background-color: #000000; color: #FFFFFF;
+            border: 2px solid #FFFFFF;
+        }}
+        QPushButton:focus, QToolButton:focus, QComboBox:focus,
+        QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus {{
+            border: 2px solid {accent};
+        }}
+        QLabel {{ color: #FFFFFF; }}
+        QTabBar::tab {{ background: #000000; color: #FFFFFF; border: 1px solid #FFFFFF; }}
+        QTabBar::tab:selected {{ background: {accent}; color: #000000; }}
+        QHeaderView::section {{ background: #000000; color: #FFFFFF; border: 1px solid #FFFFFF; }}
+        """
 
     # ---------- 亮色主题 ----------
     @classmethod

@@ -375,6 +375,15 @@ def setup_menus(main_window):
     theme_action.triggered.connect(main_window._toggle_theme)
     view_menu.addAction(theme_action)
 
+    contrast_action = QAction(
+        tr("menu.view.high_contrast", "高对比度"), main_window, checkable=True
+    )
+    contrast_action.setChecked(
+        bool(getattr(main_window.settings, "high_contrast", False))
+    )
+    contrast_action.triggered.connect(main_window._toggle_high_contrast)
+    view_menu.addAction(contrast_action)
+
     # 强调色子菜单
     _build_accent_menu(main_window, view_menu)
 
