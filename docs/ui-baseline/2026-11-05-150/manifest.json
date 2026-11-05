@@ -14,21 +14,21 @@
     {
       "name": "02-beewrite",
       "file": "02-beewrite.png",
-      "sha256": "1ff22af2496ca5da5c5f6658cb2336e02b317a59c5b4062ea861176350d305e1",
+      "sha256": "31a2a08b03c9fa737fbb5ddfed6870ebb01788ecc8b3a6007eb03b902a38619a",
       "width": 2040,
       "height": 1290
     },
     {
       "name": "03-beesheet",
       "file": "03-beesheet.png",
-      "sha256": "7fa241622f13136ab2d4b729c182938769734eef33049e296218dcc1bde69576",
+      "sha256": "abfded2e4d66fb22fbe0ec66524101dc843d53dca1bdb12b578e5deb27268176",
       "width": 2040,
       "height": 1290
     },
     {
       "name": "04-beeshow",
       "file": "04-beeshow.png",
-      "sha256": "cd850ee0545ae8e2553b20de116660de640c915eaefe9df9a61cd2f9b088581b",
+      "sha256": "abe5312cee1333d05e722ca99ea886d9a19acdbfad8e0ac99a314688527bd38a",
       "width": 2040,
       "height": 1290
     }

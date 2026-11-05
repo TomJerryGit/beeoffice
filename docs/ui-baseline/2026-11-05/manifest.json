@@ -1,7 +1,8 @@
 {
   "date": "2026-11-05",
   "platform": "win32",
-  "dpi": "100%",
+  "dpi": "1",
+  "language": "default",
   "shots": [
     {
       "name": "01-welcome",
@@ -13,21 +14,21 @@
     {
       "name": "02-beewrite",
       "file": "02-beewrite.png",
-      "sha256": "f5c5e08ed8f9572c875555b4db380ed1e6e9faf8125955fa3890eef8e39a85b3",
+      "sha256": "8b66402f3cfc9f4d5aa47cb1b24a6230cab40ef75e0ceb762271863def60f667",
       "width": 1360,
       "height": 860
     },
     {
       "name": "03-beesheet",
       "file": "03-beesheet.png",
-      "sha256": "e5767d73d103c5f9001e5a903a15694a14c8d0d484d2da2e79cb43be714a31dc",
+      "sha256": "de7430177447a531e23cca47db6432186837628a8bbfde0ee2e19684648e724c",
       "width": 1360,
       "height": 860
     },
     {
       "name": "04-beeshow",
       "file": "04-beeshow.png",
-      "sha256": "fe47a0a3fce3000c1d40f4454f50a81cb8d8f3a7bce6c6937eec4831899dfe8b",
+      "sha256": "4fcc54729f5fe38b117ffbf45eb841f77522bf9acb3adb3aeba3e407be377c0c",
       "width": 1360,
       "height": 860
     }

@@ -47,8 +47,8 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QApplication,
 )
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QTextCursor
+from PySide6.QtCore import Qt, QSizeF, QEvent
+from PySide6.QtGui import QFont, QTextCursor, QTextDocument
 
 from beeoffice.plugins.beewrite_utils import (
     count_words,
@@ -78,6 +78,8 @@ class ViewMixin:
                 else self.markdown_editor
             )
             self._outline_panel.set_editor(editor)
+            self._outline_panel.set_bookmarks(self._bookmark_manager.get_all())
+            self._outline_panel.tabs.setCurrentIndex(0)
             self._outline_panel.setVisible(True)
             sizes = self._main_splitter.sizes()
             sizes[0] = 220
@@ -114,6 +116,7 @@ class ViewMixin:
                 else self.markdown_editor
             )
             self._outline_panel.set_editor(editor)
+            self._outline_panel.set_bookmarks(self._bookmark_manager.get_all())
 
     # ==================================================================
     # 阅读模式
@@ -384,6 +387,13 @@ class ViewMixin:
             if self._edit_mode == "rich_text"
             else self.markdown_editor
         )
+        self._outline_panel.set_bookmarks(self._bookmark_manager.get_all())
+        if not self._outline_panel.isVisible():
+            self._outline_panel.setVisible(True)
+            sizes = self._main_splitter.sizes()
+            sizes[0] = 300
+            self._main_splitter.setSizes(sizes)
+        self._outline_panel.show_find_tab()
         self.find_bar.show_for_editor(editor)
         self.find_bar.find_input.setFocus()
 
@@ -439,6 +449,84 @@ class ViewMixin:
         word_count = count_words(text)
         self._word_count_label.setText(tr("auto.beewrite_view_mixin.1a98e9a7", "字数：{word_count}").format(word_count=word_count))
         self._char_count_label.setText(tr("auto.beewrite_view_mixin.fc9bf7d3", "字符：{char_count}").format(char_count=char_count))
+        self._update_page_count()
+
+    def _estimate_page_count(self) -> int:
+        """按当前页面设置估算页数（打印分页模型，不是屏幕假分页）。"""
+        try:
+            if self._edit_mode == "rich_text":
+                doc = self.rich_editor.document().clone()
+            else:
+                doc = QTextDocument()
+                font = QFont("Consolas")
+                font.setPointSize(13)
+                doc.setDefaultFont(font)
+                doc.setPlainText(self.markdown_editor.toPlainText())
+            margins = self._page_settings
+            width_cm = 21.0 - (margins.get("margin_left", 3.17)
+                               + margins.get("margin_right", 3.17))
+            height_cm = 29.7 - (margins.get("margin_top", 2.54)
+                                + margins.get("margin_bottom", 2.54))
+            doc.setPageSize(QSizeF(
+                max(120.0, width_cm / 2.54 * 96),
+                max(120.0, height_cm / 2.54 * 96),
+            ))
+            return max(1, doc.pageCount())
+        except Exception:
+            return 1
+
+    def _update_page_count(self):
+        label = getattr(self, "_page_count_label", None)
+        if label is None:
+            return
+        try:
+            pages = self._estimate_page_count()
+            label.setText(tr("auto.beewrite_view_mixin.pages", "页数：{pages}").format(pages=pages))
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------
+    # 缩放
+    # ------------------------------------------------------------------
+    def _zoom_in(self):
+        self._set_zoom(self._zoom_percent + 10)
+
+    def _zoom_out(self):
+        self._set_zoom(self._zoom_percent - 10)
+
+    def _zoom_reset(self):
+        self._set_zoom(100)
+
+    def _set_zoom(self, percent: int):
+        percent = max(50, min(200, int(round(percent / 10.0) * 10)))
+        if percent == getattr(self, "_zoom_percent", 100):
+            return
+        delta = percent - self._zoom_percent
+        steps = max(1, abs(delta) // 10)
+        try:
+            if delta > 0:
+                self.rich_editor.zoomIn(steps)
+                self.preview.zoomIn(steps)
+            else:
+                self.rich_editor.zoomOut(steps)
+                self.preview.zoomOut(steps)
+            font = self.markdown_editor.font()
+            font.setPointSizeF(13.0 * percent / 100.0)
+            self.markdown_editor.setFont(font)
+        except Exception as e:  # noqa: BLE001
+            logging.debug(f"缩放失败: {e}")
+        self._zoom_percent = percent
+        label = getattr(self, "_zoom_label", None)
+        if label is not None:
+            label.setText(f"{percent}%")
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Wheel and (event.modifiers() & Qt.ControlModifier):
+            delta = event.angleDelta().y()
+            if delta:
+                self._set_zoom(self._zoom_percent + (10 if delta > 0 else -10))
+                return True
+        return super().eventFilter(obj, event) if hasattr(super(), "eventFilter") else False
 
     def _update_cursor_position(self):
         """更新状态栏光标行列位置"""

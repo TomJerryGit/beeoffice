@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QHBoxLayout,
 )
+from PySide6.QtCore import Qt
 from beeoffice.i18n import tr
 
 
@@ -475,5 +476,33 @@ class ToolbarMixin:
             "border-left:1px solid #DDD;}"
         )
         layout.addWidget(self._cursor_pos_label)
+
+        self._page_count_label = QLabel(tr("auto.beewrite_toolbar_mixin.pages", "页数：1"))
+        self._page_count_label.setStyleSheet(
+            "QLabel{color:#666;font-size:12px;padding:0 12px;"
+            "border-left:1px solid #DDD;}"
+        )
+        layout.addWidget(self._page_count_label)
+
+        self._zoom_out_btn = QPushButton("−")
+        self._zoom_out_btn.setFixedWidth(28)
+        self._zoom_out_btn.setAccessibleName(tr("beewrite.zoom.out", "缩小"))
+        self._zoom_out_btn.setToolTip(tr("beewrite.zoom.out_tip", "缩小 (Ctrl+-)"))
+        self._zoom_out_btn.clicked.connect(self._zoom_out)
+        layout.addWidget(self._zoom_out_btn)
+
+        self._zoom_label = QLabel("100%")
+        self._zoom_label.setMinimumWidth(48)
+        self._zoom_label.setAlignment(Qt.AlignCenter)
+        self._zoom_label.setStyleSheet("QLabel{color:#666;font-size:12px;}")
+        layout.addWidget(self._zoom_label)
+
+        self._zoom_in_btn = QPushButton("+")
+        self._zoom_in_btn.setFixedWidth(28)
+        self._zoom_in_btn.setAccessibleName(tr("beewrite.zoom.in", "放大"))
+        self._zoom_in_btn.setToolTip(tr("beewrite.zoom.in_tip", "放大 (Ctrl+=)"))
+        self._zoom_in_btn.clicked.connect(self._zoom_in)
+        layout.addWidget(self._zoom_in_btn)
+        layout.addWidget(QLabel(" "))
 
         return layout

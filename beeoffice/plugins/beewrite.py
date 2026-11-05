@@ -89,7 +89,7 @@ from beeoffice.plugins.beewrite_page_extras import (
 )
 
 # ==================== 视图组件（已有文件） ====================
-from beeoffice.plugins.beewrite_outline import OutlinePanel
+from beeoffice.plugins.beewrite_nav_panel import NavigationPanel
 
 # ==================== Mixin 层 ====================
 from beeoffice.plugins.beewrite_toolbar_mixin import ToolbarMixin
@@ -164,6 +164,7 @@ class BeeWriteEditor(
         # 阅读 / 双屏状态
         self._reading_mode = False
         self._split_view_active = False
+        self._zoom_percent = 100
 
         # ---------- 工具栏（由 ToolbarMixin 构建） ----------
         self._toolbar1 = self._build_toolbar1()
@@ -189,6 +190,8 @@ class BeeWriteEditor(
             self._update_format_state
         )
         self.editor_stack.addWidget(self.rich_editor)
+        self.rich_editor.installEventFilter(self)
+        self.markdown_editor.installEventFilter(self)
 
         # ---------- 预览区 ----------
         self.preview = QTextEdit()
@@ -196,6 +199,7 @@ class BeeWriteEditor(
         self.preview.setStyleSheet(
             "QTextEdit{background:#FFF;border:none;padding:12px}"
         )
+        self.preview.installEventFilter(self)
 
         # ---------- 变量面板（默认隐藏） ----------
         self.variable_panel = VariablePanel()
@@ -218,8 +222,8 @@ class BeeWriteEditor(
             lambda: self._comment_panel.setVisible(False)
         )
 
-        # ---------- 大纲面板 ----------
-        self._outline_panel = OutlinePanel()
+        # ---------- 统一导航面板（目录/章节/书签/查找替换） ----------
+        self._outline_panel = NavigationPanel()
         self._outline_panel.setVisible(False)
         self._outline_panel.jump_requested.connect(self._on_outline_jump)
         self._outline_panel.close_requested.connect(
@@ -239,6 +243,7 @@ class BeeWriteEditor(
         # ---------- 查找栏 ----------
         self.find_bar = FindReplaceBar()
         self.find_bar.hide()
+        self._outline_panel.attach_find_bar(self.find_bar)
 
         # ---------- 工具栏容器 ----------
         toolbar_container = QVBoxLayout()
@@ -390,7 +395,6 @@ class BeeWriteEditor(
         layout.addLayout(toolbar_container)
         # 关键修复：加 stretch=1，让分屏占满剩余空间，消除下方空白
         layout.addWidget(splitter, 1)
-        layout.addWidget(self.find_bar)
         layout.addLayout(self._status_bar)
 
         # ---------- 信号连接 ----------
@@ -471,6 +475,10 @@ class BeeWriteEditor(
         QShortcut(QKeySequence("Ctrl+Shift+O"), self).activated.connect(
             self._toggle_outline
         )
+        QShortcut(QKeySequence("Ctrl+="), self).activated.connect(self._zoom_in)
+        QShortcut(QKeySequence("Ctrl++"), self).activated.connect(self._zoom_in)
+        QShortcut(QKeySequence("Ctrl+-"), self).activated.connect(self._zoom_out)
+        QShortcut(QKeySequence("Ctrl+0"), self).activated.connect(self._zoom_reset)
         QShortcut(QKeySequence("F11"), self).activated.connect(
             self._toggle_reading_mode
         )
