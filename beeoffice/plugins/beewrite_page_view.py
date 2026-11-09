@@ -126,14 +126,18 @@ class PaperPageView(QWidget):
         )
         self._page_w = _cm_to_px(A4_CM[0])
         self._page_h = _cm_to_px(A4_CM[1])
-        self._doc.setPageSize(QSizeF(self._content_w, self._content_h))
+        # 尺寸未变时不重复 setPageSize，避免编辑时触发多余重排
+        if (self._doc.textWidth() != self._content_w
+                or self._doc.pageSize().height() != self._content_h):
+            self._doc.setPageSize(QSizeF(self._content_w, self._content_h))
         self._pages = max(1, self._doc.pageCount())
         self._scale = self._zoom
         width = int((self._page_w + self._gap * 2) * self._scale)
         height = int((self._pages * self._page_h
                       + (self._pages + 1) * self._gap) * self._scale)
-        self.setMinimumSize(QSize(width, height))
-        self.resize(width, height)
+        if self.minimumSize() != QSize(width, height):
+            self.setMinimumSize(QSize(width, height))
+            self.resize(width, height)
         self.update()
 
     @property

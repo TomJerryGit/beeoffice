@@ -152,7 +152,7 @@ class PagedCanvas(QWidget):
         self._blink.timeout.connect(self._toggle_cursor)
         self._refresh_timer = QTimer(self)
         self._refresh_timer.setSingleShot(True)
-        self._refresh_timer.setInterval(60)
+        self._refresh_timer.setInterval(80)
         self._refresh_timer.timeout.connect(self._flush_refresh)
 
     # ------------------------------------------------------------------
