@@ -51,6 +51,11 @@ from PySide6.QtGui import QFont, QShortcut, QKeySequence
 from beeoffice.plugins.beesheet_delegate import CellEditorDelegate
 from beeoffice.plugins.beesheet_loaders import ChunkLoader
 from beeoffice.i18n import tr
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
 
 
 class UIMixin:
@@ -156,9 +161,9 @@ class UIMixin:
         抽取自原 __init__ 的 UI 构建段，保持控件创建顺序不变。
         """
         # 按钮通用样式
-        btn_style = ("QPushButton{background:#EEE;border:1px solid #CCC;"
+        btn_style = (f"QPushButton{{background:{_t()['surface_alt']};border:1px solid {_t()['border']};"
                      "padding:4px 10px;border-radius:3px}"
-                     "QPushButton:hover{background:#FFE0A0}")
+                     f"QPushButton:hover{{background:{_t()['accent_light']}}}")
 
         # 顶层工具栏容器
         tc = QVBoxLayout()
@@ -171,16 +176,17 @@ class UIMixin:
         self._name_box = QLabel("A1")
         self._name_box.setMinimumWidth(60)
         self._name_box.setStyleSheet(
-            "border:1px solid #CCC;padding:2px 6px;background:#FFF;font-size:12px;"
+            f"border:1px solid {_t()['border']};padding:2px 6px;"
+            f"background:{_t()['surface']};color:{_t()['text']};font-size:12px;"
         )
         t1.addWidget(self._name_box)
 
         self._fx_btn = QPushButton("fx ▾")
         self._fx_btn.setToolTip(tr("auto.beesheet_ui_mixin.19e2c0c0", "插入函数"))
         self._fx_btn.setStyleSheet(
-            "QPushButton{background:#FFF3E0;border:1px solid #FFB300;"
-            "color:#E65100;font-weight:bold;padding:3px 8px;border-radius:3px;}"
-            "QPushButton:hover{background:#FFE0B2;}"
+            f"QPushButton{{background:{_t()['accent_light']};border:1px solid {_t()['accent']};"
+            f"color:{_t()['text']};font-weight:bold;padding:3px 8px;border-radius:3px;}}"
+            f"QPushButton:hover{{background:{_t()['accent']};}}"
         )
         self._fx_btn.clicked.connect(self._show_fx_dropdown)
         t1.addWidget(self._fx_btn)
@@ -496,7 +502,8 @@ class UIMixin:
         """构建底部信息面板（显示单元格坐标 / 值 / 公式 / 批注）"""
         self._info_panel = QWidget()
         self._info_panel.setStyleSheet(
-            "QWidget{background:#FAFAFA;border-top:1px solid #DDD;}"
+            f"QWidget{{background:{_t()['surface_alt']};"
+            f"border-top:1px solid {_t()['border']};}}"
         )
         info_layout = QHBoxLayout(self._info_panel)
         info_layout.setContentsMargins(8, 4, 8, 4)

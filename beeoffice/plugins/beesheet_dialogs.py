@@ -9,6 +9,11 @@ from PySide6.QtWidgets import (
     QMessageBox, QAbstractItemView
 )
 from beeoffice.i18n import tr
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
 
 
 class PivotTableDialog(QDialog):
@@ -36,7 +41,7 @@ class PivotTableDialog(QDialog):
             tr("auto.beesheet_dialogs.6f40e036", "选择行、列、值字段，生成汇总表。"
             "建议先确认数据第一行是表头。")
         )
-        tip.setStyleSheet("color:#666;font-size:12px;padding:4px;")
+        tip.setStyleSheet(f"color:{_t()['muted']};font-size:12px;padding:4px;")
         layout.addWidget(tip)
 
         # ===== 字段选择 =====
@@ -87,10 +92,10 @@ class PivotTableDialog(QDialog):
 
         ok_btn = QPushButton(tr("auto.beesheet_dialogs.9a157ea8", "✅ 生成"))
         ok_btn.setStyleSheet(
-            "QPushButton{background:#FFB300;color:#000;"
+            f"QPushButton{{background:{_t()['accent']};color:#000;"
             "padding:6px 16px;border:none;border-radius:4px;"
-            "font-weight:bold;}"
-            "QPushButton:hover{background:#FFA000;}"
+            f"font-weight:bold;}}"
+            f"QPushButton:hover{{background:{_t()['accent_dark']};}}"
         )
         ok_btn.clicked.connect(self._generate)
         bl.addWidget(ok_btn)
@@ -104,8 +109,8 @@ class PivotTableDialog(QDialog):
         self.preview_area = QTextEdit()
         self.preview_area.setReadOnly(True)
         self.preview_area.setStyleSheet(
-            "QTextEdit{background:#FAFAFA;font-family:Consolas;"
-            "font-size:12px;}"
+            f"QTextEdit{{background:{_t()['surface_alt']};font-family:Consolas;"
+            f"font-size:12px;color:{_t()['text']};}}"
         )
         self.preview_area.setMaximumHeight(120)
         layout.addWidget(self.preview_area)

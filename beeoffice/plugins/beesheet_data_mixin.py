@@ -19,6 +19,11 @@ from beeoffice.plugins.beesheet_commands import (
     EditCellCommand, SortCommand, TrimCommand
 )
 from beeoffice.i18n import tr
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
 
 
 class DataMixin:
@@ -1356,8 +1361,8 @@ class DataMixin:
             l.setStyleSheet("font-size:13px;color:#555;")
             v = QLabel(str(value))
             v.setStyleSheet(
-                "font-size:13px;color:#0D47A1;font-weight:bold;"
-                "background:#F5F5F5;padding:4px 10px;border-radius:4px;"
+                f"font-size:13px;color:{_t()['accent_dark']};font-weight:bold;"
+                f"background:{_t()['surface_alt']};padding:4px 10px;border-radius:4px;"
                 "min-width:120px;"
             )
             v.setAlignment(Qt.AlignRight | Qt.AlignVCenter)

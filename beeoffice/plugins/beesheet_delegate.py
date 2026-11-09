@@ -31,8 +31,8 @@ class CellEditorDelegate(QStyledItemDelegate):
             editor = QComboBox(parent)
             editor.addItems([""] + options)
             editor.setStyleSheet(
-                "QComboBox{background:#FFF;border:2px solid #FFB300;"
-                "padding:2px;font-size:14px;}"
+                f"QComboBox{{background:{_t()['surface']};border:2px solid {_t()['accent']};"
+                f"color:{_t()['text']};padding:2px;font-size:14px;}}"
             )
             self._current_index = index
             self._old_value = self._sheet.model.get_value(
@@ -45,8 +45,8 @@ class CellEditorDelegate(QStyledItemDelegate):
         editor = QLineEdit(parent)
         editor.setFrame(False)
         editor.setStyleSheet(
-            "QLineEdit{background:#FFF;border:2px solid #FFB300;"
-            "padding:2px;font-size:14px;}"
+            f"QLineEdit{{background:{_t()['surface']};border:2px solid {_t()['accent']};"
+            f"color:{_t()['text']};padding:2px;font-size:14px;}}"
         )
         editor.installEventFilter(self)
         self._current_index = index

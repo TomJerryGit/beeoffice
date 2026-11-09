@@ -12,6 +12,11 @@ from PySide6.QtCore import Qt
 
 from beeoffice.plugins.beesheet_utils import extract_refs_from_formula
 from beeoffice.i18n import tr
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
 
 
 class AuditMixin:
@@ -106,8 +111,8 @@ class AuditMixin:
         layout.addWidget(QLabel(tr("auto.beesheet_audit_mixin.38d6cd9d", "<b>公式：</b>")))
         f_label = QLabel(formula)
         f_label.setStyleSheet(
-            "QLabel{background:#F5F5F5;padding:10px;"
-            "font-family:Consolas;font-size:14px;border-radius:4px;}"
+            f"QLabel{{background:{_t()['surface_alt']};padding:10px;"
+            f"font-family:Consolas;font-size:14px;border-radius:4px;}}"
         )
         f_label.setWordWrap(True)
         layout.addWidget(f_label)
@@ -115,9 +120,9 @@ class AuditMixin:
         layout.addWidget(QLabel(tr("auto.beesheet_audit_mixin.4024d4fb", "<b>中文说明：</b>")))
         t_label = QLabel(translation)
         t_label.setStyleSheet(
-            "QLabel{background:#FFF8E1;padding:12px;font-size:14px;"
-            "line-height:1.8;border-radius:6px;"
-            "border:1px solid #FFE0B2;}"
+            f"QLabel{{background:{_t()['accent_light']};padding:12px;font-size:14px;"
+            f"line-height:1.8;border-radius:6px;"
+            f"border:1px solid {_t()['accent']};}}"
         )
         t_label.setWordWrap(True)
         layout.addWidget(t_label)
@@ -212,8 +217,8 @@ class AuditMixin:
         layout.addWidget(QLabel(tr("auto.beesheet_audit_mixin.382131ee", "📝 原始公式：")))
         formula_label = QLabel(formula)
         formula_label.setStyleSheet(
-            "QLabel{background:#F5F5F5;padding:10px;"
-            "font-family:Consolas;border-radius:4px;font-size:13px;}"
+            f"QLabel{{background:{_t()['surface_alt']};padding:10px;"
+            f"font-family:Consolas;border-radius:4px;font-size:13px;}}"
         )
         formula_label.setWordWrap(True)
         layout.addWidget(formula_label)
@@ -224,8 +229,8 @@ class AuditMixin:
         diag_label = QLabel(diag)
         diag_label.setWordWrap(True)
         diag_label.setStyleSheet(
-            "QLabel{background:#FFF8E1;padding:12px;"
-            "border-radius:6px;font-size:13px;line-height:1.6;}"
+            f"QLabel{{background:{_t()['accent_light']};padding:12px;"
+            f"border-radius:6px;font-size:13px;line-height:1.6;}}"
         )
         layout.addWidget(diag_label)
         layout.addStretch()
@@ -351,8 +356,8 @@ class AuditMixin:
         result_text = QTextEdit()
         result_text.setReadOnly(True)
         result_text.setStyleSheet(
-            "QTextEdit{background:#FAFAFA;font-family:Consolas;"
-            "font-size:13px;padding:8px;}"
+            f"QTextEdit{{background:{_t()['surface_alt']};font-family:Consolas;"
+            f"font-size:13px;padding:8px;}}"
         )
 
         lines = []

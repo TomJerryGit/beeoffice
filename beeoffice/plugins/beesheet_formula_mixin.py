@@ -18,6 +18,11 @@ from beeoffice.plugins.beesheet_utils import (
     col_index_to_name, col_name_to_index
 )
 from beeoffice.i18n import tr
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
 
 
 class FormulaMixin:
@@ -264,8 +269,8 @@ class FormulaMixin:
 
         lst = QListWidget()
         lst.setStyleSheet(
-            "QListWidget::item { padding: 4px 8px; } "
-            "QListWidget::item:selected { background: #FFE0A0; color: #000; }"
+            f"QListWidget::item {{ padding: 4px 8px; }} "
+            f"QListWidget::item:selected {{ background: {_t()['accent_light']}; color: {_t()['text']}; }}"
         )
         all_items = []
         for cat in ["统计", "逻辑", "查找", "条件", "数学",
@@ -330,8 +335,8 @@ class FormulaMixin:
 
         lst = QListWidget()
         lst.setStyleSheet(
-            "QListWidget::item { padding: 5px 8px; } "
-            "QListWidget::item:selected { background: #FFE0A0; color: #000; }"
+            f"QListWidget::item {{ padding: 5px 8px; }} "
+            f"QListWidget::item:selected {{ background: {_t()['accent_light']}; color: {_t()['text']}; }}"
         )
         all_items = []
         for cat in ["统计", "逻辑", "查找", "条件", "数学",
@@ -352,8 +357,8 @@ class FormulaMixin:
 
         preview = QLabel(tr("auto.beesheet_formula_mixin.d68c58ae", "双击函数名插入到当前单元格的公式栏"))
         preview.setStyleSheet(
-            "QLabel{background:#FFF8E1;color:#666;padding:8px;"
-            "border:1px solid #FFE0B2;border-radius:4px;font-size:13px;}"
+            f"QLabel{{background:{_t()['accent_light']};color:{_t()['muted']};padding:8px;"
+            f"border:1px solid {_t()['accent']};border-radius:4px;font-size:13px;}}"
         )
         preview.setWordWrap(True)
         layout.addWidget(preview)
@@ -404,10 +409,10 @@ class FormulaMixin:
         bl.addStretch()
         insert_btn = QPushButton(tr("auto.beesheet_formula_mixin.b48a4da0", "插入到当前单元格"))
         insert_btn.setStyleSheet(
-            "QPushButton{background:#FFB300;color:#000;"
+            f"QPushButton{{background:{_t()['accent']};color:#000;"
             "padding:6px 16px;border:none;border-radius:4px;"
-            "font-weight:bold;}"
-            "QPushButton:hover{background:#FFA000;}"
+            f"font-weight:bold;}}"
+            f"QPushButton:hover{{background:{_t()['accent_dark']};}}"
         )
 
         def do_insert():

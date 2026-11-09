@@ -83,6 +83,11 @@ from beeoffice.plugins.beesheet_ui_mixin import UIMixin
 from beeoffice.plugins.beesheet_macro_mixin import MacroMixin
 from beeoffice.plugins.beesheet_frozen_mixin import FrozenRowMixin
 from beeoffice.i18n import tr
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
 
 
 # ==================== 主视图 ====================
@@ -858,8 +863,8 @@ class BeeSheetView(
         bl.addStretch()
         ok_btn = QPushButton(tr("auto.beesheet.84476c81", "定位"))
         ok_btn.setStyleSheet(
-            "QPushButton{background:#FFB300;color:#000;padding:6px 16px;"
-            "border:none;border-radius:4px;font-weight:bold;}"
+            f"QPushButton{{background:{_t()['accent']};color:#000;padding:6px 16px;"
+            f"border:none;border-radius:4px;font-weight:bold;}}"
         )
         ok_btn.clicked.connect(
             lambda: [self._goto_cell(edit.text().strip()), dlg.accept()]
