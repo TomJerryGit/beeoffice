@@ -10,9 +10,12 @@ from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QRect, QTimer, Qt, Signal
 from PySide6.QtGui import (
+    QFont,
+    QTextCharFormat,
     QTextCursor,
     QTextDocument,
     QTextImageFormat,
+    QTextListFormat,
 )
 from PySide6.QtWidgets import (
     QApplication,
@@ -61,6 +64,10 @@ class PagedCanvas(QWidget):
         self._last_selection = (-1, -1)
         self._zoom = 1.0
         self._fit_width_mode = False
+        self._drag_image = None
+        self._drag_start = None
+        self._drag_original = (0.0, 0.0)
+        self._drag_moved = False
 
         _t = Theme.tokens()
         self._label = QLabel("共 0 页")
@@ -408,6 +415,44 @@ class PagedCanvas(QWidget):
                 )
 
     # ------------------------------------------------------------------
+    def toggle_char_format(self, kind: str):
+        cursor = self._cursor_with_selection()
+        fmt = QTextCharFormat()
+        if kind == "bold":
+            char = cursor.charFormat()
+            fmt.setFontWeight(
+                QFont.Normal if char.fontWeight() == QFont.Bold else QFont.Bold
+            )
+        elif kind == "italic":
+            fmt.setFontItalic(not cursor.charFormat().fontItalic())
+        elif kind == "underline":
+            fmt.setFontUnderline(not cursor.charFormat().fontUnderline())
+        cursor.mergeCharFormat(fmt)
+        self._after_object_change()
+
+    def set_alignment(self, alignment):
+        cursor = self._cursor_with_selection()
+        bf = cursor.blockFormat()
+        bf.setAlignment(alignment)
+        cursor.setBlockFormat(bf)
+        self._after_object_change()
+
+    def set_heading(self, level: int):
+        cursor = self._cursor_with_selection()
+        bf = cursor.blockFormat()
+        bf.setHeadingLevel(int(level))
+        cursor.setBlockFormat(bf)
+        self._after_object_change()
+
+    def insert_list(self, ordered=False):
+        cursor = self._cursor_with_selection()
+        fmt = QTextListFormat()
+        fmt.setStyle(QTextListFormat.ListDecimal if ordered
+                     else QTextListFormat.ListDisc)
+        cursor.createList(fmt)
+        self._after_object_change()
+
+    # ------------------------------------------------------------------
     def _current_table(self):
         if self._source is None:
             return None
@@ -449,10 +494,9 @@ class PagedCanvas(QWidget):
         self._after_object_change()
         return True
 
-    def _image_at_cursor(self):
+    def _image_at_position(self, pos: int):
         if self._source is None:
             return None
-        pos = self._cursor_position
         block = self._source.findBlock(pos)
         it = block.begin()
         while not it.atEnd():
@@ -463,6 +507,9 @@ class PagedCanvas(QWidget):
                 return frag
             it += 1
         return None
+
+    def _image_at_cursor(self):
+        return self._image_at_position(self._cursor_position)
 
     def resize_image(self, percent: int):
         image = self._image_at_cursor()
@@ -519,6 +566,22 @@ class PagedCanvas(QWidget):
             super().contextMenuEvent(event)
             return
         menu = QMenu(self)
+        fmt_menu = menu.addMenu("格式")
+        fmt_menu.addAction("粗体", lambda: self.toggle_char_format("bold"))
+        fmt_menu.addAction("斜体", lambda: self.toggle_char_format("italic"))
+        fmt_menu.addAction("下划线", lambda: self.toggle_char_format("underline"))
+        align_menu = menu.addMenu("对齐")
+        align_menu.addAction("左对齐", lambda: self.set_alignment(Qt.AlignLeft))
+        align_menu.addAction("居中", lambda: self.set_alignment(Qt.AlignCenter))
+        align_menu.addAction("右对齐", lambda: self.set_alignment(Qt.AlignRight))
+        style_menu = menu.addMenu("样式")
+        style_menu.addAction("正文", lambda: self.set_heading(0))
+        style_menu.addAction("标题 1", lambda: self.set_heading(1))
+        style_menu.addAction("标题 2", lambda: self.set_heading(2))
+        list_menu = menu.addMenu("列表")
+        list_menu.addAction("无序列表", lambda: self.insert_list(False))
+        list_menu.addAction("有序列表", lambda: self.insert_list(True))
+        menu.addSeparator()
         table = self._current_table()
         if table is not None:
             menu.addAction("在上方插入行", lambda: self.insert_table_row(True))
@@ -581,9 +644,43 @@ class PagedCanvas(QWidget):
         if etype == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
             pos = self._view._position_at(event.position())
             if pos is not None:
+                image = self._image_at_position(pos)
+                if image is not None:
+                    fmt = image.charFormat().toImageFormat()
+                    self._drag_image = image
+                    self._drag_start = event.position()
+                    self._drag_original = (
+                        fmt.width() or 240.0, fmt.height() or 160.0
+                    )
+                    self._drag_moved = False
+                    self._set_cursor(pos)
+                    self.setFocus()
+                    return True
                 self._dragging = True
                 self._set_cursor(pos)
                 self.setFocus()
+                return True
+        elif etype == QEvent.MouseMove and self._drag_image is not None:
+            if event.buttons() & Qt.LeftButton:
+                dx = event.position().x() - self._drag_start.x()
+                if abs(dx) >= 2:
+                    scale = max(0.1, self._view._scale)
+                    width = max(20.0, self._drag_original[0] + dx / scale)
+                    ratio = (self._drag_original[1] / self._drag_original[0]
+                             if self._drag_original[0] else 0.75)
+                    height = max(20.0, width * ratio)
+                    fmt = QTextImageFormat(self._drag_image.charFormat().toImageFormat())
+                    fmt.setWidth(width)
+                    fmt.setHeight(height)
+                    cursor = QTextCursor(self._source)
+                    cursor.setPosition(self._drag_image.position())
+                    cursor.setPosition(
+                        self._drag_image.position() + self._drag_image.length(),
+                        QTextCursor.KeepAnchor,
+                    )
+                    cursor.mergeCharFormat(fmt)
+                    self._drag_moved = True
+                    self._view.update()
                 return True
         elif etype == QEvent.MouseMove and self._dragging:
             if event.buttons() & Qt.LeftButton:
@@ -591,6 +688,11 @@ class PagedCanvas(QWidget):
                 if pos is not None:
                     self._set_cursor(pos, extend=True)
                 return True
+        elif etype == QEvent.MouseButtonRelease and self._drag_image is not None:
+            self._drag_image = None
+            if self._drag_moved:
+                self._after_object_change()
+            return True
         elif etype == QEvent.MouseButtonRelease and self._dragging:
             self._dragging = False
             return True
@@ -625,6 +727,11 @@ class PagedCanvas(QWidget):
         has_selection = cursor.hasSelection()
         handled = True
 
+        if (mods & Qt.ControlModifier) and key in (Qt.Key_B, Qt.Key_I, Qt.Key_U):
+            kind = {Qt.Key_B: "bold", Qt.Key_I: "italic", Qt.Key_U: "underline"}[key]
+            self.toggle_char_format(kind)
+            event.accept()
+            return
         if key == Qt.Key_F and (mods & Qt.ControlModifier):
             self._open_search()
             event.accept()

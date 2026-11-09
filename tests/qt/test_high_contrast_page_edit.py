@@ -434,3 +434,24 @@ def test_paged_canvas_image_resize_delete(beewrite_editor, tmp_path):
             it += 1
         block = block.next()
     assert not has_image
+
+
+def test_paged_canvas_alignment_list_heading(beewrite_editor):
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QTextCursor
+
+    ed = beewrite_editor
+    ed.set_content("hello")
+    ed._switch_mode("rich_text")
+    ed._enter_paged_edit()
+    canvas = ed._paged_canvas
+    canvas._set_cursor(0)
+    canvas._set_cursor(5, extend=True)
+    canvas.set_alignment(Qt.AlignCenter)
+    bf = ed.rich_editor.document().findBlock(0).blockFormat()
+    assert bf.alignment() & Qt.AlignHCenter
+    canvas.set_heading(1)
+    assert ed.rich_editor.document().findBlock(0).blockFormat().headingLevel() == 1
+    canvas._set_cursor(0)
+    canvas.insert_list(False)
+    assert ed.rich_editor.document().findBlock(0).textList() is not None
