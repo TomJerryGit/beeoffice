@@ -429,6 +429,16 @@ class ToolbarMixin:
         btn_page_setup.clicked.connect(self._show_page_setup_dialog)
         layout.addWidget(btn_page_setup)
 
+        btn_prev_page = QPushButton("◀ 页")
+        btn_prev_page.setToolTip(tr("beewrite.toolbar.prev_page", "上一页 (Ctrl+PageUp)"))
+        btn_prev_page.clicked.connect(self._page_prev)
+        layout.addWidget(btn_prev_page)
+
+        btn_next_page = QPushButton("页 ▶")
+        btn_next_page.setToolTip(tr("beewrite.toolbar.next_page", "下一页 (Ctrl+PageDown)"))
+        btn_next_page.clicked.connect(self._page_next)
+        layout.addWidget(btn_next_page)
+
         btn_overlay = QPushButton(tr("beewrite.toolbar.page_overlay", "📐 页面边界"))
         btn_overlay.setCheckable(True)
         btn_overlay.setToolTip(tr("beewrite.toolbar.page_overlay_tip", "编辑区显示页边距/页眉页脚参考"))

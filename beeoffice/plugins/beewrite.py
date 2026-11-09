@@ -465,6 +465,8 @@ class BeeWriteEditor(
         QShortcut(QKeySequence("Ctrl+Alt+P"), self).activated.connect(
             self._open_page_view
         )
+        QShortcut(QKeySequence("Ctrl+PageUp"), self).activated.connect(self._page_prev)
+        QShortcut(QKeySequence("Ctrl+PageDown"), self).activated.connect(self._page_next)
         QShortcut(QKeySequence("Ctrl+Shift+I"), self).activated.connect(
             self._insert_image
         )
@@ -591,6 +593,14 @@ class BeeWriteEditor(
             getattr(self, "_footer_text", "") or "",
             dict(self._page_number_config or {}),
         )
+
+    def _page_prev(self):
+        if hasattr(self, "_page_overlay"):
+            self._page_overlay.scroll_to_page(self._page_overlay.current_page() - 1)
+
+    def _page_next(self):
+        if hasattr(self, "_page_overlay"):
+            self._page_overlay.scroll_to_page(self._page_overlay.current_page() + 1)
 
     def _toggle_page_overlay(self, checked=False):
         enabled = bool(checked)

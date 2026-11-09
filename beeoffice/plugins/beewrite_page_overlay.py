@@ -49,6 +49,30 @@ class PageLayoutOverlay(QWidget):
     def is_enabled(self) -> bool:
         return self._enabled
 
+    def page_metrics(self) -> tuple[float, int]:
+        """返回 (页面高度像素, 总页数)，用于按页滚动。"""
+        try:
+            settings = dict(self._settings_provider() or {})
+        except Exception:
+            settings = {}
+        a4_w = _cm_to_px(A4_CM[0])
+        scale = max(1, self.width()) / a4_w
+        page_h = _cm_to_px(A4_CM[1]) * scale
+        doc_h = max(1.0, self._editor.document().size().height())
+        by_height = max(1, int(doc_h / max(1.0, page_h)) + 1)
+        total = max(by_height, int(self._editor.document().pageCount()))
+        return page_h, total
+
+    def current_page(self) -> int:
+        page_h, total = self.page_metrics()
+        value = self._editor.verticalScrollBar().value()
+        return max(0, min(total - 1, int(value // max(1.0, page_h))))
+
+    def scroll_to_page(self, index: int):
+        page_h, total = self.page_metrics()
+        index = max(0, min(total - 1, int(index)))
+        self._editor.verticalScrollBar().setValue(int(index * page_h))
+
     def _page_number_text(self, index: int, total: int, config: dict) -> str:
         fmt = (config or {}).get("format", "第 1 页 / 共 N 页")
         start = int((config or {}).get("start", 1))

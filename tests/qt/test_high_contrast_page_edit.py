@@ -115,3 +115,15 @@ def test_page_overlay_toggle(beewrite_editor):
     assert not ed._page_overlay.isHidden()
     ed._set_page_overlay_enabled(False)
     assert not ed._page_overlay.is_enabled()
+
+
+def test_page_scroll_navigation(beewrite_editor):
+    ed = beewrite_editor
+    ed.set_content("\n\n".join(f"第 {i} 段" for i in range(200)))
+    ed._switch_mode("rich_text")
+    ed._set_page_overlay_enabled(True)
+    before = ed.rich_editor.verticalScrollBar().value()
+    ed._page_next()
+    after = ed.rich_editor.verticalScrollBar().value()
+    assert after >= before
+    ed._page_prev()
