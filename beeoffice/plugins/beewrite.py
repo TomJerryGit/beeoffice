@@ -616,8 +616,10 @@ class BeeWriteEditor(
             if self._edit_mode != "rich_text":
                 self._switch_mode("rich_text")
             self._refresh_paged_canvas()
+            self._paged_canvas.set_editable(True)
             self.editor_stack.setCurrentWidget(self._paged_canvas)
         else:
+            self._paged_canvas.set_editable(False)
             self.editor_stack.setCurrentWidget(
                 getattr(self, "_rich_frame", self.rich_editor)
             )
@@ -628,6 +630,7 @@ class BeeWriteEditor(
             btn.blockSignals(True)
             btn.setChecked(False)
             btn.blockSignals(False)
+        self._paged_canvas.set_editable(False)
         self.editor_stack.setCurrentWidget(
             getattr(self, "_rich_frame", self.rich_editor)
         )

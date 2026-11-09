@@ -102,6 +102,8 @@ class PaperPageView(QWidget):
         self._page_number = dict(page_number_config or {})
         self._zoom = 1.0
         self._gap = 22
+        self._cursor_position = -1
+        self._cursor_visible = True
         self._recalc()
 
     def _recalc(self):
@@ -133,6 +135,46 @@ class PaperPageView(QWidget):
     @property
     def pages(self) -> int:
         return self._pages
+
+    def set_cursor_position(self, position: int):
+        self._cursor_position = int(position)
+        self.update()
+
+    def set_cursor_visible(self, visible: bool):
+        self._cursor_visible = bool(visible)
+        self.update()
+
+    def _cursor_rect(self) -> QRectF | None:
+        if self._cursor_position < 0:
+            return None
+        try:
+            cursor = QTextCursor(self._doc)
+            cursor.setPosition(min(self._cursor_position,
+                                   max(0, self._doc.characterCount() - 1)))
+            block = cursor.block()
+            pos_in_block = cursor.position() - block.position()
+            layout = block.layout()
+            if layout is None:
+                return None
+            line = layout.lineForTextPosition(pos_in_block)
+            if not line.isValid():
+                line = layout.lineAt(max(0, layout.lineCount() - 1))
+            x = line.cursorToX(pos_in_block)
+            if isinstance(x, tuple):
+                x = x[0]
+            block_rect = self._doc.documentLayout().blockBoundingRect(block)
+            doc_y = block_rect.top() + line.y()
+            page = int(doc_y // max(1.0, self._content_h))
+            page = max(0, min(self._pages - 1, page))
+            local_y = doc_y - page * self._content_h
+            return QRectF(
+                self._gap + self._margin_l + float(x),
+                self._gap + page * (self._page_h + self._gap)
+                + self._margin_t + local_y,
+                1.4, max(12.0, line.height()),
+            )
+        except Exception:
+            return None
 
     def set_zoom(self, zoom: float):
         self._zoom = max(0.5, min(2.0, zoom))
@@ -250,6 +292,10 @@ class PaperPageView(QWidget):
             painter.drawRect(content_rect)
             self._draw_header_footer(painter, page_rect, i)
 
+        if self._cursor_visible and self._cursor_position >= 0:
+            rect = self._cursor_rect()
+            if rect is not None:
+                painter.fillRect(rect, QColor("#1A73E8"))
         painter.end()
 
 

@@ -148,3 +148,21 @@ def test_paged_canvas_click_returns_editor(beewrite_editor):
     ed._on_paged_canvas_click(3)
     assert ed.editor_stack.currentWidget() is ed._rich_frame
     assert ed.rich_editor.textCursor().position() == 3
+
+
+def test_paged_canvas_keyboard_editing(beewrite_editor):
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QKeyEvent
+    from PySide6.QtCore import QEvent
+
+    ed = beewrite_editor
+    ed.set_content("abcdef")
+    ed._switch_mode("rich_text")
+    ed._toggle_paged_canvas(True)
+    canvas = ed._paged_canvas
+    canvas._set_cursor(3)
+    canvas.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_X, Qt.NoModifier, "X"))
+    assert "abcXdef" in ed.rich_editor.toPlainText()
+    canvas.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_Backspace, Qt.NoModifier))
+    assert "abcdef" in ed.rich_editor.toPlainText()
+    assert canvas._view._cursor_position >= 0
