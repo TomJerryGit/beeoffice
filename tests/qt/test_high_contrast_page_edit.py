@@ -290,3 +290,73 @@ def test_paged_canvas_fit_width_and_zoom(beewrite_editor):
     assert canvas._view._scale >= before
     assert not canvas._fit_width_mode
     assert "%" in canvas._zoom_label.text()
+
+
+def test_paged_canvas_table_in_place_edit(beewrite_editor):
+    from PySide6.QtCore import QEvent, Qt
+    from PySide6.QtGui import QKeyEvent, QTextCursor
+
+    ed = beewrite_editor
+    ed._switch_mode("rich_text")
+    ed.rich_editor.setHtml(
+        '<table border="1"><tr><td>cell1</td><td>cell2</td></tr></table>'
+    )
+    ed._enter_paged_edit()
+    doc = ed.rich_editor.document()
+    found = doc.find("cell1")
+    assert not found.isNull()
+    canvas = ed._paged_canvas
+    canvas._set_cursor(found.position() + 2)
+    canvas.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_X, Qt.NoModifier, "X"))
+    assert "X" in ed.rich_editor.toPlainText()
+    assert list(doc.rootFrame().childFrames())
+
+
+def test_paged_canvas_image_select_delete(beewrite_editor, tmp_path):
+    from pathlib import Path
+    from PySide6.QtCore import QEvent, Qt
+    from PySide6.QtGui import QKeyEvent, QTextCursor, QTextImageFormat
+
+    ed = beewrite_editor
+    ed._switch_mode("rich_text")
+    src = (Path(__file__).resolve().parents[2]
+           / "docs" / "ui-baseline" / "2026-11-05" / "06-page-overlay.png")
+    img = tmp_path / "tiny.png"
+    img.write_bytes(src.read_bytes())
+    doc = ed.rich_editor.document()
+    cursor = QTextCursor(doc)
+    cursor.movePosition(QTextCursor.End)
+    fmt = QTextImageFormat()
+    fmt.setName(str(img))
+    fmt.setWidth(20)
+    fmt.setHeight(20)
+    cursor.insertImage(fmt)
+    ed._enter_paged_edit()
+    block = doc.begin()
+    pos = None
+    while block.isValid():
+        it = block.begin()
+        while not it.atEnd():
+            frag = it.fragment()
+            if frag.isValid() and frag.charFormat().isImageFormat():
+                pos = frag.position()
+                break
+            it += 1
+        if pos is not None:
+            break
+        block = block.next()
+    assert pos is not None
+    canvas = ed._paged_canvas
+    canvas._set_cursor(pos)
+    canvas.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_Delete, Qt.NoModifier))
+    has_image = False
+    block = ed.rich_editor.document().begin()
+    while block.isValid():
+        it = block.begin()
+        while not it.atEnd():
+            frag = it.fragment()
+            if frag.isValid() and frag.charFormat().isImageFormat():
+                has_image = True
+            it += 1
+        block = block.next()
+    assert not has_image

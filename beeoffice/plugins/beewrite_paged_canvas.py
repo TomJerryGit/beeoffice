@@ -202,7 +202,7 @@ class PagedCanvas(QWidget):
             if cross:
                 self._object_label.setText(
                     f"⚠ 检测到 {len(cross)} 个跨页表格/图片；"
-                    "点击对象将切回连续编辑"
+                    "可在画布内直接编辑，复杂对象可点“连续编辑”"
                 )
                 self._object_label.show()
             else:
@@ -286,9 +286,6 @@ class PagedCanvas(QWidget):
 
     def _on_position_clicked(self, position: int):
         if self._editable:
-            if self._object_at(position):
-                self.object_edit_requested.emit(position)
-                return
             self._set_cursor(position)
             self.setFocus()
             return
