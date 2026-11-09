@@ -104,6 +104,9 @@ class PaperPageView(QWidget):
         self._gap = 22
         self._cursor_position = -1
         self._cursor_visible = True
+        self._selection_start = -1
+        self._selection_end = -1
+        self._preedit_text = ""
         self._recalc()
 
     def _recalc(self):
@@ -143,6 +146,61 @@ class PaperPageView(QWidget):
     def set_cursor_visible(self, visible: bool):
         self._cursor_visible = bool(visible)
         self.update()
+
+    def set_selection(self, start: int, end: int):
+        self._selection_start = int(start)
+        self._selection_end = int(end)
+        self.update()
+
+    def set_preedit(self, text: str):
+        self._preedit_text = text or ""
+        self.update()
+
+    def _selection_rects(self) -> list[QRectF]:
+        if self._selection_start < 0 or self._selection_end < 0:
+            return []
+        start = min(self._selection_start, self._selection_end)
+        end = max(self._selection_start, self._selection_end)
+        if end <= start:
+            return []
+        rects = []
+        try:
+            block = self._doc.findBlock(start)
+            while block.isValid() and block.position() < end:
+                layout = block.layout()
+                if layout is None:
+                    block = block.next()
+                    continue
+                block_rect = self._doc.documentLayout().blockBoundingRect(block)
+                for i in range(layout.lineCount()):
+                    line = layout.lineAt(i)
+                    line_start = block.position() + line.textStart()
+                    line_end = line_start + line.textLength()
+                    a = max(start, line_start)
+                    b = min(end, line_end)
+                    if b <= a:
+                        continue
+                    x1 = line.cursorToX(a - line_start)
+                    x2 = line.cursorToX(b - line_start)
+                    if isinstance(x1, tuple):
+                        x1 = x1[0]
+                    if isinstance(x2, tuple):
+                        x2 = x2[0]
+                    doc_y = block_rect.top() + line.y()
+                    page = int(doc_y // max(1.0, self._content_h))
+                    page = max(0, min(self._pages - 1, page))
+                    local_y = doc_y - page * self._content_h
+                    rects.append(QRectF(
+                        self._gap + self._margin_l + min(x1, x2),
+                        self._gap + page * (self._page_h + self._gap)
+                        + self._margin_t + local_y,
+                        max(1.0, abs(x2 - x1)),
+                        max(12.0, line.height()),
+                    ))
+                block = block.next()
+        except Exception:
+            return []
+        return rects
 
     def _cursor_rect(self) -> QRectF | None:
         if self._cursor_position < 0:
@@ -291,6 +349,24 @@ class PaperPageView(QWidget):
             painter.setPen(QColor(0, 0, 0, 18))
             painter.drawRect(content_rect)
             self._draw_header_footer(painter, page_rect, i)
+
+        painter.setBrush(QColor(26, 115, 232, 70))
+        painter.setPen(Qt.NoPen)
+        for rect in self._selection_rects():
+            painter.drawRect(rect)
+        painter.setBrush(Qt.NoBrush)
+
+        if self._preedit_text:
+            rect = self._cursor_rect()
+            if rect is not None:
+                font = QFont("Microsoft YaHei")
+                font.setPointSize(11)
+                font.setUnderline(True)
+                painter.setFont(font)
+                painter.setPen(QColor("#1A73E8"))
+                painter.drawText(QRectF(rect.x(), rect.y() - 2, 240, rect.height() + 4),
+                                 Qt.AlignLeft | Qt.AlignVCenter,
+                                 self._preedit_text)
 
         if self._cursor_visible and self._cursor_position >= 0:
             rect = self._cursor_rect()

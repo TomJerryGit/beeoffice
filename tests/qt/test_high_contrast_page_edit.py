@@ -166,3 +166,59 @@ def test_paged_canvas_keyboard_editing(beewrite_editor):
     canvas.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_Backspace, Qt.NoModifier))
     assert "abcdef" in ed.rich_editor.toPlainText()
     assert canvas._view._cursor_position >= 0
+
+
+def test_paged_canvas_shift_selection_and_clipboard(beewrite_editor):
+    from PySide6.QtCore import QEvent, Qt
+    from PySide6.QtGui import QKeyEvent, QGuiApplication
+
+    ed = beewrite_editor
+    ed.set_content("abcdef")
+    ed._switch_mode("rich_text")
+    ed._toggle_paged_canvas(True)
+    canvas = ed._paged_canvas
+    canvas._set_cursor(0)
+    canvas.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_Right,
+                                   Qt.ShiftModifier))
+    assert canvas._selection_bounds() == (0, 1)
+    canvas.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_Right,
+                                   Qt.ShiftModifier))
+    assert canvas._selection_bounds() == (0, 2)
+    canvas.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_C,
+                                   Qt.ControlModifier))
+    assert QGuiApplication.clipboard().text() == "ab"
+    assert ed.rich_editor.textCursor().hasSelection()
+    assert ed.rich_editor.textCursor().selectedText() == "ab"
+
+
+def test_paged_canvas_mouse_selection_and_ime(beewrite_editor):
+    from PySide6.QtGui import QInputMethodEvent
+
+    ed = beewrite_editor
+    ed.set_content("abcdef")
+    ed._switch_mode("rich_text")
+    ed._toggle_paged_canvas(True)
+    canvas = ed._paged_canvas
+    canvas._set_cursor(1)
+    canvas._set_cursor(4, extend=True)
+    assert canvas._selection_bounds() == (1, 4)
+    canvas._set_cursor(6)
+    event = QInputMethodEvent()
+    event.setCommitString("中文")
+    canvas.inputMethodEvent(event)
+    assert "abcdef中文" in ed.rich_editor.toPlainText()
+
+
+def test_paged_canvas_formatting_sync(beewrite_editor):
+    from PySide6.QtGui import QFont
+
+    ed = beewrite_editor
+    ed.set_content("abcdef")
+    ed._switch_mode("rich_text")
+    ed._toggle_paged_canvas(True)
+    canvas = ed._paged_canvas
+    canvas._set_cursor(0)
+    canvas._set_cursor(3, extend=True)
+    ed._toggle_bold()
+    fmt = ed.rich_editor.document().findBlock(0).begin().fragment().charFormat()
+    assert fmt.fontWeight() == QFont.Bold

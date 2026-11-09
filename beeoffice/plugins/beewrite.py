@@ -49,7 +49,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit, QTextEdit, QLabel,
 )
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QFont, QShortcut, QKeySequence
+from PySide6.QtGui import QFont, QShortcut, QKeySequence, QTextCursor
 
 from beeoffice.plugins.find_replace import FindReplaceBar
 from beeoffice.plugins.data_binding import DataSourceManager, BindingEngine
@@ -207,7 +207,16 @@ class BeeWriteEditor(
             self._page_overlay_info,
         )
         self._paged_canvas.position_clicked.connect(self._on_paged_canvas_click)
+        self._paged_canvas.selection_changed.connect(self._sync_canvas_selection)
+        self._paged_canvas.find_requested.connect(self._on_canvas_find)
+        self._paged_canvas.content_changed.connect(self._on_canvas_content_changed)
         self.editor_stack.addWidget(self._paged_canvas)
+        try:
+            self.rich_editor.document().contentsChanged.connect(
+                self._on_rich_doc_contents_changed
+            )
+        except Exception:
+            pass
 
         # ---------- 预览区 ----------
         self.preview = QTextEdit()
@@ -623,6 +632,45 @@ class BeeWriteEditor(
             self.editor_stack.setCurrentWidget(
                 getattr(self, "_rich_frame", self.rich_editor)
             )
+
+    def _on_canvas_find(self):
+        btn = getattr(self, "_paged_canvas_btn", None)
+        if btn is not None:
+            btn.blockSignals(True)
+            btn.setChecked(False)
+            btn.blockSignals(False)
+        self._paged_canvas.set_editable(False)
+        self.editor_stack.setCurrentWidget(
+            getattr(self, "_rich_frame", self.rich_editor)
+        )
+        self._find_current()
+
+    def _sync_canvas_selection(self, start: int, end: int):
+        try:
+            cursor = self.rich_editor.textCursor()
+            if start >= 0:
+                cursor.setPosition(int(start))
+                cursor.setPosition(int(end), QTextCursor.KeepAnchor)
+            else:
+                cursor.setPosition(int(self._paged_canvas._cursor_position))
+            self.rich_editor.setTextCursor(cursor)
+        except Exception:
+            pass
+
+    def _on_canvas_content_changed(self):
+        try:
+            self.rich_editor.document().setModified(True)
+            self._sync_canvas_selection(-1, -1)
+        except Exception:
+            pass
+
+    def _on_rich_doc_contents_changed(self):
+        try:
+            if self.editor_stack.currentWidget() is self._paged_canvas:
+                from PySide6.QtCore import QTimer
+                QTimer.singleShot(0, self._refresh_paged_canvas)
+        except Exception:
+            pass
 
     def _on_paged_canvas_click(self, position: int):
         btn = getattr(self, "_paged_canvas_btn", None)
