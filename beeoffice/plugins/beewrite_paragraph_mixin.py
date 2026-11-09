@@ -89,7 +89,7 @@ class ParagraphMixin:
                 bg_color["value"] = c
                 bg_btn.setStyleSheet(
                     f"QPushButton{{background:{c.name()};"
-                    f"padding:6px;color:#000;border:1px solid {_t()['border']};"
+                    f"padding:6px;color:{_t()['text']};border:1px solid {_t()['border']};"
                     f"border-radius:3px;}}"
                 )
 
@@ -106,7 +106,7 @@ class ParagraphMixin:
                 fg_color["value"] = c
                 fg_btn.setStyleSheet(
                     f"QPushButton{{background:{c.name()};"
-                    f"padding:6px;color:#000;border:1px solid {_t()['border']};"
+                    f"padding:6px;color:{_t()['text']};border:1px solid {_t()['border']};"
                     f"border-radius:3px;}}"
                 )
 

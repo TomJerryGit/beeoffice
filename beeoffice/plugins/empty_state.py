@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/plugins/empty_state.py
 """
 空状态引导组件
@@ -35,10 +41,10 @@ class EmptyStateWidget(QWidget):
         # 标题
         self.title_label = QLabel()
         self.title_label.setAlignment(Qt.AlignCenter)
-        self.title_label.setStyleSheet("""
+        self.title_label.setStyleSheet(f"""
             font-size: 20px; 
             font-weight: bold; 
-            color: #333;
+            color: {_t()['text']};
             margin-top: 8px;
         """)
         layout.addWidget(self.title_label)
@@ -48,9 +54,9 @@ class EmptyStateWidget(QWidget):
         self.desc_label.setAlignment(Qt.AlignCenter)
         self.desc_label.setWordWrap(True)
         self.desc_label.setMaximumWidth(400)
-        self.desc_label.setStyleSheet("""
+        self.desc_label.setStyleSheet(f"""
             font-size: 13px; 
-            color: #888; 
+            color: {_t()['muted']}; 
             line-height: 1.6;
         """)
         layout.addWidget(self.desc_label)
@@ -85,34 +91,34 @@ class EmptyStateWidget(QWidget):
             btn.setCursor(Qt.PointingHandCursor)
 
             if is_primary:
-                btn.setStyleSheet("""
-                    QPushButton {
-                        background-color: #FFB300;
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: {_t()['accent']};
                         color: #000;
                         border: none;
                         padding: 10px 20px;
                         border-radius: 6px;
                         font-size: 14px;
                         font-weight: bold;
-                    }
-                    QPushButton:hover {
-                        background-color: #FFA000;
-                    }
+                    }}
+                    QPushButton:hover {{
+                        background-color: {_t()['accent_dark']};
+                    }}
                 """)
             else:
-                btn.setStyleSheet("""
-                    QPushButton {
-                        background-color: #FFFFFF;
-                        color: #555;
-                        border: 1px solid #DDD;
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background-color: {_t()['surface']};
+                        color: {_t()['text']};
+                        border: 1px solid {_t()['border']};
                         padding: 10px 20px;
                         border-radius: 6px;
                         font-size: 13px;
-                    }
-                    QPushButton:hover {
-                        background-color: #F5F5F5;
-                        border-color: #BBB;
-                    }
+                    }}
+                    QPushButton:hover {{
+                        background-color: {_t()['surface_alt']};
+                        border-color: {_t()['border']};
+                    }}
                 """)
 
             btn.clicked.connect(lambda checked=False, a=action_name: self.action_triggered.emit(a))
