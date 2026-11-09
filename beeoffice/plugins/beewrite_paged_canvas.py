@@ -61,6 +61,7 @@ class PagedCanvas(QWidget):
         )
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(False)
+        self._scroll.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
         self._scroll.setStyleSheet(
             f"QScrollArea{{background:{_t['surface_alt']};border:none;}}"
         )

@@ -137,6 +137,8 @@ def test_paged_canvas_toggle(beewrite_editor):
     ed._toggle_paged_canvas(True)
     assert ed.editor_stack.currentWidget() is ed._paged_canvas
     assert ed._paged_canvas.page_count() >= 1
+    from PySide6.QtCore import Qt
+    assert ed._paged_canvas._scroll.alignment() & Qt.AlignHCenter
     ed._toggle_paged_canvas(False)
     assert ed.editor_stack.currentWidget() is ed._rich_frame
 
@@ -267,6 +269,8 @@ def test_word_doc_enters_paged_edit(beewrite_editor):
     ed._enter_paged_edit()
     assert ed.editor_stack.currentWidget() is ed._paged_canvas
     assert ed._paged_canvas.page_count() >= 1
+    from PySide6.QtCore import Qt
+    assert ed._paged_canvas._scroll.alignment() & Qt.AlignHCenter
     ed._toggle_paged_canvas(False)
     assert ed.editor_stack.currentWidget() is ed._rich_frame
     assert ed.rich_editor.document().pageSize().width() == -1
