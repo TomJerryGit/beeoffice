@@ -9,12 +9,18 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QRect, QTimer, Qt, Signal
-from PySide6.QtGui import QTextCursor, QTextDocument
+from PySide6.QtGui import (
+    QTextCursor,
+    QTextDocument,
+    QTextImageFormat,
+)
 from PySide6.QtWidgets import (
     QApplication,
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMenu,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -139,7 +145,7 @@ class PagedCanvas(QWidget):
         self._blink.timeout.connect(self._toggle_cursor)
         self._refresh_timer = QTimer(self)
         self._refresh_timer.setSingleShot(True)
-        self._refresh_timer.setInterval(35)
+        self._refresh_timer.setInterval(60)
         self._refresh_timer.timeout.connect(self._flush_refresh)
 
     # ------------------------------------------------------------------
@@ -400,6 +406,148 @@ class PagedCanvas(QWidget):
                     int(rect.center().x() * scale),
                     int(rect.center().y() * scale), 40, 40
                 )
+
+    # ------------------------------------------------------------------
+    def _current_table(self):
+        if self._source is None:
+            return None
+        return self._cursor_with_selection().currentTable()
+
+    def insert_table_row(self, above=False):
+        table = self._current_table()
+        if table is None:
+            return False
+        cell = table.cellAt(self._cursor_with_selection())
+        table.insertRows(cell.row() if above else cell.row() + 1, 1)
+        self._after_object_change()
+        return True
+
+    def delete_table_row(self):
+        table = self._current_table()
+        if table is None or table.rows() <= 1:
+            return False
+        cell = table.cellAt(self._cursor_with_selection())
+        table.removeRows(cell.row(), 1)
+        self._after_object_change()
+        return True
+
+    def insert_table_column(self):
+        table = self._current_table()
+        if table is None:
+            return False
+        cell = table.cellAt(self._cursor_with_selection())
+        table.insertColumns(cell.column() + 1, 1)
+        self._after_object_change()
+        return True
+
+    def delete_table_column(self):
+        table = self._current_table()
+        if table is None or table.columns() <= 1:
+            return False
+        cell = table.cellAt(self._cursor_with_selection())
+        table.removeColumns(cell.column(), 1)
+        self._after_object_change()
+        return True
+
+    def _image_at_cursor(self):
+        if self._source is None:
+            return None
+        pos = self._cursor_position
+        block = self._source.findBlock(pos)
+        it = block.begin()
+        while not it.atEnd():
+            frag = it.fragment()
+            if (frag.isValid() and frag.position() <= pos
+                    < frag.position() + frag.length()
+                    and frag.charFormat().isImageFormat()):
+                return frag
+            it += 1
+        return None
+
+    def resize_image(self, percent: int):
+        image = self._image_at_cursor()
+        if image is None:
+            return False
+        fmt = QTextImageFormat(image.charFormat().toImageFormat())
+        width = fmt.width() or 240.0
+        height = fmt.height() or 160.0
+        fmt.setWidth(width * percent / 100.0)
+        fmt.setHeight(height * percent / 100.0)
+        cursor = QTextCursor(self._source)
+        cursor.setPosition(image.position())
+        cursor.setPosition(image.position() + image.length(),
+                          QTextCursor.KeepAnchor)
+        cursor.mergeCharFormat(fmt)
+        self._after_object_change()
+        return True
+
+    def replace_image(self, path: str):
+        image = self._image_at_cursor()
+        if image is None or not path:
+            return False
+        fmt = QTextImageFormat(image.charFormat().toImageFormat())
+        fmt.setName(path)
+        cursor = QTextCursor(self._source)
+        cursor.setPosition(image.position())
+        cursor.setPosition(image.position() + image.length(),
+                          QTextCursor.KeepAnchor)
+        cursor.mergeCharFormat(fmt)
+        self._after_object_change()
+        return True
+
+    def delete_image(self):
+        image = self._image_at_cursor()
+        if image is None:
+            return False
+        cursor = QTextCursor(self._source)
+        cursor.setPosition(image.position())
+        cursor.setPosition(image.position() + image.length(),
+                          QTextCursor.KeepAnchor)
+        cursor.removeSelectedText()
+        self._cursor_position = cursor.position()
+        self._after_object_change()
+        return True
+
+    def _after_object_change(self):
+        self._selection_anchor = None
+        self._pending_refresh = True
+        self._refresh_timer.start()
+        self.content_changed.emit()
+
+    def contextMenuEvent(self, event):  # noqa: N802
+        if not self._editable:
+            super().contextMenuEvent(event)
+            return
+        menu = QMenu(self)
+        table = self._current_table()
+        if table is not None:
+            menu.addAction("在上方插入行", lambda: self.insert_table_row(True))
+            menu.addAction("在下方插入行", lambda: self.insert_table_row(False))
+            menu.addAction("插入列", self.insert_table_column)
+            menu.addSeparator()
+            menu.addAction("删除当前行", self.delete_table_row)
+            menu.addAction("删除当前列", self.delete_table_column)
+            menu.addSeparator()
+        image = self._image_at_cursor()
+        if image is not None:
+            menu.addAction("替换图片…", self._choose_replace_image)
+            menu.addAction("图片放大 150%", lambda: self.resize_image(150))
+            menu.addAction("图片缩小 50%", lambda: self.resize_image(50))
+            menu.addAction("删除图片", self.delete_image)
+            menu.addSeparator()
+        menu.addAction("撤销", self._source.undo)
+        menu.addAction("重做", self._source.redo)
+        menu.addSeparator()
+        menu.addAction("查找", self._open_search)
+        menu.exec(event.globalPos())
+
+    def _choose_replace_image(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "替换图片", "",
+            "图片 (*.png *.jpg *.jpeg *.bmp *.gif *.webp)",
+        )
+        if path:
+            self.replace_image(path)
 
     # ------------------------------------------------------------------
     def _object_at(self, position: int) -> bool:

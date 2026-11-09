@@ -444,7 +444,18 @@ class ViewMixin:
     # ==================================================================
     def _update_status_bar(self):
         """更新状态栏（字数 / 字符）"""
-        text = self.content()
+        try:
+            canvas_active = (
+                getattr(self, "_paged_canvas", None) is not None
+                and self.editor_stack.currentWidget() is self._paged_canvas
+            )
+        except Exception:
+            canvas_active = False
+        if canvas_active:
+            # 分页画布编辑时避免每次按键都 to_markdown（性能热点）
+            text = self.rich_editor.document().toPlainText()
+        else:
+            text = self.content()
         char_count = len(text)
         word_count = count_words(text)
         self._word_count_label.setText(tr("auto.beewrite_view_mixin.1a98e9a7", "字数：{word_count}").format(word_count=word_count))
@@ -480,7 +491,14 @@ class ViewMixin:
         if label is None:
             return
         try:
-            pages = self._estimate_page_count()
+            canvas_active = (
+                getattr(self, "_paged_canvas", None) is not None
+                and self.editor_stack.currentWidget() is self._paged_canvas
+            )
+            if canvas_active:
+                pages = self._paged_canvas.page_count()
+            else:
+                pages = self._estimate_page_count()
             label.setText(tr("auto.beewrite_view_mixin.pages", "页数：{pages}").format(pages=pages))
         except Exception:
             pass

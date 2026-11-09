@@ -360,3 +360,77 @@ def test_paged_canvas_image_select_delete(beewrite_editor, tmp_path):
             it += 1
         block = block.next()
     assert not has_image
+
+
+def test_paged_canvas_table_row_column_ops(beewrite_editor):
+    ed = beewrite_editor
+    ed._switch_mode("rich_text")
+    ed.rich_editor.setHtml(
+        '<table border="1"><tr><td>a</td><td>b</td></tr>'
+        '<tr><td>c</td><td>d</td></tr></table>'
+    )
+    ed._enter_paged_edit()
+    canvas = ed._paged_canvas
+    doc = ed.rich_editor.document()
+    found = doc.find("a")
+    canvas._set_cursor(found.position())
+    table = canvas._current_table()
+    assert table is not None
+    rows, cols = table.rows(), table.columns()
+    assert canvas.insert_table_row(False)
+    assert table.rows() == rows + 1
+    assert canvas.insert_table_column()
+    assert table.columns() == cols + 1
+    assert canvas.delete_table_column()
+    assert table.columns() == cols
+    assert canvas.delete_table_row()
+    assert table.rows() == rows
+
+
+def test_paged_canvas_image_resize_delete(beewrite_editor, tmp_path):
+    from pathlib import Path
+    from PySide6.QtGui import QTextCursor, QTextImageFormat
+
+    ed = beewrite_editor
+    ed._switch_mode("rich_text")
+    src = (Path(__file__).resolve().parents[2]
+           / "docs" / "ui-baseline" / "2026-11-05" / "06-page-overlay.png")
+    img = tmp_path / "img.png"
+    img.write_bytes(src.read_bytes())
+    doc = ed.rich_editor.document()
+    cursor = QTextCursor(doc)
+    cursor.movePosition(QTextCursor.End)
+    fmt = QTextImageFormat()
+    fmt.setName(str(img))
+    fmt.setWidth(200)
+    fmt.setHeight(120)
+    cursor.insertImage(fmt)
+    ed._enter_paged_edit()
+    canvas = ed._paged_canvas
+    # 找到图片位置
+    pos = None
+    block = doc.begin()
+    while block.isValid() and pos is None:
+        it = block.begin()
+        while not it.atEnd():
+            frag = it.fragment()
+            if frag.isValid() and frag.charFormat().isImageFormat():
+                pos = frag.position()
+                break
+            it += 1
+        block = block.next()
+    assert pos is not None
+    canvas._set_cursor(pos)
+    assert canvas.resize_image(50)
+    assert canvas.delete_image()
+    has_image = False
+    block = doc.begin()
+    while block.isValid():
+        it = block.begin()
+        while not it.atEnd():
+            frag = it.fragment()
+            if frag.isValid() and frag.charFormat().isImageFormat():
+                has_image = True
+            it += 1
+        block = block.next()
+    assert not has_image
