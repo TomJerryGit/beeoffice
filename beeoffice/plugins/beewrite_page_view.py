@@ -107,6 +107,7 @@ class PaperPageView(QWidget):
         self._selection_start = -1
         self._selection_end = -1
         self._preedit_text = ""
+        self._highlights = []
         self._recalc()
 
     def _recalc(self):
@@ -155,6 +156,53 @@ class PaperPageView(QWidget):
     def set_preedit(self, text: str):
         self._preedit_text = text or ""
         self.update()
+
+    def set_highlights(self, ranges):
+        self._highlights = list(ranges or [])
+        self.update()
+
+    def _range_rects(self, start: int, end: int) -> list[QRectF]:
+        """把文档字符范围换算为页面内的矩形（用于查找高亮）。"""
+        if start < 0 or end < 0 or end <= start:
+            return []
+        rects = []
+        try:
+            block = self._doc.findBlock(start)
+            while block.isValid() and block.position() < end:
+                layout = block.layout()
+                if layout is None:
+                    block = block.next()
+                    continue
+                block_rect = self._doc.documentLayout().blockBoundingRect(block)
+                for i in range(layout.lineCount()):
+                    line = layout.lineAt(i)
+                    line_start = block.position() + line.textStart()
+                    line_end = line_start + line.textLength()
+                    a = max(start, line_start)
+                    b = min(end, line_end)
+                    if b <= a:
+                        continue
+                    x1 = line.cursorToX(a - line_start)
+                    x2 = line.cursorToX(b - line_start)
+                    if isinstance(x1, tuple):
+                        x1 = x1[0]
+                    if isinstance(x2, tuple):
+                        x2 = x2[0]
+                    doc_y = block_rect.top() + line.y()
+                    page = int(doc_y // max(1.0, self._content_h))
+                    page = max(0, min(self._pages - 1, page))
+                    local_y = doc_y - page * self._content_h
+                    rects.append(QRectF(
+                        self._gap + self._margin_l + min(x1, x2),
+                        self._gap + page * (self._page_h + self._gap)
+                        + self._margin_t + local_y,
+                        max(1.0, abs(x2 - x1)),
+                        max(12.0, line.height()),
+                    ))
+                block = block.next()
+        except Exception:
+            return []
+        return rects
 
     def _selection_rects(self) -> list[QRectF]:
         if self._selection_start < 0 or self._selection_end < 0:
@@ -350,8 +398,12 @@ class PaperPageView(QWidget):
             painter.drawRect(content_rect)
             self._draw_header_footer(painter, page_rect, i)
 
-        painter.setBrush(QColor(26, 115, 232, 70))
+        painter.setBrush(QColor(255, 220, 80, 130))
         painter.setPen(Qt.NoPen)
+        for start, end in self._highlights:
+            for rect in self._range_rects(start, end):
+                painter.drawRect(rect)
+        painter.setBrush(QColor(26, 115, 232, 70))
         for rect in self._selection_rects():
             painter.drawRect(rect)
         painter.setBrush(Qt.NoBrush)

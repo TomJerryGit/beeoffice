@@ -1,5 +1,6 @@
 """S4.1/S5：高对比度主题与 M2 单页编辑原型。"""
 from PySide6.QtWidgets import QPushButton
+from PySide6.QtTest import QTest
 
 
 def test_high_contrast_stylesheet():
@@ -222,3 +223,38 @@ def test_paged_canvas_formatting_sync(beewrite_editor):
     ed._toggle_bold()
     fmt = ed.rich_editor.document().findBlock(0).begin().fragment().charFormat()
     assert fmt.fontWeight() == QFont.Bold
+
+
+def test_paged_canvas_search_highlight(beewrite_editor):
+    ed = beewrite_editor
+    ed.set_content("abc def abc")
+    ed._switch_mode("rich_text")
+    ed._toggle_paged_canvas(True)
+    canvas = ed._paged_canvas
+    canvas._open_search()
+    canvas._search_edit.setText("abc")
+    canvas._highlight_search()
+    assert len(canvas._view._highlights) == 2
+    canvas._search_next(True)
+    assert canvas._selection_bounds() != (-1, -1)
+    canvas._close_search()
+    assert canvas._view._highlights == []
+
+
+def test_paged_canvas_typing_debounced(beewrite_editor):
+    import time
+    from PySide6.QtCore import QEvent, QTimer, Qt
+    from PySide6.QtGui import QKeyEvent
+
+    ed = beewrite_editor
+    ed.set_content("\n\n".join(f"第 {i} 段性能测试内容" for i in range(120)))
+    ed._switch_mode("rich_text")
+    ed._toggle_paged_canvas(True)
+    canvas = ed._paged_canvas
+    started = time.perf_counter()
+    for _ in range(30):
+        canvas.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_X, Qt.NoModifier, "x"))
+    elapsed = time.perf_counter() - started
+    assert elapsed < 5.0
+    canvas._flush_refresh()
+    assert not canvas._pending_refresh

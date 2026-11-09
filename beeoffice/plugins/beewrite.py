@@ -646,6 +646,8 @@ class BeeWriteEditor(
         self._find_current()
 
     def _sync_canvas_selection(self, start: int, end: int):
+        if start < 0:
+            return
         try:
             cursor = self.rich_editor.textCursor()
             if start >= 0:
@@ -666,7 +668,8 @@ class BeeWriteEditor(
 
     def _on_rich_doc_contents_changed(self):
         try:
-            if self.editor_stack.currentWidget() is self._paged_canvas:
+            if (self.editor_stack.currentWidget() is self._paged_canvas
+                    and not self._paged_canvas._pending_refresh):
                 from PySide6.QtCore import QTimer
                 QTimer.singleShot(0, self._refresh_paged_canvas)
         except Exception:

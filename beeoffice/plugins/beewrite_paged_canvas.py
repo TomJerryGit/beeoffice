@@ -9,10 +9,13 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QRect, QTimer, Qt, Signal
-from PySide6.QtGui import QTextCursor
+from PySide6.QtGui import QTextCursor, QTextDocument
 from PySide6.QtWidgets import (
     QApplication,
+    QHBoxLayout,
     QLabel,
+    QLineEdit,
+    QPushButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
@@ -47,6 +50,8 @@ class PagedCanvas(QWidget):
         self._cursor_visible = True
         self._preedit = ""
         self._dragging = False
+        self._pending_refresh = False
+        self._last_selection = (-1, -1)
 
         _t = Theme.tokens()
         self._label = QLabel("共 0 页")
@@ -59,10 +64,30 @@ class PagedCanvas(QWidget):
             f"QScrollArea{{background:{_t['surface_alt']};border:none;}}"
         )
 
+        self._search_bar = QWidget()
+        search_layout = QHBoxLayout(self._search_bar)
+        search_layout.setContentsMargins(8, 2, 8, 2)
+        search_layout.setSpacing(4)
+        self._search_edit = QLineEdit()
+        self._search_edit.setPlaceholderText("在分页画布中查找…")
+        self._search_edit.returnPressed.connect(self._search_next)
+        self._search_prev_btn = QPushButton("上一个")
+        self._search_prev_btn.clicked.connect(lambda: self._search_next(False))
+        self._search_next_btn = QPushButton("下一个")
+        self._search_next_btn.clicked.connect(lambda: self._search_next(True))
+        self._search_close_btn = QPushButton("关闭")
+        self._search_close_btn.clicked.connect(self._close_search)
+        search_layout.addWidget(self._search_edit, 1)
+        search_layout.addWidget(self._search_prev_btn)
+        search_layout.addWidget(self._search_next_btn)
+        search_layout.addWidget(self._search_close_btn)
+        self._search_bar.hide()
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self._label)
+        layout.addWidget(self._search_bar)
         layout.addWidget(self._scroll, 1)
 
         self.setFocusPolicy(Qt.StrongFocus)
@@ -70,6 +95,10 @@ class PagedCanvas(QWidget):
         self._blink = QTimer(self)
         self._blink.setInterval(530)
         self._blink.timeout.connect(self._toggle_cursor)
+        self._refresh_timer = QTimer(self)
+        self._refresh_timer.setSingleShot(True)
+        self._refresh_timer.setInterval(35)
+        self._refresh_timer.timeout.connect(self._flush_refresh)
 
     # ------------------------------------------------------------------
     def set_editable(self, editable: bool):
@@ -139,7 +168,9 @@ class PagedCanvas(QWidget):
         self._view.set_cursor_position(self._cursor_position)
         self._view.set_cursor_visible(self._cursor_visible)
         self._view.set_preedit(self._preedit)
-        self.selection_changed.emit(start, end)
+        if (start, end) != self._last_selection:
+            self._last_selection = (start, end)
+            self.selection_changed.emit(start, end)
 
     def _on_position_clicked(self, position: int):
         if self._editable:
@@ -185,11 +216,76 @@ class PagedCanvas(QWidget):
         self._cursor_position = max(
             0, min(self._cursor_position, max(0, source.characterCount() - 1))
         )
+        self._sync_view_state()
+        self._pending_refresh = True
+        self._refresh_timer.start()
+        self.content_changed.emit()
+
+    def _flush_refresh(self):
+        if not self._pending_refresh or self._source is None:
+            return
+        self._pending_refresh = False
         self.refresh_from(
-            source, self._settings, self._header, self._footer,
+            self._source, self._settings, self._header, self._footer,
             self._page_number,
         )
-        self.content_changed.emit()
+
+    # ------------------------------------------------------------------
+    def _open_search(self):
+        self._search_bar.show()
+        self._search_edit.setFocus()
+        self._search_edit.selectAll()
+        self._highlight_search()
+
+    def _close_search(self):
+        self._search_bar.hide()
+        if self._view is not None:
+            self._view.set_highlights([])
+        self.setFocus()
+
+    def _highlight_search(self):
+        if self._view is None or self._source is None:
+            return
+        text = self._search_edit.text()
+        ranges = []
+        if text:
+            cursor = QTextCursor(self._source)
+            while len(ranges) < 500:
+                found = self._source.find(text, cursor, QTextDocument.FindFlags())
+                if found.isNull():
+                    break
+                ranges.append((found.selectionStart(), found.selectionEnd()))
+                cursor = found
+            self._view.set_highlights(ranges)
+
+    def _search_next(self, forward=True):
+        if self._pending_refresh:
+            self._flush_refresh()
+        text = self._search_edit.text()
+        if not text or self._source is None:
+            return
+        cursor = QTextCursor(self._source)
+        cursor.setPosition(max(0, self._cursor_position))
+        found = self._source.find(text, cursor, QTextDocument.FindFlags())
+        if found.isNull() and not forward:
+            found = self._source.find(
+                text, QTextCursor(self._source), QTextDocument.FindFlags()
+            )
+        elif found.isNull():
+            found = self._source.find(
+                text, QTextCursor(self._source), QTextDocument.FindFlags()
+            )
+        if found.isNull():
+            return
+        self._selection_anchor = found.selectionStart()
+        self._cursor_position = found.selectionEnd()
+        self._sync_view_state()
+        if self._view is not None:
+            rect = self._view._cursor_rect()
+            if rect is not None:
+                self._scroll.ensureVisible(
+                    int(rect.center().x()), int(rect.center().y()), 40, 40
+                )
 
     # ------------------------------------------------------------------
     def eventFilter(self, obj, event):  # noqa: N802
@@ -244,7 +340,11 @@ class PagedCanvas(QWidget):
         handled = True
 
         if key == Qt.Key_F and (mods & Qt.ControlModifier):
-            self.find_requested.emit()
+            self._open_search()
+            event.accept()
+            return
+        if key == Qt.Key_Escape and self._search_bar.isVisible():
+            self._close_search()
             event.accept()
             return
         if key == Qt.Key_A and (mods & Qt.ControlModifier):
