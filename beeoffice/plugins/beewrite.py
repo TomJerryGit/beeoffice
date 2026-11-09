@@ -92,6 +92,7 @@ from beeoffice.plugins.beewrite_page_extras import (
 from beeoffice.plugins.beewrite_nav_panel import NavigationPanel
 from beeoffice.plugins.beewrite_page_overlay import PageLayoutOverlay
 from beeoffice.plugins.beewrite_page_frame import PageEditorFrame
+from beeoffice.plugins.beewrite_paged_canvas import PagedCanvas
 
 # ==================== Mixin 层 ====================
 from beeoffice.plugins.beewrite_toolbar_mixin import ToolbarMixin
@@ -201,6 +202,12 @@ class BeeWriteEditor(
             lambda: self._page_settings,
             self._page_overlay_info,
         )
+        self._paged_canvas = PagedCanvas(
+            lambda: self._page_settings,
+            self._page_overlay_info,
+        )
+        self._paged_canvas.position_clicked.connect(self._on_paged_canvas_click)
+        self.editor_stack.addWidget(self._paged_canvas)
 
         # ---------- 预览区 ----------
         self.preview = QTextEdit()
@@ -593,6 +600,38 @@ class BeeWriteEditor(
             getattr(self, "_footer_text", "") or "",
             dict(self._page_number_config or {}),
         )
+
+    def _refresh_paged_canvas(self):
+        try:
+            self._paged_canvas.refresh_from(
+                self.rich_editor.document(),
+                self._page_settings,
+                *self._page_overlay_info(),
+            )
+        except Exception:
+            pass
+
+    def _toggle_paged_canvas(self, checked=False):
+        if checked:
+            if self._edit_mode != "rich_text":
+                self._switch_mode("rich_text")
+            self._refresh_paged_canvas()
+            self.editor_stack.setCurrentWidget(self._paged_canvas)
+        else:
+            self.editor_stack.setCurrentWidget(
+                getattr(self, "_rich_frame", self.rich_editor)
+            )
+
+    def _on_paged_canvas_click(self, position: int):
+        btn = getattr(self, "_paged_canvas_btn", None)
+        if btn is not None:
+            btn.blockSignals(True)
+            btn.setChecked(False)
+            btn.blockSignals(False)
+        self.editor_stack.setCurrentWidget(
+            getattr(self, "_rich_frame", self.rich_editor)
+        )
+        self._on_page_view_position(position)
 
     def _page_prev(self):
         if hasattr(self, "_page_overlay"):

@@ -439,6 +439,12 @@ class ToolbarMixin:
         btn_next_page.clicked.connect(self._page_next)
         layout.addWidget(btn_next_page)
 
+        self._paged_canvas_btn = QPushButton(tr("beewrite.toolbar.paged_canvas", "📄 分页画布"))
+        self._paged_canvas_btn.setCheckable(True)
+        self._paged_canvas_btn.setToolTip(tr("beewrite.toolbar.paged_canvas_tip", "真实分页只读预览（点击返回编辑）"))
+        self._paged_canvas_btn.clicked.connect(self._toggle_paged_canvas)
+        layout.addWidget(self._paged_canvas_btn)
+
         btn_overlay = QPushButton(tr("beewrite.toolbar.page_overlay", "📐 页面边界"))
         btn_overlay.setCheckable(True)
         btn_overlay.setToolTip(tr("beewrite.toolbar.page_overlay_tip", "编辑区显示页边距/页眉页脚参考"))

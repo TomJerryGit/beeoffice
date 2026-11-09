@@ -127,3 +127,24 @@ def test_page_scroll_navigation(beewrite_editor):
     after = ed.rich_editor.verticalScrollBar().value()
     assert after >= before
     ed._page_prev()
+
+
+def test_paged_canvas_toggle(beewrite_editor):
+    ed = beewrite_editor
+    ed.set_content("\n\n".join(f"第 {i} 段分页测试内容" for i in range(300)))
+    ed._switch_mode("rich_text")
+    ed._toggle_paged_canvas(True)
+    assert ed.editor_stack.currentWidget() is ed._paged_canvas
+    assert ed._paged_canvas.page_count() >= 1
+    ed._toggle_paged_canvas(False)
+    assert ed.editor_stack.currentWidget() is ed._rich_frame
+
+
+def test_paged_canvas_click_returns_editor(beewrite_editor):
+    ed = beewrite_editor
+    ed.set_content("abcdef\n\n第二段")
+    ed._switch_mode("rich_text")
+    ed._toggle_paged_canvas(True)
+    ed._on_paged_canvas_click(3)
+    assert ed.editor_stack.currentWidget() is ed._rich_frame
+    assert ed.rich_editor.textCursor().position() == 3
