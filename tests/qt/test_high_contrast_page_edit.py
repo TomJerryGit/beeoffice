@@ -274,3 +274,19 @@ def test_word_doc_enters_paged_edit(beewrite_editor):
     ed._toggle_paged_canvas(False)
     assert ed.editor_stack.currentWidget() is ed._rich_frame
     assert ed.rich_editor.document().pageSize().width() == -1
+
+
+def test_paged_canvas_fit_width_and_zoom(beewrite_editor):
+    ed = beewrite_editor
+    ed.set_content("abcdef")
+    ed._switch_mode("rich_text")
+    ed._toggle_paged_canvas(True)
+    canvas = ed._paged_canvas
+    canvas.fit_width()
+    assert canvas._fit_width_mode
+    assert canvas._view._scale > 0
+    before = canvas._view._scale
+    canvas._zoom_in()
+    assert canvas._view._scale >= before
+    assert not canvas._fit_width_mode
+    assert "%" in canvas._zoom_label.text()

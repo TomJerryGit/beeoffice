@@ -707,6 +707,8 @@ class BeeWriteEditor(
                 btn.setChecked(True)
                 btn.blockSignals(False)
             self._refresh_paged_canvas()
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(0, self._paged_canvas.fit_width)
         except Exception:
             pass
 

@@ -53,12 +53,33 @@ class PagedCanvas(QWidget):
         self._dragging = False
         self._pending_refresh = False
         self._last_selection = (-1, -1)
+        self._zoom = 1.0
+        self._fit_width_mode = False
 
         _t = Theme.tokens()
         self._label = QLabel("共 0 页")
         self._label.setStyleSheet(
             f"QLabel{{color:{_t['muted']};font-size:12px;padding:2px 8px;}}"
         )
+        self._zoom_label = QLabel("100%")
+        self._zoom_label.setStyleSheet(
+            f"QLabel{{color:{_t['muted']};font-size:12px;padding:0 4px;}}"
+        )
+        self._zoom_out_btn = QPushButton("－")
+        self._zoom_out_btn.setToolTip("缩小")
+        self._zoom_out_btn.clicked.connect(self._zoom_out)
+        self._zoom_in_btn = QPushButton("＋")
+        self._zoom_in_btn.setToolTip("放大")
+        self._zoom_in_btn.clicked.connect(self._zoom_in)
+        self._fit_width_btn = QPushButton("适合宽度")
+        self._fit_width_btn.setCheckable(True)
+        self._fit_width_btn.clicked.connect(self._toggle_fit_width)
+        for _b in (self._zoom_out_btn, self._zoom_in_btn, self._fit_width_btn):
+            _b.setStyleSheet(
+                f"QPushButton{{font-size:11px;padding:2px 6px;"
+                f"border:1px solid {_t['border']};border-radius:3px;"
+                f"color:{_t['text']};background:{_t['surface']};}}"
+            )
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(False)
         self._scroll.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
@@ -92,10 +113,21 @@ class PagedCanvas(QWidget):
         )
         self._object_label.hide()
 
+        top_bar = QWidget()
+        top_layout = QHBoxLayout(top_bar)
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.setSpacing(2)
+        top_layout.addWidget(self._label)
+        top_layout.addStretch(1)
+        top_layout.addWidget(self._zoom_out_btn)
+        top_layout.addWidget(self._zoom_label)
+        top_layout.addWidget(self._zoom_in_btn)
+        top_layout.addWidget(self._fit_width_btn)
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        layout.addWidget(self._label)
+        layout.addWidget(top_bar)
         layout.addWidget(self._object_label)
         layout.addWidget(self._search_bar)
         layout.addWidget(self._scroll, 1)
@@ -160,6 +192,7 @@ class PagedCanvas(QWidget):
                 self._view.installEventFilter(self)
                 self._scroll.setWidget(self._view)
             self._label.setText(f"共 {self._view.pages} 页")
+            self._apply_zoom()
             try:
                 cross = find_cross_page_objects(
                     self._view._doc, self._view._content_h
@@ -180,6 +213,46 @@ class PagedCanvas(QWidget):
 
     def page_count(self) -> int:
         return self._view.pages if self._view is not None else 0
+
+    def _apply_zoom(self):
+        if self._view is not None:
+            self._view.set_zoom(self._zoom)
+            self._zoom_label.setText(f"{int(round(self._zoom * 100))}%")
+
+    def _zoom_in(self):
+        self._fit_width_mode = False
+        self._fit_width_btn.setChecked(False)
+        self._zoom = min(2.0, round(self._zoom + 0.1, 2))
+        self._apply_zoom()
+
+    def _zoom_out(self):
+        self._fit_width_mode = False
+        self._fit_width_btn.setChecked(False)
+        self._zoom = max(0.5, round(self._zoom - 0.1, 2))
+        self._apply_zoom()
+
+    def _toggle_fit_width(self, checked=False):
+        self._fit_width_mode = bool(checked)
+        if self._fit_width_mode:
+            self.fit_width()
+        else:
+            self._zoom = 1.0
+            self._apply_zoom()
+
+    def fit_width(self):
+        if self._view is None:
+            return
+        available = max(200, self._scroll.viewport().width() - 4)
+        total = max(1.0, self._view._page_w + self._view._gap * 2)
+        self._zoom = max(0.5, min(2.0, available / total))
+        self._fit_width_mode = True
+        self._fit_width_btn.setChecked(True)
+        self._apply_zoom()
+
+    def resizeEvent(self, event):  # noqa: N802
+        super().resizeEvent(event)
+        if self._fit_width_mode:
+            QTimer.singleShot(0, self.fit_width)
 
     def release_source_layout(self):
         """离开分页画布时恢复源文档的连续布局。"""
@@ -325,8 +398,10 @@ class PagedCanvas(QWidget):
         if self._view is not None:
             rect = self._view._cursor_rect()
             if rect is not None:
+                scale = self._view._scale
                 self._scroll.ensureVisible(
-                    int(rect.center().x()), int(rect.center().y()), 40, 40
+                    int(rect.center().x() * scale),
+                    int(rect.center().y() * scale), 40, 40
                 )
 
     # ------------------------------------------------------------------
