@@ -258,3 +258,15 @@ def test_paged_canvas_typing_debounced(beewrite_editor):
     assert elapsed < 5.0
     canvas._flush_refresh()
     assert not canvas._pending_refresh
+
+
+def test_word_doc_enters_paged_edit(beewrite_editor):
+    ed = beewrite_editor
+    ed.set_content("abcdef")
+    ed.set_doc_kind("word")
+    ed._enter_paged_edit()
+    assert ed.editor_stack.currentWidget() is ed._paged_canvas
+    assert ed._paged_canvas.page_count() >= 1
+    ed._toggle_paged_canvas(False)
+    assert ed.editor_stack.currentWidget() is ed._rich_frame
+    assert ed.rich_editor.document().pageSize().width() == -1

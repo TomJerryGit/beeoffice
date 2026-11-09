@@ -36,7 +36,7 @@
 
 ### 验证
 
-- 全量 `pytest tests`：**1022 passed**。
+- 全量 `pytest tests`：**1023 passed**。
 
 ---
 

@@ -140,6 +140,10 @@ class PaperPageView(QWidget):
     def pages(self) -> int:
         return self._pages
 
+    def recalc(self):
+        """重新计算页尺寸/页数（编辑后增量刷新）。"""
+        self._recalc()
+
     def set_cursor_position(self, position: int):
         self._cursor_position = int(position)
         self.update()

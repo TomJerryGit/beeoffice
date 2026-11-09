@@ -209,6 +209,9 @@ class BeeWriteEditor(
         self._paged_canvas.position_clicked.connect(self._on_paged_canvas_click)
         self._paged_canvas.selection_changed.connect(self._sync_canvas_selection)
         self._paged_canvas.find_requested.connect(self._on_canvas_find)
+        self._paged_canvas.object_edit_requested.connect(
+            self._on_canvas_object_edit
+        )
         self._paged_canvas.content_changed.connect(self._on_canvas_content_changed)
         self.editor_stack.addWidget(self._paged_canvas)
         try:
@@ -629,9 +632,26 @@ class BeeWriteEditor(
             self.editor_stack.setCurrentWidget(self._paged_canvas)
         else:
             self._paged_canvas.set_editable(False)
+            self._paged_canvas.release_source_layout()
             self.editor_stack.setCurrentWidget(
                 getattr(self, "_rich_frame", self.rich_editor)
             )
+
+    def _on_canvas_object_edit(self, position: int):
+        btn = getattr(self, "_paged_canvas_btn", None)
+        if btn is not None:
+            btn.blockSignals(True)
+            btn.setChecked(False)
+            btn.blockSignals(False)
+        self._paged_canvas.set_editable(False)
+        self._paged_canvas.release_source_layout()
+        self.editor_stack.setCurrentWidget(
+            getattr(self, "_rich_frame", self.rich_editor)
+        )
+        self._on_page_view_position(position)
+        self.set_global_status(
+            "表格/图片已切回连续编辑（分页画布暂不支持对象内编辑）", 5000
+        )
 
     def _on_canvas_find(self):
         btn = getattr(self, "_paged_canvas_btn", None)
@@ -675,6 +695,21 @@ class BeeWriteEditor(
         except Exception:
             pass
 
+    def _enter_paged_edit(self):
+        """Word 文档默认进入分页编辑画布（可切回连续编辑）。"""
+        try:
+            if self._edit_mode != "rich_text":
+                self._switch_mode("rich_text")
+            self._toggle_paged_canvas(True)
+            btn = getattr(self, "_paged_canvas_btn", None)
+            if btn is not None:
+                btn.blockSignals(True)
+                btn.setChecked(True)
+                btn.blockSignals(False)
+            self._refresh_paged_canvas()
+        except Exception:
+            pass
+
     def _on_paged_canvas_click(self, position: int):
         btn = getattr(self, "_paged_canvas_btn", None)
         if btn is not None:
@@ -682,6 +717,7 @@ class BeeWriteEditor(
             btn.setChecked(False)
             btn.blockSignals(False)
         self._paged_canvas.set_editable(False)
+        self._paged_canvas.release_source_layout()
         self.editor_stack.setCurrentWidget(
             getattr(self, "_rich_frame", self.rich_editor)
         )

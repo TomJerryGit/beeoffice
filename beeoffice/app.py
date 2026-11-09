@@ -601,6 +601,8 @@ class BeeApp(QMainWindow):
                     widget._switch_mode("rich_text")
                 except Exception as e:
                     logging.error(f"切换到富文本模式失败: {e}")
+            if hasattr(widget, "_enter_paged_edit"):
+                widget._enter_paged_edit()
 
             # 3.5 恢复旁挂的批注 / 书签（P0：此前只写不读，重开即丢）
             if hasattr(widget, "load_annotations"):
@@ -760,6 +762,8 @@ class BeeApp(QMainWindow):
                 editor._switch_mode("rich_text")
             except Exception as e:
                 logging.error(f"切换到富文本模式失败: {e}")
+        if hasattr(editor, "_enter_paged_edit"):
+            editor._enter_paged_edit()
 
         self.tab_manager.addTab(editor, self._make_tab_title("📝 Word"))
         self.tab_manager.setCurrentWidget(editor)

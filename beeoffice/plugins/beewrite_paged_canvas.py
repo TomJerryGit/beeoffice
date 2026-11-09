@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
 from beeoffice.theme import Theme
 from beeoffice.plugins.beewrite_page_view import (
     PaperPageView,
-    build_page_document,
+    find_cross_page_objects,
 )
 
 
@@ -33,6 +33,7 @@ class PagedCanvas(QWidget):
     content_changed = Signal()
     selection_changed = Signal(int, int)
     find_requested = Signal()
+    object_edit_requested = Signal(int)
 
     def __init__(self, settings_provider, header_provider, parent=None):
         super().__init__(parent)
@@ -82,11 +83,19 @@ class PagedCanvas(QWidget):
         search_layout.addWidget(self._search_next_btn)
         search_layout.addWidget(self._search_close_btn)
         self._search_bar.hide()
+        self._object_label = QLabel("")
+        self._object_label.setWordWrap(True)
+        self._object_label.setStyleSheet(
+            f"QLabel{{color:{_t['muted']};background:{_t['surface_alt']};"
+            "font-size:11px;padding:3px 8px;}"
+        )
+        self._object_label.hide()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self._label)
+        layout.addWidget(self._object_label)
         layout.addWidget(self._search_bar)
         layout.addWidget(self._scroll, 1)
 
@@ -130,26 +139,55 @@ class PagedCanvas(QWidget):
             self._source = document
             if document is None:
                 return
-            clone = build_page_document(document)
-            old = self._scroll.takeWidget()
-            if old is not None:
-                old.deleteLater()
-            self._view = PaperPageView(
-                clone, self._settings,
-                header_text=self._header,
-                footer_text=self._footer,
-                page_number_config=self._page_number,
-            )
-            self._view.position_clicked.connect(self._on_position_clicked)
-            self._view.installEventFilter(self)
-            self._scroll.setWidget(self._view)
+            if self._view is not None and self._view._doc is document:
+                self._view._settings = dict(self._settings)
+                self._view._header = self._header
+                self._view._footer = self._footer
+                self._view._page_number = dict(self._page_number)
+                self._view.recalc()
+            else:
+                old = self._scroll.takeWidget()
+                if old is not None:
+                    old.deleteLater()
+                self._view = PaperPageView(
+                    document, self._settings,
+                    header_text=self._header,
+                    footer_text=self._footer,
+                    page_number_config=self._page_number,
+                )
+                self._view.position_clicked.connect(self._on_position_clicked)
+                self._view.installEventFilter(self)
+                self._scroll.setWidget(self._view)
             self._label.setText(f"共 {self._view.pages} 页")
+            try:
+                cross = find_cross_page_objects(
+                    self._view._doc, self._view._content_h
+                )
+            except Exception:
+                cross = []
+            if cross:
+                self._object_label.setText(
+                    f"⚠ 检测到 {len(cross)} 个跨页表格/图片；"
+                    "点击对象将切回连续编辑"
+                )
+                self._object_label.show()
+            else:
+                self._object_label.hide()
             self._sync_view_state()
         except Exception:
             pass
 
     def page_count(self) -> int:
         return self._view.pages if self._view is not None else 0
+
+    def release_source_layout(self):
+        """离开分页画布时恢复源文档的连续布局。"""
+        if self._source is not None:
+            try:
+                from PySide6.QtCore import QSizeF
+                self._source.setPageSize(QSizeF(-1, -1))
+            except Exception:
+                pass
 
     # ------------------------------------------------------------------
     def _selection_bounds(self) -> tuple[int, int]:
@@ -174,6 +212,9 @@ class PagedCanvas(QWidget):
 
     def _on_position_clicked(self, position: int):
         if self._editable:
+            if self._object_at(position):
+                self.object_edit_requested.emit(position)
+                return
             self._set_cursor(position)
             self.setFocus()
             return
@@ -225,10 +266,10 @@ class PagedCanvas(QWidget):
         if not self._pending_refresh or self._source is None:
             return
         self._pending_refresh = False
-        self.refresh_from(
-            self._source, self._settings, self._header, self._footer,
-            self._page_number,
-        )
+        if self._view is not None:
+            self._view.recalc()
+            self._label.setText(f"共 {self._view.pages} 页")
+            self._sync_view_state()
 
     # ------------------------------------------------------------------
     def _open_search(self):
@@ -286,6 +327,30 @@ class PagedCanvas(QWidget):
                 self._scroll.ensureVisible(
                     int(rect.center().x()), int(rect.center().y()), 40, 40
                 )
+
+    # ------------------------------------------------------------------
+    def _object_at(self, position: int) -> bool:
+        if self._source is None:
+            return False
+        try:
+            cursor = QTextCursor(self._source)
+            cursor.setPosition(max(0, min(position,
+                                           self._source.characterCount() - 1)))
+            if cursor.currentTable() is not None:
+                return True
+            block = cursor.block()
+            it = block.begin()
+            while not it.atEnd():
+                frag = it.fragment()
+                if (frag.isValid()
+                        and frag.position() <= position
+                        < frag.position() + frag.length()
+                        and frag.charFormat().isImageFormat()):
+                    return True
+                it += 1
+        except Exception:
+            return False
+        return False
 
     # ------------------------------------------------------------------
     def eventFilter(self, obj, event):  # noqa: N802
