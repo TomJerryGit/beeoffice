@@ -15,6 +15,11 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QFont
 from beeoffice.i18n import tr
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
 
 
 class OutlinePanel(QWidget):
@@ -77,11 +82,13 @@ class OutlinePanel(QWidget):
         self._tree = QTreeWidget()
         self._tree.setHeaderHidden(True)
         self._tree.setStyleSheet(
-            "QTreeWidget{border:1px solid #E0E0E0;"
-            "border-radius:4px;background:#FFF;font-size:12px;}"
+            f"QTreeWidget{{border:1px solid {_t()['border']};"
+            f"border-radius:4px;background:{_t()['surface']};"
+            f"color:{_t()['text']};font-size:12px;}}"
             "QTreeWidget::item{padding:4px 2px;}"
-            "QTreeWidget::item:selected{background:#FFF3E0;color:#E65100;}"
-            "QTreeWidget::item:hover{background:#FFF8E1;}"
+            f"QTreeWidget::item:selected{{background:{_t()['accent_light']};"
+            f"color:{_t()['accent_dark']};}}"
+            f"QTreeWidget::item:hover{{background:{_t()['surface_alt']};}}"
         )
         self._tree.itemClicked.connect(self._on_item_clicked)
         self._tree.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -96,18 +103,18 @@ class OutlinePanel(QWidget):
 
         btn_expand = QPushButton(tr("auto.beewrite_outline.64edd632", "展开全部"))
         btn_expand.setStyleSheet(
-            "QPushButton{border:1px solid #DDD;padding:3px 6px;"
+            f"QPushButton{{border:1px solid {_t()['border']};padding:3px 6px;"
             "border-radius:3px;font-size:11px;}"
-            "QPushButton:hover{background:#FFF3E0;}"
+            f"QPushButton:hover{{background:{_t()['accent_light']};}}"
         )
         btn_expand.clicked.connect(self._expand_all)
         bottom_bar.addWidget(btn_expand)
 
         btn_collapse = QPushButton(tr("auto.beewrite_outline.734d3c4d", "折叠全部"))
         btn_collapse.setStyleSheet(
-            "QPushButton{border:1px solid #DDD;padding:3px 6px;"
+            f"QPushButton{{border:1px solid {_t()['border']};padding:3px 6px;"
             "border-radius:3px;font-size:11px;}"
-            "QPushButton:hover{background:#FFF3E0;}"
+            f"QPushButton:hover{{background:{_t()['accent_light']};}}"
         )
         btn_collapse.clicked.connect(self._collapse_all)
         bottom_bar.addWidget(btn_collapse)
@@ -126,6 +133,7 @@ class OutlinePanel(QWidget):
         """高对比度下重绘大纲树/搜索/按钮。"""
         try:
             from beeoffice.theme import Theme
+
             high = Theme.is_high_contrast()
         except Exception:
             high = False

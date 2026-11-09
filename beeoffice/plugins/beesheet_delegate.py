@@ -10,6 +10,11 @@ from PySide6.QtCore import Qt, QEvent, QPoint
 from PySide6.QtGui import QColor, QPolygon
 
 from beeoffice.plugins.beesheet_commands import EditCellCommand
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
 
 
 class CellEditorDelegate(QStyledItemDelegate):

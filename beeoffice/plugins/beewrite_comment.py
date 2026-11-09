@@ -16,6 +16,11 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QPoint
 from PySide6.QtGui import QColor, QFont
 from beeoffice.i18n import tr
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
 
 
 # ==================== 批注数据管理器 ====================
@@ -135,17 +140,18 @@ class CommentPanel(QWidget):
         header = QHBoxLayout()
         self._title_label = QLabel(tr("auto.beewrite_comment.358e7cb7", "💬 批注 (0)"))
         self._title_label.setStyleSheet(
-            "QLabel{font-size:13px;font-weight:bold;color:#E65100;}"
+            f"QLabel{{font-size:13px;font-weight:bold;color:{_t()['accent_dark']};}}"
         )
         header.addWidget(self._title_label)
         header.addStretch()
 
         btn_add = QPushButton(tr("auto.beewrite_comment.d1dd7737", "+ 新建"))
         btn_add.setStyleSheet(
-            "QPushButton{background:#FFF3E0;border:1px solid #FFB300;"
-            "color:#E65100;padding:3px 8px;border-radius:3px;"
+            f"QPushButton{{background:{_t()['accent_light']};"
+            f"border:1px solid {_t()['accent']};"
+            f"color:{_t()['text']};padding:3px 8px;border-radius:3px;"
             "font-size:12px;}"
-            "QPushButton:hover{background:#FFE0B2;}"
+            f"QPushButton:hover{{background:{_t()['accent']};}}"
         )
         btn_add.clicked.connect(self._on_add_new)
         header.addWidget(btn_add)
@@ -164,11 +170,11 @@ class CommentPanel(QWidget):
         # 批注列表
         self._list = QListWidget()
         self._list.setStyleSheet(
-            "QListWidget{border:1px solid #E0E0E0;"
-            "border-radius:4px;background:#FFF;}"
+            f"QListWidget{{border:1px solid {_t()['border']};"
+            f"border-radius:4px;background:{_t()['surface']};color:{_t()['text']};}}"
             "QListWidget::item{padding:6px;"
-            "border-bottom:1px solid #F0F0F0;}"
-            "QListWidget::item:selected{background:#FFF3E0;}"
+            f"border-bottom:1px solid {_t()['border']};}}"
+            f"QListWidget::item:selected{{background:{_t()['accent_light']};}}"
         )
         self._list.itemClicked.connect(self._on_item_clicked)
         self._list.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -289,8 +295,8 @@ class CommentEditDialog(QDialog):
         if excerpt:
             excerpt_label = QLabel(tr("auto.beewrite_comment.1358fe30", "原文：{0}").format(excerpt[:80]))
             excerpt_label.setStyleSheet(
-                "QLabel{color:#666;font-size:12px;"
-                "background:#F5F5F5;padding:6px;"
+                f"QLabel{{color:{_t()['muted']};font-size:12px;"
+                f"background:{_t()['surface_alt']};padding:6px;"
                 "border-radius:4px;}"
             )
             excerpt_label.setWordWrap(True)

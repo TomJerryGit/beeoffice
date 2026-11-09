@@ -26,6 +26,11 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from beeoffice.i18n import tr
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
 
 
 class ImageSuggesterDialog(QDialog):
@@ -51,8 +56,8 @@ class ImageSuggesterDialog(QDialog):
             tr("auto.beeshow_image_suggester_dialog.046eeca2", "💡 根据当前页内容找到 {0} 张候选图。\n单击选中，双击直接插入。").format(len(results))
         )
         tip.setStyleSheet(
-            "QLabel{color:#666;font-size:12px;padding:8px;"
-            "background:#FFF8E1;border-radius:4px;}"
+            f"QLabel{{color:{_t()['muted']};font-size:12px;padding:8px;"
+            f"background:{_t()['accent_light']};border-radius:4px;}}"
         )
         tip.setWordWrap(True)
         layout.addWidget(tip)
@@ -79,11 +84,11 @@ class ImageSuggesterDialog(QDialog):
         self._insert_btn = QPushButton(tr("auto.beeshow_image_suggester_dialog.22f154d2", "✅ 插入选中图"))
         self._insert_btn.setEnabled(False)
         self._insert_btn.setStyleSheet(
-            "QPushButton{background:#FFB300;color:#000;"
+            f"QPushButton{{background:{_t()['accent']};color:#000;"
             "padding:6px 16px;border:none;border-radius:4px;"
-            "font-weight:bold;}"
-            "QPushButton:hover{background:#FFA000;}"
-            "QPushButton:disabled{background:#EEE;color:#999;}"
+            f"font-weight:bold;}}"
+            f"QPushButton:hover{{background:{_t()['accent_dark']};}}"
+            f"QPushButton:disabled{{background:{_t()['surface_alt']};color:{_t()['muted']};}}"
         )
         self._insert_btn.clicked.connect(self._on_insert)
         bl.addWidget(self._insert_btn)
@@ -101,11 +106,11 @@ class ImageSuggesterDialog(QDialog):
         card.setCursor(Qt.PointingHandCursor)
         card.setCheckable(True)
         card.setStyleSheet(
-            "QPushButton{"
-            "background:#FAFAFA;border:2px solid #DDD;"
+            f"QPushButton{{"
+            f"background:{_t()['surface_alt']};border:2px solid {_t()['border']};"
             "border-radius:6px;padding:8px;text-align:center;}"
-            "QPushButton:hover{background:#FFF3E0;border-color:#FFB300;}"
-            "QPushButton:checked{background:#FFF3E0;border-color:#FFB300;}"
+            f"QPushButton:hover{{background:{_t()['accent_light']};border-color:{_t()['accent']};}}"
+            f"QPushButton:checked{{background:{_t()['accent_light']};border-color:{_t()['accent']};}}"
         )
         card.setMinimumHeight(200)
 

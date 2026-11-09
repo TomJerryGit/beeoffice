@@ -41,6 +41,11 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from beeoffice.i18n import tr
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
 
 
 class HistoryMixin:
@@ -119,8 +124,8 @@ class HistoryMixin:
             tr("auto.beeshow_history_mixin.eb5bc1cd", "💡 共 {0} 个历史版本。\n双击任意版本可恢复；恢复后当前内容会被覆盖（可撤销）。").format(len(self._slide_history))
         )
         tip.setStyleSheet(
-            "QLabel{color:#666;font-size:12px;padding:8px;"
-            "background:#FFF8E1;border-radius:4px;}"
+            f"QLabel{{color:{_t()['muted']};font-size:12px;padding:8px;"
+            f"background:{_t()['accent_light']};border-radius:4px;}}"
         )
         tip.setWordWrap(True)
         layout.addWidget(tip)
@@ -131,10 +136,10 @@ class HistoryMixin:
         # 左侧列表
         lst = QListWidget()
         lst.setStyleSheet(
-            "QListWidget{border:1px solid #DDD;border-radius:4px;"
-            "font-size:13px;}"
+            f"QListWidget{{border:1px solid {_t()['border']};border-radius:4px;"
+            f"font-size:13px;background:{_t()['surface']};color:{_t()['text']};}}"
             "QListWidget::item{padding:8px;}"
-            "QListWidget::item:selected{background:#FFF3E0;}"
+            f"QListWidget::item:selected{{background:{_t()['accent_light']};}}"
         )
         # 倒序显示（最新的在最上）
         for i in range(len(self._slide_history) - 1, -1, -1):
@@ -152,8 +157,8 @@ class HistoryMixin:
         preview = QPlainTextEdit()
         preview.setReadOnly(True)
         preview.setStyleSheet(
-            "QPlainTextEdit{background:#FAFAFA;"
-            "font-family:Consolas;font-size:12px;padding:8px;}"
+            f"QPlainTextEdit{{background:{_t()['surface_alt']};"
+            f"font-family:Consolas;font-size:12px;padding:8px;color:{_t()['text']};}}"
         )
         splitter.addWidget(preview)
 
@@ -181,10 +186,10 @@ class HistoryMixin:
 
         btn_restore = QPushButton(tr("auto.beeshow_history_mixin.bc657d67", "↩ 恢复此版本"))
         btn_restore.setStyleSheet(
-            "QPushButton{background:#FFB300;color:#000;"
+            f"QPushButton{{background:{_t()['accent']};color:#000;"
             "padding:6px 16px;border:none;border-radius:4px;"
-            "font-weight:bold;}"
-            "QPushButton:hover{background:#FFA000;}"
+            f"font-weight:bold;}}"
+            f"QPushButton:hover{{background:{_t()['accent_dark']};}}"
         )
 
         def do_restore():

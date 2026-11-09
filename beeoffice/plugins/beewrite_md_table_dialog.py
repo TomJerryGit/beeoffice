@@ -34,6 +34,11 @@ from PySide6.QtGui import (
     QTextTableFormat,
 )
 from beeoffice.i18n import tr
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
 
 
 # ==================== Markdown 表格编辑对话框 ====================
@@ -58,14 +63,14 @@ class MarkdownTableEditorDialog(QDialog):
             tr("auto.beewrite_md_table_dialog.42730a08", "💡 编辑完成后点击「确定」回写 Markdown，点击「取消」放弃修改\n"
             "Tab 跳下一格 · 右键表格加行/列")
         )
-        tip.setStyleSheet("color:#666;font-size:12px;padding:4px;")
+        tip.setStyleSheet(f"color:{_t()['muted']};font-size:12px;padding:4px;")
         layout.addWidget(tip)
 
         # 编辑器
         self.editor = QTextEdit()
         self.editor.setStyleSheet(
-            "QTextEdit{background:#FFF;border:1px solid #CCC;"
-            "padding:8px;font-size:14px;}"
+            f"QTextEdit{{background:{_t()['surface']};border:1px solid {_t()['border']};"
+            f"padding:8px;font-size:14px;color:{_t()['text']};}}"
         )
         layout.addWidget(self.editor, 1)
 
@@ -92,10 +97,10 @@ class MarkdownTableEditorDialog(QDialog):
 
         ok_btn = QPushButton(tr("auto.beewrite_md_table_dialog.673142b9", "✅ 确定"))
         ok_btn.setStyleSheet(
-            "QPushButton{background:#FFB300;color:#000;"
+            f"QPushButton{{background:{_t()['accent']};color:#000;"
             "padding:6px 16px;border:none;border-radius:4px;"
-            "font-weight:bold;}"
-            "QPushButton:hover{background:#FFA000;}"
+            f"font-weight:bold;}}"
+            f"QPushButton:hover{{background:{_t()['accent_dark']};}}"
         )
         ok_btn.clicked.connect(self._on_ok)
         bl.addWidget(ok_btn)

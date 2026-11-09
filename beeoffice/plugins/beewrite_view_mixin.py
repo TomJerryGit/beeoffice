@@ -55,6 +55,11 @@ from beeoffice.plugins.beewrite_utils import (
     safe_escape_html,
 )
 from beeoffice.i18n import tr
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
 
 
 # ==================== ViewMixin ====================
@@ -249,8 +254,8 @@ class ViewMixin:
             tr("auto.beewrite_view_mixin.ee0d46d7", "<b>左侧</b>：当前文档　|　<b>右侧</b>：{0}").format(Path(path).name)
         )
         header.setStyleSheet(
-            "QLabel{background:#FFF8E1;padding:8px;"
-            "border-radius:4px;font-size:12px;}"
+            f"QLabel{{background:{_t()['accent_light']};padding:8px;"
+            f"border-radius:4px;font-size:12px;color:{_t()['text']};}}"
         )
         layout.addWidget(header)
 
@@ -261,8 +266,9 @@ class ViewMixin:
         left_edit.setReadOnly(True)
         left_edit.setPlainText(self.content())
         left_edit.setStyleSheet(
-            "QTextEdit{border:1px solid #DDD;font-family:Consolas;"
-            "font-size:13px;padding:8px;background:#FAFAFA;}"
+            f"QTextEdit{{border:1px solid {_t()['border']};font-family:Consolas;"
+            f"font-size:13px;padding:8px;background:{_t()['surface_alt']};"
+            f"color:{_t()['text']};}}"
         )
         splitter.addWidget(left_edit)
 
@@ -270,8 +276,9 @@ class ViewMixin:
         right_edit.setReadOnly(True)
         right_edit.setPlainText(compare_content)
         right_edit.setStyleSheet(
-            "QTextEdit{border:1px solid #DDD;font-family:Consolas;"
-            "font-size:13px;padding:8px;background:#FAFAFA;}"
+            f"QTextEdit{{border:1px solid {_t()['border']};font-family:Consolas;"
+            f"font-size:13px;padding:8px;background:{_t()['surface_alt']};"
+            f"color:{_t()['text']};}}"
         )
         splitter.addWidget(right_edit)
 
@@ -283,9 +290,10 @@ class ViewMixin:
 
         btn_diff = QPushButton(tr("auto.beewrite_view_mixin.7202d66a", "🔍 显示差异"))
         btn_diff.setStyleSheet(
-            "QPushButton{background:#FFF3E0;border:1px solid #FFB300;"
-            "color:#E65100;padding:6px 12px;border-radius:4px;}"
-            "QPushButton:hover{background:#FFE0B2;}"
+            f"QPushButton{{background:{_t()['accent_light']};"
+            f"border:1px solid {_t()['accent']};"
+            f"color:{_t()['text']};padding:6px 12px;border-radius:4px;}}"
+            f"QPushButton:hover{{background:{_t()['accent']};}}"
         )
 
         def show_diff():
@@ -302,16 +310,16 @@ class ViewMixin:
                 tr("auto.beewrite_view_mixin.922d2cf6", "新增：<b>{0}</b> 行　|　删除：<b>{1}</b> 行　|　总变更：<b>{2}</b> 处").format(result['additions'], result['deletions'], result['total_changes'])
             )
             summary.setStyleSheet(
-                "QLabel{background:#FFF8E1;padding:12px;"
-                "border-radius:6px;font-size:13px;}"
+                f"QLabel{{background:{_t()['accent_light']};padding:12px;"
+                f"border-radius:6px;font-size:13px;color:{_t()['text']};}}"
             )
             dl.addWidget(summary)
 
             diff_view = QTextEdit()
             diff_view.setReadOnly(True)
             diff_view.setStyleSheet(
-                "QTextEdit{background:#FAFAFA;font-family:Consolas;"
-                "font-size:12px;padding:8px;}"
+                f"QTextEdit{{background:{_t()['surface_alt']};font-family:Consolas;"
+                f"font-size:12px;padding:8px;color:{_t()['text']};}}"
             )
 
             html_lines = []

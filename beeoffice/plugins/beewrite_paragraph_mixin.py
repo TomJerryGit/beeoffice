@@ -41,6 +41,11 @@ from PySide6.QtGui import (
     QTextListFormat,
 )
 from beeoffice.i18n import tr
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
 
 
 # ==================== 常量 ====================
@@ -84,7 +89,7 @@ class ParagraphMixin:
                 bg_color["value"] = c
                 bg_btn.setStyleSheet(
                     f"QPushButton{{background:{c.name()};"
-                    f"padding:6px;color:#000;border:1px solid #CCC;"
+                    f"padding:6px;color:#000;border:1px solid {_t()['border']};"
                     f"border-radius:3px;}}"
                 )
 
@@ -101,7 +106,7 @@ class ParagraphMixin:
                 fg_color["value"] = c
                 fg_btn.setStyleSheet(
                     f"QPushButton{{background:{c.name()};"
-                    f"padding:6px;color:#000;border:1px solid #CCC;"
+                    f"padding:6px;color:#000;border:1px solid {_t()['border']};"
                     f"border-radius:3px;}}"
                 )
 
@@ -122,8 +127,8 @@ class ParagraphMixin:
             tr("auto.beewrite_paragraph_mixin.ef29b058", "💡 提示：Qt 富文本不支持字符边框，底纹/颜色会立即生效。")
         )
         tip.setStyleSheet(
-            "QLabel{color:#666;font-size:12px;padding:8px;"
-            "background:#FFF8E1;border-radius:4px;}"
+            f"QLabel{{color:{_t()['muted']};font-size:12px;padding:8px;"
+            f"background:{_t()['accent_light']};border-radius:4px;}}"
         )
         tip.setWordWrap(True)
         layout.addWidget(tip)
@@ -272,7 +277,7 @@ class ParagraphMixin:
                 para_bg_btn.setStyleSheet(
                     f"QPushButton{{background:{c.name()};"
                     f"padding:6px;color:#000;"
-                    f"border:1px solid #CCC;border-radius:3px;}}"
+                    f"border:1px solid {_t()['border']};border-radius:3px;}}"
                 )
 
         para_bg_btn.clicked.connect(pick_para_bg)
@@ -291,9 +296,9 @@ class ParagraphMixin:
             "调整上方参数可以看到格式变化效果。")
         )
         preview_label.setStyleSheet(
-            "QLabel{background:#FAFAFA;padding:12px;"
-            "border:1px solid #DDD;border-radius:4px;"
-            "font-size:13px;line-height:1.5;}"
+            f"QLabel{{background:{_t()['surface_alt']};padding:12px;"
+            f"border:1px solid {_t()['border']};border-radius:4px;"
+            f"font-size:13px;line-height:1.5;color:{_t()['text']};}}"
         )
         preview_label.setWordWrap(True)
         layout.addWidget(preview_label)

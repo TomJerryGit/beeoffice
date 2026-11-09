@@ -36,6 +36,11 @@ from PySide6.QtCore import Qt
 
 from beeoffice.plugins.beeshow_constants import LAYOUTS, LAYOUT_CSS
 from beeoffice.i18n import tr
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
 
 
 class LayoutMixin:
@@ -60,8 +65,8 @@ class LayoutMixin:
             "如需保留原内容，请先复制或另存。")
         )
         tip.setStyleSheet(
-            "QLabel{color:#666;font-size:12px;padding:8px;"
-            "background:#FFF8E1;border-radius:4px;}"
+            f"QLabel{{color:{_t()['muted']};font-size:12px;padding:8px;"
+            f"background:{_t()['accent_light']};border-radius:4px;}}"
         )
         tip.setWordWrap(True)
         layout.addWidget(tip)
@@ -96,12 +101,12 @@ class LayoutMixin:
         card = QPushButton()
         card.setCursor(Qt.PointingHandCursor)
         card.setStyleSheet(
-            "QPushButton{"
-            "background:#FAFAFA;border:1px solid #DDD;"
+            f"QPushButton{{"
+            f"background:{_t()['surface_alt']};border:1px solid {_t()['border']};"
             "border-radius:8px;padding:12px 8px;"
-            "text-align:center;}"
-            "QPushButton:hover{"
-            "background:#FFF3E0;border-color:#FFB300;}"
+            f"text-align:center;}}"
+            f"QPushButton:hover{{"
+            f"background:{_t()['accent_light']};border-color:{_t()['accent']};}}"
         )
         card.setMinimumHeight(90)
 
@@ -117,7 +122,7 @@ class LayoutMixin:
         name_label = QLabel(meta["name"])
         name_label.setAlignment(Qt.AlignCenter)
         name_label.setStyleSheet(
-            "font-size:13px;font-weight:bold;color:#333;"
+            f"font-size:13px;font-weight:bold;color:{_t()['text']};"
         )
         card_layout.addWidget(name_label)
 
