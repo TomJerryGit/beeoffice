@@ -161,3 +161,65 @@ def test_tab_close_request_no(app, monkeypatch):
     before = app.tab_manager.count()
     app.tab_manager._on_tab_close_request(app.tab_manager.indexOf(doc))
     assert app.tab_manager.count() == before
+
+
+def test_make_tab_title_unique(app):
+    first = app._make_tab_title("📝 测试")
+    app.tab_manager.addTab(FakeDoc(), first)
+    second = app._make_tab_title("📝 测试")
+    assert second != first or second.endswith(")")
+
+
+def test_self_save_window(app):
+    app.notify_self_save("C:/tmp/x.docx")
+    assert app._is_self_save("C:/tmp/x.docx") is True
+    assert app._is_self_save("C:/tmp/other.docx") is False
+
+
+def test_unsaved_content_helpers(app):
+    doc = FakeDoc()
+    doc._content = "abc"
+    assert app._get_widget_content(doc) == "abc"
+    app.tab_manager.addTab(doc, "fake")
+    app.tab_manager._tab_initial_content[id(doc)] = "abc"
+    assert app._has_unsaved_changes(doc) is False
+    doc._content = "abcd"
+    assert app._has_unsaved_changes(doc) is True
+
+
+def test_autosave_saves_changed_doc(app, monkeypatch):
+    doc = FakeDoc()
+    doc._content = "new"
+    app.tab_manager.addTab(doc, "fake")
+    app.tab_manager.setCurrentWidget(doc)
+    app.tab_manager._tab_initial_content[id(doc)] = "old"
+    app._autosave()
+    assert doc.saved == 1
+    assert "自动保存" in app.status_label.text()
+
+
+def test_next_prev_tab(app):
+    d1, d2 = FakeDoc(), FakeDoc()
+    app.tab_manager.addTab(d1, "1")
+    app.tab_manager.addTab(d2, "2")
+    app.tab_manager.setCurrentIndex(0)
+    app._next_tab()
+    assert app.tab_manager.currentIndex() == 1
+    app._prev_tab()
+    assert app.tab_manager.currentIndex() == 0
+
+
+def test_clear_recent(app, monkeypatch):
+    app.settings.recent_files = ["C:/a", "C:/b"]
+    called = []
+    monkeypatch.setattr(app, "_update_recent_menu", lambda: called.append(True))
+    monkeypatch.setattr(type(app.settings), "save", lambda self: None)
+    app._clear_recent()
+    assert app.settings.recent_files == []
+    assert called
+
+
+def test_reset_status_text(app):
+    app.status_label.setText("x")
+    app._reset_status_text()
+    assert app.status_label.text() != "x"
