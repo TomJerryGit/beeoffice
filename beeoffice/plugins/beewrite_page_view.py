@@ -2,6 +2,12 @@
 """蜜写纸张页面视图：A4 分页、页边距、页眉页脚、页码、缩放、点击定位。"""
 from __future__ import annotations
 
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 from PySide6.QtCore import QPointF, QRectF, QSize, QSizeF, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QColor, QFont, QPainter, QTextCursor, QTextDocument, QTextTable,
@@ -459,7 +465,8 @@ class SinglePageEditorDialog(QDialog):
         self._edit.setFixedSize(int(w), int(h))
         self._page_index = page_index
         self._edit.setStyleSheet(
-            "QTextEdit{background:#FFF;color:#111;border:1px solid #CCC;}"
+            f"QTextEdit{{background:{_t()['surface']};color:{_t()['text']};"
+            f"border:1px solid {_t()['border']};}}"
         )
         self._doc.setPageSize(QSizeF(w, h))
         # 选中指定页范围，编辑时优先只替换这一页

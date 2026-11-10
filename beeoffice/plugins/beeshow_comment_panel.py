@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/plugins/beeshow_comment_panel.py
 """
 蜜演评论面板（任务 4.2）
@@ -84,7 +90,7 @@ class CommentPanel(QWidget):
         # 提示
         tip = QLabel(tr("auto.beeshow_comment_panel.6309e31b", "💡 双击评论可跳转到对应页"))
         tip.setStyleSheet(
-            "QLabel{color:#999;font-size:11px;padding:2px;}"
+            f"QLabel{{color:{_t()['muted']};font-size:11px;padding:2px;}}"
         )
         tip.setWordWrap(True)
         layout.addWidget(tip)
@@ -92,11 +98,12 @@ class CommentPanel(QWidget):
         # 列表
         self._list = QListWidget()
         self._list.setStyleSheet(
-            "QListWidget{border:1px solid #E0E0E0;"
-            "border-radius:4px;background:#FFF;}"
+            f"QListWidget{{border:1px solid {_t()['border']};"
+            f"border-radius:4px;background:{_t()['surface']};"
+            f"color:{_t()['text']};}}"
             "QListWidget::item{padding:8px;"
-            "border-bottom:1px solid #F0F0F0;}"
-            "QListWidget::item:selected{background:#FFF3E0;}"
+            f"border-bottom:1px solid {_t()['border']};}}"
+            f"QListWidget::item:selected{{background:{_t()['accent_light']};}}"
         )
         self._list.itemDoubleClicked.connect(self._on_item_double_clicked)
         self._list.setContextMenuPolicy(Qt.CustomContextMenu)

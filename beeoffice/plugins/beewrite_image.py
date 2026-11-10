@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/plugins/beewrite_image.py
 """
 蜜写图片编辑：打开、缩放、旋转、滤镜（简化版）
@@ -73,8 +79,8 @@ class ImageEditorDialog(QDialog):
         self._preview_label.setAlignment(Qt.AlignCenter)
         self._preview_label.setMinimumHeight(300)
         self._preview_label.setStyleSheet(
-            "QLabel{background:#F5F5F5;border:1px solid #DDD;"
-            "border-radius:4px;color:#999;}"
+            f"QLabel{{background:{_t()['surface_alt']};border:1px solid {_t()['border']};"
+            f"border-radius:4px;color:{_t()['muted']};}}"
         )
         layout.addWidget(self._preview_label, 1)
 
@@ -201,10 +207,10 @@ class ImageEditorDialog(QDialog):
 
         btn_insert = QPushButton(tr("auto.beewrite_image.cf0e4ad4", "✅ 插入到文档"))
         btn_insert.setStyleSheet(
-            "QPushButton{background:#FFB300;color:#000;"
+            f"QPushButton{{background:{_t()['accent']};color:{_t()['on_accent']};"
             "padding:6px 16px;border:none;border-radius:4px;"
-            "font-weight:bold;}"
-            "QPushButton:hover{background:#FFA000;}"
+            f"font-weight:bold;}}"
+            f"QPushButton:hover{{background:{_t()['accent_dark']};}}"
         )
         btn_insert.clicked.connect(self._insert_to_document)
         btns.addButton(btn_insert, QDialogButtonBox.AcceptRole)

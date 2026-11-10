@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/plugins/beeshow_toolbar_mixin.py
 """
 蜜演 UI 构建 Mixin
@@ -101,7 +107,8 @@ class ToolbarMixin:
 
         self._play_btn = QPushButton("▶ 播放 (F5)")
         self._play_btn.setStyleSheet(
-            "background:#FFB300;color:#000;font-weight:bold;padding:6px 12px;"
+            f"background:{_t()['accent']};color:{_t()['on_accent']};"
+            "font-weight:bold;padding:6px 12px;"
         )
         self._play_btn.clicked.connect(self._start_play)
         toolbar.addWidget(self._play_btn)

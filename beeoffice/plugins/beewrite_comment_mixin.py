@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/plugins/beewrite_comment_mixin.py
 """
 蜜写批注 / 书签 / 修订 Mixin
@@ -429,8 +435,8 @@ class CommentMixin:
             tr("auto.beewrite_comment_mixin.b652921f", "<b>修订摘要</b>（基线时间：{0}）<br><span style='color:#1B5E20;'>新增 {1} 行</span> | <span style='color:#B71C1C;'>删除 {2} 行</span> | <span style='color:#E65100;'>修改 {3} 行</span> | <b>总变更 {4} 处</b>").format(self._revision_manager.baseline_time, result['additions'], result['deletions'], result['modified'], result['total_changes'])
         )
         summary.setStyleSheet(
-            "QLabel{background:#FFF8E1;padding:12px;"
-            "border-radius:6px;font-size:13px;}"
+            f"QLabel{{background:{_t()['accent_light']};padding:12px;"
+            f"border-radius:6px;font-size:13px;color:{_t()['text']};}}"
         )
         summary.setWordWrap(True)
         layout.addWidget(summary)
@@ -439,8 +445,8 @@ class CommentMixin:
         diff_view = QTextEdit()
         diff_view.setReadOnly(True)
         diff_view.setStyleSheet(
-            "QTextEdit{background:#FAFAFA;font-family:Consolas;"
-            "font-size:12px;padding:8px;}"
+            f"QTextEdit{{background:{_t()['surface_alt']};font-family:Consolas;"
+            f"font-size:12px;padding:8px;color:{_t()['text']};}}"
         )
 
         html_lines = []

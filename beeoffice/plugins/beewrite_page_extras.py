@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/plugins/beewrite_page_extras.py
 """
 蜜写水印 + 页码：只在导出 PDF / HTML 时生效
@@ -85,8 +91,8 @@ class WatermarkDialog(QDialog):
             "编辑视图不显示水印（Qt 限制）。")
         )
         tip.setStyleSheet(
-            "QLabel{color:#666;font-size:11px;padding:8px;"
-            "background:#FFF8E1;border-radius:4px;}"
+            f"QLabel{{color:{_t()['muted']};font-size:11px;padding:8px;"
+            f"background:{_t()['accent_light']};border-radius:4px;}}"
         )
         tip.setWordWrap(True)
         layout.addWidget(tip)
@@ -199,8 +205,8 @@ class PageNumberDialog(QDialog):
             "若使用 QWebEngineView 打印，可能不支持全部格式。")
         )
         tip.setStyleSheet(
-            "QLabel{color:#666;font-size:11px;padding:8px;"
-            "background:#FFF8E1;border-radius:4px;}"
+            f"QLabel{{color:{_t()['muted']};font-size:11px;padding:8px;"
+            f"background:{_t()['accent_light']};border-radius:4px;}}"
         )
         tip.setWordWrap(True)
         layout.addWidget(tip)

@@ -318,7 +318,7 @@ class FormulaMixin:
         lst.itemDoubleClicked.connect(on_double_click)
 
         tip = QLabel(tr("auto.beesheet_formula_mixin.843a19f1", "💡 双击函数名插入到公式栏，光标会定位到括号内"))
-        tip.setStyleSheet("color:#666; font-size:12px; padding:4px;")
+        tip.setStyleSheet(f"color:{_t()['muted']}; font-size:12px; padding:4px;")
         layout.addWidget(tip)
         dlg.exec()
 

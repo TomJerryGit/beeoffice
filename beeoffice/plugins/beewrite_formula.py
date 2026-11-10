@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/plugins/beewrite_formula.py
 """
 蜜写数学公式：LaTeX 输入 + matplotlib 渲染为图片
@@ -134,8 +140,8 @@ class FormulaDialog(QDialog):
         self._preview_label.setAlignment(Qt.AlignCenter)
         self._preview_label.setMinimumHeight(160)
         self._preview_label.setStyleSheet(
-            "QLabel{background:#FFF;border:1px solid #DDD;"
-            "border-radius:4px;color:#999;padding:8px;}"
+            f"QLabel{{background:{_t()['surface']};border:1px solid {_t()['border']};"
+            f"border-radius:4px;color:{_t()['muted']};padding:8px;}}"
         )
         layout.addWidget(self._preview_label, 1)
 
@@ -172,10 +178,10 @@ class FormulaDialog(QDialog):
 
         btn_insert = QPushButton(tr("auto.beewrite_formula.11b82e83", "✅ 插入公式"))
         btn_insert.setStyleSheet(
-            "QPushButton{background:#FFB300;color:#000;"
+            f"QPushButton{{background:{_t()['accent']};color:{_t()['on_accent']};"
             "padding:6px 16px;border:none;border-radius:4px;"
-            "font-weight:bold;}"
-            "QPushButton:hover{background:#FFA000;}"
+            f"font-weight:bold;}}"
+            f"QPushButton:hover{{background:{_t()['accent_dark']};}}"
         )
         btn_insert.clicked.connect(self._insert_formula)
         btns.addButton(btn_insert, QDialogButtonBox.AcceptRole)

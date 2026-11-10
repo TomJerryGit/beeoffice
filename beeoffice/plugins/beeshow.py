@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/plugins/beeshow.py
 """
 蜜演 BeeShow —— 主组装层
@@ -332,8 +338,8 @@ class BeeShowView(
 
         self._rehearsal_label = QLabel("")
         self._rehearsal_label.setStyleSheet(
-            "QLabel{color:#E65100;font-weight:bold;padding:2px 8px;"
-            "background:#FFF3E0;border-radius:4px;}"
+            f"QLabel{{color:{_t()['accent_dark']};font-weight:bold;padding:2px 8px;"
+            f"background:{_t()['accent_light']};border-radius:4px;}}"
         )
         self._rehearsal_label.hide()
 

@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/plugins/beewrite_link_mixin.py
 """
 蜜写链接 / 交叉引用 / 插入对象 Mixin
@@ -156,9 +162,10 @@ class LinkMixin:
         # ---------- 标题列表 ----------
         lst = QListWidget()
         lst.setStyleSheet(
-            "QListWidget{border:1px solid #DDD;border-radius:4px;}"
+            f"QListWidget{{border:1px solid {_t()['border']};border-radius:4px;"
+            f"background:{_t()['surface']};color:{_t()['text']};}}"
             "QListWidget::item{padding:6px;}"
-            "QListWidget::item:selected{background:#FFF3E0;}"
+            f"QListWidget::item:selected{{background:{_t()['accent_light']};}}"
         )
         for h in headings:
             indent = "  " * (h["level"] - 1)
@@ -183,10 +190,10 @@ class LinkMixin:
         bl = QHBoxLayout()
         btn_insert = QPushButton(tr("auto.beewrite_link_mixin.7fa8aacd", "插入引用"))
         btn_insert.setStyleSheet(
-            "QPushButton{background:#FFB300;color:#000;"
+            f"QPushButton{{background:{_t()['accent']};color:{_t()['on_accent']};"
             "padding:6px 16px;border:none;border-radius:4px;"
-            "font-weight:bold;}"
-            "QPushButton:hover{background:#FFA000;}"
+            f"font-weight:bold;}}"
+            f"QPushButton:hover{{background:{_t()['accent_dark']};}}"
         )
 
         def do_insert():

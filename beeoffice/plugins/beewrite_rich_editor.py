@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/plugins/beewrite_rich_editor.py
 """
 蜜写富文本编辑器（RichTextEditor）
@@ -150,13 +156,14 @@ class RichTextEditor(QTextEdit):
                 }
             """)
         else:
-            self.setStyleSheet("""
-                QTextEdit {
+            self.setStyleSheet(f"""
+                QTextEdit {{
                     border: none; padding: 20px 40px;
-                    background-color: #FFFFFF;
+                    background-color: {_t()['surface']};
+                    color: {_t()['text']};
                     font-family: "Segoe UI", "微软雅黑", sans-serif;
                     font-size: 14px; line-height: 1.8;
-                }
+                }}
             """)
 
     def set_current_file_dir(self, d):

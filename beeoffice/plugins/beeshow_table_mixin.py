@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/plugins/beeshow_table_mixin.py
 """
 蜜演表格编辑器（v5.2 · B1）
@@ -148,8 +154,8 @@ class TableEditorDialog(QDialog):
         self._preview = QTextEdit()
         self._preview.setReadOnly(True)
         self._preview.setStyleSheet(
-            "QTextEdit{background:#FAFAFA;"
-            "font-family:Consolas;font-size:12px;padding:6px;}"
+            f"QTextEdit{{background:{_t()['surface_alt']};"
+            f"font-family:Consolas;font-size:12px;padding:6px;color:{_t()['text']};}}"
         )
         self._preview.setMaximumHeight(120)
         layout.addWidget(self._preview)
@@ -158,10 +164,10 @@ class TableEditorDialog(QDialog):
         btns = QDialogButtonBox()
         ok_btn = QPushButton(tr("auto.beeshow_table_mixin.70d67f36", "✅ 插入"))
         ok_btn.setStyleSheet(
-            "QPushButton{background:#FFB300;color:#000;"
+            f"QPushButton{{background:{_t()['accent']};color:{_t()['on_accent']};"
             "padding:6px 16px;border:none;border-radius:4px;"
-            "font-weight:bold;}"
-            "QPushButton:hover{background:#FFA000;}"
+            f"font-weight:bold;}}"
+            f"QPushButton:hover{{background:{_t()['accent_dark']};}}"
         )
         ok_btn.clicked.connect(self._on_accept)
         btns.addButton(ok_btn, QDialogButtonBox.AcceptRole)

@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/plugins/beewrite_hyperlink.py
 """
 蜜写超链接管理：扫描、列表、编辑、删除
@@ -76,9 +82,10 @@ class HyperlinkManagerDialog(QDialog):
 
         self._list = QListWidget()
         self._list.setStyleSheet(
-            "QListWidget{border:1px solid #DDD;border-radius:4px;}"
+            f"QListWidget{{border:1px solid {_t()['border']};border-radius:4px;"
+            f"background:{_t()['surface']};color:{_t()['text']};}}"
             "QListWidget::item{padding:6px;}"
-            "QListWidget::item:selected{background:#FFF3E0;}"
+            f"QListWidget::item:selected{{background:{_t()['accent_light']};}}"
         )
         self._list.itemDoubleClicked.connect(self._jump_to_link)
         layout.addWidget(self._list, 1)

@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/plugins/beeshow_sync_mixin.py
 """
 蜜演远程同步 Mixin（任务 4.3）
@@ -195,9 +201,9 @@ class SyncMixin:
         # 观众 URL
         url_label = QLabel(self._sync_url)
         url_label.setStyleSheet(
-            "QLabel{background:#F5F5F5;padding:12px;"
+            f"QLabel{{background:{_t()['surface_alt']};padding:12px;"
             "font-family:Consolas;font-size:14px;"
-            "border-radius:4px;color:#0D47A1;}"
+            f"border-radius:4px;color:{_t()['accent_dark']};}}"
         )
         url_label.setTextInteractionFlags(
             Qt.TextSelectableByMouse
@@ -234,8 +240,8 @@ class SyncMixin:
             "   演示者的翻页、激光笔、黑屏操作会同步显示。")
         )
         tip.setStyleSheet(
-            "QLabel{color:#666;font-size:12px;padding:8px;"
-            "background:#FFF8E1;border-radius:4px;}"
+            f"QLabel{{color:{_t()['muted']};font-size:12px;padding:8px;"
+            f"background:{_t()['accent_light']};border-radius:4px;}}"
         )
         tip.setWordWrap(True)
         layout.addWidget(tip)

@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/plugins/beewrite_textbox.py
 """
 蜜写文本框：用 QTextFrame 实现静态文本框（可设置背景色、边框、内边距）
@@ -89,8 +95,8 @@ class TextBoxDialog(QDialog):
             "Qt 不支持拖动位置，也不能浮动于文字之上。")
         )
         tip.setStyleSheet(
-            "QLabel{color:#666;font-size:11px;padding:8px;"
-            "background:#FFF8E1;border-radius:4px;}"
+            f"QLabel{{color:{_t()['muted']};font-size:11px;padding:8px;"
+            f"background:{_t()['accent_light']};border-radius:4px;}}"
         )
         tip.setWordWrap(True)
         layout.addWidget(tip)
