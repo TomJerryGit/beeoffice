@@ -215,8 +215,13 @@ class FormulaEngine:
         if f:
             return f(args, model)
         math_funcs = {
-            'SIN': math.sin, 'COS': math.cos, 'TAN': math.tan, 'EXP': math.exp,
-            'LN': math.log, 'LOG10': math.log10, 'PI': lambda a, m: math.pi,
+            'SIN': lambda a, m: math.sin(float(cls._av(a, m))),
+            'COS': lambda a, m: math.cos(float(cls._av(a, m))),
+            'TAN': lambda a, m: math.tan(float(cls._av(a, m))),
+            'EXP': lambda a, m: math.exp(float(cls._av(a, m))),
+            'LN': lambda a, m: math.log(float(cls._av(a, m))),
+            'LOG10': lambda a, m: math.log10(float(cls._av(a, m))),
+            'PI': lambda a, m: math.pi,
             'RAND': lambda a, m: np.random.random(),
             'RANDBETWEEN': lambda a, m: np.random.randint(
                 int(cls._av(a.split(',')[0], m)),
@@ -226,9 +231,7 @@ class FormulaEngine:
             'SQRT': lambda a, m: float(cls._av(a, m)) ** 0.5,
         }
         if name in math_funcs:
-            if name in ('RANDBETWEEN',):
-                return math_funcs[name](*[args, model])
-            return math_funcs[name](cls._av(args, model))
+            return math_funcs[name](args, model)
         return f"#ERROR: 未知函数 {name}"
 
     @classmethod
@@ -255,9 +258,9 @@ class FormulaEngine:
             'TEXT': cls._text, 'VALUE': cls._value, 'REPT': cls._rept, 'EXACT': cls._exact,
             'TODAY': lambda a, m: datetime.now().strftime('%Y-%m-%d'),
             'NOW': lambda a, m: datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'YEAR': lambda a, m: cls._parse_date(cls._av(a, m)).year if cls._av(a, m) else datetime.now().year,
-            'MONTH': lambda a, m: cls._parse_date(cls._av(a, m)).month if cls._av(a, m) else datetime.now().month,
-            'DAY': lambda a, m: cls._parse_date(cls._av(a, m)).day if cls._av(a, m) else datetime.now().day,
+            'YEAR': lambda a, m: cls._parse_date(cls._eval_arg(a, m)).year,
+            'MONTH': lambda a, m: cls._parse_date(cls._eval_arg(a, m)).month,
+            'DAY': lambda a, m: cls._parse_date(cls._eval_arg(a, m)).day,
             'DATE': cls._date, 'DATEDIF': cls._datedif, 'EDATE': cls._edate,
             'EOMONTH': cls._eomonth, 'WEEKDAY': cls._weekday, 'WEEKNUM': cls._weeknum,
             'NETWORKDAYS': cls._networkdays, 'WORKDAY': cls._workday,
@@ -515,8 +518,9 @@ class FormulaEngine:
     @classmethod
     def _rank(cls, a, m):
         p = cls._args(a)
-        v = sorted(cls._vals(p[0], m), reverse=True)
-        return v.index(float(cls._av(p[1], m))) + 1 if v else "#ERROR"
+        v = sorted(cls._vals(p[1], m), reverse=True)
+        target = float(cls._av(p[0], m))
+        return v.index(target) + 1 if v and target in v else "#ERROR"
 
     # ==================== Excel 运算符归一化 ====================
     @staticmethod
@@ -663,6 +667,12 @@ class FormulaEngine:
                     return "0"
                 if isinstance(v, (int, float)):
                     return repr(v)
+                # numpy / pandas 数值类型不是 Python int/float，按数值处理
+                if not isinstance(v, str) and hasattr(v, "item"):
+                    try:
+                        return repr(float(v))
+                    except (TypeError, ValueError):
+                        pass
                 return repr(str(v))
             except Exception:
                 return "0"
@@ -1345,7 +1355,16 @@ class FormulaEngine:
     def _textjoin(cls, a, m):
         p = cls._args(a)
         delim = str(cls._av(p[0], m)).strip('"')
-        return delim.join(str(cls._av(x, m)) for x in p[1:])
+        ignore_empty = str(cls._av(p[1], m)).strip('"').lower() in (
+            "true", "1", "是"
+        ) if len(p) > 1 else False
+        vals = []
+        for x in p[2:] if len(p) > 2 else p[1:]:
+            v = cls._eval_arg(x, m)
+            if ignore_empty and str(v).strip() == "":
+                continue
+            vals.append(str(v))
+        return delim.join(vals)
 
     @classmethod
     def _find(cls, a, m):
@@ -1399,8 +1418,8 @@ class FormulaEngine:
     @classmethod
     def _datedif(cls, a, m):
         p = cls._args(a)
-        d1 = cls._parse_date(cls._av(p[0], m))
-        d2 = cls._parse_date(cls._av(p[1], m))
+        d1 = cls._parse_date(cls._eval_arg(p[0], m))
+        d2 = cls._parse_date(cls._eval_arg(p[1], m))
         unit = str(cls._av(p[2], m)).strip('"').lower()
         if unit == 'd':
             return (d2 - d1).days
@@ -1413,31 +1432,31 @@ class FormulaEngine:
     @classmethod
     def _edate(cls, a, m):
         p = cls._args(a)
-        d = cls._parse_date(cls._av(p[0], m))
+        d = cls._parse_date(cls._eval_arg(p[0], m))
         months = int(cls._av(p[1], m))
         return (d + timedelta(days=months * 30)).strftime('%Y-%m-%d')
 
     @classmethod
     def _eomonth(cls, a, m):
         p = cls._args(a)
-        d = cls._parse_date(cls._av(p[0], m))
+        d = cls._parse_date(cls._eval_arg(p[0], m))
         months = int(cls._av(p[1], m))
         nd = d + timedelta(days=months * 30 + 31)
         return (nd.replace(day=1) - timedelta(days=1)).strftime('%Y-%m-%d')
 
     @classmethod
     def _weekday(cls, a, m):
-        return cls._parse_date(cls._av(a, m)).weekday() + 1
+        return cls._parse_date(cls._eval_arg(a, m)).weekday() + 1
 
     @classmethod
     def _weeknum(cls, a, m):
-        return cls._parse_date(cls._av(a, m)).isocalendar()[1]
+        return cls._parse_date(cls._eval_arg(a, m)).isocalendar()[1]
 
     @classmethod
     def _networkdays(cls, a, m):
         p = cls._args(a)
-        d1 = cls._parse_date(cls._av(p[0], m))
-        d2 = cls._parse_date(cls._av(p[1], m))
+        d1 = cls._parse_date(cls._eval_arg(p[0], m))
+        d2 = cls._parse_date(cls._eval_arg(p[1], m))
         return int(np.busday_count(d1.date(), d2.date() + timedelta(days=1)))
 
     @classmethod
