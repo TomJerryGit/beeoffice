@@ -179,3 +179,62 @@ def test_onedrive_large_upload(monkeypatch, tmp_path):
     fake.post_resp = Resp(200, {"uploadUrl": "https://upload.test/session"})
     fake.put_resp = Resp(500)
     assert o._upload_large(str(f), "big.bin") is False
+
+
+def test_google_folder_path_and_create(monkeypatch):
+    fake = install_fake(monkeypatch)
+    g = GoogleDriveStorage({"access_token": "tok"})
+    # 已存在
+    monkeypatch.setattr(g, "_find_file_by_query", lambda q: "fid")
+    assert g._ensure_folder_path("/a/b") == "fid"
+    # 不存在则创建
+    created = []
+    monkeypatch.setattr(g, "_find_file_by_query", lambda q: "")
+    monkeypatch.setattr(g, "_create_folder", lambda name, parent: created.append((name, parent)) or f"id_{name}")
+    assert g._ensure_folder_path("/a/b") == "id_b"
+    assert created == [("a", "root"), ("b", "id_a")]
+    # 创建失败
+    monkeypatch.setattr(g, "_create_folder", lambda name, parent: "")
+    assert g._ensure_folder_path("/x") == ""
+
+    # create folder API（恢复真实实现）
+    monkeypatch.undo()
+    g = GoogleDriveStorage({"access_token": "tok"})
+    fake = install_fake(monkeypatch)
+    fake.post_resp = Resp(200, {"id": "newid"})
+    assert g._create_folder("doc", "root") == "newid"
+    fake.post_resp = Resp(500)
+    assert g._create_folder("doc", "root") == ""
+
+
+def test_google_upload_existing_and_small(monkeypatch, tmp_path):
+    fake = install_fake(monkeypatch)
+    g = GoogleDriveStorage({"access_token": "tok"})
+    local = tmp_path / "a.txt"
+    local.write_text("hello")
+    monkeypatch.setattr(g, "_ensure_folder_path", lambda p: "parent")
+    monkeypatch.setattr(g, "_find_file_by_query", lambda q: "existing")
+    fake.patch_resp = Resp(200)
+    assert g.upload(str(local), "/folder/a.txt") is True
+    fake.patch_resp = Resp(500)
+    assert g.upload(str(local), "/folder/a.txt") is False
+
+    monkeypatch.setattr(g, "_find_file_by_query", lambda q: "")
+    fake.post_resp = Resp(201)
+    assert g.upload(str(local), "/a.txt") is True
+    fake.post_resp = Resp(500)
+    assert g.upload(str(local), "/a.txt") is False
+    assert g.upload(str(tmp_path / "missing.txt"), "/a.txt") is False
+    assert g.upload(str(local), "/") is False
+
+
+def test_onedrive_upload_small(monkeypatch, tmp_path):
+    fake = install_fake(monkeypatch)
+    o = OneDriveStorage({"access_token": "tok"})
+    local = tmp_path / "a.txt"
+    local.write_text("hello")
+    fake.put_resp = Resp(201)
+    assert o.upload(str(local), "/a.txt") is True
+    fake.put_resp = Resp(500)
+    assert o.upload(str(local), "/a.txt") is False
+    assert o.upload(str(tmp_path / "missing"), "/a.txt") is False
