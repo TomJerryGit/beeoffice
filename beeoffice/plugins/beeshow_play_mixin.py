@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/plugins/beeshow_play_mixin.py
 """
 蜜演全屏播放 / 演讲者模式 / 排练计时 Mixin
@@ -318,7 +324,7 @@ class PlayMixin:
             )
             tip.setAlignment(Qt.AlignCenter)
             tip.setStyleSheet(
-                "QLabel{color:#666;font-size:14px;padding:40px;}"
+                f"QLabel{{color:{_t()['muted']};font-size:14px;padding:40px;}}"
             )
             tip.setWordWrap(True)
             layout.addWidget(tip)

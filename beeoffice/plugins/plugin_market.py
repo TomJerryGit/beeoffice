@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/plugins/plugin_market.py
 """
 插件市场：展示已安装插件、安装本地插件、卸载插件
@@ -60,7 +66,7 @@ class PluginMarketDialog(QDialog):
         self.list_widget.setAlternatingRowColors(True)
         self.list_widget.setStyleSheet(
             "QListWidget::item { padding: 8px; } "
-            "QListWidget::item:selected { background: #FFE0A0; color: #000; }"
+            f"QListWidget::item:selected {{ background: {_t()['accent_light']}; color: {_t()['text']}; }}"
         )
         self.list_widget.currentItemChanged.connect(self._on_item_changed)
         left_layout.addWidget(self.list_widget)

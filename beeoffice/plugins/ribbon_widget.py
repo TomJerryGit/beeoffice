@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/plugins/ribbon_widget.py
 """
 WPS 式 Ribbon 标签栏（2026-10-23）。
@@ -103,9 +109,9 @@ class RibbonGroup(QFrame):
         _set_button_a11y(button, text, tooltip)
         button.setMinimumSize(56, 46)
         button.setStyleSheet(
-            "QToolButton{border:none;border-radius:4px;padding:2px;"
-            "font-size:12px;color:#333;}"
-            "QToolButton:hover{background:#E8F0FE;}"
+            f"QToolButton{{border:none;border-radius:4px;padding:2px;"
+            f"font-size:12px;color:{_t()['text']};}}"
+            f"QToolButton:hover{{background:{_t()['surface_alt']};}}"
         )
         button.clicked.connect(callback)
         self.content.addWidget(button)

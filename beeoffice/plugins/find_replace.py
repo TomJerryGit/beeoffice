@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/plugins/find_replace.py
 """
 蜜写查找替换栏：支持普通/正则查找、区分大小写、全字匹配、替换、全部替换
@@ -92,7 +98,7 @@ class FindReplaceBar(QWidget):
 
         self.result_label = QLabel("")
         self.result_label.setStyleSheet(
-            "QLabel{color:#666;font-size:12px;padding:0 8px;}"
+            f"QLabel{{color:{_t()['muted']};font-size:12px;padding:0 8px;}}"
         )
         row3.addWidget(self.result_label)
 
@@ -100,12 +106,13 @@ class FindReplaceBar(QWidget):
 
         # 样式
         self.setStyleSheet(
-            "FindReplaceBar{background:#FFF8E1;border-bottom:1px solid #FFE0B2;}"
-            "QLineEdit{border:1px solid #CCC;border-radius:3px;padding:4px 8px;}"
-            "QLineEdit:focus{border-color:#FFB300;}"
-            "QPushButton{background:#FFF;border:1px solid #CCC;"
+            f"FindReplaceBar{{background:{_t()['accent_light']};"
+            f"border-bottom:1px solid {_t()['border']};}}"
+            f"QLineEdit{{border:1px solid {_t()['border']};border-radius:3px;padding:4px 8px;}}"
+            f"QLineEdit:focus{{border-color:{_t()['accent']};}}"
+            f"QPushButton{{background:{_t()['surface']};border:1px solid {_t()['border']};"
             "border-radius:3px;padding:4px 10px;}"
-            "QPushButton:hover{background:#FFE0B2;}"
+            f"QPushButton:hover{{background:{_t()['accent_light']};}}"
         )
 
     def apply_theme(self):

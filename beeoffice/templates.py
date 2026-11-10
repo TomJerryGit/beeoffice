@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/templates.py
 """
 模板管理界面：选择模板创建文档、预览模板内容
@@ -59,7 +65,7 @@ def show_template_picker(parent):
     # 右侧预览
     preview = QTextBrowser()
     preview.setOpenExternalLinks(False)
-    preview.setStyleSheet("QTextBrowser { font-size: 14px; padding: 8px; background: #FFF; border: 1px solid #DDD; border-radius: 6px; }")
+    preview.setStyleSheet(f"QTextBrowser {{ font-size: 14px; padding: 8px; background: {_t()['surface']}; border: 1px solid {_t()['border']}; border-radius: 6px; }}")
 
     def on_item_selected(lst):
         """列表选中时更新预览"""
@@ -106,8 +112,8 @@ def show_template_picker(parent):
         lst = QListWidget()
         lst.setAlternatingRowColors(True)
         lst.setStyleSheet(
-            "QListWidget::item { padding: 8px; } "
-            "QListWidget::item:selected { background: #FFE0A0; color: #000; }"
+            f"QListWidget::item {{ padding: 8px; }} "
+            f"QListWidget::item:selected {{ background: {_t()['accent_light']}; color: {_t()['text']}; }}"
         )
         for tpl in categories[cat_name]:
             icon = "📦" if tpl.get("source") == "builtin" else "👤"

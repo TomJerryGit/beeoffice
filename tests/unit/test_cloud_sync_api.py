@@ -141,3 +141,41 @@ def test_onedrive_failures(monkeypatch, tmp_path):
     assert o.download("/x", str(tmp_path / "y")) is False
     assert o.exists("/x") is False
     assert o.get_file_info("/x") == (0, 0.0)
+
+
+def test_google_resumable_upload(monkeypatch, tmp_path):
+    fake = install_fake(monkeypatch)
+    g = GoogleDriveStorage({"access_token": "tok"})
+    f = tmp_path / "big.bin"
+    f.write_bytes(b"x" * 16)
+
+    fake.post_resp = Resp(200, headers={"Location": "https://upload.test/session"})
+    fake.put_resp = Resp(200)
+    assert g._upload_resumable(str(f), "big.bin", "root") is True
+
+    fake.post_resp = Resp(500)
+    assert g._upload_resumable(str(f), "big.bin", "root") is False
+    fake.post_resp = Resp(200, headers={})
+    assert g._upload_resumable(str(f), "big.bin", "root") is False
+    fake.post_resp = Resp(200, headers={"Location": "https://upload.test/session"})
+    fake.put_resp = Resp(500)
+    assert g._upload_resumable(str(f), "big.bin", "root") is False
+
+
+def test_onedrive_large_upload(monkeypatch, tmp_path):
+    fake = install_fake(monkeypatch)
+    o = OneDriveStorage({"access_token": "tok"})
+    f = tmp_path / "big.bin"
+    f.write_bytes(b"x" * 16)
+
+    fake.post_resp = Resp(200, {"uploadUrl": "https://upload.test/session"})
+    fake.put_resp = Resp(202)
+    assert o._upload_large(str(f), "big.bin") is True
+
+    fake.post_resp = Resp(500)
+    assert o._upload_large(str(f), "big.bin") is False
+    fake.post_resp = Resp(200, {})
+    assert o._upload_large(str(f), "big.bin") is False
+    fake.post_resp = Resp(200, {"uploadUrl": "https://upload.test/session"})
+    fake.put_resp = Resp(500)
+    assert o._upload_large(str(f), "big.bin") is False

@@ -1,3 +1,9 @@
+from beeoffice.theme import Theme
+
+
+def _t():
+    return Theme.tokens()
+
 # beeoffice/command_palette.py
 """
 命令面板：支持上下文推荐、最近命令、上下键导航
@@ -73,9 +79,9 @@ class CommandPalette(QDialog):
         # 命令列表
         self.list_widget = QListWidget()
         self.list_widget.setStyleSheet(
-            "QListWidget { border: none; font-size: 13px; background: #FFF; } "
+            f"QListWidget {{ border: none; font-size: 13px; background: {_t()['surface']}; }} "
             "QListWidget::item { padding: 8px 10px; } "
-            "QListWidget::item:selected { background-color: #FFB300; color: #000; }"
+            f"QListWidget::item:selected {{ background-color: {_t()['accent']}; color: #000; }}"
         )
         self.list_widget.hide()
         layout.addWidget(self.list_widget)
