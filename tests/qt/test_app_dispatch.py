@@ -351,3 +351,41 @@ def test_check_auto_sync(app, monkeypatch):
     app._check_auto_sync()
     assert len(calls) == 1
 
+
+
+def test_batch_entrypoints(app, monkeypatch):
+    calls = []
+    app._run_batch_convert = lambda fn, title, out, status: calls.append((title, out, status))
+    app._batch_docx_to_md()
+    app._batch_md_to_docx()
+    assert len(calls) == 2
+    assert "DOCX" in calls[0][0]
+    assert "MD" in calls[1][0]
+
+
+def test_file_changed_branches(app, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    import beeoffice.app as app_mod
+    monkeypatch.setattr(app_mod.QTimer, "singleShot", staticmethod(lambda *a, **k: None))
+    opened = []
+    app._get_watched_paths = lambda: ["C:/a.md"]
+    app._is_self_save = lambda p: False
+    app._open_recent = lambda p: opened.append(p)
+    app._last_file_change_prompt = None
+
+    # 未监视路径
+    app._on_file_changed("C:/other.md")
+    assert not opened
+    # 自己保存
+    app._is_self_save = lambda p: True
+    app._on_file_changed("C:/a.md")
+    assert not opened
+    # 用户选择是
+    app._is_self_save = lambda p: False
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Yes)
+    app._on_file_changed("C:/a.md")
+    assert opened == ["C:/a.md"]
+    # 重复提示抑制
+    app._last_file_change_prompt = "C:/a.md"
+    app._on_file_changed("C:/a.md")
+    assert len(opened) == 1
