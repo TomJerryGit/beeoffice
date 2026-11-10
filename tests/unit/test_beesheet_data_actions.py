@@ -7,7 +7,7 @@ from beeoffice.plugins.beesheet_data_mixin import DataMixin
 
 class FakeModel(QObject):
     layoutChanged = Signal()
-    dataChanged = Signal()
+    dataChanged = Signal(object, object)
 
     def __init__(self, rows):
         super().__init__()
@@ -21,6 +21,15 @@ class FakeModel(QObject):
 
     def index(self, row, col):
         return (row, col)
+
+    def get_value(self, row, col):
+        return self._loaded_df.iloc[row, col]
+
+    def rowCount(self):
+        return len(self._loaded_df)
+
+    def columnCount(self):
+        return len(self._loaded_df.columns)
 
 
 class FakeSheet(DataMixin):
@@ -36,6 +45,9 @@ class FakeSheet(DataMixin):
 
     def _set_status(self, text, ms=0):
         self.statuses.append(text)
+
+    def _col_index_to_name(self, col):
+        return chr(65 + col)
 
 
 def make_sheet():
@@ -105,3 +117,60 @@ def test_paste_data_and_single_value():
     s._paste_single_value("10\n20", 0, 1)
     assert s.model._loaded_df.iloc[0, 1] == 10
     assert s.model._loaded_df.iloc[1, 1] == 20
+
+
+def test_export_files(tmp_path, monkeypatch):
+    import beeoffice.plugins.beesheet_data_mixin as m
+    sheet = make_sheet()
+    targets = {
+        "csv": tmp_path / "out.csv",
+        "html": tmp_path / "out.html",
+        "md": tmp_path / "out.md",
+        "json": tmp_path / "out.json",
+    }
+    monkeypatch.setattr(m.QFileDialog, "getSaveFileName", lambda *a, **k: (str(targets[sheet._export_target]), ""))
+    monkeypatch.setattr(m.QMessageBox, "information", lambda *a, **k: None)
+    monkeypatch.setattr(m.QMessageBox, "warning", lambda *a, **k: None)
+    sheet._export_target = "csv"; sheet._export_csv()
+    sheet._export_target = "html"; sheet._export_html_table()
+    sheet._export_target = "md"; sheet._export_markdown_file()
+    sheet._export_target = "json"; sheet._export_json()
+    for p in targets.values():
+        assert p.exists() and p.stat().st_size > 0
+
+
+def test_row_and_column_edits(qtbot, monkeypatch):
+    import beeoffice.plugins.beesheet_data_mixin as m
+    monkeypatch.setattr(m.QMessageBox, "question", lambda *a, **k: m.QMessageBox.Yes)
+    from PySide6.QtWidgets import QApplication
+    sheet = make_sheet()
+    sheet._copy_row(0)
+    assert "Alice" in QApplication.clipboard().text()
+    before = len(sheet.model._loaded_df)
+    sheet._insert_row_at(1)
+    assert len(sheet.model._loaded_df) == before + 1
+    sheet._copy_column(0)
+    assert "Alice" in QApplication.clipboard().text()
+    sheet._insert_column_at(1)
+    assert len(sheet.model._loaded_df.columns) == 4
+    sheet._delete_column_at(1)
+    assert len(sheet.model._loaded_df.columns) == 3
+
+
+def test_delete_row_yes(monkeypatch):
+    import beeoffice.plugins.beesheet_data_mixin as m
+    sheet = make_sheet()
+    monkeypatch.setattr(m.QMessageBox, "question", lambda *a, **k: m.QMessageBox.Yes)
+    n = len(sheet.model._loaded_df)
+    sheet._delete_row_at(0)
+    assert len(sheet.model._loaded_df) == n - 1
+
+
+def test_conditional_formats():
+    sheet = make_sheet()
+    sheet._add_data_bars(1)
+    assert sheet._conditional_formats[1]["type"] == "data_bars"
+    sheet._add_color_scale(1)
+    assert sheet._conditional_formats[1]["type"] == "color_scale"
+    sheet._clear_cond_format(1)
+    assert 1 not in sheet._conditional_formats
