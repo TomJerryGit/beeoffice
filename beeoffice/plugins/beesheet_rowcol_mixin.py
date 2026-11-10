@@ -205,19 +205,19 @@ class RowColMixin:
             return
         src_r = source_rows[0]
         src_key = (src_r, col)
-        for tr in target:
+        for target_row in target:
             if src_key in self._formula_cells:
                 # 公式填充：调整相对引用后重新求值
                 new_formula = adjust_formula_refs(
-                    self._formula_cells[src_key], tr - src_r, 0
+                    self._formula_cells[src_key], target_row - src_r, 0
                 )
                 result = FormulaEngine.evaluate(new_formula, self.model)
-                self.model._loaded_df.iloc[tr, col] = result
-                self._formula_cells[(tr, col)] = new_formula
+                self.model._loaded_df.iloc[target_row, col] = result
+                self._formula_cells[(target_row, col)] = new_formula
             else:
                 # 普通值填充：直接复制
                 val = self.model.get_value(src_r, col)
-                self.model._loaded_df.iloc[tr, col] = val
+                self.model._loaded_df.iloc[target_row, col] = val
         self.model.layoutChanged.emit()
         self._set_status(tr("auto.beesheet_rowcol_mixin.56da69b2", "已填充 {0} 个单元格").format(len(target)), 3000)
 
