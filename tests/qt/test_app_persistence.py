@@ -223,3 +223,80 @@ def test_reset_status_text(app):
     app.status_label.setText("x")
     app._reset_status_text()
     assert app.status_label.text() != "x"
+
+
+def test_register_plugin_menus(app):
+    calls = []
+
+    class P:
+        name = "p1"
+        def register_menus(self, menu_bar):
+            calls.append(menu_bar)
+
+    app.plugin_manager = object()
+    app.plugins = [P()]
+    app._register_plugin_menus()
+    assert calls == [app.menuBar()]
+
+
+def test_lazy_load_modules(app, monkeypatch):
+    import beeoffice.plugin_manager as pm
+
+    class FakeManager:
+        def __init__(self, parent):
+            self.plugins = []
+        def discover_plugins(self):
+            self.discovered = True
+        def load_plugins(self):
+            self.loaded = True
+
+    monkeypatch.setattr(pm, "PluginManager", FakeManager)
+    app._lazy_load_modules()
+    assert app._modules_loaded is True
+    assert app.status_label.text() != ""
+
+
+def test_update_recent_menu(app):
+    app.settings.recent_files = ["C:/a.docx", "C:/b.docx"]
+    app._update_recent_menu()
+    actions = app.recent_menu.actions()
+    assert len(actions) >= 3
+    assert any("a.docx" in a.text() for a in actions)
+    assert any(a.toolTip() == "C:/a.docx" for a in actions)
+
+
+def test_check_for_updates_none(app, monkeypatch):
+    import beeoffice.update_checker as uc
+    from PySide6.QtWidgets import QMessageBox
+    calls = []
+    monkeypatch.setattr(uc, "check_for_update", lambda v: None)
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: calls.append(a))
+    app.check_for_updates()
+    assert calls
+
+
+def test_check_for_updates_error(app, monkeypatch):
+    import beeoffice.update_checker as uc
+    from PySide6.QtWidgets import QMessageBox
+    calls = []
+    def fail(v):
+        raise uc.UpdateError("bad")
+    monkeypatch.setattr(uc, "check_for_update", fail)
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: calls.append(a))
+    app.check_for_updates()
+    assert calls
+
+
+def test_check_for_updates_available(app, monkeypatch):
+    import beeoffice.update_checker as uc
+    from PySide6.QtWidgets import QMessageBox
+    from PySide6.QtGui import QDesktopServices
+    class Info:
+        version = "9.9.9"
+        html_url = "https://example.test/release"
+    monkeypatch.setattr(uc, "check_for_update", lambda v: Info())
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Yes)
+    opened = []
+    monkeypatch.setattr(QDesktopServices, "openUrl", lambda url: opened.append(url.toString()))
+    app.check_for_updates()
+    assert opened == ["https://example.test/release"]
