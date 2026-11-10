@@ -297,3 +297,57 @@ def test_open_docx_file_async(app, monkeypatch, tmp_path):
     assert fake.content == "# hi"
     assert fake.path == path
     assert fake.mode == "rich_text"
+
+
+def test_sync_now_success_and_error(app, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    import beeoffice.cloud as cloud
+    captured = {}
+    class FakeWorker:
+        def isRunning(self): return False
+    class FakeAsync:
+        @staticmethod
+        def run(fn, **kwargs):
+            captured["kwargs"] = kwargs
+            return FakeWorker()
+    import beeoffice.app as app_mod
+    monkeypatch.setattr(app_mod, "AsyncTaskManager", FakeAsync)
+    monkeypatch.setattr(cloud, "get_cloud_storage", lambda: object())
+    infos, warns = [], []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: infos.append(a))
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: warns.append(a))
+    app._sync_worker = None
+    app._sync_now()
+    assert isinstance(app._sync_worker, FakeWorker)
+    captured["kwargs"]["on_result"]((True, "同步完成", None, []))
+    captured["kwargs"]["on_result"]((False, "部分失败", None, []))
+    captured["kwargs"]["on_error"](RuntimeError("net"))
+    assert infos and warns
+
+
+def test_sync_now_worker_running(app, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    import beeoffice.cloud as cloud
+    class Running:
+        def isRunning(self): return True
+    monkeypatch.setattr(cloud, "get_cloud_storage", lambda: object())
+    calls = []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: calls.append(a))
+    app._sync_worker = Running()
+    app._sync_now()
+    assert calls
+
+
+def test_check_auto_sync(app, monkeypatch):
+    import beeoffice.cloud as cloud
+    app.settings.cloud_enabled = True
+    app.settings.cloud_auto_sync = True
+    calls = []
+    monkeypatch.setattr(cloud, "get_cloud_storage", lambda: object())
+    app._sync_now = lambda: calls.append(True)
+    app._check_auto_sync()
+    assert calls
+    app.settings.cloud_enabled = False
+    app._check_auto_sync()
+    assert len(calls) == 1
+
