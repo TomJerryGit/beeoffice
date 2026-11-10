@@ -283,7 +283,7 @@ class TableMixin:
         cell = table.cellAt(cursor)
         if cell.isValid():
             rowspan = cell.rowSpan()
-            colspan = cell.colSpan()
+            colspan = cell.columnSpan()
             if rowspan > 1 or colspan > 1:
                 cursor.beginEditBlock()
                 try:
