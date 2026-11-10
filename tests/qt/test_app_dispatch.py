@@ -147,3 +147,56 @@ def test_run_batch_convert_callbacks(app, monkeypatch, tmp_path):
     captured["kwargs"]["on_result"]([{"status": "ok", "file": "a.docx"}])
     captured["kwargs"]["on_error"](RuntimeError("bad"))
     assert infos and warns
+
+
+def test_open_recent_missing_and_supported(app, monkeypatch, tmp_path):
+    import beeoffice.ui_dialogs as ui
+    errors = []
+    monkeypatch.setattr(ui, "show_error", lambda *a, **k: errors.append(a))
+    missing = str(tmp_path / "gone.xlsx")
+    app.settings.recent_files = [missing]
+    app._open_recent(missing)
+    assert errors
+    assert missing not in app.settings.recent_files
+
+    called = []
+    app._open_sheet_file = lambda p: called.append(("sheet", p))
+    app._open_docx_file = lambda p: called.append(("docx", p))
+    app._open_text_file = lambda p: called.append(("text", p))
+    for name, target in [("a.xlsx", "sheet"), ("a.docx", "docx"), ("a.md", "text")]:
+        f = tmp_path / name
+        f.write_text("x", encoding="utf-8")
+        app._open_recent(str(f))
+    assert [c[0] for c in called] == ["sheet", "docx", "text"]
+
+
+def test_onboarding_finished(app):
+    app.settings.has_completed_onboarding = False
+    app._onboarding_overlay = object()
+    app._on_onboarding_finished()
+    assert app.settings.has_completed_onboarding is True
+    assert app._onboarding_overlay is None
+
+
+def test_shortcuts_overlay(app):
+    app._show_shortcuts_overlay()
+    assert app._shortcuts_dlg is not None
+    app._close_shortcuts_overlay()
+    assert app._shortcuts_dlg is None
+
+
+def test_autosave_fake_widget(app):
+    class Fake(QWidget):
+        def __init__(self):
+            super().__init__()
+            self.saved = 0
+        def save(self):
+            self.saved += 1
+            return True
+    fake = Fake()
+    app.tab_manager.addTab(fake, "fake")
+    app.tab_manager.setCurrentWidget(fake)
+    app.tab_manager._tab_initial_content[id(fake)] = "old"
+    app._get_widget_content = lambda w: "new"
+    app._autosave()
+    assert fake.saved == 1
