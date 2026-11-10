@@ -19,11 +19,23 @@ class FakeDoc(QWidget):
     def __init__(self):
         super().__init__()
         self.saved = 0
+        self.save_as_called = 0
+        self.template_called = 0
         self.save_result = True
+        self._content = ""
+
+    def content(self):
+        return self._content
 
     def save(self):
         self.saved += 1
         return self.save_result
+
+    def save_as(self):
+        self.save_as_called += 1
+
+    def save_as_template(self):
+        self.template_called += 1
 
 
 def test_save_current_success(app, monkeypatch):
@@ -91,3 +103,61 @@ def test_close_event_persists_open_tabs(app, tmp_path, monkeypatch):
     app.closeEvent(event)
     assert path in app.settings.open_tabs
     assert saved
+
+
+def test_save_as_current_and_template(app):
+    doc = FakeDoc()
+    app.tab_manager.addTab(doc, "fake")
+    app.tab_manager.setCurrentWidget(doc)
+    app._save_as_current()
+    app._save_as_template()
+    assert doc.save_as_called == 1
+    assert doc.template_called == 1
+
+
+def test_toggle_high_contrast(app, monkeypatch):
+    saved = []
+    monkeypatch.setattr(type(app.settings), "save", lambda self: saved.append(True))
+    from beeoffice.theme import Theme
+    old = Theme.is_high_contrast()
+    try:
+        app._toggle_high_contrast(True)
+        assert app.settings.high_contrast is True
+        assert Theme.is_high_contrast() is True
+        assert saved
+    finally:
+        Theme.set_high_contrast(old)
+
+
+def test_sync_tab_title_and_set_status(app, tmp_path):
+    doc = FakeDoc()
+    app.tab_manager.addTab(doc, "old")
+    app.tab_manager.setCurrentWidget(doc)
+    app.sync_tab_title(doc, str(tmp_path / "hello.docx"))
+    assert "hello.docx" in app.tab_manager.tabText(app.tab_manager.indexOf(doc))
+    assert "hello.docx" in app.windowTitle()
+    app.set_global_status("测试状态", 5000)
+    assert app.status_label.text() == "测试状态"
+    assert app._status_timer.isActive()
+
+
+def test_tab_close_request_yes(app, monkeypatch):
+    doc = FakeDoc()
+    app.tab_manager.addTab(doc, "● fake")
+    app.tab_manager._tab_initial_content[id(doc)] = "old"
+    doc._content = "new"
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Yes)
+    before = app.tab_manager.count()
+    app.tab_manager._on_tab_close_request(app.tab_manager.indexOf(doc))
+    assert app.tab_manager.count() == before - 1
+
+
+def test_tab_close_request_no(app, monkeypatch):
+    doc = FakeDoc()
+    app.tab_manager.addTab(doc, "● fake")
+    app.tab_manager._tab_initial_content[id(doc)] = "old"
+    doc._content = "new"
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.No)
+    before = app.tab_manager.count()
+    app.tab_manager._on_tab_close_request(app.tab_manager.indexOf(doc))
+    assert app.tab_manager.count() == before
