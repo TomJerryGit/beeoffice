@@ -200,3 +200,100 @@ def test_autosave_fake_widget(app):
     app._get_widget_content = lambda w: "new"
     app._autosave()
     assert fake.saved == 1
+
+
+def test_open_sheet_file_async(app, monkeypatch, tmp_path):
+    class FakeSheet(QWidget):
+        def __init__(self):
+            super().__init__()
+            self.applied = None
+        def _read_sheet_file(self, path):
+            return "df"
+        def _apply_imported_dataframe(self, df, path):
+            self.applied = (df, path)
+            return True
+    fake = FakeSheet()
+    def new_sheet():
+        app.tab_manager.addTab(fake, "sheet")
+        app.tab_manager.setCurrentWidget(fake)
+    monkeypatch.setattr(app, "_new_beesheet", new_sheet)
+    captured = {}
+    class FakeAsync:
+        @staticmethod
+        def run(fn, *args, **kwargs):
+            captured["fn"] = fn
+            captured["args"] = args
+            captured["kwargs"] = kwargs
+    import beeoffice.app as app_mod
+    monkeypatch.setattr(app_mod, "AsyncTaskManager", FakeAsync)
+    path = str(tmp_path / "a.xlsx")
+    app._open_sheet_file(path)
+    assert captured["fn"] == fake._read_sheet_file
+    captured["kwargs"]["on_result"]("df")
+    assert fake.applied == ("df", path)
+
+
+def test_open_sheet_file_error(app, monkeypatch, tmp_path):
+    from PySide6.QtWidgets import QMessageBox
+    class FakeSheet(QWidget):
+        def _read_sheet_file(self, path):
+            return "df"
+        def _apply_imported_dataframe(self, df, path):
+            raise RuntimeError("bad")
+    fake = FakeSheet()
+    def new_sheet():
+        app.tab_manager.addTab(fake, "sheet")
+        app.tab_manager.setCurrentWidget(fake)
+    monkeypatch.setattr(app, "_new_beesheet", new_sheet)
+    captured = {}
+    class FakeAsync:
+        @staticmethod
+        def run(fn, *args, **kwargs):
+            captured["kwargs"] = kwargs
+    import beeoffice.app as app_mod
+    monkeypatch.setattr(app_mod, "AsyncTaskManager", FakeAsync)
+    warnings = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: warnings.append(a))
+    app._open_sheet_file(str(tmp_path / "a.xlsx"))
+    captured["kwargs"]["on_result"]("df")
+    assert warnings
+
+
+def test_open_docx_file_async(app, monkeypatch, tmp_path):
+    class FakeWord(QWidget):
+        def __init__(self):
+            super().__init__()
+            self._content = None
+        def content(self):
+            return self._content or ""
+        def set_content(self, content):
+            self._content = content
+            self.content = content
+        def set_current_file_path(self, path):
+            self.path = path
+        def _switch_mode(self, mode):
+            self.mode = mode
+        def _enter_paged_edit(self):
+            self.paged = True
+        def load_annotations(self, path):
+            self.annotations = path
+        def _update_save_btn_text(self):
+            pass
+    fake = FakeWord()
+    def new_word():
+        app.tab_manager.addTab(fake, "word")
+        app.tab_manager.setCurrentWidget(fake)
+    monkeypatch.setattr(app, "_new_word_doc", new_word)
+    captured = {}
+    class FakeAsync:
+        @staticmethod
+        def run(fn, *args, **kwargs):
+            captured["kwargs"] = kwargs
+    import beeoffice.app as app_mod
+    monkeypatch.setattr(app_mod, "AsyncTaskManager", FakeAsync)
+    path = str(tmp_path / "a.docx")
+    app._open_docx_file(path)
+    captured["kwargs"]["on_result"]("# hi")
+    assert fake.content == "# hi"
+    assert fake.path == path
+    assert fake.mode == "rich_text"
