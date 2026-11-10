@@ -65,3 +65,55 @@ def test_on_sync_finished(parent, monkeypatch):
     wd._on_sync_finished(parent, dlg, True, "ok")
     assert dlg.closed
     assert parent._sync_worker is None
+
+
+def test_sync_now_starts_worker(parent, monkeypatch):
+    from PySide6.QtCore import QObject, Signal
+    import beeoffice.plugins.webdav_sync as sync_mod
+
+    class FakeConfig:
+        enabled = True
+        url = "https://example.test/dav"
+        username = "u"
+        password = "p"
+
+    class FakeWorker(QObject):
+        progress = Signal(int)
+        finished = Signal(bool, str, int)
+        def __init__(self, *args):
+            super().__init__()
+            self.started = False
+        def start(self):
+            self.started = True
+        def cancel(self):
+            pass
+        def isRunning(self):
+            return self.started
+
+    monkeypatch.setattr(wd, "WebDAVConfig", FakeConfig)
+    monkeypatch.setattr(sync_mod, "WebDAVSyncWorker", FakeWorker)
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: None)
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: None)
+    parent._sync_worker = None
+    wd.sync_now(parent)
+    assert isinstance(parent._sync_worker, FakeWorker)
+    assert parent._sync_worker.started
+
+
+def test_sync_now_running_worker(parent, monkeypatch):
+    class FakeConfig:
+        enabled = True
+        url = "https://example.test/dav"
+        username = "u"
+        password = "p"
+
+    class Running:
+        def isRunning(self):
+            return True
+
+    calls = []
+    monkeypatch.setattr(wd, "WebDAVConfig", FakeConfig)
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: calls.append(a))
+    parent._sync_worker = Running()
+    wd.sync_now(parent)
+    assert calls
