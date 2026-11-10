@@ -144,3 +144,40 @@ def test_pivot_accepted_creates_tab(qtbot, monkeypatch):
     qtbot.addWidget(chart)
     chart._show_pivot_table()
     assert parent.tab_manager.tabs
+
+
+def test_pivot_empty_valid_data(qtbot, monkeypatch):
+    import pandas as pd
+    from PySide6.QtWidgets import QMessageBox
+    calls = []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: calls.append(a))
+    chart = S({"name": [""], "value": [""]}, [])
+    chart.model.df = pd.DataFrame({"name": [""], "value": [""]})
+    qtbot.addWidget(chart)
+    chart._show_pivot_table()
+    assert calls
+
+
+def test_pivot_no_main_window(qtbot, monkeypatch):
+    import beeoffice.plugins.beesheet_chart_mixin as m
+    import pandas as pd
+    from PySide6.QtWidgets import QDialog, QMessageBox
+
+    class FakeDlg:
+        Accepted = QDialog.Accepted
+        def __init__(self, df, parent):
+            self.result_config = (
+                pd.DataFrame({"x": [1]}),
+                {"rows": ["name"], "cols": [], "values": ["value"],
+                 "aggfunc": "sum", "margins": False},
+            )
+        def exec(self): return QDialog.Accepted
+
+    monkeypatch.setattr(m, "PivotTableDialog", FakeDlg)
+    warnings = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: warnings.append(a))
+    chart = S({"name": ["a"], "value": [1.0]}, [])
+    chart._find_main_window = lambda: None
+    qtbot.addWidget(chart)
+    chart._show_pivot_table()
+    assert warnings
