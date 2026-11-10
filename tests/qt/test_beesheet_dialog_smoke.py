@@ -60,3 +60,32 @@ def test_formula_undo_and_clear(sheet):
     sheet.formula_bar.setText("=1+1")
     sheet._on_formula_enter()
     sheet._clear_audit()
+
+
+def test_formula_dialogs_and_audit(sheet):
+    sheet._formula_cells = {(0, 0): "=SUM(B1:B2)"}
+    sheet.table_view.setCurrentIndex(sheet.model.index(0, 0))
+    sheet._show_function_reference()
+    sheet._show_function_picker()
+    sheet._f1_help()
+    sheet._trace_precedents()
+    sheet._trace_dependents()
+    sheet._translate_current_formula()
+    sheet._show_error_helper((0, 0), "#DIV/0!")
+    sheet._check_excel_compatibility()
+    sheet._hide_param_tip()
+
+
+def test_auto_sum(sheet):
+    sheet.table_view.selectRow(0)
+    sheet._auto_sum()
+
+
+def test_pivot_empty_table(sheet, monkeypatch):
+    import pandas as pd
+    from PySide6.QtWidgets import QMessageBox
+    calls = []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: calls.append(a))
+    sheet.model.set_full_dataframe(pd.DataFrame(columns=["a", "b"]))
+    sheet._show_pivot_table()
+    assert calls
