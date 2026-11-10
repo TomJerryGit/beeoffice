@@ -88,3 +88,62 @@ def test_start_mobile_server(app, monkeypatch):
     app._start_mobile_server()
     assert started
     assert isinstance(app.mobile_server, FakeServer)
+
+
+def test_demo_batch_ai_dispatch(app):
+    class FakeDoc(QWidget):
+        def __init__(self):
+            super().__init__()
+            self.calls = []
+        def _start_play(self): self.calls.append("play")
+        def _export_pptx(self): self.calls.append("pptx")
+        def _analyze_data(self): self.calls.append("analyze")
+        def _nl_to_formula(self): self.calls.append("nl")
+        def _play_macro(self): self.calls.append("macro_play")
+        def _toggle_macro_recording(self): self.calls.append("macro_toggle")
+        def _ai_continue(self): self.calls.append("ai_continue")
+        def _ai_polish(self): self.calls.append("ai_polish")
+        def _ai_summarize(self): self.calls.append("ai_summarize")
+
+    doc = FakeDoc()
+    app.tab_manager.addTab(doc, "fake")
+    app.tab_manager.setCurrentWidget(doc)
+    for method in (app._play_beeshow, app._export_beeshow_pptx,
+                   app._analyze_current_sheet, app._nl_formula,
+                   app._play_macro, app._toggle_macro,
+                   app._ai_continue, app._ai_polish, app._ai_summarize):
+        method()
+    assert len(doc.calls) == 9
+
+
+def test_show_plugin_market(app, monkeypatch):
+    import beeoffice.plugins.plugin_market as mod
+    called = []
+    monkeypatch.setattr(mod, "show_plugin_market", lambda parent: called.append(parent))
+    app._show_plugin_market()
+    assert called == [app]
+
+
+def test_run_batch_convert_callbacks(app, monkeypatch, tmp_path):
+    from PySide6.QtWidgets import QFileDialog, QMessageBox
+    in_dir = tmp_path / "in"; out_dir = tmp_path / "out"
+    in_dir.mkdir(); out_dir.mkdir()
+    monkeypatch.setattr(QFileDialog, "getExistingDirectory",
+                        lambda parent, title: str(in_dir if "输入" in title or "input" in title else out_dir))
+    captured = {}
+    class FakeAsync:
+        @staticmethod
+        def run(fn, *args, **kwargs):
+            captured["fn"] = fn
+            captured["kwargs"] = kwargs
+    monkeypatch.setattr(type(app), "AsyncTaskManager", FakeAsync, raising=False)
+    import beeoffice.app as app_mod
+    monkeypatch.setattr(app_mod, "AsyncTaskManager", FakeAsync)
+    infos, warns = [], []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: infos.append(a))
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: warns.append(a))
+    app._run_batch_convert(lambda *a: [], "选择输入", "选择输出", "正在转换")
+    assert "on_result" in captured["kwargs"]
+    captured["kwargs"]["on_result"]([{"status": "ok", "file": "a.docx"}])
+    captured["kwargs"]["on_error"](RuntimeError("bad"))
+    assert infos and warns
