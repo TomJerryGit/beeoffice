@@ -387,7 +387,7 @@ class TableMixin:
                 bg_color["value"] = c
                 bg_btn.setStyleSheet(
                     f"QPushButton{{background:{c.name()};"
-                    f"padding:4px;color:#000;}}"
+                    f"padding:4px;color:{_t()['on_accent']};}}"
                 )
 
         bg_btn.clicked.connect(pick_bg)

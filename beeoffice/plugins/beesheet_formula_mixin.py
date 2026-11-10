@@ -409,7 +409,7 @@ class FormulaMixin:
         bl.addStretch()
         insert_btn = QPushButton(tr("auto.beesheet_formula_mixin.b48a4da0", "插入到当前单元格"))
         insert_btn.setStyleSheet(
-            f"QPushButton{{background:{_t()['accent']};color:#000;"
+            f"QPushButton{{background:{_t()['accent']};color:{_t()['on_accent']};"
             "padding:6px 16px;border:none;border-radius:4px;"
             f"font-weight:bold;}}"
             f"QPushButton:hover{{background:{_t()['accent_dark']};}}"

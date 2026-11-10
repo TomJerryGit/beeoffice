@@ -276,7 +276,7 @@ class ParagraphMixin:
                 para_bg_color["value"] = c
                 para_bg_btn.setStyleSheet(
                     f"QPushButton{{background:{c.name()};"
-                    f"padding:6px;color:#000;"
+                    f"padding:6px;color:{_t()['on_accent']};"
                     f"border:1px solid {_t()['border']};border-radius:3px;}}"
                 )
 

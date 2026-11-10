@@ -94,7 +94,7 @@ class EmptyStateWidget(QWidget):
                 btn.setStyleSheet(f"""
                     QPushButton {{
                         background-color: {_t()['accent']};
-                        color: #000;
+                        color: {_t()['on_accent']};
                         border: none;
                         padding: 10px 20px;
                         border-radius: 6px;

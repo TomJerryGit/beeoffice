@@ -84,7 +84,7 @@ class ImageSuggesterDialog(QDialog):
         self._insert_btn = QPushButton(tr("auto.beeshow_image_suggester_dialog.22f154d2", "✅ 插入选中图"))
         self._insert_btn.setEnabled(False)
         self._insert_btn.setStyleSheet(
-            f"QPushButton{{background:{_t()['accent']};color:#000;"
+            f"QPushButton{{background:{_t()['accent']};color:{_t()['on_accent']};"
             "padding:6px 16px;border:none;border-radius:4px;"
             f"font-weight:bold;}}"
             f"QPushButton:hover{{background:{_t()['accent_dark']};}}"

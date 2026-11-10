@@ -97,7 +97,7 @@ class MarkdownTableEditorDialog(QDialog):
 
         ok_btn = QPushButton(tr("auto.beewrite_md_table_dialog.673142b9", "✅ 确定"))
         ok_btn.setStyleSheet(
-            f"QPushButton{{background:{_t()['accent']};color:#000;"
+            f"QPushButton{{background:{_t()['accent']};color:{_t()['on_accent']};"
             "padding:6px 16px;border:none;border-radius:4px;"
             f"font-weight:bold;}}"
             f"QPushButton:hover{{background:{_t()['accent_dark']};}}"

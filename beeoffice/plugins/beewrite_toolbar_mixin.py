@@ -147,7 +147,7 @@ class ToolbarMixin:
         self._fmt_btn.setStyleSheet(
             f"QPushButton{{background:{_t['surface_alt']};border:1px solid {_t['border']};"
             f"color:{_t['text']};font-weight:bold;padding:4px 12px;border-radius:4px;}}"
-            f"QPushButton:checked{{background:{_t['accent']};color:#000;"
+            f"QPushButton:checked{{background:{_t['accent']};color:{_t['on_accent']};"
             f"border-color:{_t['accent_dark']};}}"
             f"QPushButton:hover{{background:{_t['accent_light']};border-color:{_t['accent']};}}"
         )
@@ -378,7 +378,7 @@ class ToolbarMixin:
         bs = (
             "QPushButton{padding:6px 14px;border:1px solid #DDD;"
             "border-radius:4px;background:#FAFAFA;font-size:12px}"
-            "QPushButton:checked{background:#FFB300;color:#000;"
+            "QPushButton:checked{background:#FFB300;color:{_t['on_accent']};"
             "border-color:#FF8F00;font-weight:bold}"
             "QPushButton:hover{background:#FFE0B2}"
         )

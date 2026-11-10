@@ -95,7 +95,7 @@ class OnboardingOverlay(QWidget):
         btn_layout.addWidget(skip_btn)
         next_text = "知道了" if self._current_step == len(self._steps) - 1 else "下一步"
         next_btn = QPushButton(next_text)
-        next_btn.setStyleSheet(f"QPushButton{{background:{tokens['accent']};color:#000;border:none;padding:8px 18px;border-radius:6px;font-weight:bold}}")
+        next_btn.setStyleSheet(f"QPushButton{{background:{tokens['accent']};color:{tokens['on_accent']};border:none;padding:8px 18px;border-radius:6px;font-weight:bold}}")
         next_btn.clicked.connect(self._next_step)
         btn_layout.addWidget(next_btn)
         layout.addLayout(btn_layout)

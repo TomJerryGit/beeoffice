@@ -863,7 +863,7 @@ class BeeSheetView(
         bl.addStretch()
         ok_btn = QPushButton(tr("auto.beesheet.84476c81", "定位"))
         ok_btn.setStyleSheet(
-            f"QPushButton{{background:{_t()['accent']};color:#000;padding:6px 16px;"
+            f"QPushButton{{background:{_t()['accent']};color:{_t()['on_accent']};padding:6px 16px;"
             f"border:none;border-radius:4px;font-weight:bold;}}"
         )
         ok_btn.clicked.connect(

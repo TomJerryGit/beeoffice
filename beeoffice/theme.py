@@ -63,6 +63,7 @@ class Theme:
                 "text": "#FFFFFF", "muted": "#FFFFFF",
                 "border": "#FFFFFF", "accent": accent,
                 "accent_light": "#000000", "accent_dark": accent,
+                "on_accent": "#000000",
                 "danger": "#FF5252", "success": "#69F0AE",
                 "is_dark": False,
             }
@@ -77,6 +78,7 @@ class Theme:
                 "text": "#DDDDDD", "muted": "#999999",
                 "border": "#444444", "accent": accent,
                 "accent_light": light, "accent_dark": dark_color,
+                "on_accent": "#000000",
                 "danger": "#CF6679", "success": "#81C784",
                 "is_dark": True,
             }
@@ -86,6 +88,7 @@ class Theme:
             "text": "#333333", "muted": "#666666",
             "border": "#D0D0D0", "accent": accent,
             "accent_light": light, "accent_dark": dark_color,
+            "on_accent": "#000000",
             "danger": "#C62828", "success": "#2E7D32",
             "is_dark": False,
         }

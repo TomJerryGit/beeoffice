@@ -186,7 +186,7 @@ class HistoryMixin:
 
         btn_restore = QPushButton(tr("auto.beeshow_history_mixin.bc657d67", "↩ 恢复此版本"))
         btn_restore.setStyleSheet(
-            f"QPushButton{{background:{_t()['accent']};color:#000;"
+            f"QPushButton{{background:{_t()['accent']};color:{_t()['on_accent']};"
             "padding:6px 16px;border:none;border-radius:4px;"
             f"font-weight:bold;}}"
             f"QPushButton:hover{{background:{_t()['accent_dark']};}}"

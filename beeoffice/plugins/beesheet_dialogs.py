@@ -92,7 +92,7 @@ class PivotTableDialog(QDialog):
 
         ok_btn = QPushButton(tr("auto.beesheet_dialogs.9a157ea8", "✅ 生成"))
         ok_btn.setStyleSheet(
-            f"QPushButton{{background:{_t()['accent']};color:#000;"
+            f"QPushButton{{background:{_t()['accent']};color:{_t()['on_accent']};"
             "padding:6px 16px;border:none;border-radius:4px;"
             f"font-weight:bold;}}"
             f"QPushButton:hover{{background:{_t()['accent_dark']};}}"

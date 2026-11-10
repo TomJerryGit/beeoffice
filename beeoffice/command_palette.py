@@ -81,7 +81,7 @@ class CommandPalette(QDialog):
         self.list_widget.setStyleSheet(
             f"QListWidget {{ border: none; font-size: 13px; background: {_t()['surface']}; }} "
             "QListWidget::item { padding: 8px 10px; } "
-            f"QListWidget::item:selected {{ background-color: {_t()['accent']}; color: #000; }}"
+            f"QListWidget::item:selected {{ background-color: {_t()['accent']}; color: {_t()['on_accent']}; }}"
         )
         self.list_widget.hide()
         layout.addWidget(self.list_widget)
