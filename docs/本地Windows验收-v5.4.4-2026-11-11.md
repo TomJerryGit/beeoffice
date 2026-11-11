@@ -1,10 +1,11 @@
 # BeeOffice v5.4.4 候选包本地验收（2026-11-11）
 
-## 验收范围（已确定）
+## 验收范围（已调整）
 
-- **Windows 10 22H2 x64 干净虚拟机**：待执行，按 `docs/win10-clean-acceptance/` 流程验收。
-- **Windows 11**：**本轮不验收**；本机 VMware Workstation 14 不支持 Win11 所需 TPM/Secure Boot，8 GB 宿主内存也不适合。
-- 发布说明必须写明：**Win10 已验证；Win11 未验证**，不得宣称双平台通过。
+- **Windows 10/11 干净机验收：决定不做。**
+  原因：本机仅有 8 GB 内存、VMware Workstation 14，且无 Win10 ISO；Win11 还需要 TPM/Secure Boot。继续搭干净 VM 的成本与收益不匹配。
+- 本机 Windows 10 冒烟和打包产物启动冒烟仍然有效，但**不等于干净机验收**。
+- 发布说明不得写“Win10 已验证”；只能写“本机 Windows 10 冒烟通过，未做干净机验收”。
 
 ## 构建产物
 
@@ -35,6 +36,14 @@ ISCC.exe /DMyAppVersion=5.4.4 installer/BeeOffice.iss
 ## 限制
 
 - 安装包**未签名**，Windows SmartScreen 会提示未知发布者。
-- Win10 干净 VM 验收**尚未执行**；当前仅本机 Windows 10 和打包产物启动冒烟。
-- Win11 未验证，本轮不作为发布阻塞项；后续有 VMware 17+/新机器再补。
+- **未做 Windows 10/11 干净机安装验收**；当前仅本机 Windows 10 和打包产物启动冒烟。
+- Win10 干净机验收计划已取消；`docs/win10-clean-acceptance/` 仅保留为将来参考，不代表已执行。
+- Win11 未验证。
 - Win7 安装器外壳可运行，但应用本体缺 Python DLL，不作为支持平台。
+
+## 遗留风险
+
+- 干净系统缺少 VC++ 运行库、Windows 更新补丁时的启动/安装问题未验证。
+- 安装包未签名，SmartScreen/企业策略拦截行为只在开发机验证。
+- Win11 的 TPM/Secure Boot、较新补丁兼容性完全未验证。
+- 发布前必须由用户确认接受上述风险；不得把本记录描述为“干净机通过”。
