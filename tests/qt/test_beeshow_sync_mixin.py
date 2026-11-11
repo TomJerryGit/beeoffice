@@ -113,3 +113,53 @@ def test_cleanup(show):
     show._cleanup_sync()
     assert show._sync_server is None
     assert show._sync_enabled is False
+
+
+def test_sync_error_branches(show, monkeypatch):
+    import beeoffice.plugins.beeshow_sync_mixin as m
+    class BoomServer:
+        def __init__(self, *a, **k): pass
+        def start(self): raise RuntimeError("boom")
+    monkeypatch.setattr(m, "SyncServer", BoomServer)
+    calls = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: calls.append(a))
+    show._start_sync_mode()
+    assert calls and show._sync_enabled is False
+    # stop 抛异常
+    class BadStop:
+        def stop(self): raise RuntimeError("stop")
+    show._sync_server = BadStop()
+    show._stop_sync_mode()
+    assert show._sync_server is None
+    # 广播异常
+    class BadBroadcast:
+        def broadcast_slide(self, **k): raise RuntimeError("b")
+        def broadcast_laser(self, *a, **k): raise RuntimeError("b")
+        def broadcast_black_screen(self, *a): raise RuntimeError("b")
+        def broadcast_theme(self, *a): raise RuntimeError("b")
+    show._sync_server = BadBroadcast()
+    show._sync_enabled = True
+    show._broadcast_slide()
+    show._last_laser_broadcast = 0
+    show._broadcast_laser(0.1, 0.2)
+    show._broadcast_black_screen(True)
+    show._broadcast_theme("dark")
+    # 未启用时 black/theme 直接返回
+    show._sync_enabled = False
+    show._broadcast_black_screen(True)
+    show._broadcast_theme("dark")
+    # 无服务器 dialog
+    show._sync_server = None
+    show._show_sync_dialog()
+
+
+def test_sync_clipboard_and_cleanup_errors(show, monkeypatch):
+    class BadClipboard:
+        def setText(self, text): raise RuntimeError("clip")
+    monkeypatch.setattr("PySide6.QtWidgets.QApplication.clipboard", staticmethod(lambda: BadClipboard()))
+    show._copy_to_clipboard("x")
+    class BadStop:
+        def stop(self): raise RuntimeError("stop")
+    show._sync_server = BadStop()
+    show._cleanup_sync()
+    assert show._sync_server is None

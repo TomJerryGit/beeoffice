@@ -81,3 +81,68 @@ def test_save_as_template(writer, monkeypatch):
     )
     writer.save_as_template()
     assert called and called[0][0] == "我的模板"
+
+
+def test_save_dispatch_and_cancel(writer, tmp_path, monkeypatch):
+    from PySide6.QtWidgets import QFileDialog
+    # 当前 .md 直接写
+    md = tmp_path / "cur.md"
+    writer._doc_kind = "markdown"
+    writer._current_file_path = str(md)
+    assert writer.save() is True and md.exists()
+    # 当前 .docx 直接写
+    docx = tmp_path / "cur.docx"
+    writer._doc_kind = "word"
+    writer._current_file_path = str(docx)
+    assert writer.save() is True and docx.exists()
+    # 取消另存
+    writer._current_file_path = None
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: ("", ""))
+    assert writer._save_as_md() is False
+    assert writer._save_as_docx() is False
+
+
+def test_save_extension_added(writer, tmp_path, monkeypatch):
+    from PySide6.QtWidgets import QFileDialog
+    writer._current_file_path = None
+    target = tmp_path / "noext"
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: (str(target), ""))
+    assert writer._save_as_md() is True
+    assert (tmp_path / "noext.md").exists()
+    target2 = tmp_path / "noext2"
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: (str(target2), ""))
+    writer._current_file_path = None
+    assert writer._save_as_docx() is True
+    assert (tmp_path / "noext2.docx").exists()
+
+
+def test_export_pdf_branches(writer, tmp_path, monkeypatch):
+    from PySide6.QtWidgets import QFileDialog, QMessageBox
+    import beeoffice.plugins.bee_export as be
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: ("", ""))
+    writer.export_pdf()  # 取消
+    target = tmp_path / "out.pdf"
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: (str(target), ""))
+    monkeypatch.setattr(be, "export_to_pdf", lambda content, path: True)
+    writer.export_pdf()
+    monkeypatch.setattr(be, "export_to_pdf", lambda content, path: False)
+    writer.export_pdf()
+
+
+def test_export_docx_non_rich(writer, tmp_path, monkeypatch):
+    from PySide6.QtWidgets import QFileDialog, QMessageBox
+    import beeoffice.plugins.bee_export as be
+    writer._switch_mode("markdown")
+    target = tmp_path / "out.docx"
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: (str(target), ""))
+    monkeypatch.setattr(be, "export_to_docx", lambda content, path: True)
+    writer.export_docx()
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: ("", ""))
+    writer.export_docx()
+
+
+def test_open_file_externally(writer, monkeypatch):
+    import beeoffice.plugins.beewrite_export_mixin as m
+    called = []
+    monkeypatch.setattr(m.os, "startfile", lambda p: called.append(p), raising=False)
+    writer._open_file_externally("C:/x.docx")
