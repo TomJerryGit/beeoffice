@@ -5,7 +5,16 @@
 环境：VMware `BeeOffice-Win10-Clean-2026` / Windows Sandbox（圈选）  
 Windows 版本：______________（`winver`）
 
-## 0. 候选包信息
+## 0. 验收范围
+
+- [ ] 本轮只验收 **Windows 10 22H2 x64**
+- [ ] 已明确 **Windows 11 未验证**，不在本轮范围
+- [ ] 发布说明将写“Win10 已验证；Win11 未验证”
+- [ ] 若填“通过”，只代表 Windows 10 通过
+
+> Win11 需 VMware 17+/Hyper-V/物理机；本机 VMware 14 不支持 TPM/Secure Boot。
+
+## 0.1 候选包信息
 
 | 项 | 值 |
 |---|---|

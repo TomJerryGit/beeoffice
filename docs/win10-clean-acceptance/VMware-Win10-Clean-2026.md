@@ -3,6 +3,8 @@
 日期：2026-11-11  
 目的：在 VMware Workstation 中新建一台**干净 Windows 10**，完成 BeeOffice v5.4.4 安装/启动/核心功能验收。
 
+> **验收范围**：仅 Windows 10 22H2 x64。Windows 11 本轮不验收，发布说明必须写“Win10 已验证；Win11 未验证”。
+
 ## 1. 宿主机现状
 
 | 项 | 值 |

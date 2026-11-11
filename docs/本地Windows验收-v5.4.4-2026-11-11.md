@@ -1,5 +1,11 @@
 # BeeOffice v5.4.4 候选包本地验收（2026-11-11）
 
+## 验收范围（已确定）
+
+- **Windows 10 22H2 x64 干净虚拟机**：待执行，按 `docs/win10-clean-acceptance/` 流程验收。
+- **Windows 11**：**本轮不验收**；本机 VMware Workstation 14 不支持 Win11 所需 TPM/Secure Boot，8 GB 宿主内存也不适合。
+- 发布说明必须写明：**Win10 已验证；Win11 未验证**，不得宣称双平台通过。
+
 ## 构建产物
 
 | 产物 | 大小 | SHA-256 |
@@ -29,5 +35,6 @@ ISCC.exe /DMyAppVersion=5.4.4 installer/BeeOffice.iss
 ## 限制
 
 - 安装包**未签名**，Windows SmartScreen 会提示未知发布者。
-- 未在 Windows 10/11 **干净虚拟机**完成安装验收；当前仅本机 Windows 10 和打包产物启动冒烟。
+- Win10 干净 VM 验收**尚未执行**；当前仅本机 Windows 10 和打包产物启动冒烟。
+- Win11 未验证，本轮不作为发布阻塞项；后续有 VMware 17+/新机器再补。
 - Win7 安装器外壳可运行，但应用本体缺 Python DLL，不作为支持平台。
