@@ -56,3 +56,43 @@ def test_comment(sheet, monkeypatch):
     monkeypatch.setattr(QInputDialog, "getMultiLineText", lambda *a, **k: ("批注", True))
     monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: None)
     sheet._add_comment()
+
+
+def test_sort_and_dialogs(sheet, monkeypatch):
+    sheet.model.set_full_dataframe(pd.DataFrame({"A": [3, 1, 2]}))
+    sheet.sort_by_column(0, ascending=True)
+    assert list(sheet.model._loaded_df["A"]) == [1, 2, 3]
+    sheet.sort_by_column(0, ascending=False)
+    assert list(sheet.model._loaded_df["A"]) == [3, 2, 1]
+    monkeypatch.setattr(QDialog, "exec", lambda self: 0)
+    sheet._show_sort_dialog()
+    sheet._show_find_replace()
+    sheet._update_info_panel()
+    sheet._on_cell_selected(sheet.model.index(0, 0), None)
+
+
+def test_nl_filter(sheet, monkeypatch):
+    sheet.model.set_full_dataframe(pd.DataFrame({"A": [1, 2, 3]}))
+    sheet.table_view.setModel(sheet.model)
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: None)
+    sheet._apply_nl_filter(">", "1")
+    assert len(sheet.model.df) >= 2
+    sheet._apply_nl_filter("", "")
+
+
+def test_auto_save(sheet, monkeypatch, tmp_path):
+    import beeoffice.plugins.beesheet as m
+    monkeypatch.setattr(m.Path, "home", staticmethod(lambda: tmp_path))
+    sheet._dirty = True
+    sheet._auto_save()
+    backups = list((tmp_path / ".beeoffice_backups").glob("backup_*.json"))
+    assert backups
+
+
+def test_close_event(sheet):
+    class Ev:
+        def __init__(self): self.accepted = False
+        def accept(self): self.accepted = True
+        def ignore(self): pass
+    ev = Ev()
+    sheet.closeEvent(ev)
