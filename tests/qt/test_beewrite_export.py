@@ -146,3 +146,32 @@ def test_open_file_externally(writer, monkeypatch):
     called = []
     monkeypatch.setattr(m.os, "startfile", lambda p: called.append(p), raising=False)
     writer._open_file_externally("C:/x.docx")
+
+
+def test_rich_docx_table_image_header_footer(writer, tmp_path):
+    from PIL import Image
+    from PySide6.QtGui import QTextCursor, QTextImageFormat
+    img = tmp_path / "p.png"
+    Image.new("RGB", (80, 60), "red").save(img)
+    writer.rich_editor.setHtml(
+        '<h2>标题</h2><table border="1"><tr><td>a</td><td>b</td></tr>'
+        '<tr><td>1</td><td>2</td></tr></table>'
+    )
+    cursor = QTextCursor(writer.rich_editor.document())
+    cursor.movePosition(QTextCursor.End)
+    fmt = QTextImageFormat()
+    fmt.setName(str(img))
+    fmt.setWidth(20)
+    fmt.setHeight(15)
+    cursor.insertImage(fmt)
+    writer.rich_editor.setTextCursor(cursor)
+    writer._header_text = "页眉"
+    writer._footer_text = "页脚"
+    writer._page_settings["orientation"] = "landscape"
+    out = tmp_path / "rich.docx"
+    assert writer._write_docx(str(out)) is True
+    assert out.exists() and out.stat().st_size > 0
+    from docx import Document
+    doc = Document(str(out))
+    assert "页眉" in doc.sections[0].header.paragraphs[0].text
+    assert "页脚" in doc.sections[0].footer.paragraphs[0].text
