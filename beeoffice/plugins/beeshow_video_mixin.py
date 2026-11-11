@@ -114,21 +114,26 @@ class VideoMixin:
             if not part:
                 continue
 
+            known_keys = {
+                "video", "autoplay", "loop", "controls",
+                "muted", "width", "height", "poster",
+            }
             if ":" in part:
-                # key: value 形式
                 key, _, value = part.partition(":")
                 key = key.strip().lower()
-                value = value.strip().strip('"').strip("'")
-
-                # 布尔值转换
-                if key in ("autoplay", "loop", "controls", "muted"):
-                    params[key] = value.lower() in ("true", "1", "yes", "是")
-                else:
-                    params[key] = value
-            else:
-                # 纯路径（第一个参数）
-                if not params["video"]:
-                    params["video"] = part
+                # Windows 盘符/URL 里的冒号不是 key:value
+                if key in known_keys:
+                    value = value.strip().strip('"').strip("'")
+                    if key in ("autoplay", "loop", "controls", "muted"):
+                        params[key] = value.lower() in (
+                            "true", "1", "yes", "是"
+                        )
+                    else:
+                        params[key] = value
+                    continue
+            # 纯路径（第一个参数）
+            if not params["video"]:
+                params["video"] = part
 
         return params
 
