@@ -67,3 +67,22 @@ def test_split_view_cancel_and_open(editor, monkeypatch, tmp_path):
     editor._enter_split_view()
     editor._toggle_split_view()
     editor._exit_split_view()
+
+
+def test_paste_plain_no_text_and_markdown_undo(editor):
+    editor._switch_mode("markdown")
+    editor.markdown_editor.setPlainText("abc")
+    editor._undo()
+    editor._redo()
+    editor._update_status_bar()
+    assert editor._estimate_page_count() >= 1
+    editor._update_cursor_position()
+    editor._find_current()
+    editor._close_find_bar()
+
+
+def test_zoom_bounds(editor):
+    editor._set_zoom(10)
+    assert editor._zoom_percent >= 50
+    editor._set_zoom(500)
+    assert editor._zoom_percent <= 200

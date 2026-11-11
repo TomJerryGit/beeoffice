@@ -224,3 +224,22 @@ def test_table_with_image_export(writer, tmp_path):
     out = tmp_path / "table_img.docx"
     assert writer._write_docx(str(out)) is True
     assert out.exists()
+
+
+def test_image_path_exceptions_and_bad_picture(writer, tmp_path):
+    import beeoffice.plugins.beewrite_export_mixin as m
+    # 当前文件路径属性异常
+    class Bad:
+        @property
+        def _current_file_path(self): raise RuntimeError("bad")
+        def get_current_file_dir(self): raise RuntimeError("dir")
+        _current_file_dir = None
+    b = Bad()
+    assert m.ExportMixin._resolve_image_path_for_export(b, "x.png")[0] is None
+    # 坏图片
+    bad = tmp_path / "bad.png"; bad.write_bytes(b"not image")
+    from docx import Document
+    doc = Document(); para = doc.add_paragraph()
+    from PySide6.QtGui import QTextImageFormat
+    fmt = QTextImageFormat(); fmt.setName(str(bad))
+    writer._insert_picture_to_para(para, fmt)
