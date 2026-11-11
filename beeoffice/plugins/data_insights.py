@@ -14,6 +14,18 @@ CHART_LABELS = {
 }
 
 
+def _append_recommendation(recs, kind, reason, columns):
+    """追加推荐；同类型只保留第一条（可单独测试的防御分支）。"""
+    if any(r["type"] == kind for r in recs):
+        return
+    recs.append({
+        "type": kind,
+        "label": CHART_LABELS[kind],
+        "reason": reason,
+        "columns": columns,
+    })
+
+
 def recommend_charts(df: pd.DataFrame) -> list[dict]:
     """根据列类型/基数返回最多 3 个图表建议。"""
     if df is None or df.empty:
@@ -34,14 +46,7 @@ def recommend_charts(df: pd.DataFrame) -> list[dict]:
     recs: list[dict] = []
 
     def add(kind: str, reason: str, columns: list[str]):
-        if any(r["type"] == kind for r in recs):
-            return
-        recs.append({
-            "type": kind,
-            "label": CHART_LABELS[kind],
-            "reason": reason,
-            "columns": columns,
-        })
+        _append_recommendation(recs, kind, reason, columns)
 
     if datetimes and numeric:
         add("line", "时间列 + 数值列，适合看趋势",
