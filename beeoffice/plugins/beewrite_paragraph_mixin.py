@@ -420,7 +420,9 @@ class ParagraphMixin:
 
             # ---------- 段落底纹 ----------
             if para_bg_color:
-                bf.setBackground(para_bg_color)
+                bg = QColor(para_bg_color) if isinstance(para_bg_color, str) else para_bg_color
+                if isinstance(bg, QColor) and bg.isValid():
+                    bf.setBackground(bg)
 
             cursor.mergeBlockFormat(bf)
         finally:
