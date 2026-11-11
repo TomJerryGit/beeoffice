@@ -95,3 +95,52 @@ def test_beesheet_plugin_missing_view(parent, monkeypatch):
     assert calls
     monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *a, **k: ("", ""))
     p.import_data()  # 无标签 -> 新建后取消
+
+
+def test_beesheet_plugin_command_dispatch(parent, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    p = BeeSheetPlugin(parent)
+    view = p.new_sheet()
+    called = []
+    monkeypatch.setattr(p, "_generate_chart_fallback", lambda v: called.append("chart"))
+    monkeypatch.setattr(view, "_analyze_data", lambda: called.append("analyze"), raising=False)
+    monkeypatch.setattr(view, "_nl_to_formula", lambda: called.append("nl"), raising=False)
+    monkeypatch.setattr(view, "_toggle_macro_recording", lambda: called.append("record"), raising=False)
+    monkeypatch.setattr(view, "_play_macro", lambda: called.append("play"), raising=False)
+    p.generate_chart(); p.analyze_data(); p.nl_to_formula()
+    p.toggle_macro_recording(); p.play_macro()
+    assert called == ["chart", "analyze", "nl", "record", "play"]
+
+
+def test_beesheet_plugin_clean_data(parent, monkeypatch):
+    import pandas as pd
+    from PySide6.QtWidgets import QMessageBox
+    p = BeeSheetPlugin(parent)
+    view = p.new_sheet()
+    view.model.set_full_dataframe(pd.DataFrame({"A": [1, 1, 2]}))
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Yes)
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: None)
+    p.clean_data()
+    assert len(view.model.df) == 2
+
+
+def test_beewrite_plugin_toc_ai(parent, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    p = BeeWritePlugin(parent)
+    ed = p.new_document()
+    called = []
+    monkeypatch.setattr(ed, "_insert_toc", lambda: called.append("toc"))
+    monkeypatch.setattr(ed, "_ai_continue", lambda: called.append("continue"))
+    monkeypatch.setattr(ed, "_ai_polish", lambda: called.append("polish"))
+    monkeypatch.setattr(ed, "_ai_summarize", lambda: called.append("summary"))
+    p.generate_toc(); p.ai_continue(); p.ai_polish(); p.ai_summarize()
+    assert called == ["toc", "continue", "polish", "summary"]
+
+
+def test_beewrite_plugin_no_editor(parent, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    calls = []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: calls.append(a))
+    p = BeeWritePlugin(parent)
+    p.export_docx(); p.generate_toc(); p.ai_continue(); p.ai_polish(); p.ai_summarize()
+    assert len(calls) == 5
