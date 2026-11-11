@@ -1,0 +1,23 @@
+<Configuration>
+  <VGpu>Default</VGpu>
+  <Networking>Default</Networking>
+  <ClipboardRedirection>Enable</ClipboardRedirection>
+  <MemoryInMB>3072</MemoryInMB>
+
+  <MappedFolders>
+    <MappedFolder>
+      <HostFolder>D:\beeofficeV\_ptmp\s4\release-archive</HostFolder>
+      <SandboxFolder>C:\BeeOffice</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+    <MappedFolder>
+      <HostFolder>D:\beeofficeV\_ptmp\s4\docs\win10-clean-acceptance</HostFolder>
+      <SandboxFolder>C:\Acceptance</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+  </MappedFolders>
+
+  <LogonCommand>
+    <Command>cmd.exe /c start C:\BeeOffice</Command>
+  </LogonCommand>
+</Configuration>
