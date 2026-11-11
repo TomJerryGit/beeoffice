@@ -175,3 +175,52 @@ def test_rich_docx_table_image_header_footer(writer, tmp_path):
     doc = Document(str(out))
     assert "页眉" in doc.sections[0].header.paragraphs[0].text
     assert "页脚" in doc.sections[0].footer.paragraphs[0].text
+
+
+def test_image_path_and_picture_branches(writer, tmp_path):
+    from PySide6.QtGui import QTextImageFormat
+    # qrc / 空名 / 缺失
+    writer._insert_picture_to_para(None, QTextImageFormat())
+    fmt = QTextImageFormat(); fmt.setName("qrc:/x.png")
+    writer._insert_picture_to_para(None, fmt)
+    fmt2 = QTextImageFormat(); fmt2.setName(str(tmp_path / "missing.png"))
+    writer._insert_picture_to_para(None, fmt2)
+    # 有效图片
+    from PIL import Image
+    img = tmp_path / "a.png"; Image.new("RGB", (100, 50), "red").save(img)
+    from docx import Document
+    doc = Document()
+    para = doc.add_paragraph()
+    fmt3 = QTextImageFormat(); fmt3.setName(str(img)); fmt3.setWidth(40); fmt3.setHeight(20)
+    writer._insert_picture_to_para(para, fmt3)
+    fmt4 = QTextImageFormat(); fmt4.setName(str(img)); fmt4.setWidth(40)
+    writer._insert_picture_to_para(para, fmt4)
+    assert len(para.runs) >= 2
+
+
+def test_header_footer_direct(writer):
+    from docx import Document
+    assert writer._apply_header_footer(Document()) is False
+    writer._header_text = "H"
+    writer._footer_text = "F"
+    doc = Document()
+    assert writer._apply_header_footer(doc) is True
+    assert doc.sections[0].header.paragraphs[0].text == "H"
+    assert doc.sections[0].footer.paragraphs[0].text == "F"
+
+
+def test_table_with_image_export(writer, tmp_path):
+    from PIL import Image
+    from PySide6.QtGui import QTextCursor, QTextImageFormat
+    img = tmp_path / "cell.png"; Image.new("RGB", (30, 30), "blue").save(img)
+    writer.rich_editor.clear()
+    cursor = writer.rich_editor.textCursor()
+    table = cursor.insertTable(2, 2)
+    table.cellAt(0, 0).firstCursorPosition().insertText("A")
+    table.cellAt(0, 1).firstCursorPosition().insertText("B")
+    c = table.cellAt(1, 0).firstCursorPosition()
+    fmt = QTextImageFormat(); fmt.setName(str(img)); fmt.setWidth(20); fmt.setHeight(20)
+    c.insertImage(fmt)
+    out = tmp_path / "table_img.docx"
+    assert writer._write_docx(str(out)) is True
+    assert out.exists()
