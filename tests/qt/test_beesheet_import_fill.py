@@ -102,3 +102,57 @@ def test_fill_handle_move_release(sheet, monkeypatch):
     assert sheet._fill_direction == "down"
     sheet._fill_handle_release(FakeEvent())
     assert sheet.model.get_value(1, 0) == 1
+
+
+def test_fill_release_down_formula(sheet):
+    sheet._fill_handle = FakeHandle()
+    sheet._fill_start_range = (0, 0, 0, 0)
+    sheet._fill_direction = "down"
+    sheet._fill_target = 2
+    sheet._formula_cells = {(0, 0): "=A1"}
+    sheet._fill_handle_release(FakeEvent())
+    assert (1, 0) in sheet._formula_cells
+
+
+def test_fill_release_right(sheet):
+    sheet._fill_handle = FakeHandle()
+    sheet.model.set_full_dataframe(pd.DataFrame({"A": [1, 2], "B": ["", ""]}))
+    sheet.table_view.setModel(sheet.model)
+    sheet._fill_start_range = (0, 0, 0, 0)
+    sheet._fill_direction = "right"
+    sheet._fill_target = 1
+    sheet._formula_cells = {}
+    sheet._fill_handle_release(FakeEvent())
+    assert sheet.model.get_value(0, 1) == 1
+
+
+def test_fill_release_none(sheet):
+    sheet._fill_handle = FakeHandle()
+    sheet._fill_start_range = None
+    sheet._fill_direction = None
+    sheet._fill_handle_release(FakeEvent())
+    assert sheet._fill_start_range is None
+
+
+def test_import_large_prompt_no(sheet, tmp_path, monkeypatch):
+    from PySide6.QtWidgets import QFileDialog, QMessageBox
+    f = tmp_path / "a.txt"; f.write_text("a\tb", encoding="utf-8")
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *a, **k: (str(f), ""))
+    import beeoffice.plugins.beesheet as m
+    monkeypatch.setattr(m.os.path, "getsize", lambda p: 60 * 1024 * 1024)
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.No)
+    sheet._import_file()
+    assert len(sheet.model._loaded_df) == 1
+
+
+def test_import_large_prompt_yes(sheet, tmp_path, monkeypatch):
+    from PySide6.QtWidgets import QFileDialog, QMessageBox
+    f = tmp_path / "a.csv"; f.write_text("a\nb", encoding="utf-8")
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *a, **k: (str(f), ""))
+    import beeoffice.plugins.beesheet as m
+    monkeypatch.setattr(m.os.path, "getsize", lambda p: 60 * 1024 * 1024)
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Yes)
+    calls = []
+    sheet.load_large_file = lambda p: calls.append(p)
+    sheet._import_file()
+    assert calls
