@@ -94,3 +94,39 @@ def test_insert_non_rich_info(editor, monkeypatch):
     editor._insert_formula()
     editor._insert_textbox()
     assert len(calls) == 3
+
+
+def test_crossref_dialog_smoke(editor, monkeypatch):
+    from PySide6.QtWidgets import QDialog
+    import beeoffice.plugins.beewrite_link_mixin as m
+    headings = [{"level": 1, "number": "1", "text": "标题一"},
+                {"level": 2, "number": "1.1", "text": "小节"}]
+    monkeypatch.setattr(editor._crossref_manager, "scan_headings", lambda ed: headings)
+    monkeypatch.setattr(QDialog, "exec", lambda self: 0)
+    editor._show_crossref_dialog()
+
+
+def test_crossref_no_headings(editor, monkeypatch):
+    import beeoffice.plugins.beewrite_link_mixin as m
+    calls = []
+    monkeypatch.setattr(editor._crossref_manager, "scan_headings", lambda ed: [])
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: calls.append(a))
+    editor._show_crossref_dialog()
+    assert calls
+
+
+def test_crossref_scan_error(editor, monkeypatch):
+    import beeoffice.plugins.beewrite_link_mixin as m
+    calls = []
+    monkeypatch.setattr(editor._crossref_manager, "scan_headings", lambda ed: (_ for _ in ()).throw(RuntimeError("x")))
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: calls.append(a))
+    editor._show_crossref_dialog()
+    assert calls
+
+
+def test_crossref_non_rich(editor, monkeypatch):
+    calls = []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: calls.append(a))
+    editor._switch_mode("markdown")
+    editor._show_crossref_dialog()
+    assert calls
