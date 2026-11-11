@@ -87,3 +87,44 @@ def test_extract_poster_no_ffmpeg(monkeypatch):
     monkeypatch.setattr(m.shutil, "which", lambda name: None)
     obj = FakeShow()
     assert obj._extract_video_poster("v.mp4", "out.png") is None
+
+
+def test_replace_videos_with_posters(tmp_path):
+    obj = FakeShow()
+    calls = []
+    def fake_extract(video, out):
+        calls.append(video)
+        if video.endswith("a.mp4"):
+            return str(tmp_path / "poster.png")
+        return None
+    obj._extract_video_poster = fake_extract
+    html = [
+        '<video src="a.mp4" style="width:80%"></video><video src="a.mp4"></video>',
+        '<video src="b.mp4"></video>',
+    ]
+    result = obj._replace_videos_with_posters(html)
+    assert '<img src=' in result[0]
+    assert "视频封面" in result[0]
+    assert "video-placeholder" in result[1]
+    # 同一视频只提取一次
+    assert calls.count("a.mp4") == 1
+
+
+def test_extract_poster_success_and_failure(monkeypatch, tmp_path):
+    import beeoffice.plugins.beeshow_video_mixin as m
+    monkeypatch.setattr(m.shutil, "which", lambda name: "ffmpeg")
+    out = tmp_path / "p.png"
+    class Res:
+        returncode = 0
+        stderr = b""
+    def fake_run(cmd, **kwargs):
+        out.write_bytes(b"x")
+        return Res()
+    monkeypatch.setattr(m.subprocess, "run", fake_run)
+    obj = FakeShow()
+    assert obj._extract_video_poster("v.mp4", str(out)) == str(out)
+    class Bad:
+        returncode = 1
+        stderr = b"err"
+    monkeypatch.setattr(m.subprocess, "run", lambda *a, **k: Bad())
+    assert obj._extract_video_poster("v.mp4", str(tmp_path / "x.png")) is None
