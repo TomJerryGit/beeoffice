@@ -389,3 +389,105 @@ def test_file_changed_branches(app, monkeypatch):
     app._last_file_change_prompt = "C:/a.md"
     app._on_file_changed("C:/a.md")
     assert len(opened) == 1
+
+
+def test_restore_session(app, monkeypatch, tmp_path):
+    from PySide6.QtWidgets import QMessageBox
+    f = tmp_path / "a.md"; f.write_text("x", encoding="utf-8")
+    app.settings.open_tabs = [str(f)]
+    opened = []
+    app._open_recent = lambda p: opened.append(p)
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Yes)
+    app._restore_session()
+    assert opened == [str(f)]
+    app.settings.open_tabs = []
+    app._restore_session()
+
+
+def test_save_current_variants(app):
+    class Fake(QWidget):
+        def __init__(self, ok=True):
+            super().__init__(); self.ok = ok; self.saved = 0; self.path = "C:/x.md"
+        def save(self):
+            self.saved += 1
+            return self.ok
+    f = Fake(True); app.tab_manager.addTab(f, "f"); app.tab_manager.setCurrentWidget(f)
+    app._save_current()
+    assert f.saved == 1
+    f2 = Fake(False); app.tab_manager.addTab(f2, "f2"); app.tab_manager.setCurrentWidget(f2)
+    app._save_current()
+    assert "保存失败" in app.status_label.text()
+    class SaveAs(QWidget):
+        def __init__(self): super().__init__(); self.called = 0
+        def save_as(self): self.called += 1
+    s = SaveAs(); app.tab_manager.addTab(s, "s"); app.tab_manager.setCurrentWidget(s)
+    app._save_as_current()
+    assert s.called == 1
+
+
+def test_export_dispatch(app, monkeypatch, tmp_path):
+    from PySide6.QtWidgets import QMessageBox, QFileDialog
+    class Doc(QWidget):
+        def get_rendered_content(self): return "content"
+        def export_html(self): self.html = True
+    d = Doc(); app.tab_manager.addTab(d, "d"); app.tab_manager.setCurrentWidget(d)
+    calls = []
+    app._run_async_export = lambda fn, *a, **k: calls.append(fn.__name__)
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: (str(tmp_path / "x.docx"), ""))
+    app._export_docx()
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: (str(tmp_path / "x.pdf"), ""))
+    app._export_pdf()
+    app._export_html()
+    assert len(calls) == 2
+    assert getattr(d, "html", False) is True
+    # 不支持导出的控件
+    class Empty(QWidget):
+        pass
+    e = Empty(); app.tab_manager.addTab(e, "e"); app.tab_manager.setCurrentWidget(e)
+    warns = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: warns.append(a))
+    app._export_docx(); app._export_pdf()
+    assert len(warns) == 2
+
+
+def test_find_current(app, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    class Bar:
+        def __init__(self): self.calls = []
+        def show_for_editor(self, editor): self.calls.append(editor)
+    class Doc(QWidget):
+        def __init__(self):
+            super().__init__(); self.find_bar = Bar(); self.editor = "ed"
+    d = Doc(); app.tab_manager.addTab(d, "d"); app.tab_manager.setCurrentWidget(d)
+    app._find_current()
+    assert d.find_bar.calls == ["ed"]
+    class Empty(QWidget): pass
+    e = Empty(); app.tab_manager.addTab(e, "e"); app.tab_manager.setCurrentWidget(e)
+    calls = []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: calls.append(a))
+    app._find_current()
+    assert calls
+
+
+def test_check_for_updates_branches(app, monkeypatch):
+    import beeoffice.update_checker as uc
+    from PySide6.QtWidgets import QMessageBox
+    infos = []; warns = []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: infos.append(a))
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: warns.append(a))
+    monkeypatch.setattr(uc, "check_for_update", lambda v: None)
+    app.check_for_updates()
+    assert infos
+    class Info:
+        version = "9.9.9"; html_url = "https://example.com"
+    opened = []
+    monkeypatch.setattr(uc, "check_for_update", lambda v: Info())
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Yes)
+    from PySide6.QtGui import QDesktopServices
+    monkeypatch.setattr(QDesktopServices, "openUrl", staticmethod(lambda url: opened.append(url.toString())))
+    app.check_for_updates()
+    assert opened == ["https://example.com"]
+    def boom(v): raise uc.UpdateError("bad")
+    monkeypatch.setattr(uc, "check_for_update", boom)
+    app.check_for_updates()
+    assert warns
