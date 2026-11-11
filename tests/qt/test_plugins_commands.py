@@ -144,3 +144,102 @@ def test_beewrite_plugin_no_editor(parent, monkeypatch):
     p = BeeWritePlugin(parent)
     p.export_docx(); p.generate_toc(); p.ai_continue(); p.ai_polish(); p.ai_summarize()
     assert len(calls) == 5
+
+
+def test_beewrite_plugin_ai_fallbacks(parent, monkeypatch):
+    import beeoffice.plugins.ai_assist as ai
+    from PySide6.QtWidgets import QMessageBox
+    p = BeeWritePlugin(parent)
+    calls = []
+    class Cur:
+        def hasSelection(self): return True
+        def selectedText(self): return "old"
+        def position(self): return 2
+        def insertText(self, text): calls.append(text)
+    class Active:
+        def __init__(self): self.cur = Cur()
+        def textCursor(self): return self.cur
+        def toPlainText(self): return "hello world"
+        def append(self, text): calls.append(("append", text))
+    class FakeEditor:
+        def __init__(self): self.active = Active()
+        def _get_active_editor(self): return self.active
+        def content(self): return "长文本" * 100
+    ed = FakeEditor()
+    p._current_editor = lambda: ed
+    monkeypatch.setattr(ai.AIAssist, "continue_text", staticmethod(lambda ctx: ctx + "续写"))
+    monkeypatch.setattr(ai.AIAssist, "polish_text", staticmethod(lambda text: "polished"))
+    monkeypatch.setattr(ai.AIAssist, "summarize_text", staticmethod(lambda text: "summary"))
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: None)
+    p.ai_continue(); p.ai_polish(); p.ai_summarize()
+    assert calls
+
+
+def test_beewrite_plugin_ai_polish_no_selection_and_short(parent, monkeypatch):
+    import beeoffice.plugins.ai_assist as ai
+    from PySide6.QtWidgets import QMessageBox
+    p = BeeWritePlugin(parent)
+    calls = []
+    class Cur:
+        def hasSelection(self): return False
+        def selectedText(self): return ""
+        def position(self): return 0
+        def insertText(self, text): calls.append(text)
+    class Active:
+        def __init__(self): self.cur = Cur()
+        def textCursor(self): return self.cur
+        def toPlainText(self): return ""
+        def append(self, text): calls.append(text)
+    class FakeEditor:
+        def __init__(self): self.active = Active()
+        def _get_active_editor(self): return self.active
+        def content(self): return "short"
+    ed = FakeEditor(); p._current_editor = lambda: ed
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: calls.append(a))
+    p.ai_polish(); p.ai_summarize()
+    assert calls
+
+
+def test_beewrite_plugin_missing_methods(parent, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    p = BeeWritePlugin(parent)
+    class Fake:
+        pass
+    p._current_editor = lambda: Fake()
+    calls = []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: calls.append(a))
+    p.generate_toc(); p.export_docx(); p.export_pdf(); p.export_html()
+    assert len(calls) == 4
+
+
+def test_beesheet_plugin_fallbacks(parent, monkeypatch):
+    import pandas as pd
+    from PySide6.QtWidgets import QMessageBox, QInputDialog
+    p = BeeSheetPlugin(parent)
+    class Model:
+        df = pd.DataFrame({"A": [1]})
+        def setData(self, idx, val, role): self.data = val
+    class TV:
+        def currentIndex(self):
+            class I:
+                def isValid(self): return True
+            return I()
+    class View:
+        model = Model()
+        table_view = TV()
+    view = View()
+    p._current_view = lambda: view
+    class Chart:
+        def __init__(self, df, parent): pass
+        def exec(self): pass
+    import beeoffice.plugins.beesheet as bs
+    monkeypatch.setattr(bs, "ChartDialog", Chart, raising=False)
+    p._generate_chart_fallback(view)
+    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("求和A1到A2", True))
+    p._nl_to_formula_fallback(view)
+    assert view.model.data == "=SUM(A1:A2)"
+    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("", False))
+    p._nl_to_formula_fallback(view)
+    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("x", True))
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: None)
+    p._nl_to_formula_fallback(view)
