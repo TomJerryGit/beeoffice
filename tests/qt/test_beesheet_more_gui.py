@@ -111,3 +111,29 @@ def test_selection_stats_dialog(sheet, monkeypatch):
     # 无选区直接返回
     sheet.table_view.clearSelection()
     sheet._show_selection_stats()
+
+
+class FakeAction:
+    def __init__(self):
+        class Sig:
+            def connect(self, fn): pass
+        self.triggered = Sig()
+
+class FakeMenu:
+    def __init__(self, *a, **k): pass
+    def addAction(self, text=None, *a): return FakeAction()
+    def addSeparator(self): pass
+    def addMenu(self, text): return FakeMenu()
+    def addSection(self, text): pass
+    def exec(self, *a, **k): pass
+
+def test_filter_and_conditional_menus(sheet, monkeypatch):
+    import beeoffice.plugins.beesheet_data_mixin as m
+    from PySide6.QtWidgets import QDialog
+    monkeypatch.setattr(m, "QMenu", FakeMenu)
+    monkeypatch.setattr(QDialog, "exec", lambda self: 0)
+    sheet._show_filter_popup(0)
+    sheet._show_filter_dialog()
+    from PySide6.QtCore import QPoint
+    sheet._show_header_context_menu(QPoint(0, 0))
+    sheet._show_row_header_menu(QPoint(0, 0))

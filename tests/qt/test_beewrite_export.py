@@ -345,3 +345,36 @@ def test_open_externally_non_windows(writer, monkeypatch):
     assert calls
     monkeypatch.setattr(m.subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(OSError("x")))
     writer._open_file_externally("x.md")
+
+
+def test_block_and_char_format_appliers(writer):
+    from PySide6.QtGui import QColor, QFont, QTextBlockFormat, QTextCharFormat
+    from PySide6.QtCore import Qt
+    from docx import Document
+    doc = Document()
+    bf = QTextBlockFormat()
+    bf.setAlignment(Qt.AlignHCenter)
+    bf.setLineHeight(150, 1)
+    bf.setTopMargin(10); bf.setBottomMargin(8)
+    bf.setLeftMargin(5); bf.setRightMargin(4)
+    bf.setTextIndent(12)
+    bf.setBackground(QColor("#FFFF00"))
+    para = doc.add_paragraph("hello")
+    writer._apply_block_format_to_para(para, bf)
+    # 固定行距
+    bf2 = QTextBlockFormat(); bf2.setLineHeight(20, 2)
+    writer._apply_block_format_to_para(doc.add_paragraph("x"), bf2)
+    # 悬挂缩进
+    bf3 = QTextBlockFormat(); bf3.setTextIndent(-10)
+    writer._apply_block_format_to_para(doc.add_paragraph("y"), bf3)
+    # 字符格式
+    cf = QTextCharFormat()
+    cf.setFontWeight(QFont.Bold)
+    cf.setFontItalic(True)
+    cf.setFontUnderline(True)
+    cf.setForeground(QColor("#FF0000"))
+    cf.setFontFamily("Arial")
+    cf.setFontPointSize(14)
+    run = doc.add_paragraph().add_run("x")
+    writer._apply_char_format_to_run(run, cf)
+    assert run.bold is True
