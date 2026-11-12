@@ -314,3 +314,34 @@ def test_header_footer_exception(writer):
         sections = [Sec()]
     writer._header_text = "H"
     assert writer._apply_header_footer(BadDoc()) is False
+
+
+def test_image_path_current_dir_and_bad_objects(writer, tmp_path):
+    from PySide6.QtGui import QTextBlockFormat, QTextCharFormat, QTextImageFormat
+    from docx import Document
+    img = tmp_path / "b.png"
+    from PIL import Image
+    Image.new("RGB", (10, 10), "red").save(img)
+    writer._current_file_path = None
+    writer.get_current_file_dir = lambda: tmp_path
+    assert Path(writer._resolve_image_path_for_export("b.png")[0]) == img
+    class BadImage:
+        def name(self): raise RuntimeError("bad")
+    writer._insert_picture_to_para(None, BadImage())
+    class BadPara:
+        def __getattr__(self, name): raise RuntimeError("bad")
+    class BadDoc:
+        def add_table(self, *a): raise RuntimeError("table")
+    class BadTable:
+        def rows(self): raise RuntimeError("rows")
+
+
+def test_open_externally_non_windows(writer, monkeypatch):
+    import beeoffice.plugins.beewrite_export_mixin as m
+    calls = []
+    monkeypatch.setattr(m.sys, "platform", "linux")
+    monkeypatch.setattr(m.subprocess, "run", lambda *a, **k: calls.append(a))
+    writer._open_file_externally("x.md")
+    assert calls
+    monkeypatch.setattr(m.subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(OSError("x")))
+    writer._open_file_externally("x.md")

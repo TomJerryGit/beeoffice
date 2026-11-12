@@ -96,3 +96,18 @@ def test_close_event(sheet):
         def ignore(self): pass
     ev = Ev()
     sheet.closeEvent(ev)
+
+
+def test_selection_stats_dialog(sheet, monkeypatch):
+    from PySide6.QtWidgets import QDialog, QMessageBox
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: None)
+    sheet.model.set_full_dataframe(pd.DataFrame({
+        "A": [1, 2, None], "B": ["x", "", "y"]
+    }))
+    sheet.table_view.setModel(sheet.model)
+    sheet.table_view.selectAll()
+    monkeypatch.setattr(QDialog, "exec", lambda self: 0)
+    sheet._show_selection_stats()
+    # 无选区直接返回
+    sheet.table_view.clearSelection()
+    sheet._show_selection_stats()
