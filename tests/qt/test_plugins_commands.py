@@ -243,3 +243,68 @@ def test_beesheet_plugin_fallbacks(parent, monkeypatch):
     monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("x", True))
     monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: None)
     p._nl_to_formula_fallback(view)
+
+
+def test_beesheet_plugin_clean_data_branches(parent, monkeypatch):
+    import pandas as pd
+    from PySide6.QtWidgets import QMessageBox
+    p = BeeSheetPlugin(parent)
+    infos, warns = [], []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: infos.append(a))
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: warns.append(a))
+    p.clean_data()  # 无视图
+    class Model:
+        df = pd.DataFrame()
+    class View:
+        model = Model()
+    p._current_view = lambda: View()
+    p.clean_data()  # 空表
+    Model.df = pd.DataFrame({"A": [1, 2]})
+    p.clean_data()  # 无重复
+    assert len(infos) >= 2
+    Model.df = pd.DataFrame({"A": [1, 1]})
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.No)
+    p.clean_data()
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.Yes)
+    class M2:
+        df = pd.DataFrame({"A": [1, 1]})
+        def update_data(self, df): self.updated = df
+    class V2:
+        model = M2()
+    p._current_view = lambda: V2()
+    p.clean_data()
+    class M3:
+        df = pd.DataFrame({"A": [1, 1]})
+        def set_data(self, df): self.updated = df
+    class V3:
+        model = M3()
+    p._current_view = lambda: V3()
+    p.clean_data()
+    class M4:
+        df = pd.DataFrame({"A": [1, 1]})
+        modified = False
+        class Sig:
+            def emit(self): pass
+        layoutChanged = Sig()
+    class V4:
+        model = M4()
+    p._current_view = lambda: V4()
+    p.clean_data()
+
+
+def test_beesheet_plugin_macro_branches(parent, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    p = BeeSheetPlugin(parent)
+    infos = []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: infos.append(a))
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: infos.append(a))
+    p.toggle_macro_recording(); p.play_macro()
+    class View:
+        pass
+    p._current_view = lambda: View()
+    p.toggle_macro_recording(); p.play_macro()
+    class Bad:
+        def _toggle_macro_recording(self): raise RuntimeError("x")
+        def _play_macro(self): raise RuntimeError("x")
+    p._current_view = lambda: Bad()
+    p.toggle_macro_recording(); p.play_macro()

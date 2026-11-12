@@ -156,3 +156,27 @@ def test_import_large_prompt_yes(sheet, tmp_path, monkeypatch):
     sheet.load_large_file = lambda p: calls.append(p)
     sheet._import_file()
     assert calls
+
+
+def test_fill_release_down_auto_grow(sheet):
+    sheet._fill_handle = FakeHandle()
+    sheet.model.set_full_dataframe(pd.DataFrame({"A": [1]}))
+    sheet.table_view.setModel(sheet.model)
+    sheet._fill_start_range = (0, 0, 0, 0)
+    sheet._fill_direction = "down"
+    sheet._fill_target = 3
+    sheet._formula_cells = {}
+    sheet._fill_handle_release(FakeEvent())
+    assert len(sheet.model._loaded_df) >= 4
+
+
+def test_fill_release_right_auto_grow(sheet):
+    sheet._fill_handle = FakeHandle()
+    sheet.model.set_full_dataframe(pd.DataFrame({"A": [1, 2]}))
+    sheet.table_view.setModel(sheet.model)
+    sheet._fill_start_range = (0, 0, 0, 0)
+    sheet._fill_direction = "right"
+    sheet._fill_target = 3
+    sheet._formula_cells = {}
+    sheet._fill_handle_release(FakeEvent())
+    assert len(sheet.model._loaded_df.columns) >= 4
