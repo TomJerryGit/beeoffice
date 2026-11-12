@@ -145,12 +145,17 @@ jobs:
               throw "卸载后安装目录仍有残留文件"
             }
           }
-          foreach ($key in @(
-            "HKCU:\Software\Classes\.beshow",
-            "HKCU:\Software\Classes\BeeOffice.Show"
-          )) {
-            if (Test-Path $key) { throw "卸载后注册表项仍存在: $key" }
+          # .beshow 使用 uninsdeletevalue：卸载后允许保留空键，但默认值必须为空
+          $extKey = "HKCU:\Software\Classes\.beshow"
+          if (Test-Path $extKey) {
+            $extValue = (Get-Item $extKey).GetValue("")
+            if ($null -ne $extValue) {
+              throw "卸载后 .beshow 默认值仍存在: $extValue"
+            }
+            Write-Host "卸载后 .beshow 仅保留空键（符合 uninsdeletevalue 行为）"
           }
+          $appKey = "HKCU:\Software\Classes\BeeOffice.Show"
+          if (Test-Path $appKey) { throw "卸载后注册表项仍存在: $appKey" }
           $startMenu = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\BeeOffice"
           if (Test-Path $startMenu) { throw "卸载后开始菜单目录仍存在: $startMenu" }
           Write-Host "安装目录、注册表、开始菜单均已清理"
