@@ -1,11 +1,9 @@
 name: tests
 
-# 路线图 WP-04：第一道 CI。
-# 目标不是"全绿"，而是"挡住已知类型的错误"：
-#   1. 整包无法编译（beesheet_engine.py 曾因一个孤立反斜杠整模块失效）
-#   2. 公式引擎的 Excel 语义回归
-#   3. 导出产物不完整（DOCX 丢图）
-# full 任务暂时允许失败，用于观察真实基线，稳定后再转为阻塞。
+# M1A 发布门禁：
+#   fast  = 语法 / 公式语义 / 最小单测 / 安全扫描
+#   full  = 全量测试 + 覆盖率 + 核心 100% + 安全扫描
+# full 不再 continue-on-error；失败即阻塞。
 
 on:
   push:
@@ -14,13 +12,9 @@ on:
   workflow_dispatch:
 
 env:
-  # GitHub 的 Windows runner 控制台默认 cp1252，脚本打印中文会抛
-  # UnicodeEncodeError 并以退出码 1 结束（看起来像"代码错了"）。
   PYTHONUTF8: "1"
   PYTHONIOENCODING: "utf-8"
-  # Qt 在无显示环境下的必需设置
   QT_QPA_PLATFORM: "offscreen"
-  # Chromium 在容器/CI 里必须关闭沙箱，否则 WebEngine 起不来
   QTWEBENGINE_CHROMIUM_FLAGS: "--no-sandbox --disable-gpu"
 
 concurrency:
@@ -29,8 +23,9 @@ concurrency:
 
 jobs:
   fast:
-    name: 快速回归（无 GUI 依赖）
+    name: 快速回归（语法/公式/安全）
     runs-on: windows-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -47,6 +42,9 @@ jobs:
       - name: 语法编译检查
         run: python tools/check_syntax.py
 
+      - name: 安全扫描（AST，高危 >0 失败）
+        run: python tools/security_scan.py
+
       - name: 公式引擎 Excel 语义冒烟
         run: python tools/smoke_formula.py
 
@@ -57,12 +55,13 @@ jobs:
           tests/unit/test_docx_image_export.py
           tests/unit/test_nl_formula.py
           tests/unit/test_settings.py
+          tests/unit/test_security_scan.py
           -q
 
   full:
-    name: 全量测试（含 GUI，暂不阻塞）
+    name: 全量测试（含 GUI，阻塞）
     runs-on: windows-latest
-    continue-on-error: true
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -76,5 +75,25 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-dev.txt
 
-      - name: 全量 pytest
-        run: python -m pytest tests -q --timeout=120
+      - name: 全量 pytest + 覆盖率
+        run: >
+          python -m pytest tests
+          -q --timeout=120
+          --cov=beeoffice
+          --cov-report=json:coverage.json
+          --cov-report=term
+
+      - name: 安全扫描（AST）
+        run: python tools/security_scan.py
+
+      - name: 核心模块 100% 覆盖率门槛
+        run: python tools/coverage_gate.py coverage.json
+
+      - name: 上传覆盖率报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-json
+          path: coverage.json
+          if-no-files-found: ignore
+          retention-days: 7
