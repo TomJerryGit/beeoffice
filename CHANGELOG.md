@@ -40,7 +40,9 @@
 - 安全加固：旧 `formula_engine._eval_math` 改用 AST 白名单，拒绝属性/下标逃逸；`build_release.py` 移除 `exec`，改正则读取版本号。
 - 新增 `tools/security_scan.py`：只扫裸 exec/eval/pickle/shell=True，排除 tests/dist/build/release-archive；当前高危 0 条。
 - 新增核心覆盖率门槛 `tools/coverage_gate.py`：核心模块 100%，GUI 仅报告；核心模块 **12/12 全部 100%**；GUI 覆盖率继续提升：图片编辑器 98%、模板管理器 94%、链接/图片/公式插入 48%、TabManager 46%→61%；段落 Mixin 7%→83%、链接 Mixin 74%、BeeShow AI 服务 88%；新增 BeeSheet 导入/填充柄、Beewrite 模式/格式测试；模式 Mixin 42%→71%、视图 Mixin 39%→72%、BeeShow 视频 100%、同步 99%、导出 72%、视图 72%；新增插件命令入口测试，BeeSheet 插件 87%、BeeWrite 插件 93%、导出 79%；新增段落/字符格式、过滤/条件格式菜单覆盖。新增闪填模式/来源列测试。新增排序/筛选/自动保存/关闭测试。
-- v5.4.4 候选包已构建（ZIP 225,789,134 B / 安装包 155,799,601 B），未签名。
+- v5.4.4 候选包已于 2026-11-12 从安全修复后源码重建并发布：
+  https://github.com/TomJerryGit/beeoffice/releases/tag/v5.4.4
+  安装包未签名；未做干净机验收；Win11 未验证。
 
 ## [5.4.3] - 2026-11-09
 

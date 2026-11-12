@@ -52,6 +52,12 @@ python tools/build_installer.py --skip-build
 - 打包后 `dist/BeeOffice/BeeOffice.exe` 在 offscreen 环境启动，12 秒进程存活，随后主动终止：**通过**
 - 安装器由 Inno Setup 6 编译成功；**未执行安装器静默安装测试**
 
+## 发布记录
+
+- GitHub Release：https://github.com/TomJerryGit/beeoffice/releases/tag/v5.4.4
+- 发布时间：2026-11-12
+- 发布资产：ZIP、安装包、两个 SHA-256 文件
+
 ## 本次重建说明
 
 旧候选包构建于安全修复之前，已作废；2026-11-12 从提交 `3a85b61` 重建 ZIP 与安装器，并重新计算 SHA-256。
