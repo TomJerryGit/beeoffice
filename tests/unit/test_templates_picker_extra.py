@@ -121,7 +121,8 @@ class TestCreateFromTemplate:
         _create_from_template(parent, tpl)
 
         editor = parent.tab_manager.widget(0)
-        today = datetime.now().strftime("%Y年%m月%d日")
+        _n = datetime.now()
+        today = f"{_n.year}年{_n.month:02d}月{_n.day:02d}日"
         assert today in editor._content
         assert "{date}" not in editor._content
 
