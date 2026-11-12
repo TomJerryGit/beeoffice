@@ -12,6 +12,7 @@ import sys
 import shutil
 import hashlib
 import platform
+import re
 from pathlib import Path
 from datetime import datetime
 
@@ -23,10 +24,14 @@ def get_version() -> str:
     if not version_file.exists():
         return "0.0.0"
     try:
-        namespace = {}
         content = version_file.read_text(encoding="utf-8")
-        exec(content, namespace)
-        return namespace.get("__version__", "0.0.0")
+        # 只读取字面量，不再 exec 仓库文件；避免构建期代码执行
+        match = re.search(
+            r'^\s*__version__\s*=\s*["\']([^"\']+)["\']',
+            content,
+            re.MULTILINE,
+        )
+        return match.group(1) if match else "0.0.0"
     except Exception:
         return "0.0.0"
 

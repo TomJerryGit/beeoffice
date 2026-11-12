@@ -19,6 +19,7 @@
   - evaluate("=") 返回空字符串（不再抛异常）
   - _flatten_args_to_values 对"有参数但全部无法转数字"抛 ValueError
 """
+import ast
 import re
 import math
 import logging
@@ -365,7 +366,7 @@ class FormulaEngine:
         # 替换单元格引用
         expr_with_values = re.sub(r"\b[A-Za-z]+\d+\b", replace_cell, expr)
 
-        # 安全求值
+        # 安全求值：AST 白名单，禁止属性/下标/导入等逃逸语法
         allowed_names = {
             "abs": abs,
             "round": round,
@@ -375,7 +376,38 @@ class FormulaEngine:
             "max": max,
         }
         try:
-            result = eval(expr_with_values, {"__builtins__": {}}, allowed_names)
+            tree = ast.parse(expr_with_values, mode="eval")
+        except SyntaxError as e:
+            raise ValueError(f"算术表达式错误: {e}")
+
+        allowed_nodes = (
+            ast.Expression, ast.BinOp,
+            ast.Add, ast.Sub, ast.Mult, ast.Div,
+            ast.Mod, ast.Pow, ast.FloorDiv,
+            ast.UnaryOp, ast.USub, ast.UAdd,
+            ast.Constant, ast.Name, ast.Load, ast.Call,
+        )
+        if sum(1 for _ in ast.walk(tree)) > 200:
+            raise ValueError("算术表达式过长")
+        for node in ast.walk(tree):
+            if not isinstance(node, allowed_nodes):
+                raise ValueError(f"算术表达式不允许的语法: {type(node).__name__}")
+            if isinstance(node, ast.Call):
+                if not isinstance(node.func, ast.Name):
+                    raise ValueError("算术表达式不允许复杂函数调用")
+                if node.func.id not in allowed_names:
+                    raise ValueError(f"算术表达式不允许函数: {node.func.id}")
+                if node.keywords:
+                    raise ValueError("算术表达式不允许关键字参数")
+            if isinstance(node, ast.Name) and node.id not in allowed_names:
+                raise ValueError(f"算术表达式不允许名称: {node.id}")
+
+        try:
+            result = eval(
+                compile(tree, "<arithmetic>", "eval"),
+                {"__builtins__": {}},
+                allowed_names,
+            )
             return result
         except Exception as e:
             raise ValueError(f"算术表达式错误: {e}")

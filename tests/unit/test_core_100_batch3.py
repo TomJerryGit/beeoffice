@@ -99,3 +99,25 @@ def test_formula_math_replace_errors():
             return "x"
     b = FormulaEngine(Bad())
     assert b._eval_math("A1+1", 0, 0) == 1
+
+
+def test_formula_math_ast_guard():
+    e = engine()
+    assert e.evaluate("=(abs(-2))+min(1,2)") == 3
+    bad = [
+        "=().__class__",
+        "=abs.__globals__",
+        "=A1[0]",
+        "=lambda:1",
+        "=__import__('os')",
+        "=foo(1)",
+        "=(abs(x=1))",
+        "=(foo)",
+        "=1/0",
+        "=1+",
+        "=(1)(2)",
+        "=" + "+".join(["1"] * 210),
+    ]
+    for expr in bad:
+        with pytest.raises(ValueError):
+            e.evaluate(expr)
