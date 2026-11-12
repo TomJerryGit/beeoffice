@@ -25,27 +25,36 @@
 
 | 产物 | 大小 | SHA-256 |
 |---|---:|---|
-| `BeeOffice-v5.4.4-windows.zip` | 225,789,134 B | `CF845A4440B8B59F458389D0F17971E7F341CA657C0203F134812B51EAE17080` |
-| `BeeOffice-Setup-v5.4.4.exe` | 155,799,601 B | `AFA82FA7484990A68AE080E6C63BC13DF0A335075A455BCC77EB2741FCC00612` |
+| `BeeOffice-v5.4.4-windows.zip` | 220,889,336 B | `D568C4B797B90C2550F8436177D1B45D865EFB84D737A072D2A867CED469F0C6` |
+| `BeeOffice-Setup-v5.4.4.exe` | 152,138,541 B | `3975A02AA930FE95E8D4823614896F62D7AA902FEAD65471D81BED1B632CC68F` |
 
 - 版本：**5.4.4**
 - Python：3.11 / PySide6 6.6
-- 构建时间：2026-11-11
+- 构建时间：2026-11-12
+- 源码提交：`3a85b61`（含 formula_engine 裸 eval / build_release exec 安全修复）
 - 安装包编译器：Inno Setup 6（ISCC `/DMyAppVersion=5.4.4`）
 
 ## 构建命令
 
 ```powershell
-python beeoffice/build_release.py
-ISCC.exe /DMyAppVersion=5.4.4 installer/BeeOffice.iss
+python build.py
+python tools/build_installer.py --skip-build
+# ZIP：将 dist/BeeOffice 以顶层目录 BeeOffice/ 打包为 BeeOffice-v5.4.4-windows.zip
 ```
 
 ## 冒烟结果
 
-- `pytest tests`：**1352 passed**
-- 覆盖率：**60%**
+- `pytest tests`：**1540 passed**
+- 全仓覆盖率：**66.54%**；核心模块：**12/12 = 100%**
 - 高对比度 AST 审计：**0 文件 / 0 处**
+- 安全扫描（`tools/security_scan.py`）：**高危 0 条**（2 条 guarded eval）
+- ZIP 完整性：`testzip()` **OK**，3050 个条目
 - 打包后 `dist/BeeOffice/BeeOffice.exe` 在 offscreen 环境启动，12 秒进程存活，随后主动终止：**通过**
+- 安装器由 Inno Setup 6 编译成功；**未执行安装器静默安装测试**
+
+## 本次重建说明
+
+旧候选包构建于安全修复之前，已作废；2026-11-12 从提交 `3a85b61` 重建 ZIP 与安装器，并重新计算 SHA-256。
 
 ## 限制
 
