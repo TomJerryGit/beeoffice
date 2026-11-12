@@ -1,0 +1,188 @@
+name: Windows install/uninstall smoke
+
+# 运行环境是 GitHub 托管的 Windows Server，不是 Win10/11 客户端。
+# 本 workflow 只验证：下载发布资产 → 校验 SHA-256 → 静默安装 →
+# 启动 offscreen → 静默卸载 → 清理注册表/快捷方式。
+# 不得将本 workflow 的结果描述为“Win10/11 干净机验收通过”。
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "要测试的 Release tag，例如 v5.4.5"
+        required: true
+        default: "v5.4.5"
+
+permissions:
+  contents: read
+
+jobs:
+  install-uninstall-smoke:
+    name: Install/uninstall on Windows Server
+    runs-on: windows-2022
+    timeout-minutes: 20
+
+    steps:
+      - name: Resolve release tag
+        id: tag
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ("${{ github.event_name }}" -eq "release") {
+            $tag = "${{ github.event.release.tag_name }}"
+          } else {
+            $tag = "${{ inputs.release_tag }}"
+          }
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            throw "release tag 为空"
+          }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          Write-Host "Release tag: $tag"
+
+      - name: Download installer assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $tag = "${{ steps.tag.outputs.tag }}"
+          $dir = Join-Path $env:RUNNER_TEMP "beeoffice-download"
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          gh release download $tag `
+            --repo "${{ github.repository }}" `
+            --pattern "BeeOffice-Setup-*" `
+            --dir $dir
+          Get-ChildItem -Path $dir | Select-Object Name, Length
+
+      - name: Verify SHA-256 and install silently
+        id: install
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $dir = Join-Path $env:RUNNER_TEMP "beeoffice-download"
+          $installer = Get-ChildItem -Path $dir -Filter "BeeOffice-Setup-*.exe" |
+            Where-Object { $_.Name -notlike "*.sha256" } |
+            Select-Object -First 1
+          if (-not $installer) { throw "未下载到安装包" }
+
+          $sumFile = "$($installer.FullName).sha256"
+          if (-not (Test-Path $sumFile)) { throw "缺少 SHA-256 文件: $sumFile" }
+          $expected = ((Get-Content $sumFile -Raw).Trim() -split "\s+")[0].ToLowerInvariant()
+          $actual = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "expected=$expected"
+          Write-Host "actual  =$actual"
+          if ($expected -ne $actual) { throw "安装包 SHA-256 校验失败" }
+
+          $log = Join-Path $env:RUNNER_TEMP "beeoffice-install.log"
+          $args = @(
+            "/VERYSILENT",
+            "/SUPPRESSMSGBOXES",
+            "/NORESTART",
+            "/SP-",
+            "/LOG=$log"
+          )
+          $proc = Start-Process -FilePath $installer.FullName `
+            -ArgumentList $args -Wait -PassThru
+          if ($proc.ExitCode -ne 0) {
+            if (Test-Path $log) { Get-Content $log -Tail 100 }
+            throw "安装失败，退出码 $($proc.ExitCode)"
+          }
+
+          $installDir = Join-Path $env:LOCALAPPDATA "Programs\BeeOffice"
+          $exe = Join-Path $installDir "BeeOffice.exe"
+          if (-not (Test-Path $exe)) { throw "安装后缺少 BeeOffice.exe: $exe" }
+          $uninstaller = Join-Path $installDir "unins000.exe"
+          if (-not (Test-Path $uninstaller)) { throw "安装后缺少 unins000.exe" }
+          "install_dir=$installDir" >> $env:GITHUB_OUTPUT
+          "uninstaller=$uninstaller" >> $env:GITHUB_OUTPUT
+          "installer_sha256=$actual" >> $env:GITHUB_OUTPUT
+          Get-Item $exe | Select-Object FullName, Length, LastWriteTime
+
+      - name: Launch installed app offscreen
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = Join-Path $env:LOCALAPPDATA "Programs\BeeOffice\BeeOffice.exe"
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:QTWEBENGINE_CHROMIUM_FLAGS = "--no-sandbox --disable-gpu"
+          $env:QT_QPA_FONTDIR = "$env:WINDIR\Fonts"
+          $out = Join-Path $env:RUNNER_TEMP "beeoffice-app.out.log"
+          $err = Join-Path $env:RUNNER_TEMP "beeoffice-app.err.log"
+          $proc = Start-Process -FilePath $exe -PassThru `
+            -RedirectStandardOutput $out -RedirectStandardError $err
+          Start-Sleep -Seconds 12
+          if ($proc.HasExited) {
+            if (Test-Path $err) { Get-Content $err -Tail 100 }
+            throw "安装后的 BeeOffice 在 12 秒内退出"
+          }
+          Stop-Process -Id $proc.Id -Force
+          Write-Host "安装后的 BeeOffice 在 offscreen 环境存活 12 秒"
+
+      - name: Uninstall silently and verify cleanup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $installDir = Join-Path $env:LOCALAPPDATA "Programs\BeeOffice"
+          $uninstaller = Join-Path $installDir "unins000.exe"
+          if (-not (Test-Path $uninstaller)) { throw "卸载器不存在: $uninstaller" }
+          $unproc = Start-Process -FilePath $uninstaller `
+            -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") `
+            -Wait -PassThru
+          if ($unproc.ExitCode -ne 0) {
+            throw "卸载失败，退出码 $($unproc.ExitCode)"
+          }
+          Start-Sleep -Seconds 3
+
+          if (Test-Path (Join-Path $installDir "BeeOffice.exe")) {
+            throw "卸载后 BeeOffice.exe 仍存在"
+          }
+          if (Test-Path $installDir) {
+            $left = Get-ChildItem $installDir -Recurse -Force -ErrorAction SilentlyContinue
+            if ($left) {
+              $left | Select-Object FullName
+              throw "卸载后安装目录仍有残留文件"
+            }
+          }
+          foreach ($key in @(
+            "HKCU:\Software\Classes\.beshow",
+            "HKCU:\Software\Classes\BeeOffice.Show"
+          )) {
+            if (Test-Path $key) { throw "卸载后注册表项仍存在: $key" }
+          }
+          $startMenu = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\BeeOffice"
+          if (Test-Path $startMenu) { throw "卸载后开始菜单目录仍存在: $startMenu" }
+          Write-Host "安装目录、注册表、开始菜单均已清理"
+
+      - name: Write summary
+        if: always()
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.tag.outputs.tag }}"
+          $sha = "${{ steps.install.outputs.installer_sha256 }}"
+          @"
+          ## Windows install/uninstall smoke
+
+          - Release tag: ``$tag``
+          - Runner: GitHub-hosted Windows Server（**不是 Win10/11 客户端**）
+          - Installer SHA-256: ``$sha``
+          - 安装：静默安装
+          - 启动：安装后 exe 在 offscreen 环境存活 12 秒
+          - 卸载：静默卸载
+
+          > 本结果仅代表 Server 上的安装/卸载冒烟，**不代表 Win10/11 干净机验收**。
+          > 未验证 SmartScreen、桌面体验、Win11 TPM/Secure Boot。
+          "@ >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: install-smoke-logs
+          path: |
+            ${{ runner.temp }}/beeoffice-install.log
+            ${{ runner.temp }}/beeoffice-app.out.log
+            ${{ runner.temp }}/beeoffice-app.err.log
+          if-no-files-found: ignore
+          retention-days: 7
