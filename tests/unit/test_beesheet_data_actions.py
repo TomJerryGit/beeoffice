@@ -174,3 +174,37 @@ def test_conditional_formats():
     assert sheet._conditional_formats[1]["type"] == "color_scale"
     sheet._clear_cond_format(1)
     assert 1 not in sheet._conditional_formats
+
+
+def test_flash_fill_patterns():
+    s = make_sheet()
+    assert s._is_pattern_source("abc-123", "123") is True
+    assert s._is_pattern_source("北京", "北京") is True
+    assert s._is_pattern_source("", "x") is False
+    assert s._learn_pattern("abc", "abc") == ("copy", None)
+    assert s._learn_pattern("abc", "ABC") == ("upper", None)
+    assert s._learn_pattern("ABC", "abc") == ("lower", None)
+    assert s._learn_pattern("abcdef", "abc") == ("prefix", 3)
+    assert s._learn_pattern("abcdef", "def") == ("suffix", 3)
+    assert s._learn_pattern("a123b", "123") == ("extract_number", None)
+    assert s._learn_pattern("abc北京xyz", "北京") == ("extract_chinese", None)
+    assert s._learn_pattern("a-b-c", "b") == ("split", ("-", 1))
+    assert s._learn_pattern("x", "pre-x") == ("add_prefix", "pre-")
+    assert s._learn_pattern("x", "x-post") == ("add_suffix", "-post")
+    assert s._apply_pattern(("copy", None), "x") == "x"
+    assert s._apply_pattern(("upper", None), "x") == "X"
+    assert s._apply_pattern(("lower", None), "X") == "x"
+    assert s._apply_pattern(("prefix", 2), "abc") == "ab"
+    assert s._apply_pattern(("suffix", 2), "abc") == "bc"
+    assert s._apply_pattern(("extract_number", None), "a12b3") == "123"
+    assert s._apply_pattern(("extract_chinese", None), "a北京b") == "北京"
+    assert s._apply_pattern(("split", ("-", 1)), "a-b") == "b"
+    assert s._apply_pattern(("add_prefix", "P"), "x") == "Px"
+    assert s._apply_pattern(("add_suffix", "S"), "x") == "xS"
+    assert s._apply_pattern(("unknown", None), "x") is None
+
+
+def test_detect_source_column():
+    s = FakeSheet({"a": ["x-1"], "b": ["1"], "c": [""]})
+    assert s._detect_source_column(0, 1, "1") == 0
+    assert s._detect_source_column(0, 0, "x-1") == 1
