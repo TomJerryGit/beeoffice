@@ -144,7 +144,7 @@ class AIMixin:
         try:
             text = content.replace(
                 "{date}",
-                datetime.now().strftime("%Y年%m月%d日")
+                (lambda _n: f"{_n.year}年{_n.month:02d}月{_n.day:02d}日")(datetime.now())
             )
             self._editor.blockSignals(True)
             self._editor.setPlainText(text)

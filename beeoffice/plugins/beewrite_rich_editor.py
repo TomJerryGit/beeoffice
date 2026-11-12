@@ -1157,7 +1157,7 @@ class RichTextEditor(QTextEdit):
 
     def insert_current_date(self):
         self.textCursor().insertText(
-            datetime.now().strftime('%Y年%m月%d日')
+            (lambda _n: f'{_n.year}年{_n.month:02d}月{_n.day:02d}日')(datetime.now())
         )
 
     # ==================== 插入表格 ====================

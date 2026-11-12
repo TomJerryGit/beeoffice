@@ -88,7 +88,8 @@ def show_template_picker(parent):
             return
         content = tpl.get("content", "")
         # 替换 {date} 占位符
-        content = content.replace("{date}", datetime.now().strftime("%Y年%m月%d日"))
+        _now = datetime.now()
+        content = content.replace("{date}", f"{_now.year}年{_now.month:02d}月{_now.day:02d}日")
         try:
             import markdown
             html = markdown.markdown(
@@ -248,7 +249,8 @@ def _create_from_template(parent, tpl_info):
 
     content = tpl_info.get("content", "")
     # 替换日期占位符
-    content = content.replace("{date}", datetime.now().strftime("%Y年%m月%d日"))
+    _now = datetime.now()
+    content = content.replace("{date}", f"{_now.year}年{_now.month:02d}月{_now.day:02d}日")
 
     editor = BeeWriteEditor()
     if hasattr(editor, "set_content"):
