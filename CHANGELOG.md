@@ -7,9 +7,28 @@
 
 ---
 
-## [5.4.4] - 未发布
+## [5.4.5] - 2026-11-12
 
-> 高对比度内联样式清理第二批。
+> 热修复：拆分合并单元格崩溃。
+
+### 修复
+- `RichTextEditor._split_cell` 调用不存在的 `colSpan()`，改为 `columnSpan()`；
+- 拆分合并单元格不再抛 `AttributeError`；
+- 补充表格插入/合并/拆分/快捷键/右键菜单回归测试。
+
+### 验证
+- 全量测试 **1550 passed**；
+- 核心模块 **12/12 = 100%**；
+- 安全扫描高危 **0** 条；
+- 安装包未签名、无干净机验收、Win11 未验证（与 v5.4.4 相同）。
+
+### 发布
+- v5.4.4: https://github.com/TomJerryGit/beeoffice/releases/tag/v5.4.4
+- v5.4.5: https://github.com/TomJerryGit/beeoffice/releases/tag/v5.4.5
+
+## [5.4.4] - 2026-11-12
+
+> 高对比度内联样式清理第二批；首个从安全修复后源码发布的版本。
 
 ### 高对比度
 - BeeSheet 审计/对话框/公式/UI/数据/委托等模块迁移 16 处内联样式；
@@ -40,7 +59,7 @@
 - 安全加固：旧 `formula_engine._eval_math` 改用 AST 白名单，拒绝属性/下标逃逸；`build_release.py` 移除 `exec`，改正则读取版本号。
 - 新增 `tools/security_scan.py`：只扫裸 exec/eval/pickle/shell=True，排除 tests/dist/build/release-archive；当前高危 0 条。
 - 新增 RichTextEditor 转换/TSV 粘贴/表格/标题列表/快捷键/右键菜单测试。
-- v5.4.4 发布后修复：RichTextEditor._split_cell 调用不存在的 colSpan()，改为 columnSpan()，避免拆分合并单元格时崩溃；该修复需进入 v5.4.5 热修复包。
+- v5.4.4 发布后修复：RichTextEditor._split_cell 调用不存在的 colSpan()，改为 columnSpan()，避免拆分合并单元格时崩溃；该修复已进入 v5.4.5 热修复包。
 - 新增核心覆盖率门槛 `tools/coverage_gate.py`：核心模块 100%，GUI 仅报告；核心模块 **12/12 全部 100%**；GUI 覆盖率继续提升：图片编辑器 98%、模板管理器 94%、链接/图片/公式插入 48%、TabManager 46%→61%；段落 Mixin 7%→83%、链接 Mixin 74%、BeeShow AI 服务 88%；新增 BeeSheet 导入/填充柄、Beewrite 模式/格式测试；模式 Mixin 42%→71%、视图 Mixin 39%→72%、BeeShow 视频 100%、同步 99%、导出 72%、视图 72%；新增插件命令入口测试，BeeSheet 插件 87%、BeeWrite 插件 93%、导出 79%；新增段落/字符格式、过滤/条件格式菜单覆盖。新增闪填模式/来源列测试。新增排序/筛选/自动保存/关闭测试。
 - v5.4.4 候选包已于 2026-11-12 从安全修复后源码重建并发布：
   https://github.com/TomJerryGit/beeoffice/releases/tag/v5.4.4
