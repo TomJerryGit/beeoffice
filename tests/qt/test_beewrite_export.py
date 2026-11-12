@@ -301,3 +301,16 @@ def test_write_md_and_tab_title_errors(writer, monkeypatch):
     writer._update_tab_title("C:/x.md")
     writer._notify_self_save("C:/x.md")
     assert warns
+
+
+def test_header_footer_exception(writer):
+    class BadDoc:
+        class Sec:
+            class Header:
+                @property
+                def paragraphs(self): raise RuntimeError("header")
+            header = Header()
+            footer = Header()
+        sections = [Sec()]
+    writer._header_text = "H"
+    assert writer._apply_header_footer(BadDoc()) is False

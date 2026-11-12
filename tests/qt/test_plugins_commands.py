@@ -308,3 +308,58 @@ def test_beesheet_plugin_macro_branches(parent, monkeypatch):
         def _play_macro(self): raise RuntimeError("x")
     p._current_view = lambda: Bad()
     p.toggle_macro_recording(); p.play_macro()
+
+
+def test_beewrite_plugin_fallback_errors(parent, monkeypatch):
+    import beeoffice.plugins.ai_assist as ai
+    from PySide6.QtWidgets import QMessageBox
+    p = BeeWritePlugin(parent)
+    warns = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: warns.append(a))
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: warns.append(a))
+    class Cur:
+        def hasSelection(self): return True
+        def selectedText(self): return "x"
+        def position(self): return 0
+        def insertText(self, text): pass
+    class Active:
+        def __init__(self): self.cur = Cur()
+        def textCursor(self): return self.cur
+        def toPlainText(self): return "abc"
+        def append(self, text): pass
+    class Ed:
+        def _get_active_editor(self): return Active()
+        def content(self): return "abc"
+    p._current_editor = lambda: Ed()
+    monkeypatch.setattr(ai.AIAssist, "continue_text", staticmethod(lambda ctx: (_ for _ in ()).throw(RuntimeError("x"))))
+    monkeypatch.setattr(ai.AIAssist, "polish_text", staticmethod(lambda text: (_ for _ in ()).throw(RuntimeError("x"))))
+    monkeypatch.setattr(ai.AIAssist, "summarize_text", staticmethod(lambda text: (_ for _ in ()).throw(RuntimeError("x"))))
+    p.ai_continue(); p.ai_polish(); p.ai_summarize()
+    assert len(warns) >= 3
+    p.on_close()
+
+
+def test_beesheet_plugin_error_branches(parent, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    p = BeeSheetPlugin(parent)
+    warns = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: warns.append(a))
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: warns.append(a))
+    monkeypatch.setattr("PySide6.QtWidgets.QFileDialog.getOpenFileName", lambda *a, **k: ("/tmp/a.csv", ""))
+    monkeypatch.setattr("PySide6.QtWidgets.QFileDialog.getSaveFileName", lambda *a, **k: ("", ""))
+    monkeypatch.setattr("PySide6.QtWidgets.QInputDialog.getText", lambda *a, **k: ("", False))
+    p.import_data(); p.export_xlsx(); p.generate_chart(); p.analyze_data(); p.nl_to_formula()
+    class Empty:
+        class model:
+            df = None
+    p._current_view = lambda: Empty()
+    p.import_data(); p.generate_chart(); p.analyze_data()
+    class Bad:
+        def _import_file_from_path(self, path): raise RuntimeError("x")
+        def _export_xlsx(self): raise RuntimeError("x")
+        def generate_chart(self): raise RuntimeError("x")
+        def _analyze_data(self): raise RuntimeError("x")
+        def _nl_to_formula(self): raise RuntimeError("x")
+    p._current_view = lambda: Bad()
+    p.import_data(); p.export_xlsx(); p.generate_chart(); p.analyze_data(); p.nl_to_formula()
+    assert warns
