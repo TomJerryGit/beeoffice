@@ -243,3 +243,61 @@ def test_image_path_exceptions_and_bad_picture(writer, tmp_path):
     from PySide6.QtGui import QTextImageFormat
     fmt = QTextImageFormat(); fmt.setName(str(bad))
     writer._insert_picture_to_para(para, fmt)
+
+
+def test_export_error_paths(writer, tmp_path, monkeypatch):
+    from PySide6.QtWidgets import QFileDialog, QInputDialog, QMessageBox
+    import beeoffice.plugins.bee_export as be
+    warns = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: warns.append(a))
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: QMessageBox.Yes)
+    # PDF 异常
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: (str(tmp_path / "x.pdf"), ""))
+    monkeypatch.setattr(be, "export_to_pdf", lambda content, path: (_ for _ in ()).throw(RuntimeError("pdf")))
+    writer.export_pdf()
+    # DOCX 非富文本异常
+    writer._switch_mode("markdown")
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: (str(tmp_path / "x.docx"), ""))
+    monkeypatch.setattr(be, "export_to_docx", lambda content, path: (_ for _ in ()).throw(RuntimeError("docx")))
+    writer.export_docx()
+    # 富文本导出异常 + 取消
+    writer._switch_mode("rich_text")
+    monkeypatch.setattr(writer, "_rich_to_docx", lambda path: (_ for _ in ()).throw(RuntimeError("rich")))
+    writer.export_rich_docx()
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: ("", ""))
+    writer.export_rich_docx()
+    assert warns
+
+
+def test_save_template_error(writer, monkeypatch):
+    from PySide6.QtWidgets import QInputDialog, QMessageBox
+    import beeoffice.resources.template_manager as tm
+    warns = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: warns.append(a))
+    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("", False))
+    writer.save_as_template()
+    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("n", True))
+    class TM:
+        def save_as_template(self, n, c): return False
+    monkeypatch.setattr(tm, "TemplateManager", TM)
+    writer.save_as_template()
+    class Bad:
+        def __init__(self): raise RuntimeError("bad")
+    monkeypatch.setattr(tm, "TemplateManager", Bad)
+    writer.save_as_template()
+    assert len(warns) == 2
+
+
+def test_write_md_and_tab_title_errors(writer, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    warns = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: warns.append(a))
+    monkeypatch.setattr(writer, "content", lambda: (_ for _ in ()).throw(RuntimeError("content")))
+    assert writer._write_md("C:/x.md") is False
+    class BadParent:
+        def sync_tab_title(self, *a): raise RuntimeError("sync")
+        def notify_self_save(self, *a): raise RuntimeError("notify")
+    monkeypatch.setattr(writer, "_find_main_window", lambda: BadParent())
+    writer._update_tab_title("C:/x.md")
+    writer._notify_self_save("C:/x.md")
+    assert warns
