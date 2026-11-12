@@ -1372,7 +1372,7 @@ class RichTextEditor(QTextEdit):
         cell = t.cellAt(self.textCursor())
         if cell:
             rowspan = cell.rowSpan()
-            colspan = cell.colSpan()
+            colspan = cell.columnSpan()
             if rowspan > 1 or colspan > 1:
                 cur = self.textCursor()
                 cur.beginEditBlock()
