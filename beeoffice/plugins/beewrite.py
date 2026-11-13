@@ -316,6 +316,8 @@ class BeeWriteEditor(
         font_group = self._ribbon.add_group(page, "字体")
         font_group.add_widget(self._font_combo)
         font_group.add_widget(self._size_combo)
+        self._font_combo.show()
+        self._size_combo.show()
         for label, target in (
             ("B", "B"), ("I", "I"), ("U", "U"), ("S", "S"),
             ("文字色", "文字色"), ("高亮", "高亮"), ("底纹", "底纹"),
@@ -327,6 +329,7 @@ class BeeWriteEditor(
 
         para_group = self._ribbon.add_group(page, "段落")
         para_group.add_widget(self._head_combo)
+        self._head_combo.show()
         for label, target in (
             ("左对齐", "左"), ("居中", "中"), ("右对齐", "右"),
             ("段落", "段落"), ("格式刷", "格式刷"), ("AI", "AI"),

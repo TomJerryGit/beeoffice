@@ -270,6 +270,7 @@ class ToolbarMixin:
         page = ribbon.add_tab("开始")
         theme_group = ribbon.add_group(page, "主题")
         theme_group.add_widget(self._theme_combo)
+        self._theme_combo.show()
         for label, target, icon_name in (
             ("背景", "背景", "image"),
             ("版式", "版式", "page"),
@@ -308,6 +309,7 @@ class ToolbarMixin:
 
         play_group = ribbon.add_group(page, "放映")
         play_group.add_widget(self._play_btn)
+        self._play_btn.show()
         for label, slot, icon_name in (
             ("演讲者", self._start_presenter_mode, "play"),
             ("打印", self._print_preview, "print"),

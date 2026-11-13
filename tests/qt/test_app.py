@@ -225,3 +225,17 @@ def test_wps_quick_access_bar(app):
     texts = [a.text() for a in bar.actions()]
     assert "新建" in texts and "打开" in texts and "保存" in texts
     assert "文件" in [b.text() for b in bar.findChildren(QToolButton)]
+
+
+def test_main_chrome_hides_on_document_tab(app, qtbot):
+    """文档标签页应隐藏主菜单/主快捷栏，回到开始页恢复。"""
+    assert app.menuBar().isHidden() is False
+    assert app.quick_toolbar.isHidden() is False
+    app._new_beewrite()
+    qtbot.wait(30)
+    assert app.menuBar().isHidden() is True
+    assert app.quick_toolbar.isHidden() is True
+    app.tab_manager.setCurrentIndex(0)
+    qtbot.wait(30)
+    assert app.menuBar().isHidden() is False
+    assert app.quick_toolbar.isHidden() is False

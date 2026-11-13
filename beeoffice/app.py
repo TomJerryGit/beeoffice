@@ -55,7 +55,7 @@ from datetime import datetime
 from PySide6.QtWidgets import (
     QMainWindow, QStatusBar, QLabel, QMessageBox, QFileDialog,
     QDialog, QVBoxLayout, QTextEdit, QWidget, QToolBar, QToolButton, QMenu, QApplication,
-    QListWidget, QListWidgetItem, QDialogButtonBox, QAbstractItemView,
+    QListWidget, QListWidgetItem, QDialogButtonBox, QAbstractItemView, QPlainTextEdit,
 )
 from PySide6.QtGui import QAction, QKeySequence, QShortcut
 from PySide6.QtCore import Qt, QTimer, Signal, QFileSystemWatcher, QSize, QSettings
@@ -109,6 +109,8 @@ class BeeApp(QMainWindow):
         from beeoffice.menus import setup_menus
         setup_menus(self)
         self._build_quick_access_bar()
+        self.tab_manager.currentChanged.connect(self._update_main_chrome)
+        QTimer.singleShot(0, self._update_main_chrome)
 
         self.status = QStatusBar()
         self.status_label = QLabel(tr("app.ready"))
@@ -1198,6 +1200,21 @@ class BeeApp(QMainWindow):
             return
         QApplication.clipboard().setText(str(path))
         self.set_global_status(f"已复制文件路径：{path}", 3000)
+
+    def _update_main_chrome(self, *_):
+        """文档标签页使用自身 Ribbon 时隐藏主菜单和主快捷栏，扩大编辑区。"""
+        try:
+            current = self.tab_manager.currentWidget()
+        except Exception:
+            current = None
+        is_welcome = isinstance(current, QPlainTextEdit)
+        show = is_welcome or self.tab_manager.count() == 0
+        try:
+            self.menuBar().setVisible(show)
+        except Exception:
+            pass
+        if hasattr(self, "quick_toolbar"):
+            self.quick_toolbar.setVisible(show)
 
     def _apply_theme(self):
         self.setStyleSheet(Theme.get_stylesheet())
