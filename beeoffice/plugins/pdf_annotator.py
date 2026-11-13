@@ -32,9 +32,9 @@ from beeoffice.pdf_backend import get_backend
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
                                 QListWidget, QListWidgetItem, QTextEdit, QFileDialog,
                                 QMessageBox, QSplitter, QDialog, QDialogButtonBox,
-                                QGraphicsView, QGraphicsScene, QColorDialog)
+                                QGraphicsView, QGraphicsScene, QColorDialog, QInputDialog)
 from PySide6.QtCore import Qt, QRectF, Signal, QPointF
-from PySide6.QtGui import (QPixmap, QPainter, QColor, QPen, QFont)
+from PySide6.QtGui import (QPixmap, QPainter, QColor, QPen, QFont, QPolygonF)
 
 from beeoffice.utils import atomic_write_json
 
@@ -155,6 +155,22 @@ class PDFPageView(QGraphicsView):
             elif a.type=="underline": self._scene.addLine(r.x0,r.y1,r.x1,r.y1,QPen(c,2))
             elif a.type=="strikethrough": self._scene.addLine(r.x0,(r.y0+r.y1)/2,r.x1,(r.y0+r.y1)/2,QPen(c,2))
             elif a.type=="text": self._scene.addText("💬",QFont("Segoe UI Emoji",12)).setPos(r.x0-8,r.y0-12)
+            elif a.type=="textbox":
+                self._scene.addRect(r.x0,r.y0,r.width,r.height,QPen(c,1),QColor(255,255,255,30))
+                item=self._scene.addText(a.text or "文本",QFont("Microsoft YaHei",10))
+                item.setDefaultTextColor(c); item.setPos(r.x0+3,r.y0+2)
+            elif a.type=="signature":
+                item=self._scene.addText(a.text or "签名",QFont("KaiTi",16,QFont.StyleItalic))
+                item.setDefaultTextColor(c); item.setPos(r.x0,r.y0)
+            elif a.type=="arrow":
+                self._scene.addLine(r.x0,r.y0,r.x1,r.y1,QPen(c,2))
+                dx,dy=r.x1-r.x0,r.y1-r.y0
+                ln=(dx*dx+dy*dy)**0.5 or 1
+                ux,uy=dx/ln,dy/ln
+                size=8
+                p1=QPointF(r.x1-size*ux+size*0.5*uy, r.y1-size*uy-size*0.5*ux)
+                p2=QPointF(r.x1-size*ux-size*0.5*uy, r.y1-size*uy+size*0.5*ux)
+                self._scene.addPolygon(QPolygonF([QPointF(r.x1,r.y1),p1,p2]),QPen(c),c)
     def wheelEvent(self, event):
         f=1.15 if event.angleDelta().y()>0 else 1/1.15
         # 优化规划 §1.8：原实现没有上下限，长按滚轮可放大到 1.15^n
@@ -213,6 +229,9 @@ class PDFAnnotator(QWidget):
             ("下划线", "underline", "underline"),
             ("删除线", "strikethrough", "strike"),
             ("批注", "text", "comment"),
+            ("文本框", "textbox", "textbox"),
+            ("箭头", "arrow", "arrow"),
+            ("签名", "signature", "signature"),
         ):
             def _select(checked=False, tt=tool):
                 self._set_tool(tt)
@@ -317,13 +336,20 @@ class PDFAnnotator(QWidget):
         if self._doc and self._current_page < self._page_count - 1:
             self._current_page += 1; self._update_view()
     def _on_annotation_added(self, anno):
-        if anno.type=="text":
+        if anno.type in ("text", "textbox"):
             dlg=QDialog(self); dlg.setWindowTitle("添加文字批注"); ed=QTextEdit()
             btns=QDialogButtonBox(QDialogButtonBox.Ok|QDialogButtonBox.Cancel)
             btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject)
             l=QVBoxLayout(dlg); l.addWidget(ed); l.addWidget(btns)
-            if dlg.exec()==QDialog.Accepted: anno.text=ed.toPlainText()
-            else: return
+            if dlg.exec()==QDialog.Accepted:
+                anno.text=ed.toPlainText()
+            else:
+                return
+        elif anno.type=="signature":
+            text, ok = QInputDialog.getText(self, "签名", "输入签名文字")
+            if not ok or not text:
+                return
+            anno.text=text
         self._annotations.append(anno); self._dirty_annotations=True; self._update_view()
 
     def _undo_annotation(self):

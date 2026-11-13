@@ -587,6 +587,30 @@ class PypdfBackend(PdfBackend):
                         elif kind == "text":
                             c.setFont(self._cjk_font(), 9)
                             c.drawString(x0, hh - y0, data.get("text", ""))
+                        elif kind == "textbox":
+                            c.setLineWidth(1)
+                            c.rect(x0, hh - y1, max(0, x1 - x0),
+                                   max(0, y1 - y0), fill=0, stroke=1)
+                            c.setFont(self._cjk_font(), 9)
+                            c.drawString(x0 + 2, hh - y0 - 11,
+                                         data.get("text", ""))
+                        elif kind == "signature":
+                            c.setFont(self._cjk_font(), 14)
+                            c.drawString(x0, hh - y0, data.get("text", ""))
+                        elif kind == "arrow":
+                            import math
+                            c.setLineWidth(2)
+                            c.line(x0, hh - y0, x1, hh - y1)
+                            dx, dy = x1 - x0, (hh - y1) - (hh - y0)
+                            ln = math.hypot(dx, dy) or 1
+                            ux, uy = dx / ln, dy / ln
+                            size = 8
+                            c.line(x1, hh - y1,
+                                   x1 - size * ux + size * 0.5 * uy,
+                                   (hh - y1) - size * uy - size * 0.5 * ux)
+                            c.line(x1, hh - y1,
+                                   x1 - size * ux - size * 0.5 * uy,
+                                   (hh - y1) - size * uy + size * 0.5 * ux)
 
                 page.merge_page(self._overlay_pdf(page, draw))
             writer.add_page(page)

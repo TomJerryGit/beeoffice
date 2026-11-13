@@ -56,6 +56,9 @@ _ICONS = {
     "burn": '<path d="M12 22c4 0 7-3 7-7 0-5-7-13-7-13S5 10 5 15c0 4 3 7 7 7z"/><path d="M12 18c1.5 0 3-1.2 3-3 0-2-3-5-3-5s-3 3-3 5c0 1.8 1.5 3 3 3z"/>',
     "prev": '<path d="M15 5l-7 7 7 7"/>',
     "next": '<path d="M9 5l7 7-7 7"/>',
+    "arrow": '<path d="M4 20L20 4"/><path d="M12 4h8v8"/>',
+    "textbox": '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6M7 17h4"/>',
+    "signature": '<path d="M3 17c4 0 5-10 8-10s3 7 5 7 2-4 4-4"/><path d="M5 21h14"/>',
 }
 
 
