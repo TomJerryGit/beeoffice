@@ -1,6 +1,7 @@
 # BeeOffice v5.4.6
 
 发布日期：2026-11-13  
+Release：https://github.com/TomJerryGit/beeoffice/releases/tag/v5.4.6  
 发布状态：**Beta / Unsigned**（未签名；未做干净机验收；Win11 未验证）
 
 ## 本版本内容

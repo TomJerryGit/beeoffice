@@ -1,6 +1,7 @@
 # BeeOffice v5.4.6 Beta 本地/CI 验收记录
 
 日期：2026-11-13  
+Release：https://github.com/TomJerryGit/beeoffice/releases/tag/v5.4.6  
 状态：**Beta / Unsigned**
 
 ## 验证范围

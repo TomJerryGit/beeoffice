@@ -31,6 +31,7 @@
 
 ### 发布口径
 - **Beta / Unsigned**：未签名、无干净机验收、Win11 未验证。
+- GitHub Release: https://github.com/TomJerryGit/beeoffice/releases/tag/v5.4.6
 
 ## [5.4.5] - 2026-11-12
 
