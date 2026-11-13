@@ -266,10 +266,66 @@ class ToolbarMixin:
                 label, target, _clone_click(target), icon_name=icon_name
             )
 
-        # 开始：原有编辑/导出工具
+        # 开始：按 WPS 拆成 主题/编辑/导出/放映/工具
         page = ribbon.add_tab("开始")
-        group = ribbon.add_group(page, "🎥 编辑与导出")
-        group.add_widget(toolbar)
+        theme_group = ribbon.add_group(page, "主题")
+        theme_group.add_widget(self._theme_combo)
+        for label, target, icon_name in (
+            ("背景", "背景", "image"),
+            ("版式", "版式", "page"),
+        ):
+            theme_group.add_small_button(
+                label, target, _clone_click(target), icon_name=icon_name
+            )
+
+        edit_group = ribbon.add_group(page, "编辑")
+        for label, target, icon_name in (
+            ("表格", "表格", "table"),
+            ("图标", "图标", "insert"),
+            ("配图", "配图", "image"),
+            ("备注", "备注", "comment"),
+        ):
+            edit_group.add_small_button(
+                label, target, _clone_click(target), icon_name=icon_name
+            )
+
+        export_group = ribbon.add_group(page, "导出")
+        for label, target, icon_name in (
+            ("保存", "保存", "save"),
+            ("PPTX", "PPTX", "export"),
+            ("PDF", "PDF", "export"),
+            ("HTML", "HTML", "export"),
+            ("图片", "图片", "image"),
+            ("GIF", "GIF", "export"),
+            ("录制", "录制", "play"),
+            ("导入MD", "导入MD", "import"),
+            ("模板", "模板", "insert"),
+        ):
+            handler = self.save if target == "保存" else _clone_click(target)
+            export_group.add_small_button(
+                label, target, handler, icon_name=icon_name
+            )
+
+        play_group = ribbon.add_group(page, "放映")
+        play_group.add_widget(self._play_btn)
+        for label, slot, icon_name in (
+            ("演讲者", self._start_presenter_mode, "play"),
+            ("打印", self._print_preview, "print"),
+            ("排练", self.toggle_rehearsal, "track"),
+        ):
+            play_group.add_small_button(label, label, slot, icon_name=icon_name)
+
+        tool_group = ribbon.add_group(page, "工具")
+        for label, target, icon_name in (
+            ("AI大纲", "AI大纲", "insert"),
+            ("讲稿", "讲稿", "comment"),
+            ("历史", "历史", "track"),
+            ("评论", "评论", "comment"),
+            ("同步", "同步", "link"),
+        ):
+            tool_group.add_small_button(
+                label, target, _clone_click(target), icon_name=icon_name
+            )
 
         # 插入：背景/版式/表格/图片
         page = ribbon.add_tab("插入")

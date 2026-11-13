@@ -162,6 +162,12 @@ class PDFPageView(QGraphicsView):
             elif a.type=="signature":
                 item=self._scene.addText(a.text or "签名",QFont("KaiTi",16,QFont.StyleItalic))
                 item.setDefaultTextColor(c); item.setPos(r.x0,r.y0)
+            elif a.type=="rectangle":
+                self._scene.addRect(r.x0,r.y0,r.width,r.height,QPen(c,2),QColor(0,0,0,0))
+            elif a.type=="circle":
+                self._scene.addEllipse(r.x0,r.y0,r.width,r.height,QPen(c,2),QColor(0,0,0,0))
+            elif a.type=="line":
+                self._scene.addLine(r.x0,r.y0,r.x1,r.y1,QPen(c,2))
             elif a.type=="arrow":
                 self._scene.addLine(r.x0,r.y0,r.x1,r.y1,QPen(c,2))
                 dx,dy=r.x1-r.x0,r.y1-r.y0
@@ -232,6 +238,9 @@ class PDFAnnotator(QWidget):
             ("文本框", "textbox", "textbox"),
             ("箭头", "arrow", "arrow"),
             ("签名", "signature", "signature"),
+            ("矩形", "rectangle", "rectangle"),
+            ("圆形", "circle", "circle"),
+            ("直线", "line", "line"),
         ):
             def _select(checked=False, tt=tool):
                 self._set_tool(tt)

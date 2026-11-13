@@ -80,9 +80,10 @@ def test_compact_on_narrow_window(qtbot):
     groups = sheet._ribbon.findChildren(RibbonGroup)
     assert groups
     assert all(not g.title.isHidden() for g in groups)
-    sheet.resize(820, 500)
+    sheet.resize(1000, 500)
     qtbot.wait(20)
     assert all(g.title.isHidden() for g in groups)
+    assert sheet.width() < 1100
     assert sheet._ribbon.height() == 96
     from PySide6.QtCore import Qt
     assert all(

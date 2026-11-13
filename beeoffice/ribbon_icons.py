@@ -59,6 +59,13 @@ _ICONS = {
     "arrow": '<path d="M4 20L20 4"/><path d="M12 4h8v8"/>',
     "textbox": '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6M7 17h4"/>',
     "signature": '<path d="M3 17c4 0 5-10 8-10s3 7 5 7 2-4 4-4"/><path d="M5 21h14"/>',
+    "rectangle": '<rect x="4" y="6" width="16" height="12" rx="1"/>',
+    "circle": '<circle cx="12" cy="12" r="8"/>',
+    "line": '<path d="M4 20L20 4"/>',
+    "border-top": '<rect x="4" y="5" width="16" height="14" rx="1"/><path d="M4 5h16" stroke-width="3"/>',
+    "border-bottom": '<rect x="4" y="5" width="16" height="14" rx="1"/><path d="M4 19h16" stroke-width="3"/>',
+    "border-left": '<rect x="4" y="5" width="16" height="14" rx="1"/><path d="M4 5v14" stroke-width="3"/>',
+    "border-right": '<rect x="4" y="5" width="16" height="14" rx="1"/><path d="M20 5v14" stroke-width="3"/>',
 }
 
 

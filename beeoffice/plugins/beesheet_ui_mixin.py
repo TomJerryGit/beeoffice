@@ -357,6 +357,8 @@ class UIMixin:
             "插入列": "insert-col", "删除列": "delete-col",
             "合并单元格": "merge", "冻结当前": "freeze",
             "边框/底纹": "style", "单元格样式": "style",
+            "上边框": "border-top", "下边框": "border-bottom",
+            "左边框": "border-left", "右边框": "border-right",
         }
         self._ribbon_buttons = []
 
@@ -480,6 +482,13 @@ class UIMixin:
         cell_group = add_group(page_table, "单元格")
         add_btn(cell_group, "合并单元格", self._merge_cells)
         add_btn(cell_group, "冻结当前", self._freeze_cell)
+        for side, label in (("top", "上边框"), ("bottom", "下边框"),
+                            ("left", "左边框"), ("right", "右边框")):
+            add_btn(
+                cell_group, label,
+                lambda checked=False, s=side:
+                    self._apply_cell_border(QColor("#333333"), 1, (s,)),
+            )
         add_btn(cell_group, "边框/底纹", self._show_border_fill_gallery)
         add_btn(cell_group, "单元格样式", self._show_style_menu)
         self._table_tab_index = self._ribbon_tabs.count() - 1
@@ -570,7 +579,7 @@ class UIMixin:
         super().resizeEvent(event)
         if not hasattr(self, "_ribbon"):
             return
-        compact = self.width() < 980
+        compact = self.width() < 1100
         for group in self._ribbon.findChildren(RibbonGroup):
             group.title.setVisible(not compact)
         for btn in getattr(self, "_ribbon_buttons", []):

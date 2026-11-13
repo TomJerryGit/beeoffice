@@ -310,10 +310,31 @@ class BeeWriteEditor(
 
         # 开始：模式切换（Markdown/所见即所得）+ 字体/段落
         page = self._ribbon.add_tab("开始")
-        group = self._ribbon.add_group(page, "📝 模式")
+        group = self._ribbon.add_group(page, "模式")
         group.add_layout(self._mode_toolbar)
-        group = self._ribbon.add_group(page, "🖋 字体与段落")
-        group.add_widget(self._toolbar1)
+
+        font_group = self._ribbon.add_group(page, "字体")
+        font_group.add_widget(self._font_combo)
+        font_group.add_widget(self._size_combo)
+        for label, target in (
+            ("B", "B"), ("I", "I"), ("U", "U"), ("S", "S"),
+            ("文字色", "文字色"), ("高亮", "高亮"), ("底纹", "底纹"),
+        ):
+            font_group.add_small_button(
+                label, target, _clone_click(self._toolbar1, target),
+                icon_name="formula" if target in ("B", "I", "U", "S") else "home",
+            )
+
+        para_group = self._ribbon.add_group(page, "段落")
+        para_group.add_widget(self._head_combo)
+        for label, target in (
+            ("左对齐", "左"), ("居中", "中"), ("右对齐", "右"),
+            ("段落", "段落"), ("格式刷", "格式刷"), ("AI", "AI"),
+        ):
+            para_group.add_small_button(
+                label, target, _clone_click(self._toolbar1, target),
+                icon_name="page",
+            )
 
         # 插入：按 WPS 分组细化（表格/对象、列表、页面、引用审阅）
         page = self._ribbon.add_tab("插入")

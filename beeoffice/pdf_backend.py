@@ -597,6 +597,17 @@ class PypdfBackend(PdfBackend):
                         elif kind == "signature":
                             c.setFont(self._cjk_font(), 14)
                             c.drawString(x0, hh - y0, data.get("text", ""))
+                        elif kind == "rectangle":
+                            c.setLineWidth(2)
+                            c.rect(x0, hh - y1, max(0, x1 - x0),
+                                   max(0, y1 - y0), fill=0, stroke=1)
+                        elif kind == "circle":
+                            c.setLineWidth(2)
+                            c.ellipse(x0, hh - y1, x1, hh - y0,
+                                      fill=0, stroke=1)
+                        elif kind == "line":
+                            c.setLineWidth(2)
+                            c.line(x0, hh - y0, x1, hh - y1)
                         elif kind == "arrow":
                             import math
                             c.setLineWidth(2)
