@@ -44,6 +44,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableView, QHeaderView,
     QLineEdit, QLabel, QPushButton, QComboBox, QSpinBox,
     QListWidget, QAbstractItemView, QProgressBar, QAbstractButton,
+    QGroupBox, QTabBar, QStackedWidget,
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont, QShortcut, QKeySequence
@@ -243,137 +244,111 @@ class UIMixin:
         self.status_label.mouseDoubleClickEvent = \
             lambda e: self._show_selection_stats()
 
-        self._stat_btn = QPushButton(tr("auto.beesheet_ui_mixin.61d3c49a", "📊 统计"))
-        self._stat_btn.setToolTip(tr("auto.beesheet_ui_mixin.a40a3c63", "选中多个单元格时显示详细统计"))
-        self._stat_btn.setStyleSheet(
-            "QPushButton{background:#E3F2FD;border:1px solid #2196F3;"
-            "color:#0D47A1;padding:3px 10px;border-radius:3px;font-size:12px;}"
-            "QPushButton:hover{background:#BBDEFB;}"
-        )
-        self._stat_btn.clicked.connect(self._show_selection_stats)
-        t1.addWidget(self._stat_btn)
+        self._ribbon_toggle_btn = QPushButton(tr("auto.beesheet_ui_mixin.f1", "▲ 隐藏功能区"))
+        self._ribbon_toggle_btn.setStyleSheet("QPushButton{font-size:10px;padding:2px 6px;}")
+        self._ribbon_toggle_btn.clicked.connect(lambda: self._toggle_toolbars(self._ribbon_toggle_btn))
+        t1.addWidget(self._ribbon_toggle_btn)
 
         tc.addLayout(t1)
 
-        # ===== 第 2 行：排序 / 筛选 / 图表 / 透视表 / 求和 / 插入函数 =====
-        self._t2 = QHBoxLayout()
-        self._t2.setContentsMargins(4, 2, 4, 2)
-        for text, slot in [
-            ("🔤 排序", self._show_sort_dialog),
-            ("🔍 筛选", self._show_filter_dialog),
-            ("📊 图表", self._create_chart),
-            ("📊 透视表", self._show_pivot_table),
-        ]:
-            btn = QPushButton(text)
-            btn.setStyleSheet(btn_style)
-            btn.clicked.connect(slot)
-            self._t2.addWidget(btn)
+        # ===== 分类功能区（WPS 风格：开始 / 插入 / 数据 / 公式 / 视图） =====
+        self._ribbon = QWidget()
+        ribbon_layout = QVBoxLayout(self._ribbon)
+        ribbon_layout.setContentsMargins(0, 0, 0, 0)
+        ribbon_layout.setSpacing(0)
 
-        btn_sum = QPushButton(tr("auto.beesheet_ui_mixin.36be99cc", "Σ 自动求和"))
-        btn_sum.setToolTip(tr("auto.beesheet_ui_mixin.18a580d6", "自动求和（Alt+=）：选中数据后点击，在下方填入 SUM"))
-        btn_sum.setStyleSheet(btn_style)
-        btn_sum.clicked.connect(self._auto_sum)
-        self._t2.addWidget(btn_sum)
+        self._ribbon_tabs = QTabBar()
+        self._ribbon_tabs.setFixedHeight(32)
+        self._ribbon_tabs.setExpanding(False)
+        self._ribbon_tabs.setDrawBase(False)
+        self._ribbon_tabs.setStyleSheet(
+            "QTabBar::tab{padding:6px 18px;margin-right:2px;"
+            "background:transparent;border:none;border-bottom:2px solid transparent;}"
+            "QTabBar::tab:selected{border-bottom:2px solid #F59E0B;font-weight:bold;}"
+            "QTabBar::tab:hover{background:#FEF3C7;}"
+        )
+        ribbon_layout.addWidget(self._ribbon_tabs)
 
-        btn_fx = QPushButton(tr("auto.beesheet_ui_mixin.5a598b04", "ƒx 插入函数"))
-        btn_fx.setToolTip(tr("auto.beesheet_ui_mixin.a05dde64", "从函数列表中选择并插入"))
-        btn_fx.setStyleSheet(btn_style)
-        btn_fx.clicked.connect(self._show_function_picker)
-        self._t2.addWidget(btn_fx)
+        self._ribbon_stack = QStackedWidget()
+        self._ribbon_stack.setFixedHeight(84)
+        ribbon_layout.addWidget(self._ribbon_stack)
+        ribbon_pages = []
 
-        self._t2.addStretch()
-        tc.addLayout(self._t2)
+        def add_page(title):
+            page = QWidget()
+            page_layout = QHBoxLayout(page)
+            page_layout.setContentsMargins(4, 2, 4, 2)
+            page_layout.setSpacing(8)
+            page_layout.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+            self._ribbon_tabs.addTab(title)
+            self._ribbon_stack.addWidget(page)
+            ribbon_pages.append(page_layout)
+            return page_layout
 
-        # ===== 第 3 行：清洗 / 函数 / 查找替换 / 自然语言 / 验证 / 名称 / 审计 =====
-        self._t3 = QHBoxLayout()
-        self._t3.setContentsMargins(4, 2, 4, 2)
-        for text, slot in [
-            ("🔧 清洗", self._show_clean_menu),
-            ("📚 函数", self._show_function_reference),
-            ("🔍 查找替换", self._show_find_replace),
-            ("💬 自然语言", self._nl_to_formula),
-            ("📋 数据验证", self._show_data_validation_dialog),
-            ("🏷️ 名称管理", self._show_name_manager),
-            ("🔍 追踪引用", self._trace_precedents),
-            ("🔍 追踪从属", self._trace_dependents),
-            ("✨ 智能填充", self._flash_fill),
-        ]:
-            btn = QPushButton(text)
-            btn.setStyleSheet(btn_style)
-            btn.clicked.connect(slot)
-            self._t3.addWidget(btn)
-        self._t3.addStretch()
-        tc.addLayout(self._t3)
+        def add_group(page_layout, title):
+            group = QGroupBox(title)
+            group_layout = QHBoxLayout(group)
+            group_layout.setContentsMargins(6, 4, 6, 4)
+            group_layout.setSpacing(4)
+            group_layout.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            group.setMaximumHeight(72)
+            page_layout.addWidget(group)
+            return group_layout
 
-        # ===== 第 4 行：冻结 / 解冻 / 样式 / 兼容性 + 折叠按钮 =====
-        self._t4 = QHBoxLayout()
-        self._t4.setContentsMargins(4, 2, 4, 2)
-        for text, slot in [
-            ("📌 冻结", self._show_freeze_menu),
-            ("📌 解冻", self._unfreeze_all),
-            ("🎨 样式", self._show_style_menu),
-            ("✓ 兼容性", self._check_excel_compatibility),
-        ]:
-            btn = QPushButton(text)
-            btn.setStyleSheet(btn_style)
-            btn.clicked.connect(slot)
-            self._t4.addWidget(btn)
-        btn_toggle = QPushButton(tr("auto.beesheet_ui_mixin.b3c69577", "▲ 隐藏"))
-        btn_toggle.setStyleSheet("QPushButton{font-size:10px;padding:2px 6px;}")
-        btn_toggle.clicked.connect(lambda: self._toggle_toolbars(btn_toggle))
-        self._t4.addStretch()
-        self._t4.addWidget(btn_toggle)
-        tc.addLayout(self._t4)
-
-        # ===== 第 5 行：单元格格式（加粗/斜体/下划线/对齐/数字格式） =====
-        self._t5 = QHBoxLayout()
-        self._t5.setContentsMargins(4, 2, 4, 2)
         fmt_btn_style = (
             "QPushButton{background:#FFF;border:1px solid #CCC;"
             "padding:3px 8px;border-radius:3px;font-weight:bold;min-width:28px;}"
             "QPushButton:hover{background:#FFE0A0;}"
             "QPushButton:checked{background:#FFB300;color:#000;}"
         )
+
+        def add_btn(group_layout, text, slot, tip=None):
+            btn = QPushButton(text)
+            btn.setStyleSheet(btn_style)
+            if tip:
+                btn.setToolTip(tip)
+            btn.clicked.connect(slot)
+            group_layout.addWidget(btn)
+            return btn
+
+        # ---------- 开始 ----------
+        page_start = add_page("开始")
+        clip_group = add_group(page_start, "剪贴板")
+        add_btn(clip_group, tr("auto.beesheet_ui_mixin.a1", "📋 粘贴"), self._smart_paste, "Ctrl+V")
+        add_btn(clip_group, tr("auto.beesheet_ui_mixin.a2", "🔍 查找替换"), self._show_find_replace, "Ctrl+F")
+        add_btn(clip_group, tr("auto.beesheet_ui_mixin.a3", "Σ 自动求和"), self._auto_sum, "Alt+=")
+
+        font_group = add_group(page_start, "字体")
         self._fmt_bold_btn = QPushButton("B")
         self._fmt_bold_btn.setCheckable(True)
         self._fmt_bold_btn.setToolTip(tr("auto.beesheet_ui_mixin.6faea341", "加粗（Ctrl+B）"))
         self._fmt_bold_btn.setStyleSheet(fmt_btn_style)
         self._fmt_bold_btn.clicked.connect(self._toggle_cell_bold)
-        self._t5.addWidget(self._fmt_bold_btn)
+        font_group.addWidget(self._fmt_bold_btn)
 
         self._fmt_italic_btn = QPushButton("I")
         self._fmt_italic_btn.setCheckable(True)
         self._fmt_italic_btn.setToolTip(tr("auto.beesheet_ui_mixin.e834506e", "斜体（Ctrl+I）"))
-        self._fmt_italic_btn.setStyleSheet(
-            fmt_btn_style + "QPushButton{font-style:italic;}"
-        )
+        self._fmt_italic_btn.setStyleSheet(fmt_btn_style + "QPushButton{font-style:italic;}")
         self._fmt_italic_btn.clicked.connect(self._toggle_cell_italic)
-        self._t5.addWidget(self._fmt_italic_btn)
+        font_group.addWidget(self._fmt_italic_btn)
 
         self._fmt_underline_btn = QPushButton("U")
         self._fmt_underline_btn.setCheckable(True)
         self._fmt_underline_btn.setToolTip(tr("auto.beesheet_ui_mixin.9bc18ae5", "下划线"))
-        self._fmt_underline_btn.setStyleSheet(
-            fmt_btn_style + "QPushButton{text-decoration:underline;}"
-        )
+        self._fmt_underline_btn.setStyleSheet(fmt_btn_style + "QPushButton{text-decoration:underline;}")
         self._fmt_underline_btn.clicked.connect(self._toggle_cell_underline)
-        self._t5.addWidget(self._fmt_underline_btn)
+        font_group.addWidget(self._fmt_underline_btn)
 
-        self._t5.addWidget(QLabel(" | "))
-
+        align_group = add_group(page_start, "对齐")
         for label, slot, tip in [
-            ("⫷", self._align_cell_left, "左对齐"),
-            ("⫸", self._align_cell_center, "居中"),
-            ("⫹", self._align_cell_right, "右对齐"),
+            ("左对齐", self._align_cell_left, "左对齐"),
+            ("居中", self._align_cell_center, "居中"),
+            ("右对齐", self._align_cell_right, "右对齐"),
         ]:
-            btn = QPushButton(label)
-            btn.setToolTip(tip)
-            btn.setStyleSheet(fmt_btn_style)
-            btn.clicked.connect(slot)
-            self._t5.addWidget(btn)
+            add_btn(align_group, label, slot, tip)
 
-        self._t5.addWidget(QLabel(" | "))
-
+        num_group = add_group(page_start, "数字格式")
         self._num_format_combo = QComboBox()
         self._num_format_combo.addItems(
             ["常规", "数值", "货币", "百分比", "千分位", "日期", "文本"]
@@ -382,19 +357,58 @@ class UIMixin:
             "QComboBox{border:1px solid #CCC;padding:2px 6px;border-radius:3px;}"
         )
         self._num_format_combo.currentTextChanged.connect(self._apply_num_format)
-        self._t5.addWidget(QLabel(tr("auto.beesheet_ui_mixin.f30b9d5a", "格式:")))
-        self._t5.addWidget(self._num_format_combo)
-
+        num_group.addWidget(self._num_format_combo)
         self._decimal_spin = QSpinBox()
         self._decimal_spin.setRange(0, 6)
         self._decimal_spin.setValue(2)
         self._decimal_spin.setMaximumWidth(60)
         self._decimal_spin.setToolTip(tr("auto.beesheet_ui_mixin.ff827033", "小数位数"))
-        self._t5.addWidget(QLabel(tr("auto.beesheet_ui_mixin.4562e62f", "小数:")))
-        self._t5.addWidget(self._decimal_spin)
+        num_group.addWidget(QLabel(tr("auto.beesheet_ui_mixin.4562e62f", "小数")))
+        num_group.addWidget(self._decimal_spin)
 
-        self._t5.addStretch()
-        tc.addLayout(self._t5)
+        # ---------- 插入 ----------
+        page_insert = add_page("插入")
+        obj_group = add_group(page_insert, "对象")
+        add_btn(obj_group, tr("auto.beesheet_ui_mixin.b1", "📊 图表"), self._create_chart)
+        add_btn(obj_group, tr("auto.beesheet_ui_mixin.b2", "📊 透视表"), self._show_pivot_table)
+        add_btn(obj_group, tr("auto.beesheet_ui_mixin.b3", "💬 批注"), self._add_comment)
+        tool_group = add_group(page_insert, "数据工具")
+        add_btn(tool_group, tr("auto.beesheet_ui_mixin.b4", "✨ 智能填充"), self._flash_fill)
+
+        # ---------- 数据 ----------
+        page_data = add_page("数据")
+        sort_group = add_group(page_data, "排序和筛选")
+        add_btn(sort_group, tr("auto.beesheet_ui_mixin.c1", "🔤 排序"), self._show_sort_dialog)
+        add_btn(sort_group, tr("auto.beesheet_ui_mixin.c2", "🔍 筛选"), self._show_filter_dialog)
+        clean_group = add_group(page_data, "数据工具")
+        add_btn(clean_group, tr("auto.beesheet_ui_mixin.c3", "🔧 清洗"), self._show_clean_menu)
+        add_btn(clean_group, tr("auto.beesheet_ui_mixin.c4", "📋 数据验证"), self._show_data_validation_dialog)
+
+        # ---------- 公式 ----------
+        page_formula = add_page("公式")
+        fn_group = add_group(page_formula, "函数")
+        add_btn(fn_group, tr("auto.beesheet_ui_mixin.d1", "ƒx 插入函数"), self._show_function_picker)
+        add_btn(fn_group, tr("auto.beesheet_ui_mixin.d2", "📚 函数参考"), self._show_function_reference)
+        name_group = add_group(page_formula, "名称与审计")
+        add_btn(name_group, tr("auto.beesheet_ui_mixin.d3", "🏷️ 名称管理"), self._show_name_manager)
+        add_btn(name_group, tr("auto.beesheet_ui_mixin.d4", "🔍 追踪引用"), self._trace_precedents)
+        add_btn(name_group, tr("auto.beesheet_ui_mixin.d5", "🔍 追踪从属"), self._trace_dependents)
+        add_btn(name_group, tr("auto.beesheet_ui_mixin.d6", "💬 自然语言"), self._nl_to_formula)
+
+        # ---------- 视图 ----------
+        page_view = add_page("视图")
+        freeze_group = add_group(page_view, "冻结窗格")
+        add_btn(freeze_group, tr("auto.beesheet_ui_mixin.e1", "📌 冻结"), self._show_freeze_menu)
+        add_btn(freeze_group, tr("auto.beesheet_ui_mixin.e2", "📌 解冻"), self._unfreeze_all)
+        view_group = add_group(page_view, "显示")
+        add_btn(view_group, tr("auto.beesheet_ui_mixin.e3", "🎨 样式"), self._show_style_menu)
+        add_btn(view_group, tr("auto.beesheet_ui_mixin.e4", "✓ 兼容性"), self._check_excel_compatibility)
+        self._stat_btn = add_btn(view_group, tr("auto.beesheet_ui_mixin.e5", "📊 统计"), self._show_selection_stats)
+
+        for page_layout in ribbon_pages:
+            page_layout.addStretch(1)
+        self._ribbon_tabs.currentChanged.connect(self._ribbon_stack.setCurrentIndex)
+        tc.addWidget(self._ribbon)
 
         # 暂存到 self，供主类的 layout 组装
         self._toolbar_container = tc

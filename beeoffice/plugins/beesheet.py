@@ -214,15 +214,15 @@ class BeeSheetView(
         )
         self.model.setData(idx, val)
 
-    def _toggle_toolbars(self, btn):
-        """折叠 / 展开插入工具栏（第 2~5 行）"""
+    def _toggle_toolbars(self, btn=None):
+        """折叠 / 展开分类功能区（WPS 风格 Ribbon）"""
         self._toolbar_visible = not self._toolbar_visible
-        for tb in [self._t2, self._t3, self._t4, self._t5]:
-            for i in range(tb.count()):
-                w = tb.itemAt(i).widget()
-                if w and w != btn:
-                    w.setVisible(self._toolbar_visible)
-        btn.setText("▲ 隐藏" if self._toolbar_visible else "▼ 展开")
+        if hasattr(self, "_ribbon"):
+            self._ribbon.setVisible(self._toolbar_visible)
+        if btn is not None:
+            btn.setText(
+                "▲ 隐藏功能区" if self._toolbar_visible else "▼ 展开功能区"
+            )
 
     # ==================== 事件处理（单元格选择） ====================
     def _on_selection_changed(self):

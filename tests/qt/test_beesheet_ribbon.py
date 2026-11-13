@@ -1,0 +1,58 @@
+"""BeeSheet 分类功能区（WPS 风格 Ribbon）测试。"""
+import pandas as pd
+from PySide6.QtWidgets import QGroupBox, QPushButton
+
+from beeoffice.plugins.beesheet import BeeSheetView
+
+
+def make_sheet(qtbot):
+    v = BeeSheetView()
+    qtbot.addWidget(v)
+    v.model.set_full_dataframe(pd.DataFrame({"A": [1, 2], "B": ["x", "y"]}))
+    v.table_view.setModel(v.model)
+    return v
+
+
+def test_ribbon_categories(qtbot):
+    sheet = make_sheet(qtbot)
+    tabs = sheet._ribbon_tabs
+    assert tabs.count() == 5
+    names = [tabs.tabText(i) for i in range(tabs.count())]
+    assert names == ["开始", "插入", "数据", "公式", "视图"]
+
+    for i in range(tabs.count()):
+        tabs.setCurrentIndex(i)
+        assert sheet._ribbon_stack.currentIndex() == i
+
+
+def test_ribbon_groups(qtbot):
+    sheet = make_sheet(qtbot)
+    titles = {g.title() for g in sheet._ribbon.findChildren(QGroupBox)}
+    assert {"剪贴板", "字体", "对齐", "数字格式"} <= titles
+    assert {"对象", "数据工具"} <= titles
+    assert {"排序和筛选"} <= titles
+    assert {"函数", "名称与审计"} <= titles
+    assert {"冻结窗格", "显示"} <= titles
+
+
+def test_ribbon_toggle(qtbot):
+    sheet = make_sheet(qtbot)
+    class Btn:
+        def setText(self, text): self.text = text
+    btn = Btn()
+    assert sheet._ribbon.isHidden() is False
+    sheet._toggle_toolbars(btn)
+    assert sheet._ribbon.isHidden() is True
+    assert "展开" in btn.text
+    sheet._toggle_toolbars(btn)
+    assert sheet._ribbon.isHidden() is False
+    assert "隐藏" in btn.text
+
+
+def test_ribbon_actions_exist(qtbot):
+    sheet = make_sheet(qtbot)
+    labels = {b.text() for b in sheet._ribbon.findChildren(QPushButton)}
+    for required in ("📋 粘贴", "🔍 查找替换", "Σ 自动求和", "📊 图表",
+                     "📊 透视表", "💬 批注", "🔤 排序", "🔍 筛选",
+                     "🔧 清洗", "ƒx 插入函数", "📌 冻结", "🎨 样式"):
+        assert required in labels
