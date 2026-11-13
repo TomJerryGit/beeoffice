@@ -315,10 +315,47 @@ class BeeWriteEditor(
         group = self._ribbon.add_group(page, "🖋 字体与段落")
         group.add_widget(self._toolbar1)
 
-        # 插入：表格/图片/链接/分页/批注/修订等
+        # 插入：按 WPS 分组细化（表格/对象、列表、页面、引用审阅）
         page = self._ribbon.add_tab("插入")
-        group = self._ribbon.add_group(page, "📋 插入与对象")
-        group.add_widget(self._toolbar2)
+        for title, items in (
+            ("列表", (
+                ("列表", "列表", "insert"),
+                ("编号", "编号", "insert"),
+                ("多级列表", "多级", "insert"),
+            )),
+            ("表格与对象", (
+                ("表格", "表格", "table"),
+                ("Excel 数据", "Excel", "table"),
+                ("图片", "图片", "image"),
+                ("公式", "公式", "formula"),
+                ("文本框", "文本框", "insert"),
+            )),
+            ("页面", (
+                ("分割线", "分割线", "page"),
+                ("分页符", "分页符", "page"),
+                ("分节符", "分节符", "page"),
+                ("日期", "日期", "page"),
+                ("页眉", "页眉", "page"),
+                ("页脚", "页脚", "page"),
+                ("页码", "页码", "page"),
+            )),
+            ("引用与审阅", (
+                ("链接", "链接", "link"),
+                ("交叉引用", "交叉引用", "link"),
+                ("目录", "目录", "toc"),
+                ("批注", "批注", "comment"),
+                ("批注栏", "批注栏", "comment"),
+                ("修订", "修订", "track"),
+                ("查看修改", "查看修改", "track"),
+            )),
+        ):
+            group = self._ribbon.add_group(page, title)
+            for label, target, icon_name in items:
+                group.add_large_button(
+                    label, target,
+                    _clone_click(self._toolbar2, target),
+                    icon_name=icon_name,
+                )
 
         # 页面：页面设置/页眉页脚/页面视图/打印
         page = self._ribbon.add_tab("页面")
