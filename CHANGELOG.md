@@ -19,6 +19,11 @@
 - 隐藏/展开功能区按钮保留；
 - 删除旧的无引用翻译键 8 个。
 
+### 工程化
+- 新增 `requirements.lock` / `requirements-dev.lock`（含 SHA-256）；
+- 新增 CycloneDX SBOM：`sbom/cyclonedx-bom.json`；
+- CI 全量测试与 Windows release 改用锁文件。
+
 ### 验证
 - 新增 `tests/qt/test_beesheet_ribbon.py`；
 - 相关 GUI/i18n 测试通过。
