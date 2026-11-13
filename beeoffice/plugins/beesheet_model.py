@@ -19,7 +19,8 @@ class SheetDataModel(QAbstractTableModel):
 
     CHUNK_SIZE = 5000
     PRELOAD_MARGIN = 2000
-    DEFAULT_ROWS = 1000
+    DEFAULT_ROWS = 5000
+    DEFAULT_COLS = 52
     MIN_ROWS = 100
 
     def __init__(self, parent=None):
@@ -45,7 +46,7 @@ class SheetDataModel(QAbstractTableModel):
         self._init_empty()
 
     # ==================== 初始化 ====================
-    def _init_empty(self, rows=None, cols=10):
+    def _init_empty(self, rows=None, cols=None):
         """
         初始化空表格
 
@@ -53,6 +54,8 @@ class SheetDataModel(QAbstractTableModel):
         """
         if rows is None:
             rows = self.DEFAULT_ROWS
+        if cols is None:
+            cols = self.DEFAULT_COLS
         self._full_df = pd.DataFrame(
             '',
             index=range(rows),

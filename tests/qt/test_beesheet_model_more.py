@@ -15,7 +15,7 @@ def make_model(df=None):
 def test_default_and_dataframe(qtbot):
     m = make_model()
     assert m.rowCount() == m.DEFAULT_ROWS
-    assert m.columnCount() == 10
+    assert m.columnCount() == m.DEFAULT_COLS
     m.set_full_dataframe(pd.DataFrame({"A": [1, 2], "B": ["x", "y"]}))
     assert m.columnCount() == 2
     assert m.rowCount() == m.DEFAULT_ROWS

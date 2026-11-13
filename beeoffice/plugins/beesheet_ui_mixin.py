@@ -421,6 +421,9 @@ class UIMixin:
         self.table_view.horizontalHeader().setSectionResizeMode(
             QHeaderView.Interactive
         )
+        self.table_view.horizontalHeader().setDefaultSectionSize(82)
+        self.table_view.horizontalHeader().setMinimumSectionSize(48)
+        self.table_view.verticalHeader().setDefaultSectionSize(24)
         self.table_view.setAlternatingRowColors(True)
         self.table_view.horizontalHeader().setSectionsClickable(True)
         self.table_view.horizontalHeader().sectionClicked.connect(
