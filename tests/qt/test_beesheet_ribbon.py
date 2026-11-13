@@ -1,6 +1,7 @@
 """BeeSheet 分类功能区（WPS 风格 Ribbon）测试。"""
 import pandas as pd
-from PySide6.QtWidgets import QGroupBox, QPushButton
+from PySide6.QtWidgets import QPushButton
+from beeoffice.plugins.beesheet_ui_mixin import RibbonGroup
 
 from beeoffice.plugins.beesheet import BeeSheetView
 
@@ -27,7 +28,7 @@ def test_ribbon_categories(qtbot):
 
 def test_ribbon_groups(qtbot):
     sheet = make_sheet(qtbot)
-    titles = {g.title() for g in sheet._ribbon.findChildren(QGroupBox)}
+    titles = {g.title.text() for g in sheet._ribbon.findChildren(RibbonGroup)}
     assert {"剪贴板", "字体", "对齐", "数字格式"} <= titles
     assert {"对象", "数据工具"} <= titles
     assert {"排序和筛选"} <= titles

@@ -44,7 +44,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableView, QHeaderView,
     QLineEdit, QLabel, QPushButton, QComboBox, QSpinBox,
     QListWidget, QAbstractItemView, QProgressBar, QAbstractButton,
-    QGroupBox, QTabBar, QStackedWidget,
+    QGroupBox, QTabBar, QStackedWidget, QFrame, QSizePolicy,
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont, QShortcut, QKeySequence
@@ -57,6 +57,26 @@ from beeoffice.theme import Theme
 
 def _t():
     return Theme.tokens()
+
+
+class RibbonGroup(QWidget):
+    """WPS 风格功能区组：按钮在上，组名在下，无重边框。"""
+
+    def __init__(self, title: str, parent=None):
+        super().__init__(parent)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(8, 2, 8, 1)
+        outer.setSpacing(1)
+        self.body = QHBoxLayout()
+        self.body.setSpacing(3)
+        self.body.setContentsMargins(0, 0, 0, 0)
+        outer.addLayout(self.body)
+        self.title = QLabel(title)
+        self.title.setAlignment(Qt.AlignCenter)
+        self.title.setStyleSheet(f"color:{_t()['muted']};font-size:11px;")
+        outer.addWidget(self.title)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        self.setMaximumHeight(76)
 
 
 class UIMixin:
@@ -261,11 +281,25 @@ class UIMixin:
         self._ribbon_tabs.setFixedHeight(32)
         self._ribbon_tabs.setExpanding(False)
         self._ribbon_tabs.setDrawBase(False)
+        _accent = _t()['accent']
+        _accent_light = _t()['accent_light']
+        _surface = _t()['surface_alt']
+        _border = _t()['border']
+        _text = _t()['text']
+        self._ribbon.setObjectName("BeeRibbon")
+        self._ribbon.setStyleSheet(
+            f"QWidget#BeeRibbon{{background:{_surface};border-bottom:1px solid {_border};}}"
+            f"QPushButton{{background:transparent;border:1px solid transparent;"
+            f"border-radius:4px;padding:5px 9px;color:{_text};}}"
+            f"QPushButton:hover{{background:{_accent_light};border-color:{_border};}}"
+            f"QPushButton:pressed{{background:{_accent};color:white;}}"
+            f"QPushButton:checked{{background:{_accent};color:white;}}"
+        )
         self._ribbon_tabs.setStyleSheet(
-            "QTabBar::tab{padding:6px 18px;margin-right:2px;"
-            "background:transparent;border:none;border-bottom:2px solid transparent;}"
-            "QTabBar::tab:selected{border-bottom:2px solid #F59E0B;font-weight:bold;}"
-            "QTabBar::tab:hover{background:#FEF3C7;}"
+            f"QTabBar::tab{{padding:7px 20px;margin-right:2px;background:transparent;"
+            f"border:none;border-bottom:3px solid transparent;color:{_text};}}"
+            f"QTabBar::tab:selected{{border-bottom:3px solid {_accent};font-weight:bold;}}"
+            f"QTabBar::tab:hover{{background:{_accent_light};}}"
         )
         ribbon_layout.addWidget(self._ribbon_tabs)
 
@@ -286,14 +320,14 @@ class UIMixin:
             return page_layout
 
         def add_group(page_layout, title):
-            group = QGroupBox(title)
-            group_layout = QHBoxLayout(group)
-            group_layout.setContentsMargins(6, 4, 6, 4)
-            group_layout.setSpacing(4)
-            group_layout.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-            group.setMaximumHeight(72)
+            group = RibbonGroup(title)
             page_layout.addWidget(group)
-            return group_layout
+            sep = QFrame()
+            sep.setFrameShape(QFrame.VLine)
+            sep.setStyleSheet(f"color:{_t()['border']};")
+            sep.setFixedWidth(1)
+            page_layout.addWidget(sep)
+            return group.body
 
         fmt_btn_style = (
             "QPushButton{background:#FFF;border:1px solid #CCC;"
