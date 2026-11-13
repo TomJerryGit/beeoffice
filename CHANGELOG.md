@@ -7,6 +7,31 @@
 
 ---
 
+## [5.4.6] - 2026-11-12（Beta / Unsigned）
+
+> M1A 零成本发布门禁；包含 v5.4.5 之后的质量修复。
+
+### CI / 质量门禁
+- 全量测试改为阻塞；新增安全扫描与核心 100% 覆盖率门槛；
+- 新增 `tools/release_check.py` 发布检查；
+- Release workflow 增加 artifact attestation；
+- GitHub main 分支保护：`快速回归`、`全量测试` 必过。
+
+### 修复
+- 中文日期 `strftime("%Y年...")` 在英文 Windows locale 下崩溃，改为数字拼接；
+- 测试不再依赖中文 `strftime`；
+- `pandas<3.0`、`pypdf<7.0` 版本上限，避免 CI 依赖漂移；
+- 包含 v5.4.5 的 `_split_cell` 合并单元格崩溃修复。
+
+### 验证
+- 全量测试 1550 passed；
+- 核心覆盖率 12/12 = 100%；
+- 安全扫描高危 0；
+- 安装/卸载 Windows Server 冒烟、attestation workflow 通过。
+
+### 发布口径
+- **Beta / Unsigned**：未签名、无干净机验收、Win11 未验证。
+
 ## [5.4.5] - 2026-11-12
 
 > 热修复：拆分合并单元格崩溃。
