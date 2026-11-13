@@ -172,8 +172,9 @@ class Theme:
         return f"""
         * {{ }}
         QMainWindow {{ background-color: #F5F5F5; }}
-        QMenuBar {{ background-color: #FAFAFA; border-bottom: 1px solid #E0E0E0; padding: 2px; font-size: 13px; }}
-        QMenuBar::item:selected {{ background-color: {al}; color: {ad}; border-radius: 4px; }}
+        QMenuBar {{ background-color: #F7F8FA; border-bottom: 1px solid #E4E7EC; padding: 2px 8px; font-size: 13px; spacing: 2px; }}
+        QMenuBar::item {{ background: transparent; padding: 6px 14px; border-radius: 6px; }}
+        QMenuBar::item:selected {{ background-color: {al}; color: {ad}; }}
         QMenu {{ background-color: #FFFFFF; border: 1px solid #E0E0E0; border-radius: 8px; padding: 4px; }}
         QMenu::item {{ padding: 6px 24px; border-radius: 4px; }}
         QMenu::item:selected {{ background-color: {al}; color: {ad}; }}
@@ -219,8 +220,9 @@ class Theme:
         return f"""
         * {{ }}
         QMainWindow {{ background-color: #1E1E1E; }}
-        QMenuBar {{ background-color: #2D2D2D; color: #CCC; border-bottom: 1px solid #3D3D3D; font-size: 13px; }}
-        QMenuBar::item:selected {{ background-color: {a}; color: #000; border-radius: 4px; }}
+        QMenuBar {{ background-color: #252525; color: #CCC; border-bottom: 1px solid #3D3D3D; padding: 2px 8px; font-size: 13px; spacing: 2px; }}
+        QMenuBar::item {{ background: transparent; padding: 6px 14px; border-radius: 6px; }}
+        QMenuBar::item:selected {{ background-color: {a}; color: #000; }}
         QMenu {{ background-color: #2D2D2D; color: #CCC; border: 1px solid #3D3D3D; border-radius: 8px; padding: 4px; }}
         QMenu::item {{ padding: 6px 24px; border-radius: 4px; }}
         QMenu::item:selected {{ background-color: {a}; color: #000; }}

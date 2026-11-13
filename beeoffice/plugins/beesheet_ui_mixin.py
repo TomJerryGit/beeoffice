@@ -44,9 +44,9 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableView, QHeaderView,
     QLineEdit, QLabel, QPushButton, QComboBox, QSpinBox,
     QListWidget, QAbstractItemView, QProgressBar, QAbstractButton,
-    QGroupBox, QTabBar, QStackedWidget, QFrame, QSizePolicy,
+    QGroupBox, QTabBar, QStackedWidget, QFrame, QSizePolicy, QStyle,
 )
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QSettings
 from PySide6.QtGui import QFont, QShortcut, QKeySequence
 
 from beeoffice.plugins.beesheet_delegate import CellEditorDelegate
@@ -227,13 +227,15 @@ class UIMixin:
         self._preview_label.hide()
         t1.addWidget(self._preview_label)
 
-        btn_import = QPushButton(tr("auto.beesheet_ui_mixin.85c5bee6", "📂 导入"))
+        btn_import = QPushButton(tr("auto.beesheet_ui_mixin.85c5bee6", "导入"))
         btn_import.setStyleSheet(btn_style)
+        btn_import.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
         btn_import.clicked.connect(self._import_file)
         t1.addWidget(btn_import)
 
-        self._export_btn = QPushButton(tr("auto.beesheet_ui_mixin.6810bfb6", "💾 导出 ▾"))
+        self._export_btn = QPushButton(tr("auto.beesheet_ui_mixin.6810bfb6", "导出 ▾"))
         self._export_btn.setStyleSheet(btn_style)
+        self._export_btn.setIcon(self.style().standardIcon(QStyle.SP_DialogSaveButton))
         self._export_btn.clicked.connect(self._show_export_menu)
         t1.addWidget(self._export_btn)
 
@@ -287,6 +289,7 @@ class UIMixin:
         _border = _t()['border']
         _text = _t()['text']
         self._ribbon.setObjectName("BeeRibbon")
+        self._ribbon.setFixedHeight(108)
         self._ribbon.setStyleSheet(
             f"QWidget#BeeRibbon{{background:{_surface};border-bottom:1px solid {_border};}}"
             f"QPushButton{{background:transparent;border:1px solid transparent;"
@@ -304,7 +307,7 @@ class UIMixin:
         ribbon_layout.addWidget(self._ribbon_tabs)
 
         self._ribbon_stack = QStackedWidget()
-        self._ribbon_stack.setFixedHeight(84)
+        self._ribbon_stack.setFixedHeight(76)
         ribbon_layout.addWidget(self._ribbon_stack)
         ribbon_pages = []
 
@@ -348,9 +351,9 @@ class UIMixin:
         # ---------- 开始 ----------
         page_start = add_page("开始")
         clip_group = add_group(page_start, "剪贴板")
-        add_btn(clip_group, tr("auto.beesheet_ui_mixin.a1", "📋 粘贴"), self._smart_paste, "Ctrl+V")
-        add_btn(clip_group, tr("auto.beesheet_ui_mixin.a2", "🔍 查找替换"), self._show_find_replace, "Ctrl+F")
-        add_btn(clip_group, tr("auto.beesheet_ui_mixin.a3", "Σ 自动求和"), self._auto_sum, "Alt+=")
+        add_btn(clip_group, tr("auto.beesheet_ui_mixin.a1", "粘贴"), self._smart_paste, "Ctrl+V")
+        add_btn(clip_group, tr("auto.beesheet_ui_mixin.a2", "查找替换"), self._show_find_replace, "Ctrl+F")
+        add_btn(clip_group, tr("auto.beesheet_ui_mixin.a3", "自动求和"), self._auto_sum, "Alt+=")
 
         font_group = add_group(page_start, "字体")
         self._fmt_bold_btn = QPushButton("B")
@@ -403,55 +406,105 @@ class UIMixin:
         # ---------- 插入 ----------
         page_insert = add_page("插入")
         obj_group = add_group(page_insert, "对象")
-        add_btn(obj_group, tr("auto.beesheet_ui_mixin.b1", "📊 图表"), self._create_chart)
-        add_btn(obj_group, tr("auto.beesheet_ui_mixin.b2", "📊 透视表"), self._show_pivot_table)
-        add_btn(obj_group, tr("auto.beesheet_ui_mixin.b3", "💬 批注"), self._add_comment)
+        add_btn(obj_group, tr("auto.beesheet_ui_mixin.b1", "图表"), self._create_chart)
+        add_btn(obj_group, tr("auto.beesheet_ui_mixin.b2", "透视表"), self._show_pivot_table)
+        add_btn(obj_group, tr("auto.beesheet_ui_mixin.b3", "批注"), self._add_comment)
         tool_group = add_group(page_insert, "数据工具")
-        add_btn(tool_group, tr("auto.beesheet_ui_mixin.b4", "✨ 智能填充"), self._flash_fill)
+        add_btn(tool_group, tr("auto.beesheet_ui_mixin.b4", "智能填充"), self._flash_fill)
 
         # ---------- 数据 ----------
         page_data = add_page("数据")
         sort_group = add_group(page_data, "排序和筛选")
-        add_btn(sort_group, tr("auto.beesheet_ui_mixin.c1", "🔤 排序"), self._show_sort_dialog)
-        add_btn(sort_group, tr("auto.beesheet_ui_mixin.c2", "🔍 筛选"), self._show_filter_dialog)
+        add_btn(sort_group, tr("auto.beesheet_ui_mixin.c1", "排序"), self._show_sort_dialog)
+        add_btn(sort_group, tr("auto.beesheet_ui_mixin.c2", "筛选"), self._show_filter_dialog)
         clean_group = add_group(page_data, "数据工具")
-        add_btn(clean_group, tr("auto.beesheet_ui_mixin.c3", "🔧 清洗"), self._show_clean_menu)
-        add_btn(clean_group, tr("auto.beesheet_ui_mixin.c4", "📋 数据验证"), self._show_data_validation_dialog)
+        add_btn(clean_group, tr("auto.beesheet_ui_mixin.c3", "清洗"), self._show_clean_menu)
+        add_btn(clean_group, tr("auto.beesheet_ui_mixin.c4", "数据验证"), self._show_data_validation_dialog)
 
         # ---------- 公式 ----------
         page_formula = add_page("公式")
         fn_group = add_group(page_formula, "函数")
-        add_btn(fn_group, tr("auto.beesheet_ui_mixin.d1", "ƒx 插入函数"), self._show_function_picker)
-        add_btn(fn_group, tr("auto.beesheet_ui_mixin.d2", "📚 函数参考"), self._show_function_reference)
+        add_btn(fn_group, tr("auto.beesheet_ui_mixin.d1", "插入函数"), self._show_function_picker)
+        add_btn(fn_group, tr("auto.beesheet_ui_mixin.d2", "函数参考"), self._show_function_reference)
         name_group = add_group(page_formula, "名称与审计")
-        add_btn(name_group, tr("auto.beesheet_ui_mixin.d3", "🏷️ 名称管理"), self._show_name_manager)
-        add_btn(name_group, tr("auto.beesheet_ui_mixin.d4", "🔍 追踪引用"), self._trace_precedents)
-        add_btn(name_group, tr("auto.beesheet_ui_mixin.d5", "🔍 追踪从属"), self._trace_dependents)
-        add_btn(name_group, tr("auto.beesheet_ui_mixin.d6", "💬 自然语言"), self._nl_to_formula)
+        add_btn(name_group, tr("auto.beesheet_ui_mixin.d3", "名称管理"), self._show_name_manager)
+        add_btn(name_group, tr("auto.beesheet_ui_mixin.d4", "追踪引用"), self._trace_precedents)
+        add_btn(name_group, tr("auto.beesheet_ui_mixin.d5", "追踪从属"), self._trace_dependents)
+        add_btn(name_group, tr("auto.beesheet_ui_mixin.d6", "自然语言"), self._nl_to_formula)
 
         # ---------- 视图 ----------
         page_view = add_page("视图")
         freeze_group = add_group(page_view, "冻结窗格")
-        add_btn(freeze_group, tr("auto.beesheet_ui_mixin.e1", "📌 冻结"), self._show_freeze_menu)
-        add_btn(freeze_group, tr("auto.beesheet_ui_mixin.e2", "📌 解冻"), self._unfreeze_all)
+        add_btn(freeze_group, tr("auto.beesheet_ui_mixin.e1", "冻结"), self._show_freeze_menu)
+        add_btn(freeze_group, tr("auto.beesheet_ui_mixin.e2", "解冻"), self._unfreeze_all)
         view_group = add_group(page_view, "显示")
-        add_btn(view_group, tr("auto.beesheet_ui_mixin.e3", "🎨 样式"), self._show_style_menu)
-        add_btn(view_group, tr("auto.beesheet_ui_mixin.e4", "✓ 兼容性"), self._check_excel_compatibility)
-        self._stat_btn = add_btn(view_group, tr("auto.beesheet_ui_mixin.e5", "📊 统计"), self._show_selection_stats)
+        add_btn(view_group, tr("auto.beesheet_ui_mixin.e3", "样式"), self._show_style_menu)
+        add_btn(view_group, tr("auto.beesheet_ui_mixin.e4", "兼容性"), self._check_excel_compatibility)
+        self._stat_btn = add_btn(view_group, tr("auto.beesheet_ui_mixin.e5", "统计"), self._show_selection_stats)
+
+        # ---------- 表格工具（上下文页签，选中多个单元格时显示） ----------
+        page_table = add_page("表格工具")
+        range_group = add_group(page_table, "行列")
+        add_btn(range_group, "插入行", lambda: self._insert_row_at(max(0, self.table_view.currentIndex().row())))
+        add_btn(range_group, "删除行", lambda: self._delete_row_at(max(0, self.table_view.currentIndex().row())))
+        add_btn(range_group, "插入列", lambda: self._insert_column_at(max(0, self.table_view.currentIndex().column())))
+        add_btn(range_group, "删除列", lambda: self._delete_column_at(max(0, self.table_view.currentIndex().column())))
+        cell_group = add_group(page_table, "单元格")
+        add_btn(cell_group, "合并单元格", self._merge_cells)
+        add_btn(cell_group, "冻结当前", self._freeze_cell)
+        add_btn(cell_group, "单元格样式", self._show_style_menu)
+        self._table_tab_index = self._ribbon_tabs.count() - 1
+        self._ribbon_tabs.setTabVisible(self._table_tab_index, False)
 
         for page_layout in ribbon_pages:
             page_layout.addStretch(1)
+
+        # 记住上次打开的页签（WPS 行为）
+        self._ribbon_settings = QSettings("BeeOffice", "BeeSheetRibbon")
+        try:
+            saved_tab = int(self._ribbon_settings.value("ribbon/tab", 0))
+        except (TypeError, ValueError):
+            saved_tab = 0
+        if 0 <= saved_tab < self._ribbon_tabs.count():
+            self._ribbon_tabs.setCurrentIndex(saved_tab)
+            self._ribbon_stack.setCurrentIndex(saved_tab)
         self._ribbon_tabs.currentChanged.connect(self._ribbon_stack.setCurrentIndex)
+        self._ribbon_tabs.currentChanged.connect(
+            lambda idx: self._ribbon_settings.setValue("ribbon/tab", idx)
+        )
         tc.addWidget(self._ribbon)
 
         # 暂存到 self，供主类的 layout 组装
         self._toolbar_container = tc
+
+    # ==================== 上下文页签 ====================
+    def _update_ribbon_context(self, *args):
+        """选中多个单元格时显示“表格工具”上下文页签。"""
+        if not hasattr(self, "_ribbon_tabs") or not hasattr(self, "_table_tab_index"):
+            return
+        indexes = self.table_view.selectionModel().selectedIndexes()
+        show = len(indexes) > 1
+        self._ribbon_tabs.setTabVisible(self._table_tab_index, show)
+        if not show and self._ribbon_tabs.currentIndex() == self._table_tab_index:
+            self._ribbon_tabs.setCurrentIndex(0)
+
+    # ==================== 窄窗口紧凑模式 ====================
+    def resizeEvent(self, event):
+        """窗口变窄时隐藏分组标题，降低功能区高度，接近 WPS 紧凑模式。"""
+        super().resizeEvent(event)
+        if not hasattr(self, "_ribbon"):
+            return
+        compact = self.width() < 980
+        for group in self._ribbon.findChildren(RibbonGroup):
+            group.title.setVisible(not compact)
+        self._ribbon.setFixedHeight(96 if compact else 108)
 
     # ==================== 表格视图 ====================
     def _build_table_view(self):
         """构建主表格视图 + 事件连接 + 填充柄"""
         self.table_view = QTableView()
         self.table_view.setModel(self.model)
+        self.table_view.selectionModel().selectionChanged.connect(self._update_ribbon_context)
         self.table_view.horizontalHeader().setSectionResizeMode(
             QHeaderView.Interactive
         )

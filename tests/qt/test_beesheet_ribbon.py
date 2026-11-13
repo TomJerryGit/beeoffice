@@ -17,11 +17,12 @@ def make_sheet(qtbot):
 def test_ribbon_categories(qtbot):
     sheet = make_sheet(qtbot)
     tabs = sheet._ribbon_tabs
-    assert tabs.count() == 5
+    assert tabs.count() == 6
     names = [tabs.tabText(i) for i in range(tabs.count())]
-    assert names == ["开始", "插入", "数据", "公式", "视图"]
+    assert names == ["开始", "插入", "数据", "公式", "视图", "表格工具"]
+    assert tabs.isTabVisible(5) is False
 
-    for i in range(tabs.count()):
+    for i in range(5):
         tabs.setCurrentIndex(i)
         assert sheet._ribbon_stack.currentIndex() == i
 
@@ -53,7 +54,33 @@ def test_ribbon_toggle(qtbot):
 def test_ribbon_actions_exist(qtbot):
     sheet = make_sheet(qtbot)
     labels = {b.text() for b in sheet._ribbon.findChildren(QPushButton)}
-    for required in ("📋 粘贴", "🔍 查找替换", "Σ 自动求和", "📊 图表",
-                     "📊 透视表", "💬 批注", "🔤 排序", "🔍 筛选",
-                     "🔧 清洗", "ƒx 插入函数", "📌 冻结", "🎨 样式"):
+    for required in ("粘贴", "查找替换", "自动求和", "图表",
+                     "透视表", "批注", "排序", "筛选",
+                     "清洗", "插入函数", "冻结", "样式"):
         assert required in labels
+
+
+def test_contextual_table_tab(qtbot):
+    sheet = make_sheet(qtbot)
+    tabs = sheet._ribbon_tabs
+    assert tabs.isTabVisible(5) is False
+    sheet.table_view.selectAll()
+    qtbot.wait(10)
+    assert tabs.isTabVisible(5) is True
+    sheet.table_view.clearSelection()
+    qtbot.wait(10)
+    assert tabs.isTabVisible(5) is False
+
+
+def test_compact_on_narrow_window(qtbot):
+    sheet = make_sheet(qtbot)
+    sheet.resize(1200, 500)
+    sheet.show()
+    qtbot.wait(20)
+    groups = sheet._ribbon.findChildren(RibbonGroup)
+    assert groups
+    assert all(not g.title.isHidden() for g in groups)
+    sheet.resize(820, 500)
+    qtbot.wait(20)
+    assert all(g.title.isHidden() for g in groups)
+    assert sheet._ribbon.height() == 96
