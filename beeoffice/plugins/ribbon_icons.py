@@ -19,6 +19,14 @@ def _color() -> str:
 def make_icon(name: str, color: str | None = None, size: int = 28) -> QIcon:
     """按名字生成统一线条图标；未知名字返回文件图标。"""
     color = color or _color()
+    # 统一到内置 SVG 图标集（主题色由 ribbon_icon 处理）
+    try:
+        from beeoffice.ribbon_icons import _ICONS as _SVG_ICONS
+        if name in _SVG_ICONS:
+            from beeoffice.ribbon_icons import ribbon_icon
+            return ribbon_icon(name, color)
+    except Exception:  # noqa: BLE001
+        pass
     pm = QPixmap(size, size)
     pm.fill(Qt.transparent)
     p = QPainter(pm)

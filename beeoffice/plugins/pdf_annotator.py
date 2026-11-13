@@ -39,6 +39,9 @@ from PySide6.QtGui import (QPixmap, QPainter, QColor, QPen, QFont)
 from beeoffice.utils import atomic_write_json
 
 
+from beeoffice.plugins.ribbon_widget import RibbonBar
+
+
 class AnnoRect:
     """轻量矩形（替代 fitz.Rect），坐标为 PDF 点、左上原点。"""
 
@@ -190,14 +193,35 @@ class PDFAnnotator(QWidget):
         # 优化规划 §1.8：用于 closeEvent 判断是否存在未落盘的批注
         self._dirty_annotations=False
         layout=QVBoxLayout(self)
-        toolbar=QHBoxLayout()
-        self._page_label=QLabel("第 1/1 页"); toolbar.addWidget(self._page_label); toolbar.addStretch()
-        for n,t in [("🖍️ 高亮","highlight"),("📝 下划线","underline"),("🚫 删除线","strikethrough"),("💬 批注","text")]:
-            btn=QPushButton(n); btn.setCheckable(True); btn.clicked.connect(lambda checked, tt=t: self._set_tool(tt)); toolbar.addWidget(btn)
-        toolbar.addWidget(QPushButton("🎨 颜色", clicked=self._choose_color)); toolbar.addStretch()
-        for text,slot in [("◀",self._prev_page),("▶",self._next_page),("💾 保存批注",self._save_annotations),("🔥 烧录",self._burn_annotations),("↩ 撤销",self._undo_annotation)]:
-            toolbar.addWidget(QPushButton(text, clicked=slot))
-        layout.addLayout(toolbar)
+        # WPS 式 Ribbon：开始（页面/文件）/ 标注 / 操作
+        self._ribbon = RibbonBar()
+        page_home = self._ribbon.add_tab("开始")
+        page_group = self._ribbon.add_group(page_home, "页面")
+        self._page_label = QLabel("第 1/1 页")
+        page_group.add_widget(self._page_label)
+        page_group.add_small_button("上一页", "上一页", self._prev_page, icon_name="view")
+        page_group.add_small_button("下一页", "下一页", self._next_page, icon_name="view")
+        file_group = self._ribbon.add_group(page_home, "文件")
+        file_group.add_small_button("保存批注", "保存批注", self._save_annotations, icon_name="save")
+        file_group.add_small_button("烧录", "烧录", self._burn_annotations, icon_name="export")
+        file_group.add_small_button("撤销", "撤销", self._undo_annotation, icon_name="undo")
+
+        page_anno = self._ribbon.add_tab("标注")
+        anno_group = self._ribbon.add_group(page_anno, "标注工具")
+        for label, tool, icon_name in (
+            ("高亮", "highlight", "data"),
+            ("下划线", "underline", "page"),
+            ("删除线", "strikethrough", "page"),
+            ("批注", "text", "comment"),
+        ):
+            def _select(checked=False, tt=tool):
+                self._set_tool(tt)
+            btn = anno_group.add_large_button(label, label, _select, icon_name=icon_name)
+            btn.setCheckable(True)
+        color_group = self._ribbon.add_group(page_anno, "颜色")
+        color_group.add_small_button("选择颜色", "选择颜色", self._choose_color, icon_name="home")
+
+        layout.addWidget(self._ribbon)
         splitter=QSplitter(Qt.Horizontal)
         self._page_view=PDFPageView(); self._page_view.annotation_added.connect(self._on_annotation_added); splitter.addWidget(self._page_view)
         right=QWidget(); rl=QVBoxLayout(right); rl.addWidget(QLabel("批注列表"))

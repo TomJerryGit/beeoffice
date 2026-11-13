@@ -51,9 +51,16 @@ _ICONS = {
 }
 
 
+def _theme_color() -> str:
+    try:
+        from beeoffice.theme import Theme
+        return Theme.tokens().get("text", "#374151")
+    except Exception:  # noqa: BLE001
+        return "#374151"
+
+
 @lru_cache(maxsize=128)
-def ribbon_icon(name: str, color: str = "#374151") -> QIcon:
-    """按名称生成 SVG QIcon；未知名称返回空图标。"""
+def _render_icon(name: str, color: str) -> QIcon:
     body = _ICONS.get(name)
     if not body:
         return QIcon()
@@ -71,6 +78,11 @@ def ribbon_icon(name: str, color: str = "#374151") -> QIcon:
     renderer.render(painter)
     painter.end()
     return QIcon(QPixmap.fromImage(image))
+
+
+def ribbon_icon(name: str, color: str | None = None) -> QIcon:
+    """按名称生成 SVG QIcon；默认跟随亮/暗主题文字色。"""
+    return _render_icon(name, color or _theme_color())
 
 
 __all__ = ["ribbon_icon"]

@@ -1,6 +1,6 @@
 """BeeSheet 分类功能区（WPS 风格 Ribbon）测试。"""
 import pandas as pd
-from PySide6.QtWidgets import QPushButton
+from PySide6.QtWidgets import QAbstractButton
 from beeoffice.plugins.beesheet_ui_mixin import RibbonGroup
 
 from beeoffice.plugins.beesheet import BeeSheetView
@@ -53,7 +53,7 @@ def test_ribbon_toggle(qtbot):
 
 def test_ribbon_actions_exist(qtbot):
     sheet = make_sheet(qtbot)
-    labels = {b.text() for b in sheet._ribbon.findChildren(QPushButton)}
+    labels = {b.text() for b in sheet._ribbon.findChildren(QAbstractButton)}
     for required in ("粘贴", "查找替换", "自动求和", "图表",
                      "透视表", "批注", "排序", "筛选",
                      "清洗", "插入函数", "冻结", "样式"):
@@ -84,3 +84,8 @@ def test_compact_on_narrow_window(qtbot):
     qtbot.wait(20)
     assert all(g.title.isHidden() for g in groups)
     assert sheet._ribbon.height() == 96
+    from PySide6.QtCore import Qt
+    assert all(
+        b.toolButtonStyle() == Qt.ToolButtonIconOnly
+        for b in sheet._ribbon_buttons if not b.icon().isNull()
+    )

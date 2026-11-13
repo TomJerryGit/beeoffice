@@ -205,6 +205,7 @@ class UIMixin:
 
         self._fx_btn = QPushButton("fx ▾")
         self._fx_btn.setIcon(ribbon_icon("function"))
+        self._fx_btn.setProperty("ribbonIcon", "function")
         self._fx_btn.setToolTip(tr("auto.beesheet_ui_mixin.19e2c0c0", "插入函数"))
         self._fx_btn.setStyleSheet(
             f"QPushButton{{background:{_t()['accent_light']};border:1px solid {_t()['accent']};"
@@ -232,12 +233,14 @@ class UIMixin:
         btn_import = QPushButton(tr("auto.beesheet_ui_mixin.85c5bee6", "导入"))
         btn_import.setStyleSheet(btn_style)
         btn_import.setIcon(ribbon_icon("import"))
+        btn_import.setProperty("ribbonIcon", "import")
         btn_import.clicked.connect(self._import_file)
         t1.addWidget(btn_import)
 
         self._export_btn = QPushButton(tr("auto.beesheet_ui_mixin.6810bfb6", "导出 ▾"))
         self._export_btn.setStyleSheet(btn_style)
         self._export_btn.setIcon(ribbon_icon("export"))
+        self._export_btn.setProperty("ribbonIcon", "export")
         self._export_btn.clicked.connect(self._show_export_menu)
         t1.addWidget(self._export_btn)
 
@@ -364,6 +367,7 @@ class UIMixin:
                 btn.setIcon(ribbon_icon(icon_name))
                 btn.setIconSize(QSize(16, 16))
                 btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+                btn.setProperty("ribbonIcon", icon_name)
             btn.setStyleSheet("")
             btn.setToolTip(tip or text)
             btn.clicked.connect(slot)
@@ -480,6 +484,7 @@ class UIMixin:
         self._ribbon_tabs.setTabVisible(self._table_tab_index, False)
         self._ribbon_tabs.setTabTextColor(self._table_tab_index, QColor(_t()["accent"]))
         ctx_page = page_table.parentWidget()
+        self._table_context_page = ctx_page
         if ctx_page is not None:
             ctx_page.setObjectName("BeeSheetTableContext")
             ctx_page.setStyleSheet(
@@ -518,6 +523,44 @@ class UIMixin:
         self._ribbon_tabs.setTabVisible(self._table_tab_index, show)
         if not show and self._ribbon_tabs.currentIndex() == self._table_tab_index:
             self._ribbon_tabs.setCurrentIndex(0)
+
+    # ==================== 主题刷新 ====================
+    def apply_theme(self):
+        """亮/暗主题切换时刷新 Ribbon 背景、组名与图标颜色。"""
+        if not hasattr(self, "_ribbon"):
+            return
+        tokens = _t()
+        accent = tokens["accent"]
+        accent_light = tokens["accent_light"]
+        border = tokens["border"]
+        text = tokens["text"]
+        surface = tokens["surface_alt"]
+        self._ribbon.setStyleSheet(
+            f"QWidget#BeeRibbon{{background:{surface};border-bottom:1px solid {border};}}"
+            f"QPushButton{{background:transparent;border:1px solid transparent;"
+            f"border-radius:4px;padding:5px 9px;color:{text};}}"
+            f"QPushButton:hover{{background:{accent_light};border-color:{border};}}"
+            f"QPushButton:pressed{{background:{accent};color:white;}}"
+            f"QPushButton:checked{{background:{accent};color:white;}}"
+        )
+        self._ribbon_tabs.setStyleSheet(
+            f"QTabBar::tab{{padding:7px 20px;margin-right:2px;background:transparent;"
+            f"border:none;border-bottom:3px solid transparent;color:{text};}}"
+            f"QTabBar::tab:selected{{border-bottom:3px solid {accent};font-weight:bold;}}"
+            f"QTabBar::tab:hover{{background:{accent_light};}}"
+        )
+        for group in self._ribbon.findChildren(RibbonGroup):
+            group.title.setStyleSheet(f"color:{tokens['muted']};font-size:11px;")
+        for btn in self.findChildren(QToolButton):
+            name = btn.property("ribbonIcon")
+            if name:
+                btn.setIcon(ribbon_icon(str(name)))
+        ctx = getattr(self, "_table_context_page", None)
+        if ctx is not None:
+            ctx.setStyleSheet(
+                f"QWidget#BeeSheetTableContext{{background:{accent_light};"
+                f"border:1px solid {accent};border-radius:6px;}}"
+            )
 
     # ==================== 窄窗口紧凑模式 ====================
     def resizeEvent(self, event):

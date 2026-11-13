@@ -23,6 +23,9 @@
 - 主窗口 QMenuBar 同步 WPS 扁平样式；
 - 新增内置 SVG 图标集 `beeoffice/ribbon_icons.py`；
 - 新增主窗口“文件”入口与快捷工具栏。
+- SVG 图标支持亮/暗主题自动换色；
+- PDF 批注器改为 WPS 式 Ribbon（开始/标注）；
+- BeeWrite/BeeShow 已有 Ribbon 复用统一图标工厂。
 - 隐藏/展开功能区按钮保留；
 - 删除旧的无引用翻译键 8 个。
 
