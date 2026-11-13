@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
     QStyledItemDelegate, QLineEdit, QComboBox, QAbstractItemDelegate
 )
 from PySide6.QtCore import Qt, QEvent, QPoint
-from PySide6.QtGui import QColor, QPolygon
+from PySide6.QtGui import QColor, QPolygon, QPen
 
 from beeoffice.plugins.beesheet_commands import EditCellCommand
 from beeoffice.theme import Theme
@@ -151,8 +151,21 @@ class CellEditorDelegate(QStyledItemDelegate):
         return super().eventFilter(editor, event)
 
     def paint(self, painter, option, index):
-        """重绘单元格：在原内容上叠加批注小三角"""
+        """重绘单元格：边框 + 批注小三角"""
         super().paint(painter, option, index)
+
+        fmt = getattr(self._sheet, "_cell_formats", {}).get(
+            (index.row(), index.column()), {}
+        )
+        border = fmt.get("border")
+        if border is not None:
+            painter.save()
+            pen = QPen(QColor(border))
+            pen.setWidth(int(fmt.get("border_width", 1)))
+            painter.setPen(pen)
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRect(option.rect.adjusted(1, 1, -2, -2))
+            painter.restore()
 
         if hasattr(self._sheet, '_cell_comments'):
             key = (index.row(), index.column())

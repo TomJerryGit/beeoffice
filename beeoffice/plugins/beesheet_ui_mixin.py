@@ -355,7 +355,8 @@ class UIMixin:
             "样式": "style", "兼容性": "compat", "统计": "stats",
             "插入行": "insert-row", "删除行": "delete-row",
             "插入列": "insert-col", "删除列": "delete-col",
-            "合并单元格": "merge", "冻结当前": "freeze", "单元格样式": "style",
+            "合并单元格": "merge", "冻结当前": "freeze",
+            "边框/底纹": "style", "单元格样式": "style",
         }
         self._ribbon_buttons = []
 
@@ -479,6 +480,7 @@ class UIMixin:
         cell_group = add_group(page_table, "单元格")
         add_btn(cell_group, "合并单元格", self._merge_cells)
         add_btn(cell_group, "冻结当前", self._freeze_cell)
+        add_btn(cell_group, "边框/底纹", self._show_border_fill_gallery)
         add_btn(cell_group, "单元格样式", self._show_style_menu)
         self._table_tab_index = self._ribbon_tabs.count() - 1
         self._ribbon_tabs.setTabVisible(self._table_tab_index, False)

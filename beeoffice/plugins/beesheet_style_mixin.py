@@ -7,7 +7,8 @@ from PySide6.QtWidgets import (
     QCheckBox, QDialogButtonBox, QMenu, QMessageBox
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QIcon, QPixmap
+from PySide6.QtCore import QPoint
 from beeoffice.i18n import tr
 
 
@@ -187,6 +188,74 @@ class StyleMixin:
         self._apply_format_to_selection('decimals', decimals)
         dlg.accept()
         self._set_status(tr("auto.beesheet_style_mixin.7065ed93", "格式已应用"), 3000)
+
+    # ==================== 边框/底纹图库 ====================
+    def _show_border_fill_gallery(self):
+        """WPS 式底纹/边框图库：颜色即点即用。"""
+        menu = QMenu(self)
+
+        def color_icon(color):
+            pm = QPixmap(16, 16)
+            pm.fill(color)
+            return QIcon(pm)
+
+        fill_menu = menu.addMenu("底纹颜色")
+        for name, color in (
+            ("无填充", None),
+            ("琥珀", QColor("#FFE0B2")),
+            ("浅黄", QColor("#FFF9C4")),
+            ("浅绿", QColor("#E8F5E9")),
+            ("浅蓝", QColor("#E3F2FD")),
+            ("浅粉", QColor("#FCE4EC")),
+            ("浅灰", QColor("#F5F5F5")),
+            ("深蓝", QColor("#BBDEFB")),
+            ("橙色", QColor("#FFCC80")),
+        ):
+            act = fill_menu.addAction(name)
+            if color is not None:
+                act.setIcon(color_icon(color))
+            act.triggered.connect(
+                lambda checked=False, c=color: self._apply_cell_fill(c)
+            )
+
+        border_menu = menu.addMenu("边框")
+        for name, color, width in (
+            ("无边框", None, 0),
+            ("细黑", QColor("#333333"), 1),
+            ("中黑", QColor("#333333"), 2),
+            ("细蓝", QColor("#1565C0"), 1),
+            ("细橙", QColor("#E65100"), 1),
+            ("粗橙", QColor("#E65100"), 2),
+        ):
+            act = border_menu.addAction(name)
+            if color is not None:
+                act.setIcon(color_icon(color))
+            act.triggered.connect(
+                lambda checked=False, c=color, w=width:
+                    self._apply_cell_border(c, w)
+            )
+
+        menu.addSeparator()
+        menu.addAction("清除底纹/边框").triggered.connect(self._clear_cell_fill_border)
+        menu.exec(self.table_view.viewport().mapToGlobal(QPoint(4, 4)))
+
+    def _apply_cell_fill(self, color):
+        self._apply_format_to_selection("bg", color)
+        self._set_status("已应用底纹", 2000)
+
+    def _apply_cell_border(self, color, width):
+        self._apply_format_to_selection("border", color)
+        self._apply_format_to_selection("border_width", width)
+        self._set_status("已应用边框", 2000)
+
+    def _clear_cell_fill_border(self):
+        indexes = self._get_selected_indexes()
+        for idx in indexes:
+            fmt = self._cell_formats.get((idx.row(), idx.column()), {})
+            for key in ("bg", "border", "border_width"):
+                fmt.pop(key, None)
+            self.model.dataChanged.emit(idx, idx)
+        self._set_status("已清除底纹/边框", 2000)
 
     # ==================== 表格整体样式 ====================
     def _show_style_menu(self):

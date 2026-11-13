@@ -54,10 +54,10 @@ from datetime import datetime
 
 from PySide6.QtWidgets import (
     QMainWindow, QStatusBar, QLabel, QMessageBox, QFileDialog,
-    QDialog, QVBoxLayout, QTextEdit, QWidget, QToolBar, QToolButton, QMenu,
+    QDialog, QVBoxLayout, QTextEdit, QWidget, QToolBar, QToolButton, QMenu, QApplication,
 )
 from PySide6.QtGui import QAction, QKeySequence, QShortcut
-from PySide6.QtCore import Qt, QTimer, Signal, QFileSystemWatcher, QSize
+from PySide6.QtCore import Qt, QTimer, Signal, QFileSystemWatcher, QSize, QSettings
 
 from beeoffice.tab_manager import TabManager
 from beeoffice.settings import AppSettings
@@ -1090,17 +1090,71 @@ class BeeApp(QMainWindow):
         bar.addWidget(file_btn)
         bar.addSeparator()
 
-        for text, icon, slot, shortcut in (
-            ("新建", "new", self._new_beewrite, "Ctrl+N"),
-            ("打开", "open", self.tab_manager.open_file, "Ctrl+O"),
-            ("保存", "save", self._save_current, "Ctrl+S"),
-            ("命令面板", "command", self.show_command_palette, "Ctrl+Shift+P"),
+        self._quick_settings = QSettings("BeeOffice", "QuickBar")
+        self._quick_actions = {}
+        for key, text, icon, slot, shortcut in (
+            ("new", "新建", "new", self._new_beewrite, "Ctrl+N"),
+            ("open", "打开", "open", self.tab_manager.open_file, "Ctrl+O"),
+            ("save", "保存", "save", self._save_current, "Ctrl+S"),
+            ("command", "命令面板", "command", self.show_command_palette, "Ctrl+Shift+P"),
+            ("print", "打印", "print", self._print_current, "Ctrl+P"),
+            ("share", "分享", "export", self._share_current, ""),
         ):
             act = QAction(ribbon_icon(icon), text, self)
             if shortcut:
                 act.setToolTip(f"{text}（{shortcut}）")
             act.triggered.connect(slot)
             bar.addAction(act)
+            self._quick_actions[key] = (act, text)
+
+        # 快捷栏自定义：勾选/取消按钮，QSettings 记忆
+        gear = QToolButton()
+        gear.setText("⚙")
+        gear.setToolTip("自定义快捷工具栏")
+        gear.setPopupMode(QToolButton.InstantPopup)
+        gear_menu = QMenu(gear)
+        for key, (act, text) in self._quick_actions.items():
+            check = QAction(text, gear)
+            check.setCheckable(True)
+            check.setChecked(bool(self._quick_settings.value(
+                f"visible/{key}", True, type=bool
+            )))
+            act.setVisible(check.isChecked())
+            check.toggled.connect(
+                lambda checked, k=key, a=act: self._toggle_quick_action(k, a, checked)
+            )
+            gear_menu.addAction(check)
+        gear.setMenu(gear_menu)
+        bar.addSeparator()
+        bar.addWidget(gear)
+
+    def _toggle_quick_action(self, key, action, visible):
+        action.setVisible(visible)
+        self._quick_settings.setValue(f"visible/{key}", visible)
+
+    def _print_current(self):
+        """打印当前标签页；不支持时给出提示。"""
+        widget = self.tab_manager.currentWidget()
+        for name in ("_print_preview", "print_preview"):
+            fn = getattr(widget, name, None)
+            if callable(fn):
+                try:
+                    fn()
+                    return
+                except Exception as e:  # noqa: BLE001
+                    logging.error(f"打印失败: {e}")
+                    break
+        QMessageBox.information(self, "打印", "当前页面暂不支持打印预览。")
+
+    def _share_current(self):
+        """分享当前文件：复制路径到剪贴板；未保存时提示先保存。"""
+        widget = self.tab_manager.currentWidget()
+        path = getattr(widget, "_current_file_path", None)
+        if not path:
+            QMessageBox.information(self, "分享", "请先保存当前文档，再分享文件。")
+            return
+        QApplication.clipboard().setText(str(path))
+        self.set_global_status(f"已复制文件路径：{path}", 3000)
 
     def _apply_theme(self):
         self.setStyleSheet(Theme.get_stylesheet())

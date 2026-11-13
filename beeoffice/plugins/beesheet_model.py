@@ -320,6 +320,10 @@ class SheetDataModel(QAbstractTableModel):
 
         # === 背景色 ===
         if role == Qt.BackgroundRole:
+            if self._cell_formats_ref:
+                fmt = self._cell_formats_ref.get((r, c))
+                if fmt and fmt.get("bg") is not None:
+                    return fmt["bg"]
             return self._get_cond_bg(r, c)
 
         # === 悬浮提示 ===

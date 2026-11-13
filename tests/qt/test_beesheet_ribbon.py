@@ -89,3 +89,20 @@ def test_compact_on_narrow_window(qtbot):
         b.toolButtonStyle() == Qt.ToolButtonIconOnly
         for b in sheet._ribbon_buttons if not b.icon().isNull()
     )
+
+
+def test_border_fill_formats(qtbot):
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QColor
+    sheet = make_sheet(qtbot)
+    sheet.table_view.selectAll()
+    qtbot.wait(10)
+    sheet._apply_cell_fill(QColor("#E3F2FD"))
+    sheet._apply_cell_border(QColor("#1565C0"), 2)
+    fmt = sheet._cell_formats[(0, 0)]
+    assert fmt["bg"].name() == "#e3f2fd"
+    assert fmt["border"].name() == "#1565c0"
+    assert fmt["border_width"] == 2
+    assert sheet.model.data(sheet.model.index(0, 0), Qt.BackgroundRole).name() == "#e3f2fd"
+    sheet._clear_cell_fill_border()
+    assert "bg" not in sheet._cell_formats[(0, 0)]
