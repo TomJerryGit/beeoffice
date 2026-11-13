@@ -48,6 +48,14 @@ _ICONS = {
     "undo": '<path d="M9 7L4 12l5 5"/><path d="M4 12h9a6 6 0 0 1 6 6"/>',
     "redo": '<path d="M15 7l5 5-5 5"/><path d="M20 12h-9a6 6 0 0 0-6 6"/>',
     "command": '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 9h8M8 13h5"/>',
+    "highlight": '<path d="M4 20l4-1 10-10-3-3L5 16z"/><path d="M14 5l3 3 3-3-3-3z"/>',
+    "underline": '<path d="M6 4v7a6 6 0 0 0 12 0V4"/><path d="M4 20h16"/>',
+    "strike": '<path d="M4 12h16"/><path d="M7 7c0-2 2-3 5-3s5 1 5 3M7 17c0 2 2 3 5 3s5-1 5-3"/>',
+    "text": '<path d="M5 4h14M12 4v16M8 20h8"/>',
+    "color": '<path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/><path d="M9 15a3 3 0 0 0 6 0"/>',
+    "burn": '<path d="M12 22c4 0 7-3 7-7 0-5-7-13-7-13S5 10 5 15c0 4 3 7 7 7z"/><path d="M12 18c1.5 0 3-1.2 3-3 0-2-3-5-3-5s-3 3-3 5c0 1.8 1.5 3 3 3z"/>',
+    "prev": '<path d="M15 5l-7 7 7 7"/>',
+    "next": '<path d="M9 5l7 7-7 7"/>',
 }
 
 

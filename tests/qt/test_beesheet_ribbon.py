@@ -99,10 +99,12 @@ def test_border_fill_formats(qtbot):
     qtbot.wait(10)
     sheet._apply_cell_fill(QColor("#E3F2FD"))
     sheet._apply_cell_border(QColor("#1565C0"), 2)
+    sheet._apply_cell_border(QColor("#1565C0"), 1, ("top",))
     fmt = sheet._cell_formats[(0, 0)]
     assert fmt["bg"].name() == "#e3f2fd"
     assert fmt["border"].name() == "#1565c0"
-    assert fmt["border_width"] == 2
+    assert fmt["border_width"] == 1
+    assert fmt["border_sides"] == ("top",)
     assert sheet.model.data(sheet.model.index(0, 0), Qt.BackgroundRole).name() == "#e3f2fd"
     sheet._clear_cell_fill_border()
     assert "bg" not in sheet._cell_formats[(0, 0)]

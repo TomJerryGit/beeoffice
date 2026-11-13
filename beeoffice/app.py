@@ -55,6 +55,7 @@ from datetime import datetime
 from PySide6.QtWidgets import (
     QMainWindow, QStatusBar, QLabel, QMessageBox, QFileDialog,
     QDialog, QVBoxLayout, QTextEdit, QWidget, QToolBar, QToolButton, QMenu, QApplication,
+    QListWidget, QListWidgetItem, QDialogButtonBox, QAbstractItemView,
 )
 from PySide6.QtGui import QAction, QKeySequence, QShortcut
 from PySide6.QtCore import Qt, QTimer, Signal, QFileSystemWatcher, QSize, QSettings
@@ -1062,6 +1063,7 @@ class BeeApp(QMainWindow):
     def _build_quick_access_bar(self):
         """WPS 风格快捷工具栏：文件入口 + 新建/打开/保存/命令面板。"""
         bar = QToolBar("快捷工具栏", self)
+        self.quick_toolbar = bar
         bar.setObjectName("WpsQuickBar")
         bar.setMovable(False)
         bar.setIconSize(QSize(18, 18))
@@ -1107,6 +1109,8 @@ class BeeApp(QMainWindow):
             bar.addAction(act)
             self._quick_actions[key] = (act, text)
 
+        self._quick_end_sep = bar.addSeparator()
+
         # 快捷栏自定义：勾选/取消按钮，QSettings 记忆
         gear = QToolButton()
         gear.setText("⚙")
@@ -1124,9 +1128,48 @@ class BeeApp(QMainWindow):
                 lambda checked, k=key, a=act: self._toggle_quick_action(k, a, checked)
             )
             gear_menu.addAction(check)
+        gear_menu.addSeparator()
+        gear_menu.addAction("调整顺序…", self._customize_quick_order)
         gear.setMenu(gear_menu)
-        bar.addSeparator()
         bar.addWidget(gear)
+        saved_order = self._quick_settings.value("order", [], type=list) or []
+        ordered = [k for k in saved_order if k in self._quick_actions]
+        for key in ordered:
+            bar.removeAction(self._quick_actions[key][0])
+        for key in ordered:
+            bar.insertAction(self._quick_end_sep, self._quick_actions[key][0])
+
+    def _customize_quick_order(self):
+        """拖拽调整快捷按钮顺序并持久化。"""
+        keys = list(self._quick_actions.keys())
+        saved = self._quick_settings.value("order", keys, type=list) or []
+        order = [k for k in saved if k in keys]
+        order += [k for k in keys if k not in order]
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("调整快捷工具栏顺序")
+        layout = QVBoxLayout(dlg)
+        lst = QListWidget(dlg)
+        lst.setDragDropMode(QAbstractItemView.InternalMove)
+        for key in order:
+            item = QListWidgetItem(self._quick_actions[key][1])
+            item.setData(Qt.UserRole, key)
+            lst.addItem(item)
+        layout.addWidget(lst)
+        btns = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel, dlg
+        )
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        layout.addWidget(btns)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        new_order = [lst.item(i).data(Qt.UserRole) for i in range(lst.count())]
+        self._quick_settings.setValue("order", new_order)
+        for key in new_order:
+            act = self._quick_actions[key][0]
+            self.quick_toolbar.removeAction(act)
+            self.quick_toolbar.insertAction(self._quick_end_sep, act)
 
     def _toggle_quick_action(self, key, action, visible):
         action.setVisible(visible)

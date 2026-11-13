@@ -164,7 +164,16 @@ class CellEditorDelegate(QStyledItemDelegate):
             pen.setWidth(int(fmt.get("border_width", 1)))
             painter.setPen(pen)
             painter.setBrush(Qt.NoBrush)
-            painter.drawRect(option.rect.adjusted(1, 1, -2, -2))
+            rect = option.rect.adjusted(1, 1, -2, -2)
+            sides = fmt.get("border_sides") or ("top", "bottom", "left", "right")
+            if "top" in sides:
+                painter.drawLine(rect.topLeft(), rect.topRight())
+            if "bottom" in sides:
+                painter.drawLine(rect.bottomLeft(), rect.bottomRight())
+            if "left" in sides:
+                painter.drawLine(rect.topLeft(), rect.bottomLeft())
+            if "right" in sides:
+                painter.drawLine(rect.topRight(), rect.bottomRight())
             painter.restore()
 
         if hasattr(self._sheet, '_cell_comments'):

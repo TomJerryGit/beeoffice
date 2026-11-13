@@ -218,7 +218,7 @@ class StyleMixin:
                 lambda checked=False, c=color: self._apply_cell_fill(c)
             )
 
-        border_menu = menu.addMenu("边框")
+        border_menu = menu.addMenu("外边框")
         for name, color, width in (
             ("无边框", None, 0),
             ("细黑", QColor("#333333"), 1),
@@ -235,6 +235,18 @@ class StyleMixin:
                     self._apply_cell_border(c, w)
             )
 
+        side_menu = menu.addMenu("单边框")
+        for side, label in (
+            ("top", "上边框"), ("bottom", "下边框"),
+            ("left", "左边框"), ("right", "右边框"),
+        ):
+            act = side_menu.addAction(label)
+            act.setIcon(color_icon(QColor("#333333")))
+            act.triggered.connect(
+                lambda checked=False, s=side:
+                    self._apply_cell_border(QColor("#333333"), 1, (s,))
+            )
+
         menu.addSeparator()
         menu.addAction("清除底纹/边框").triggered.connect(self._clear_cell_fill_border)
         menu.exec(self.table_view.viewport().mapToGlobal(QPoint(4, 4)))
@@ -243,16 +255,18 @@ class StyleMixin:
         self._apply_format_to_selection("bg", color)
         self._set_status("已应用底纹", 2000)
 
-    def _apply_cell_border(self, color, width):
+    def _apply_cell_border(self, color, width, sides=None):
+        sides = tuple(sides) if sides else ("top", "bottom", "left", "right")
         self._apply_format_to_selection("border", color)
         self._apply_format_to_selection("border_width", width)
+        self._apply_format_to_selection("border_sides", sides)
         self._set_status("已应用边框", 2000)
 
     def _clear_cell_fill_border(self):
         indexes = self._get_selected_indexes()
         for idx in indexes:
             fmt = self._cell_formats.get((idx.row(), idx.column()), {})
-            for key in ("bg", "border", "border_width"):
+            for key in ("bg", "border", "border_width", "border_sides"):
                 fmt.pop(key, None)
             self.model.dataChanged.emit(idx, idx)
         self._set_status("已清除底纹/边框", 2000)
