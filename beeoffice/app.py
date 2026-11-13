@@ -54,10 +54,10 @@ from datetime import datetime
 
 from PySide6.QtWidgets import (
     QMainWindow, QStatusBar, QLabel, QMessageBox, QFileDialog,
-    QDialog, QVBoxLayout, QTextEdit, QWidget,
+    QDialog, QVBoxLayout, QTextEdit, QWidget, QToolBar, QToolButton, QMenu,
 )
 from PySide6.QtGui import QAction, QKeySequence, QShortcut
-from PySide6.QtCore import Qt, QTimer, Signal, QFileSystemWatcher
+from PySide6.QtCore import Qt, QTimer, Signal, QFileSystemWatcher, QSize
 
 from beeoffice.tab_manager import TabManager
 from beeoffice.settings import AppSettings
@@ -65,6 +65,7 @@ from beeoffice.theme import Theme
 from beeoffice.icon import create_app_icon
 from beeoffice.i18n import tr, set_language
 from beeoffice.async_task import AsyncTaskManager
+from beeoffice.ribbon_icons import ribbon_icon
 
 
 TEXT_EXTENSIONS = (".md", ".txt")
@@ -106,6 +107,7 @@ class BeeApp(QMainWindow):
 
         from beeoffice.menus import setup_menus
         setup_menus(self)
+        self._build_quick_access_bar()
 
         self.status = QStatusBar()
         self.status_label = QLabel(tr("app.ready"))
@@ -1056,6 +1058,49 @@ class BeeApp(QMainWindow):
         self.settings.accent_color = accent_name
         self.settings.save()
         self._apply_theme()
+
+    def _build_quick_access_bar(self):
+        """WPS 风格快捷工具栏：文件入口 + 新建/打开/保存/命令面板。"""
+        bar = QToolBar("快捷工具栏", self)
+        bar.setObjectName("WpsQuickBar")
+        bar.setMovable(False)
+        bar.setIconSize(QSize(18, 18))
+        bar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.addToolBar(Qt.TopToolBarArea, bar)
+
+        accent = Theme.tokens().get("accent", "#E67E22")
+        file_btn = QToolButton()
+        file_btn.setText("文件")
+        file_btn.setPopupMode(QToolButton.InstantPopup)
+        file_btn.setStyleSheet(
+            f"QToolButton{{background:{accent};color:white;font-weight:bold;"
+            "padding:5px 16px;border:none;border-radius:4px;}"
+            "QToolButton:pressed{background:#C0392B;}"
+        )
+        file_menu = QMenu(file_btn)
+        file_menu.addAction("新建文档", self._new_beewrite)
+        file_menu.addAction("新建表格", self._new_beesheet)
+        file_menu.addAction("打开", self.tab_manager.open_file)
+        file_menu.addSeparator()
+        file_menu.addAction("保存", self._save_current)
+        file_menu.addAction("另存为", self._save_as_current)
+        file_menu.addSeparator()
+        file_menu.addAction("命令面板", self.show_command_palette)
+        file_btn.setMenu(file_menu)
+        bar.addWidget(file_btn)
+        bar.addSeparator()
+
+        for text, icon, slot, shortcut in (
+            ("新建", "new", self._new_beewrite, "Ctrl+N"),
+            ("打开", "open", self.tab_manager.open_file, "Ctrl+O"),
+            ("保存", "save", self._save_current, "Ctrl+S"),
+            ("命令面板", "command", self.show_command_palette, "Ctrl+Shift+P"),
+        ):
+            act = QAction(ribbon_icon(icon), text, self)
+            if shortcut:
+                act.setToolTip(f"{text}（{shortcut}）")
+            act.triggered.connect(slot)
+            bar.addAction(act)
 
     def _apply_theme(self):
         self.setStyleSheet(Theme.get_stylesheet())

@@ -4,7 +4,7 @@ BeeApp 主窗口的单元测试
 覆盖：窗口初始化、菜单、标签管理、新建文档、命令面板、主题、语言
 """
 import pytest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QToolBar, QToolButton
 from PySide6.QtCore import Qt
 
 from beeoffice.app import BeeApp
@@ -217,3 +217,11 @@ class TestClose:
         """关闭时应保存设置（不实际关闭，仅检查方法存在）"""
         assert hasattr(app, "closeEvent")
         assert callable(app.closeEvent)
+
+def test_wps_quick_access_bar(app):
+    """主窗口应有 WPS 风格快捷工具栏与文件入口。"""
+    bar = app.findChild(QToolBar, "WpsQuickBar")
+    assert bar is not None
+    texts = [a.text() for a in bar.actions()]
+    assert "新建" in texts and "打开" in texts and "保存" in texts
+    assert "文件" in [b.text() for b in bar.findChildren(QToolButton)]

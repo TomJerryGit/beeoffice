@@ -44,15 +44,16 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableView, QHeaderView,
     QLineEdit, QLabel, QPushButton, QComboBox, QSpinBox,
     QListWidget, QAbstractItemView, QProgressBar, QAbstractButton,
-    QGroupBox, QTabBar, QStackedWidget, QFrame, QSizePolicy, QStyle,
+    QGroupBox, QTabBar, QStackedWidget, QFrame, QSizePolicy, QStyle, QToolButton,
 )
-from PySide6.QtCore import Qt, QTimer, QSettings
-from PySide6.QtGui import QFont, QShortcut, QKeySequence
+from PySide6.QtCore import Qt, QTimer, QSettings, QSize
+from PySide6.QtGui import QFont, QShortcut, QKeySequence, QColor
 
 from beeoffice.plugins.beesheet_delegate import CellEditorDelegate
 from beeoffice.plugins.beesheet_loaders import ChunkLoader
 from beeoffice.i18n import tr
 from beeoffice.theme import Theme
+from beeoffice.ribbon_icons import ribbon_icon
 
 
 def _t():
@@ -203,6 +204,7 @@ class UIMixin:
         t1.addWidget(self._name_box)
 
         self._fx_btn = QPushButton("fx ▾")
+        self._fx_btn.setIcon(ribbon_icon("function"))
         self._fx_btn.setToolTip(tr("auto.beesheet_ui_mixin.19e2c0c0", "插入函数"))
         self._fx_btn.setStyleSheet(
             f"QPushButton{{background:{_t()['accent_light']};border:1px solid {_t()['accent']};"
@@ -229,13 +231,13 @@ class UIMixin:
 
         btn_import = QPushButton(tr("auto.beesheet_ui_mixin.85c5bee6", "导入"))
         btn_import.setStyleSheet(btn_style)
-        btn_import.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
+        btn_import.setIcon(ribbon_icon("import"))
         btn_import.clicked.connect(self._import_file)
         t1.addWidget(btn_import)
 
         self._export_btn = QPushButton(tr("auto.beesheet_ui_mixin.6810bfb6", "导出 ▾"))
         self._export_btn.setStyleSheet(btn_style)
-        self._export_btn.setIcon(self.style().standardIcon(QStyle.SP_DialogSaveButton))
+        self._export_btn.setIcon(ribbon_icon("export"))
         self._export_btn.clicked.connect(self._show_export_menu)
         t1.addWidget(self._export_btn)
 
@@ -339,13 +341,34 @@ class UIMixin:
             "QPushButton:checked{background:#FFB300;color:#000;}"
         )
 
+        icon_by_text = {
+            "粘贴": "paste", "查找替换": "find", "自动求和": "sum",
+            "图表": "chart", "透视表": "pivot", "批注": "comment",
+            "智能填充": "fill", "排序": "sort", "筛选": "filter",
+            "清洗": "clean", "数据验证": "validation",
+            "插入函数": "function", "函数参考": "book",
+            "名称管理": "tag", "追踪引用": "trace", "追踪从属": "trace",
+            "自然语言": "natural", "冻结": "freeze", "解冻": "unfreeze",
+            "样式": "style", "兼容性": "compat", "统计": "stats",
+            "插入行": "insert-row", "删除行": "delete-row",
+            "插入列": "insert-col", "删除列": "delete-col",
+            "合并单元格": "merge", "冻结当前": "freeze", "单元格样式": "style",
+        }
+        self._ribbon_buttons = []
+
         def add_btn(group_layout, text, slot, tip=None):
-            btn = QPushButton(text)
-            btn.setStyleSheet(btn_style)
-            if tip:
-                btn.setToolTip(tip)
+            btn = QToolButton()
+            btn.setText(text)
+            icon_name = icon_by_text.get(text)
+            if icon_name:
+                btn.setIcon(ribbon_icon(icon_name))
+                btn.setIconSize(QSize(16, 16))
+                btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+            btn.setStyleSheet("")
+            btn.setToolTip(tip or text)
             btn.clicked.connect(slot)
             group_layout.addWidget(btn)
+            self._ribbon_buttons.append(btn)
             return btn
 
         # ---------- 开始 ----------
@@ -455,6 +478,14 @@ class UIMixin:
         add_btn(cell_group, "单元格样式", self._show_style_menu)
         self._table_tab_index = self._ribbon_tabs.count() - 1
         self._ribbon_tabs.setTabVisible(self._table_tab_index, False)
+        self._ribbon_tabs.setTabTextColor(self._table_tab_index, QColor(_t()["accent"]))
+        ctx_page = page_table.parentWidget()
+        if ctx_page is not None:
+            ctx_page.setObjectName("BeeSheetTableContext")
+            ctx_page.setStyleSheet(
+                f"QWidget#BeeSheetTableContext{{background:{_t()['accent_light']};"
+                f"border:1px solid {_t()['accent']};border-radius:6px;}}"
+            )
 
         for page_layout in ribbon_pages:
             page_layout.addStretch(1)
@@ -497,6 +528,12 @@ class UIMixin:
         compact = self.width() < 980
         for group in self._ribbon.findChildren(RibbonGroup):
             group.title.setVisible(not compact)
+        for btn in getattr(self, "_ribbon_buttons", []):
+            if btn.icon().isNull():
+                continue
+            btn.setToolButtonStyle(
+                Qt.ToolButtonIconOnly if compact else Qt.ToolButtonTextBesideIcon
+            )
         self._ribbon.setFixedHeight(96 if compact else 108)
 
     # ==================== 表格视图 ====================
