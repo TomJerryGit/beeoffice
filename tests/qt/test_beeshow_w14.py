@@ -33,3 +33,16 @@ def test_transition_css_retention():
     css = build_transition_css("fade")
     assert "animation" in css or "transition" in css
     assert "fade" in TRANSITIONS
+
+
+def test_canvas_edit_state(qtbot):
+    s = make_show(qtbot)
+    s._on_canvas_edit_applied({"index": 0, "left": 10, "top": 20, "width": 100, "height": 50})
+    assert s._canvas_overrides[s._current_slide][0]["left"] == 10
+    assert "canvas-edit" in s._canvas_js_for(s._current_slide)
+    s._canvas_undo()
+    assert 0 not in s._canvas_overrides.get(s._current_slide, {})
+    s._on_canvas_delete({"index": 1})
+    assert 1 in s._canvas_deleted[s._current_slide]
+    s._canvas_reset()
+    assert s._current_slide not in s._canvas_deleted

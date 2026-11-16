@@ -338,6 +338,8 @@ class ToolbarMixin:
         design_group.add_small_button("设计面板", "设计面板", self._show_design_panel, icon_name="home")
         design_group.add_small_button("过渡", "过渡", self._show_transition_panel, icon_name="play")
         design_group.add_small_button("动画", "动画", self._show_animation_panel, icon_name="play")
+        design_group.add_small_button("画布撤销", "画布撤销", self._canvas_undo, icon_name="undo")
+        design_group.add_small_button("重置画布", "重置画布", self._canvas_reset, icon_name="view")
 
         # 插入：背景/版式/表格/图片
         page = ribbon.add_tab("插入")

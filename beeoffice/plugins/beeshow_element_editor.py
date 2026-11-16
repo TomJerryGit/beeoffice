@@ -728,6 +728,30 @@ def _make_web_engine_page_class():
                     if handler:
                         handler(data)
 
+            elif url_str.startswith("beeoffice://canvas-edit"):
+                try:
+                    from urllib.parse import urlparse, parse_qs
+                    import json
+                    q = parse_qs(urlparse(url_str).query)
+                    data = json.loads(q.get("data", ["{}"])[0])
+                except Exception:
+                    data = None
+                handler = getattr(self._owner, "_on_canvas_edit_applied", None) if self._owner else None
+                if data is not None and handler:
+                    handler(data)
+
+            elif url_str.startswith("beeoffice://canvas-delete"):
+                try:
+                    from urllib.parse import urlparse, parse_qs
+                    import json
+                    q = parse_qs(urlparse(url_str).query)
+                    data = json.loads(q.get("data", ["{}"])[0])
+                except Exception:
+                    data = None
+                handler = getattr(self._owner, "_on_canvas_delete", None) if self._owner else None
+                if data is not None and handler:
+                    handler(data)
+
             elif url_str.startswith("beeoffice://image-edit"):
                 # 任务 2.3：图片编辑回调
                 try:

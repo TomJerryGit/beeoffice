@@ -519,6 +519,7 @@ class SlideMixin:
                     f'<div class="slide-number">'
                     f"{index + 1}/{len(self._slides_html)}</div>"
                     f"{dynamic_js}{editor_js}{image_js}"
+                    f"{self._canvas_js_for(index)}"
                 ),
             )
 
@@ -541,6 +542,71 @@ class SlideMixin:
                 self._broadcast_slide()
             except AttributeError:
                 pass
+
+    # ==================== 画布编辑 ====================
+    def _canvas_js_for(self, index):
+        try:
+            from beeoffice.plugins.beeshow_canvas import get_canvas_edit_js
+            overrides = getattr(self, "_canvas_overrides", {})
+            deleted = getattr(self, "_canvas_deleted", {})
+            return get_canvas_edit_js(
+                overrides.get(index, {}), deleted.get(index, [])
+            )
+        except Exception:
+            return ""
+
+    def _canvas_history(self):
+        if not hasattr(self, "_canvas_undo_stack"):
+            self._canvas_undo_stack = []
+        return self._canvas_undo_stack
+
+    def _on_canvas_edit_applied(self, data):
+        idx = self._current_slide
+        if not hasattr(self, "_canvas_overrides"):
+            self._canvas_overrides = {}
+        stack = self._canvas_history()
+        stack.append((dict(self._canvas_overrides.get(idx, {})), list(getattr(self, "_canvas_deleted", {}).get(idx, []))))
+        self._canvas_overrides.setdefault(idx, {})[int(data.get("index", 0))] = {
+            "left": float(data.get("left", 0)),
+            "top": float(data.get("top", 0)),
+            "width": float(data.get("width", 0) or 0),
+            "height": float(data.get("height", 0) or 0),
+        }
+        self._show_slide(idx)
+
+    def _on_canvas_delete(self, data):
+        idx = self._current_slide
+        if not hasattr(self, "_canvas_deleted"):
+            self._canvas_deleted = {}
+        stack = self._canvas_history()
+        stack.append((dict(self._canvas_overrides.get(idx, {})), list(self._canvas_deleted.get(idx, []))))
+        self._canvas_deleted.setdefault(idx, []).append(int(data.get("index", 0)))
+        self._show_slide(idx)
+
+    def _canvas_undo(self):
+        stack = self._canvas_history()
+        if not stack:
+            self._set_status("没有可撤销的画布操作", 2000)
+            return
+        overrides, deleted = stack.pop()
+        idx = self._current_slide
+        if not hasattr(self, "_canvas_overrides"):
+            self._canvas_overrides = {}
+        if not hasattr(self, "_canvas_deleted"):
+            self._canvas_deleted = {}
+        self._canvas_overrides[idx] = overrides
+        self._canvas_deleted[idx] = deleted
+        self._show_slide(idx)
+        self._set_status("已撤销画布操作", 2000)
+
+    def _canvas_reset(self):
+        idx = self._current_slide
+        if hasattr(self, "_canvas_overrides"):
+            self._canvas_overrides.pop(idx, None)
+        if hasattr(self, "_canvas_deleted"):
+            self._canvas_deleted.pop(idx, None)
+        self._show_slide(idx)
+        self._set_status("已重置当前页画布", 2000)
 
     # ==================== 设计 / 过渡 ====================
     def _apply_unified_font(self, family: str):
