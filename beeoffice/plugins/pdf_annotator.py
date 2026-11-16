@@ -32,7 +32,7 @@ from beeoffice.pdf_backend import get_backend
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
                                 QListWidget, QListWidgetItem, QTextEdit, QFileDialog,
                                 QMessageBox, QSplitter, QDialog, QDialogButtonBox,
-                                QGraphicsView, QGraphicsScene, QColorDialog, QInputDialog)
+                                QGraphicsView, QGraphicsScene, QColorDialog, QInputDialog, QLineEdit)
 from PySide6.QtCore import Qt, QRectF, Signal, QPointF, QSize
 from PySide6.QtGui import (QPixmap, QPainter, QColor, QPen, QFont, QPolygonF, QIcon)
 
@@ -75,13 +75,14 @@ class Annotation:
     #: .beeanno 旁挂文件格式版本（新写入的文件带此字段；旧文件是裸列表，仍可读）
     FORMAT_VERSION = 1
 
-    def __init__(self, page, rect, anno_type="highlight", text="", color=(1,1,0)):
+    def __init__(self, page, rect, anno_type="highlight", text="", color=(1,1,0), width=2):
         if not isinstance(rect, AnnoRect):
             rect = AnnoRect(rect.x0, rect.y0, rect.x1, rect.y1) \
                 if hasattr(rect, "x0") else AnnoRect(rect)
         self.page=page; self.rect=rect; self.type=anno_type; self.text=text; self.color=color
+        self.width=int(width)
         self.created=datetime.now().isoformat()
-    def to_dict(self): return {"page":self.page,"rect":[self.rect.x0,self.rect.y0,self.rect.x1,self.rect.y1],"type":self.type,"text":self.text,"color":list(self.color),"created":self.created}
+    def to_dict(self): return {"page":self.page,"rect":[self.rect.x0,self.rect.y0,self.rect.x1,self.rect.y1],"type":self.type,"text":self.text,"color":list(self.color),"width":self.width,"created":self.created}
 
     @classmethod
     def from_dict(cls, data):
@@ -117,6 +118,7 @@ class Annotation:
             data.get("type", "highlight"),
             data.get("text", "") or "",
             color,
+            data.get("width", 2) or 2,
         )
         if data.get("created"):
             anno.created = data["created"]
@@ -130,9 +132,11 @@ class PDFPageView(QGraphicsView):
         self._scene=QGraphicsScene(self); self.setScene(self._scene)
         self._page=None; self._annotations=[]; self._current_tool="highlight"; self._current_color=(1,0.8,0)
         self._rubberband_start=None; self._scale=1.0
+        self._annotations_visible=True; self._all_annotations=[]
         self.setRenderHint(QPainter.SmoothPixmapTransform)
     def set_page(self, page, annotations, src=None, backend=None):
         self._page=page; self._src=src; self._backend=backend
+        self._all_annotations=list(annotations)
         self._annotations=[a for a in annotations if a.page==page]; self._render_page()
     def _render_page(self):
         if self._page is None or not self._src or self._backend is None:
@@ -149,11 +153,14 @@ class PDFPageView(QGraphicsView):
         finally:
             if tmp:
                 Path(tmp.name).unlink(missing_ok=True)
+        if not self._annotations_visible:
+            return
         for a in self._annotations:
             r=a.rect*self._scale; c=QColor(int(a.color[0]*255),int(a.color[1]*255),int(a.color[2]*255),80)
+            lw = max(1, int(getattr(a, 'width', 2)))
             if a.type=="highlight": self._scene.addRect(r.x0,r.y0,r.width,r.height,QPen(Qt.NoPen),c)
-            elif a.type=="underline": self._scene.addLine(r.x0,r.y1,r.x1,r.y1,QPen(c,2))
-            elif a.type=="strikethrough": self._scene.addLine(r.x0,(r.y0+r.y1)/2,r.x1,(r.y0+r.y1)/2,QPen(c,2))
+            elif a.type=="underline": self._scene.addLine(r.x0,r.y1,r.x1,r.y1,QPen(c,lw))
+            elif a.type=="strikethrough": self._scene.addLine(r.x0,(r.y0+r.y1)/2,r.x1,(r.y0+r.y1)/2,QPen(c,lw))
             elif a.type=="text": self._scene.addText("💬",QFont("Segoe UI Emoji",12)).setPos(r.x0-8,r.y0-12)
             elif a.type=="textbox":
                 self._scene.addRect(r.x0,r.y0,r.width,r.height,QPen(c,1),QColor(255,255,255,30))
@@ -167,9 +174,9 @@ class PDFPageView(QGraphicsView):
             elif a.type=="circle":
                 self._scene.addEllipse(r.x0,r.y0,r.width,r.height,QPen(c,2),QColor(0,0,0,0))
             elif a.type=="line":
-                self._scene.addLine(r.x0,r.y0,r.x1,r.y1,QPen(c,2))
+                self._scene.addLine(r.x0,r.y0,r.x1,r.y1,QPen(c,lw))
             elif a.type=="arrow":
-                self._scene.addLine(r.x0,r.y0,r.x1,r.y1,QPen(c,2))
+                self._scene.addLine(r.x0,r.y0,r.x1,r.y1,QPen(c,lw))
                 dx,dy=r.x1-r.x0,r.y1-r.y0
                 ln=(dx*dx+dy*dy)**0.5 or 1
                 ux,uy=dx/ln,dy/ln
@@ -198,11 +205,13 @@ class PDFPageView(QGraphicsView):
             ep2=QPointF(ep.x()/self._scale, ep.y()/self._scale)
             rect=AnnoRect(sp.x(),sp.y(),ep2.x(),ep2.y())
             if not rect.is_empty and self._page is not None:
-                self.annotation_added.emit(Annotation(self._page.number,rect,self._current_tool,color=self._current_color))
+                self.annotation_added.emit(Annotation(self._page.number,rect,self._current_tool,color=self._current_color,width=getattr(self,'_current_width',2)))
             self._rubberband_start=None; self._render_page()
         else: super().mouseReleaseEvent(event)
     def set_tool(self,t): self._current_tool=t
     def set_current_color(self,c): self._current_color=c
+    def set_current_width(self,w): self._current_width=max(1,int(w))
+    def set_annotations_visible(self,v): self._annotations_visible=bool(v); self._render_page()
 
 
 class PDFAnnotator(QWidget):
@@ -212,6 +221,8 @@ class PDFAnnotator(QWidget):
         self._doc=None; self._filepath=None; self._annotations=[]; self._current_page=0
         self._page_count=0; self._backend=get_backend()
         self._current_color=(1,0.8,0)
+        self._current_width=2
+        self._redo_stack=[]
         # 优化规划 §1.8：用于 closeEvent 判断是否存在未落盘的批注
         self._dirty_annotations=False
         layout=QVBoxLayout(self)
@@ -248,11 +259,25 @@ class PDFAnnotator(QWidget):
             btn.setCheckable(True)
         color_group = self._ribbon.add_group(page_anno, "颜色")
         color_group.add_small_button("选择颜色", "选择颜色", self._choose_color, icon_name="color")
+        from PySide6.QtWidgets import QSpinBox
+        width_spin = QSpinBox()
+        width_spin.setRange(1, 12)
+        width_spin.setValue(2)
+        width_spin.setPrefix("线宽 ")
+        width_spin.valueChanged.connect(self._set_current_width)
+        color_group.add_widget(width_spin)
+        manage_group = self._ribbon.add_group(page_anno, "管理")
+        manage_group.add_small_button("撤销", "撤销", self._undo_annotation, icon_name="undo")
+        manage_group.add_small_button("重做", "重做", self._redo_annotation, icon_name="redo")
+        manage_group.add_small_button("显示/隐藏", "显示/隐藏", self._toggle_annotations_visible, icon_name="view")
+        manage_group.add_small_button("导出批注", "导出批注", self._export_annotations, icon_name="export")
+        manage_group.add_small_button("导入批注", "导入批注", self._import_annotations, icon_name="import")
 
         page_page = self._ribbon.add_tab("页面")
         nav_group = self._ribbon.add_group(page_page, "导航")
         nav_group.add_small_button("上一页", "上一页", self._prev_page, icon_name="prev")
         nav_group.add_small_button("下一页", "下一页", self._next_page, icon_name="next")
+        nav_group.add_small_button("连续阅读", "连续阅读", self._toggle_continuous, icon_name="view")
         op_group = self._ribbon.add_group(page_page, "页面管理")
         op_group.add_small_button("页面管理", "页面管理", self._open_page_manager, icon_name="page")
         op_group.add_small_button("页面工具", "页面工具", self._open_toolbox, icon_name="command")
@@ -260,8 +285,8 @@ class PDFAnnotator(QWidget):
 
         protect_page = self._ribbon.add_tab("保护")
         protect_group = self._ribbon.add_group(protect_page, "保护")
-        protect_group.add_small_button("加密/权限", "加密/权限", self._open_toolbox, icon_name="save")
-        protect_group.add_small_button("水印", "水印", self._open_toolbox, icon_name="page")
+        protect_group.add_small_button("加密/权限", "加密/权限", self._encrypt_pdf_dialog, icon_name="save")
+        protect_group.add_small_button("水印", "水印", self._watermark_dialog, icon_name="page")
 
         convert_page = self._ribbon.add_tab("转换")
         convert_group = self._ribbon.add_group(convert_page, "转换")
@@ -348,6 +373,51 @@ class PDFAnnotator(QWidget):
         if row != self._current_page:
             self._current_page = row
             self._update_view()
+
+    def _encrypt_pdf_dialog(self):
+        if not self._doc:
+            QMessageBox.information(self, "加密", "请先打开 PDF。")
+            return
+        pwd, ok = QInputDialog.getText(self, "加密 PDF", "打开密码：", QLineEdit.Password)
+        if not ok or not pwd:
+            return
+        out, _ = QFileDialog.getSaveFileName(self, "保存加密 PDF", "", "PDF (*.pdf)")
+        if not out:
+            return
+        try:
+            from beeoffice.pdf_tools import encrypt_pdf
+            encrypt_pdf(self._filepath, out, pwd)
+            QMessageBox.information(self, "加密完成", f"已保存：\n{out}")
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.warning(self, "加密失败", str(e))
+
+    def _watermark_dialog(self):
+        if not self._doc:
+            QMessageBox.information(self, "水印", "请先打开 PDF。")
+            return
+        text, ok = QInputDialog.getText(self, "添加水印", "水印文字：")
+        if not ok or not text:
+            return
+        out, _ = QFileDialog.getSaveFileName(self, "保存水印 PDF", "", "PDF (*.pdf)")
+        if not out:
+            return
+        try:
+            from beeoffice.pdf_tools import add_watermark
+            add_watermark(self._filepath, out, text)
+            QMessageBox.information(self, "水印完成", f"已保存：\n{out}")
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.warning(self, "水印失败", str(e))
+
+    def _toggle_continuous(self):
+        self._continuous = not getattr(self, "_continuous", False)
+        try:
+            self._page_view.setDragMode(
+                QGraphicsView.ScrollHandDrag if self._continuous
+                else QGraphicsView.RubberBandDrag
+            )
+        except Exception:
+            pass
+        self._set_status("连续阅读模式" if self._continuous else "单页模式", 2000)
 
     def _open_page_manager(self):
         if not self._doc:
@@ -450,6 +520,57 @@ class PDFAnnotator(QWidget):
             anno.text=text
         self._annotations.append(anno); self._dirty_annotations=True; self._update_view()
 
+    def _set_current_width(self, value):
+        self._current_width = int(value)
+        self._page_view.set_current_width(value)
+
+    def _redo_annotation(self):
+        if not getattr(self, "_redo_stack", None):
+            self._set_status("没有可重做的批注", 2000)
+            return
+        anno = self._redo_stack.pop()
+        self._annotations.append(anno)
+        self._dirty_annotations = True
+        self._update_view()
+
+    def _toggle_annotations_visible(self):
+        self._annotations_visible = not getattr(self, "_annotations_visible", True)
+        self._page_view.set_annotations_visible(self._annotations_visible)
+        self._set_status("显示批注" if self._annotations_visible else "隐藏批注", 2000)
+
+    def _export_annotations(self):
+        if not self._annotations:
+            QMessageBox.information(self, "导出批注", "当前没有批注。")
+            return
+        p, _ = QFileDialog.getSaveFileName(
+            self, "导出批注", "annotations.beeanno", "BeeAnno (*.beeanno)"
+        )
+        if not p:
+            return
+        payload = {"version": Annotation.FORMAT_VERSION,
+                   "annotations": [a.to_dict() for a in self._annotations]}
+        if not atomic_write_json(p, payload):
+            QMessageBox.warning(self, "导出批注", "写入失败。")
+            return
+        self._set_status("批注已导出", 2000)
+
+    def _import_annotations(self):
+        p, _ = QFileDialog.getOpenFileName(
+            self, "导入批注", "", "BeeAnno (*.beeanno);;JSON (*.json)"
+        )
+        if not p:
+            return
+        try:
+            import json
+            data = json.loads(Path(p).read_text(encoding="utf-8"))
+            items = data.get("annotations", data) if isinstance(data, dict) else data
+            for item in items:
+                self._annotations.append(Annotation.from_dict(item))
+            self._update_view()
+            self._set_status(f"已导入 {len(items)} 条批注", 3000)
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.warning(self, "导入批注", f"导入失败：{e}")
+
     def _undo_annotation(self):
         """
         撤销当前页最后一处批注（P1-14 修复）
@@ -466,7 +587,8 @@ class PDFAnnotator(QWidget):
         # 倒序找到当前页的最后一个批注
         for i in range(len(self._annotations) - 1, -1, -1):
             if self._annotations[i].page == self._current_page:
-                self._annotations.pop(i)
+                removed = self._annotations.pop(i)
+                self._redo_stack.append(removed)
                 self._dirty_annotations = True
                 self._update_view()
                 return
