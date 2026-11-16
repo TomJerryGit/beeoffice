@@ -254,7 +254,8 @@ class PDFAnnotator(QWidget):
         nav_group.add_small_button("上一页", "上一页", self._prev_page, icon_name="prev")
         nav_group.add_small_button("下一页", "下一页", self._next_page, icon_name="next")
         op_group = self._ribbon.add_group(page_page, "页面管理")
-        op_group.add_small_button("页面工具", "页面工具", self._open_toolbox, icon_name="page")
+        op_group.add_small_button("页面管理", "页面管理", self._open_page_manager, icon_name="page")
+        op_group.add_small_button("页面工具", "页面工具", self._open_toolbox, icon_name="command")
         op_group.add_small_button("旋转", "旋转", self._rotate_current, icon_name="view")
 
         protect_page = self._ribbon.add_tab("保护")
@@ -347,6 +348,16 @@ class PDFAnnotator(QWidget):
         if row != self._current_page:
             self._current_page = row
             self._update_view()
+
+    def _open_page_manager(self):
+        if not self._doc:
+            QMessageBox.information(self, "页面管理", "请先打开 PDF。")
+            return
+        from beeoffice.plugins.pdf_page_manager import PDFPageManagerDialog
+        dlg = PDFPageManagerDialog(self._doc, self)
+        if dlg.exec() == QDialog.Accepted and dlg.output_path:
+            self.open_pdf(dlg.output_path)
+            self._set_status("页面管理已应用（输出新文件）", 3000)
 
     def _rotate_current(self):
         self._set_status("旋转页面请使用“页面工具”（输出新文件，不修改原文件）", 3000)
