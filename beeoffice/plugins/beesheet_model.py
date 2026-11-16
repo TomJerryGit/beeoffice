@@ -30,6 +30,7 @@ class SheetDataModel(QAbstractTableModel):
         self._loaded_chunks = set()
         self._total_rows = 0
         self._total_cols = 0
+        self._display_rows = self.DEFAULT_ROWS
         self._is_streaming = False
         self._real_rows = 0
         self._conditional_formats_ref = {}
@@ -65,6 +66,7 @@ class SheetDataModel(QAbstractTableModel):
         self._loaded_df = self._full_df.copy()
         self._total_rows = rows
         self._total_cols = cols
+        self._display_rows = max(rows, self.DEFAULT_ROWS)
         self._loaded_chunks = {0}
         self._is_streaming = False
         self._real_rows = 0
@@ -94,8 +96,16 @@ class SheetDataModel(QAbstractTableModel):
         self._loaded_df.index = range(len(self._loaded_df))
         if self._total_rows:
             self._loaded_chunks.add(0)
+        self._display_rows = max(self.DEFAULT_ROWS, self._total_rows)
         self._is_streaming = fc < self._total_rows
         self.layoutChanged.emit()
+
+    def ensure_display_rows(self, rows: int):
+        """按滚动需要增加可见空白行，不写入 DataFrame。"""
+        rows = max(int(rows), self.DEFAULT_ROWS)
+        if rows > self._display_rows:
+            self._display_rows = rows
+            self.layoutChanged.emit()
 
     def _grow_to(self, rows: int):
         """
@@ -123,6 +133,7 @@ class SheetDataModel(QAbstractTableModel):
         # 已加载数据始终是"从第 0 行开始的连续前缀"，索引必须等于位置
         self._loaded_df.index = range(len(self._loaded_df))
         self._total_rows = rows
+        self._display_rows = max(self._display_rows, rows)
         self._real_rows = max(self._real_rows, rows)
 
     def load_chunk(self, ci):
@@ -215,7 +226,7 @@ class SheetDataModel(QAbstractTableModel):
 
         v5.2：数据层不再补齐空行，工作区的"最小 1000 行"在这里算出来。
         """
-        return max(self._total_rows, self.DEFAULT_ROWS)
+        return max(self._total_rows, self._display_rows)
 
     def columnCount(self, p=QModelIndex()):
         return self._total_cols if self._full_df is not None else 0

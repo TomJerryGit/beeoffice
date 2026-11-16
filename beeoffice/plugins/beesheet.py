@@ -77,6 +77,7 @@ from beeoffice.plugins.beesheet_style_mixin import StyleMixin
 from beeoffice.plugins.beesheet_print_mixin import PrintMixin
 from beeoffice.plugins.beesheet_review_mixin import ReviewMixin
 from beeoffice.plugins.beesheet_data_tools_mixin import DataToolsMixin
+from beeoffice.plugins.beesheet_view_tools_mixin import ViewToolsMixin
 from beeoffice.plugins.beesheet_audit_mixin import AuditMixin
 from beeoffice.plugins.beesheet_data_mixin import DataMixin
 from beeoffice.plugins.beesheet_chart_mixin import ChartMixin
@@ -100,6 +101,7 @@ class BeeSheetView(
     PrintMixin,
     ReviewMixin,
     DataToolsMixin,
+    ViewToolsMixin,
     AuditMixin,
     DataMixin,
     ChartMixin,
@@ -715,7 +717,9 @@ class BeeSheetView(
 
     # ==================== 滚动 ====================
     def _on_scroll_changed(self, value):
-        """滚动时触发分块加载 + 更新填充柄"""
+        """滚动时触发分块加载 + 网格按需扩展 + 更新填充柄"""
+        if value > 0 and value >= self.model.rowCount() - 100:
+            self.model.ensure_display_rows(self.model.rowCount() + 1000)
         if self.model.is_streaming:
             vp = self.table_view.viewport()
             top = self.table_view.indexAt(vp.rect().topLeft())

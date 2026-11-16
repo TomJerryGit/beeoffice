@@ -363,6 +363,9 @@ class UIMixin:
             "设置打印区域": "insert", "取消打印区域": "delete-row",
             "函数分类": "formula", "显示公式": "formula",
             "错误检查": "track", "计算选项": "data",
+            "网格线": "table", "行号列标": "table",
+            "显示比例": "stats", "分页预览": "page",
+            "页面布局": "page",
             "保护工作表": "table", "保护工作簿": "table",
             "插入批注": "comment", "查看批注": "comment",
             "拼写检查": "search", "删除重复项": "filter",
@@ -510,6 +513,12 @@ class UIMixin:
         add_btn(view_group, tr("auto.beesheet_ui_mixin.e3", "样式"), self._show_style_menu)
         add_btn(view_group, tr("auto.beesheet_ui_mixin.e4", "兼容性"), self._check_excel_compatibility)
         self._stat_btn = add_btn(view_group, tr("auto.beesheet_ui_mixin.e5", "统计"), self._show_selection_stats)
+        toggle_group = add_group(page_view, "视图开关")
+        add_btn(toggle_group, "网格线", self._toggle_grid_lines)
+        add_btn(toggle_group, "行号列标", self._toggle_headers)
+        add_btn(toggle_group, "显示比例", self._show_zoom_dialog)
+        add_btn(toggle_group, "分页预览", self._show_page_break_preview)
+        add_btn(toggle_group, "页面布局", self._show_page_layout)
 
         # ---------- 表格工具（上下文页签，选中多个单元格时显示） ----------
         page_table = add_page("表格工具")
