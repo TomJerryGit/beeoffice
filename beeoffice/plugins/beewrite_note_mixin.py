@@ -115,3 +115,19 @@ class NoteMixin:
             self, "字数统计",
             f"字数：{words}\n字符数：{chars}\n段落数：{paragraphs}",
         )
+
+    def _append_notes_to_docx(self, path):
+        """把脚注/尾注以文末注释区写入 DOCX。"""
+        if not getattr(self, "_footnotes", None) and not getattr(self, "_endnotes", None):
+            return
+        try:
+            from docx import Document
+            doc = Document(path)
+            doc.add_heading("注释", level=2)
+            for i, note in enumerate(getattr(self, "_footnotes", []), 1):
+                doc.add_paragraph(f"{i}. {note}")
+            for i, note in enumerate(getattr(self, "_endnotes", []), 1):
+                doc.add_paragraph(f"尾注 {i}. {note}")
+            doc.save(path)
+        except Exception:  # noqa: BLE001
+            pass

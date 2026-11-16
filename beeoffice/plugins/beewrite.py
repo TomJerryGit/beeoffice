@@ -107,6 +107,7 @@ from beeoffice.plugins.beewrite_link_mixin import LinkMixin
 from beeoffice.plugins.beewrite_ai_mixin import AIMixin
 from beeoffice.plugins.beewrite_view_mixin import ViewMixin
 from beeoffice.plugins.beewrite_note_mixin import NoteMixin
+from beeoffice.plugins.beewrite_view_tools_mixin import ViewToolsMixin
 from beeoffice.i18n import tr
 
 
@@ -123,6 +124,7 @@ class BeeWriteEditor(
     AIMixin,
     ViewMixin,
     NoteMixin,
+    ViewToolsMixin,
     QWidget,
 ):
     """蜜写主编辑器：组装所有 Mixin + 底层组件"""
@@ -463,6 +465,11 @@ class BeeWriteEditor(
             ("▲\n收起", "收起"),
         ):
             _add_large(group, label, target, self._toolbar2)
+        group.add_small_button("全屏", "全屏", self._toggle_fullscreen, icon_name="view")
+        group.add_small_button("标尺", "标尺", self._toggle_ruler, icon_name="page")
+        group.add_small_button("网格", "网格", self._toggle_grid_lines, icon_name="table")
+        group.add_small_button("单页", "单页", self._open_single_page_view, icon_name="page")
+        group.add_small_button("多页", "多页", self._open_multi_page_view, icon_name="page")
 
         # 上下文标签：光标进入表格时出现“表格工具”
         ctx = self._ribbon.add_context_tab("表格工具")

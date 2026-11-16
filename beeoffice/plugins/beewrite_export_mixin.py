@@ -297,6 +297,8 @@ class ExportMixin:
         try:
             if self._edit_mode == "rich_text":
                 self._rich_to_docx(path)
+                if hasattr(self, "_append_notes_to_docx"):
+                    self._append_notes_to_docx(path)
             else:
                 from beeoffice.plugins.bee_export import export_to_docx
                 content = self.get_rendered_content()
