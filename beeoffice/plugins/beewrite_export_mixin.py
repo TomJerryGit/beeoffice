@@ -428,11 +428,16 @@ class ExportMixin:
         ml = margin_left * 0.264583
         mr = margin_right * 0.264583
 
+        columns = int(page_settings.get("columns", 1) or 1)
+        column_css = ""
+        if columns > 1:
+            column_css = f"body{{column-count:{columns};column-gap:12mm;}}"
         page_css = f"""
         @page {{
             size: {w}mm {h}mm;
             margin: {mt:.1f}mm {mr:.1f}mm {mb:.1f}mm {ml:.1f}mm;
         }}
+        {column_css}
         """
 
         extras = self._build_export_extras()

@@ -53,6 +53,13 @@
 - 样式导出 DOCX 保留 Heading 1–4；
 - 新增 `tests/qt/test_beewrite_styles.py`。
 
+### W6 页面/页眉页脚
+- 页面设置新增分栏（1–4）与行号开关；
+- 新增页眉页脚设置对话框：首页不同、奇偶页不同、首页/偶数页页眉页脚；
+- DOCX 导出写入 first_page/even_page 页眉页脚；
+- 分栏导出写入 HTML `column-count`；
+- 新增 `tests/qt/test_beewrite_w6.py`（含 20 段导出）。
+
 ### 已有能力
 - 段落格式对话框（行距/段前后/缩进/边框/底纹）此前已存在，本增量未重复实现。
 

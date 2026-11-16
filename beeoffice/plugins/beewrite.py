@@ -402,6 +402,10 @@ class BeeWriteEditor(
                 _clone_click(self._quick_toolbar, target),
                 icon_name="page" if target == "页眉页脚" else "view",
             )
+        group.add_small_button(
+            "页眉页脚设置", "页眉页脚设置",
+            self._show_header_footer_dialog, icon_name="page",
+        )
 
         # 引用：目录/交叉引用/页码/分节符/水印
         page = self._ribbon.add_tab("引用")

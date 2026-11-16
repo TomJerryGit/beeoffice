@@ -53,6 +53,9 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QMessageBox,
     QTextEdit,
+    QLineEdit,
+    QCheckBox,
+    QSpinBox,
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QTextCursor
@@ -111,6 +114,42 @@ class DocMixin:
                 3000,
             )
 
+    def _show_header_footer_dialog(self):
+        """页眉页脚对话框：首页不同/奇偶页不同。"""
+        dlg = QDialog(self)
+        dlg.setWindowTitle("页眉页脚")
+        form = QFormLayout(dlg)
+        header = QLineEdit(getattr(self, "_header_text", ""))
+        footer = QLineEdit(getattr(self, "_footer_text", ""))
+        first_header = QLineEdit(getattr(self, "_header_first_text", ""))
+        even_header = QLineEdit(getattr(self, "_header_even_text", ""))
+        even_footer = QLineEdit(getattr(self, "_footer_even_text", ""))
+        first_diff = QCheckBox("首页不同")
+        first_diff.setChecked(bool(getattr(self, "_different_first_page", False)))
+        odd_even = QCheckBox("奇偶页不同")
+        odd_even.setChecked(bool(getattr(self, "_odd_even_pages", False)))
+        form.addRow("页眉", header)
+        form.addRow("页脚", footer)
+        form.addRow(first_diff)
+        form.addRow("首页页眉", first_header)
+        form.addRow(odd_even)
+        form.addRow("偶数页页眉", even_header)
+        form.addRow("偶数页页脚", even_footer)
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        form.addRow(btns)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        self._header_text = header.text().strip()
+        self._footer_text = footer.text().strip()
+        self._header_first_text = first_header.text().strip()
+        self._header_even_text = even_header.text().strip()
+        self._footer_even_text = even_footer.text().strip()
+        self._different_first_page = first_diff.isChecked()
+        self._odd_even_pages = odd_even.isChecked()
+        self._set_status("页眉页脚设置已更新（导出 Word/PDF 生效）", 3000)
+
     def _apply_header_footer(self, doc):
         """
         把内存里的页眉/页脚写入 python-docx 文档的节。
@@ -137,6 +176,22 @@ class DocMixin:
                 para = section.footer.paragraphs[0]
                 para.text = footer_text
                 para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            if getattr(self, "_different_first_page", False):
+                section.different_first_page_header_footer = True
+                first = getattr(self, "_header_first_text", "") or header_text
+                if first:
+                    section.first_page_header.paragraphs[0].text = first
+            if getattr(self, "_odd_even_pages", False):
+                try:
+                    doc.settings.odd_and_even_pages_header_footer = True
+                    even_h = getattr(self, "_header_even_text", "") or header_text
+                    even_f = getattr(self, "_footer_even_text", "") or footer_text
+                    if even_h:
+                        section.even_page_header.paragraphs[0].text = even_h
+                    if even_f:
+                        section.even_page_footer.paragraphs[0].text = even_f
+                except Exception as e:  # noqa: BLE001
+                    logging.error(f"写入奇偶页页眉失败: {e}")
             return True
         except Exception as e:
             logging.error(f"写入页眉/页脚失败: {e}")
@@ -274,6 +329,18 @@ class DocMixin:
         margin_form.addRow("右:", right_spin)
         layout.addWidget(margin_group)
 
+        # ---------- 版式 ----------
+        layout_group = QGroupBox("版式")
+        layout_form = QFormLayout(layout_group)
+        columns_spin = QSpinBox()
+        columns_spin.setRange(1, 4)
+        columns_spin.setValue(int(self._page_settings.get("columns", 1)))
+        layout_form.addRow("分栏:", columns_spin)
+        line_numbers = QCheckBox("显示行号")
+        line_numbers.setChecked(bool(self._page_settings.get("line_numbers", False)))
+        layout_form.addRow(line_numbers)
+        layout.addWidget(layout_group)
+
         # ---------- 提示 ----------
         tip = QLabel(
             tr("auto.beewrite_doc_mixin.e2861613", "💡 页面设置会保存到当前文档，导出 PDF 时自动应用。")
@@ -312,6 +379,8 @@ class DocMixin:
             self._page_settings["margin_bottom"] = bottom_spin.value() * 10
             self._page_settings["margin_left"] = left_spin.value() * 10
             self._page_settings["margin_right"] = right_spin.value() * 10
+            self._page_settings["columns"] = columns_spin.value()
+            self._page_settings["line_numbers"] = line_numbers.isChecked()
 
             self._set_status(
                 tr("auto.beewrite_doc_mixin.0d812700", "✅ 页面设置已更新（{0}）").format(paper_combo.currentText()), 3000
