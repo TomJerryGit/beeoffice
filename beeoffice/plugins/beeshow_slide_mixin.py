@@ -309,7 +309,8 @@ class SlideMixin:
         """刷新右侧缩略图列表，选中当前页"""
         self._thumb_list.clear()
         for i, title in enumerate(self._slide_titles):
-            item = QListWidgetItem(f"{i+1}. {title[:25]}")
+            prefix = "[隐藏] " if i in getattr(self, "_slide_hidden", set()) else ""
+            item = QListWidgetItem(f"{i+1}. {prefix}{title[:25]}")
             if i == self._current_slide:
                 item.setSelected(True)
             self._thumb_list.addItem(item)
@@ -372,6 +373,47 @@ class SlideMixin:
         self._editor.setPlainText('\n---\n'.join(parts))
         self._editor.blockSignals(False)
         self._update_preview()
+
+    def _duplicate_slide(self):
+        """复制当前幻灯片到下一页。"""
+        if not getattr(self, "_slides_md", None):
+            return
+        idx = self._current_slide
+        if not (0 <= idx < len(self._slides_md)):
+            return
+        self._slides_md.insert(idx + 1, self._slides_md[idx])
+        self._slides_html.insert(idx + 1, self._slides_html[idx])
+        title = self._slide_titles[idx] if idx < len(self._slide_titles) else "幻灯片"
+        self._slide_titles.insert(idx + 1, title + " 副本")
+        self._speaker_notes.insert(idx + 1, self._speaker_notes[idx] if idx < len(self._speaker_notes) else "")
+        self._slide_animations.insert(idx + 1, self._slide_animations[idx] if idx < len(self._slide_animations) else {})
+        parts = []
+        for i, md in enumerate(self._slides_md):
+            note = ""
+            if i < len(self._speaker_notes) and self._speaker_notes[i]:
+                note = f"\n<!-- {self._speaker_notes[i]} -->"
+            parts.append(md + note)
+        self._editor.blockSignals(True)
+        self._editor.setPlainText("\n---\n".join(parts))
+        self._editor.blockSignals(False)
+        self._update_preview()
+        self._show_slide(idx + 1)
+        self._set_status("已复制幻灯片", 2000)
+
+    def _toggle_hide_slide(self):
+        """隐藏/显示当前幻灯片（缩略图标记，放映时仍建议手动核对）。"""
+        if not getattr(self, "_slides_md", None):
+            return
+        if not hasattr(self, "_slide_hidden"):
+            self._slide_hidden = set()
+        idx = self._current_slide
+        if idx in self._slide_hidden:
+            self._slide_hidden.discard(idx)
+            self._set_status("已取消隐藏", 2000)
+        else:
+            self._slide_hidden.add(idx)
+            self._set_status("已隐藏幻灯片", 2000)
+        self._update_thumbnails()
 
     # ==================== 增删 ====================
     def _add_slide(self):

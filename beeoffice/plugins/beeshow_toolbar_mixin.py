@@ -279,6 +279,9 @@ class ToolbarMixin:
                 label, target, _clone_click(target), icon_name=icon_name
             )
 
+        edit_group = ribbon.add_group(page, "幻灯片")
+        edit_group.add_small_button("复制幻灯片", "复制幻灯片", self._duplicate_slide, icon_name="insert")
+        edit_group.add_small_button("隐藏幻灯片", "隐藏幻灯片", self._toggle_hide_slide, icon_name="view")
         edit_group = ribbon.add_group(page, "编辑")
         for label, target, icon_name in (
             ("表格", "表格", "table"),
