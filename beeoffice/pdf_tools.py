@@ -121,3 +121,52 @@ def stamp_image(src, out, image_path, page: int = 1,
 
 def burn_annotations(src, out, annotations) -> dict:
     return _b().burn_annotations(src, out, annotations)
+
+# ==================== W12 基础转换 ====================
+def pdf_to_images(src, outdir, pages=None, scale: float = 2.0) -> dict:
+    """把 PDF 每页渲染为 PNG。"""
+    from pathlib import Path
+    from beeoffice.pdf_common import parse_page_spec
+    b = _b()
+    n = b.page_count(src)
+    idxs = parse_page_spec(pages, n) if pages else list(range(n))
+    outdir = Path(outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+    saved = []
+    for i in idxs:
+        target = outdir / f"page_{i + 1:03d}.png"
+        b.render_page_png(src, i + 1, target, scale=scale)
+        saved.append(str(target))
+    return {"source": str(src), "output_dir": str(outdir),
+            "count": len(saved), "images": saved}
+
+
+def images_to_pdf(images, out) -> dict:
+    """把 PNG/JPG 图片按顺序合成为 PDF。"""
+    from pathlib import Path
+    from PIL import Image
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.utils import ImageReader
+
+    out = Path(out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    c = canvas.Canvas(str(out))
+    count = 0
+    for img_path in images:
+        with Image.open(img_path) as im:
+            w, h = im.size
+            page_w = max(100.0, min(595.0, w * 0.75))
+            page_h = max(100.0, min(842.0, h * 0.75))
+            c.setPageSize((page_w, page_h))
+            c.drawImage(ImageReader(str(img_path)), 0, 0,
+                        width=page_w, height=page_h,
+                        preserveAspectRatio=True, anchor="c")
+            c.showPage()
+            count += 1
+    c.save()
+    return {"output": str(out), "count": count}
+
+
+def pdf_to_text(src, out, pages=None) -> dict:
+    """PDF 文本导出。"""
+    return _b().extract_text(src, out, pages=pages)

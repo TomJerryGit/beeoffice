@@ -290,8 +290,9 @@ class PDFAnnotator(QWidget):
 
         convert_page = self._ribbon.add_tab("转换")
         convert_group = self._ribbon.add_group(convert_page, "转换")
-        convert_group.add_small_button("提取文本", "提取文本", self._open_toolbox, icon_name="export")
-        convert_group.add_small_button("提取图片", "提取图片", self._open_toolbox, icon_name="image")
+        convert_group.add_small_button("PDF→图片", "PDF→图片", self._pdf_to_images_dialog, icon_name="image")
+        convert_group.add_small_button("PDF→TXT", "PDF→TXT", self._pdf_to_text_dialog, icon_name="export")
+        convert_group.add_small_button("图片→PDF", "图片→PDF", self._images_to_pdf_dialog, icon_name="page")
         convert_group.add_small_button("PDF工具箱", "PDF工具箱", self._open_toolbox, icon_name="command")
 
         layout.addWidget(self._ribbon)
@@ -407,6 +408,52 @@ class PDFAnnotator(QWidget):
             QMessageBox.information(self, "水印完成", f"已保存：\n{out}")
         except Exception as e:  # noqa: BLE001
             QMessageBox.warning(self, "水印失败", str(e))
+
+    def _pdf_to_images_dialog(self):
+        if not self._doc:
+            QMessageBox.information(self, "PDF→图片", "请先打开 PDF。")
+            return
+        outdir = QFileDialog.getExistingDirectory(self, "选择输出目录")
+        if not outdir:
+            return
+        try:
+            from beeoffice.pdf_tools import pdf_to_images
+            info = pdf_to_images(self._doc, outdir)
+            QMessageBox.information(self, "转换完成",
+                                    f"已输出 {info['count']} 张图片：\n{outdir}")
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.warning(self, "转换失败", str(e))
+
+    def _pdf_to_text_dialog(self):
+        if not self._doc:
+            QMessageBox.information(self, "PDF→TXT", "请先打开 PDF。")
+            return
+        out, _ = QFileDialog.getSaveFileName(self, "导出文本", "", "文本 (*.txt)")
+        if not out:
+            return
+        try:
+            from beeoffice.pdf_tools import pdf_to_text
+            pdf_to_text(self._doc, out)
+            QMessageBox.information(self, "转换完成", f"已保存：\n{out}")
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.warning(self, "转换失败", str(e))
+
+    def _images_to_pdf_dialog(self):
+        files, _ = QFileDialog.getOpenFileNames(
+            self, "选择图片", "", "图片 (*.png *.jpg *.jpeg *.bmp)"
+        )
+        if not files:
+            return
+        out, _ = QFileDialog.getSaveFileName(self, "保存 PDF", "", "PDF (*.pdf)")
+        if not out:
+            return
+        try:
+            from beeoffice.pdf_tools import images_to_pdf
+            info = images_to_pdf(files, out)
+            QMessageBox.information(self, "转换完成",
+                                    f"已合成 {info['count']} 页：\n{out}")
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.warning(self, "转换失败", str(e))
 
     def _toggle_continuous(self):
         self._continuous = not getattr(self, "_continuous", False)
