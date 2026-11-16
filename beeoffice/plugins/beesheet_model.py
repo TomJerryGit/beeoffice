@@ -41,6 +41,7 @@ class SheetDataModel(QAbstractTableModel):
         self._validations_ref = {}
         self._named_ranges_ref = {}
         self._table_style_ref = None
+        self._show_formulas = False
         self._get_sheet_data = None
         self._get_sheet_names = None
         self._init_empty()
@@ -256,6 +257,10 @@ class SheetDataModel(QAbstractTableModel):
 
         # === 显示值 ===
         if role == Qt.DisplayRole:
+            if self._show_formulas and self._formulas_ref:
+                formula = self._formulas_ref.get((r, c))
+                if formula:
+                    return formula
             if pd.isna(val) or val == '':
                 return ""
             # 图标集

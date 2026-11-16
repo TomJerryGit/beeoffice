@@ -18,7 +18,7 @@ from PySide6.QtGui import QPageLayout, QPageSize, QTextDocument
 from PySide6.QtPrintSupport import QPrinter, QPrintPreviewDialog
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
-    QFormLayout, QSpinBox, QVBoxLayout,
+    QFormLayout, QLineEdit, QSpinBox, QVBoxLayout,
 )
 
 from beeoffice.theme import Theme
@@ -42,6 +42,8 @@ class PrintMixin:
             "scale": 100,
             "gridlines": True,
             "title": True,
+            "header": "",
+            "footer": "第 {page} 页",
             "area": None,  # (r0, c0, r1, c1)
         }
 
@@ -81,6 +83,11 @@ class PrintMixin:
             "th{background:#EEE;font-weight:bold;}",
             "</style></head><body>",
         ]
+        if settings.get("header"):
+            parts.append(
+                f"<div style='font-size:11px;color:#555;'>"
+                f"{html.escape(settings['header'])}</div>"
+            )
         if settings.get("title", True):
             parts.append("<h3>BeeSheet 表格</h3>")
         if df.empty:
@@ -97,7 +104,14 @@ class PrintMixin:
                 text = "" if pd.isna(value) else str(value)
                 parts.append(f"<td>{html.escape(text)}</td>")
             parts.append("</tr>")
-        parts.append("</table></body></html>")
+        parts.append("</table>")
+        if settings.get("footer"):
+            parts.append(
+                f"<div style='font-size:11px;color:#555;text-align:center;'>"
+                f"{html.escape(settings['footer'].replace('{page}', '1'))}"
+                f"</div>"
+            )
+        parts.append("</body></html>")
         return "".join(parts)
 
     def _make_printer(self) -> QPrinter:
@@ -174,6 +188,13 @@ class PrintMixin:
         scale.setValue(int(s.get("scale", 100)))
         form.addRow("打印缩放", scale)
 
+        header_edit = QLineEdit(str(s.get("header", "")))
+        header_edit.setPlaceholderText("页眉文字")
+        form.addRow("页眉", header_edit)
+        footer_edit = QLineEdit(str(s.get("footer", "")))
+        footer_edit.setPlaceholderText("页脚文字，可用 {page}")
+        form.addRow("页脚", footer_edit)
+
         grid = QCheckBox("打印网格线")
         grid.setChecked(bool(s.get("gridlines", True)))
         form.addRow(grid)
@@ -195,6 +216,8 @@ class PrintMixin:
         s["orientation"] = orient.currentData()
         s["paper"] = paper.currentText()
         s["scale"] = scale.value()
+        s["header"] = header_edit.text()
+        s["footer"] = footer_edit.text()
         s["gridlines"] = grid.isChecked()
         s["title"] = title.isChecked()
         self._set_status("页面设置已更新", 2000)

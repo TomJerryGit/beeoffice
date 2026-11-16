@@ -17,9 +17,9 @@ def make_sheet(qtbot):
 def test_ribbon_categories(qtbot):
     sheet = make_sheet(qtbot)
     tabs = sheet._ribbon_tabs
-    assert tabs.count() == 7
+    assert tabs.count() == 8
     names = [tabs.tabText(i) for i in range(tabs.count())]
-    assert names == ["开始", "插入", "页面", "数据", "公式", "视图", "表格工具"]
+    assert names == ["开始", "插入", "页面", "数据", "公式", "审阅", "视图", "表格工具"]
     ctx = sheet._table_tab_index
     assert tabs.isTabVisible(ctx) is False
 
@@ -34,8 +34,8 @@ def test_ribbon_groups(qtbot):
     assert {"剪贴板", "字体", "对齐", "数字格式"} <= titles
     assert {"对象", "数据工具"} <= titles
     assert {"排序和筛选", "打印", "打印区域"} <= titles
-    assert {"函数", "名称与审计"} <= titles
-    assert {"冻结窗格", "显示"} <= titles
+    assert {"函数", "名称与审计", "计算与检查"} <= titles
+    assert {"冻结窗格", "显示", "保护", "批注", "校对"} <= titles
 
 
 def test_ribbon_toggle(qtbot):

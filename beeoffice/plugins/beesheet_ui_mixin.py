@@ -361,6 +361,11 @@ class UIMixin:
             "左边框": "border-left", "右边框": "border-right",
             "打印预览": "print", "页面设置": "page",
             "设置打印区域": "insert", "取消打印区域": "delete-row",
+            "函数分类": "formula", "显示公式": "formula",
+            "错误检查": "track", "计算选项": "data",
+            "保护工作表": "table", "保护工作簿": "table",
+            "插入批注": "comment", "查看批注": "comment",
+            "拼写检查": "search",
         }
         self._ribbon_buttons = []
 
@@ -467,11 +472,27 @@ class UIMixin:
         fn_group = add_group(page_formula, "函数")
         add_btn(fn_group, tr("auto.beesheet_ui_mixin.d1", "插入函数"), self._show_function_picker)
         add_btn(fn_group, tr("auto.beesheet_ui_mixin.d2", "函数参考"), self._show_function_reference)
+        add_btn(fn_group, "函数分类", self._show_function_categories)
         name_group = add_group(page_formula, "名称与审计")
         add_btn(name_group, tr("auto.beesheet_ui_mixin.d3", "名称管理"), self._show_name_manager)
         add_btn(name_group, tr("auto.beesheet_ui_mixin.d4", "追踪引用"), self._trace_precedents)
         add_btn(name_group, tr("auto.beesheet_ui_mixin.d5", "追踪从属"), self._trace_dependents)
         add_btn(name_group, tr("auto.beesheet_ui_mixin.d6", "自然语言"), self._nl_to_formula)
+        calc_group = add_group(page_formula, "计算与检查")
+        add_btn(calc_group, "显示公式", self._toggle_show_formulas)
+        add_btn(calc_group, "错误检查", self._check_formula_errors)
+        add_btn(calc_group, "计算选项", self._show_calc_options)
+
+        # ---------- 审阅 ----------
+        page_review = add_page("审阅")
+        protect_group = add_group(page_review, "保护")
+        add_btn(protect_group, "保护工作表", self._toggle_sheet_protection)
+        add_btn(protect_group, "保护工作簿", self._toggle_workbook_protection)
+        comment_group = add_group(page_review, "批注")
+        add_btn(comment_group, "插入批注", self._add_comment)
+        add_btn(comment_group, "查看批注", self._show_comments_list)
+        proof_group = add_group(page_review, "校对")
+        add_btn(proof_group, "拼写检查", self._spell_check)
 
         # ---------- 视图 ----------
         page_view = add_page("视图")

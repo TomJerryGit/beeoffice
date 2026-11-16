@@ -75,6 +75,7 @@ from beeoffice.plugins.beesheet_model import SheetDataModel
 from beeoffice.plugins.beesheet_formula_mixin import FormulaMixin
 from beeoffice.plugins.beesheet_style_mixin import StyleMixin
 from beeoffice.plugins.beesheet_print_mixin import PrintMixin
+from beeoffice.plugins.beesheet_review_mixin import ReviewMixin
 from beeoffice.plugins.beesheet_audit_mixin import AuditMixin
 from beeoffice.plugins.beesheet_data_mixin import DataMixin
 from beeoffice.plugins.beesheet_chart_mixin import ChartMixin
@@ -96,6 +97,7 @@ class BeeSheetView(
     FormulaMixin,
     StyleMixin,
     PrintMixin,
+    ReviewMixin,
     AuditMixin,
     DataMixin,
     ChartMixin,

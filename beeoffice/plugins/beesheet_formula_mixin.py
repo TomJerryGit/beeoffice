@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QListWidget, QListWidgetItem, QMenu, QMessageBox
 )
 from PySide6.QtCore import Qt, QPoint
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QCursor
 
 from beeoffice.plugins.beesheet_engine import FormulaEngine
 from beeoffice.plugins.beesheet_commands import EditCellCommand
@@ -562,11 +562,13 @@ class FormulaMixin:
         self._set_status(tr("auto.beesheet_formula_mixin.bc121dae", "✅ 已按行自动求和 ({count} 行)").format(count=count), 5000)
 
     # ==================== 公式重算 ====================
-    def _recalc_formulas(self, max_rounds=3):
+    def _recalc_formulas(self, max_rounds=3, force=False):
         """
         重算所有记录在案的公式单元格。
         支持链式依赖（如 B1=SUM(A1:A3)，C1=B1*2），最多迭代 max_rounds 轮。
         """
+        if not force and not getattr(self, '_auto_calc', True):
+            return
         if not hasattr(self, '_formula_cells') or not self._formula_cells:
             return
         for _ in range(max_rounds):
@@ -587,6 +589,72 @@ class FormulaMixin:
                     pass
             if not changed:
                 break
+
+    # ==================== 分类函数 / 显示公式 / 错误检查 ====================
+    def _show_function_categories(self):
+        """按 WPS 分类列出函数，点击插入。"""
+        menu = QMenu(self)
+        cats = ["统计", "逻辑", "查找", "条件", "数学", "文本", "日期", "财务"]
+        for cat in cats:
+            sub = menu.addMenu(cat)
+            for name, (syntax, c) in sorted(self.FUNCTION_REFERENCE.items()):
+                if c == cat:
+                    act = sub.addAction(f"{name}  {syntax}")
+                    act.triggered.connect(
+                        lambda checked=False, n=name: self._insert_function(n)
+                    )
+        menu.exec(QCursor.pos())
+
+    def _toggle_show_formulas(self):
+        model = self.model
+        model._show_formulas = not getattr(model, "_show_formulas", False)
+        if model.rowCount() and model.columnCount():
+            model.dataChanged.emit(
+                model.index(0, 0),
+                model.index(model.rowCount() - 1, model.columnCount() - 1),
+                [Qt.DisplayRole],
+            )
+        self._set_status(
+            "显示公式" if model._show_formulas else "显示结果", 2000
+        )
+
+    def _check_formula_errors(self):
+        errors = []
+        for (r, c), formula in getattr(self, "_formula_cells", {}).items():
+            try:
+                result = FormulaEngine.evaluate(formula, self.model)
+                text = str(result)
+                if text.startswith("#ERROR") or text.startswith("#N/A"):
+                    errors.append(f"{col_index_to_name(c)}{r + 1}: {formula} → {text}")
+            except Exception as e:  # noqa: BLE001
+                errors.append(f"{col_index_to_name(c)}{r + 1}: {formula} → {e}")
+        if errors:
+            QMessageBox.warning(
+                self, "错误检查",
+                "发现公式问题：\n" + "\n".join(errors[:20]),
+            )
+        else:
+            self._set_status("错误检查：未发现公式错误", 3000)
+
+    def _show_calc_options(self):
+        menu = QMenu(self)
+        auto = menu.addAction("自动计算")
+        auto.setCheckable(True)
+        auto.setChecked(bool(getattr(self, "_auto_calc", True)))
+        manual = menu.addAction("手动计算")
+        manual.setCheckable(True)
+        manual.setChecked(not bool(getattr(self, "_auto_calc", True)))
+        recalc = menu.addAction("立即重算")
+        auto.triggered.connect(lambda: self._set_calc_mode(True))
+        manual.triggered.connect(lambda: self._set_calc_mode(False))
+        recalc.triggered.connect(lambda: self._recalc_formulas(force=True))
+        menu.exec(QCursor.pos())
+
+    def _set_calc_mode(self, auto: bool):
+        self._auto_calc = auto
+        self._set_status("自动计算" if auto else "手动计算", 2000)
+        if auto:
+            self._recalc_formulas(force=True)
 
     # ==================== F1 帮助 ====================
     def _f1_help(self):
