@@ -365,7 +365,9 @@ class UIMixin:
             "错误检查": "track", "计算选项": "data",
             "保护工作表": "table", "保护工作簿": "table",
             "插入批注": "comment", "查看批注": "comment",
-            "拼写检查": "search",
+            "拼写检查": "search", "删除重复项": "filter",
+            "分列": "insert-col", "分类汇总": "stats",
+            "合并计算": "sum",
         }
         self._ribbon_buttons = []
 
@@ -466,6 +468,11 @@ class UIMixin:
         clean_group = add_group(page_data, "数据工具")
         add_btn(clean_group, tr("auto.beesheet_ui_mixin.c3", "清洗"), self._show_clean_menu)
         add_btn(clean_group, tr("auto.beesheet_ui_mixin.c4", "数据验证"), self._show_data_validation_dialog)
+        tools_group = add_group(page_data, "重复与汇总")
+        add_btn(tools_group, "删除重复项", self._remove_duplicates)
+        add_btn(tools_group, "分列", self._split_column_dialog)
+        add_btn(tools_group, "分类汇总", self._show_subtotal_dialog)
+        add_btn(tools_group, "合并计算", self._show_consolidate_dialog)
 
         # ---------- 公式 ----------
         page_formula = add_page("公式")
