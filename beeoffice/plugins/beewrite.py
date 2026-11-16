@@ -106,6 +106,7 @@ from beeoffice.plugins.beewrite_comment_mixin import CommentMixin
 from beeoffice.plugins.beewrite_link_mixin import LinkMixin
 from beeoffice.plugins.beewrite_ai_mixin import AIMixin
 from beeoffice.plugins.beewrite_view_mixin import ViewMixin
+from beeoffice.plugins.beewrite_note_mixin import NoteMixin
 from beeoffice.i18n import tr
 
 
@@ -121,6 +122,7 @@ class BeeWriteEditor(
     LinkMixin,
     AIMixin,
     ViewMixin,
+    NoteMixin,
     QWidget,
 ):
     """蜜写主编辑器：组装所有 Mixin + 底层组件"""
@@ -419,6 +421,11 @@ class BeeWriteEditor(
             ("💧\n水印", "水印"),
         ):
             _add_large(group, label, target, self._toolbar2)
+        group.add_small_button("脚注", "脚注", self._insert_footnote, icon_name="comment")
+        group.add_small_button("尾注", "尾注", self._insert_endnote, icon_name="comment")
+        group.add_small_button("题注", "题注", self._insert_caption, icon_name="toc")
+        group.add_small_button("交叉引用+", "交叉引用+", self._insert_cross_reference, icon_name="link")
+        group.add_small_button("更新目录", "更新目录", self._update_toc, icon_name="toc")
 
         # 审阅：拼写/批注/修订
         page = self._ribbon.add_tab("审阅")
@@ -443,6 +450,7 @@ class BeeWriteEditor(
                 label, target, _clone_click(self._toolbar2, target),
                 icon_name=icon_name,
             )
+        group.add_small_button("字数统计", "字数统计", self._show_word_count_dialog, icon_name="page")
 
         # 视图：大纲/阅读/双屏/折叠
         page = self._ribbon.add_tab("视图")
