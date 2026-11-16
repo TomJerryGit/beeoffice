@@ -30,6 +30,8 @@ from PySide6.QtWidgets import (
     QMenu,
     QMessageBox,
     QColorDialog,
+    QListWidget,
+    QListWidgetItem,
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import (
@@ -65,6 +67,89 @@ class ParagraphMixin:
     # ==================================================================
     # 字符底纹
     # ==================================================================
+    # ==================== 样式库 ====================
+    def _show_style_gallery(self):
+        """WPS 式样式库：正文/标题/引用/代码。"""
+        dlg = QDialog(self)
+        dlg.setWindowTitle("样式库")
+        layout = QVBoxLayout(dlg)
+        lst = QListWidget()
+        styles = [
+            ("正文", "正文"), ("标题 1", "标题 1"), ("标题 2", "标题 2"),
+            ("标题 3", "标题 3"), ("标题 4", "标题 4"),
+            ("引用", "引用"), ("代码", "代码"),
+        ]
+        for label, key in styles:
+            item = QListWidgetItem(label)
+            item.setData(Qt.UserRole, key)
+            lst.addItem(item)
+        layout.addWidget(lst)
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        layout.addWidget(btns)
+
+        def apply_item():
+            item = lst.currentItem()
+            if item:
+                self._apply_named_style(item.data(Qt.UserRole))
+                dlg.accept()
+        lst.itemDoubleClicked.connect(lambda _i: apply_item())
+        btns.accepted.connect(apply_item)
+        dlg.exec()
+
+    def _apply_named_style(self, name):
+        cursor = self.rich_editor.textCursor()
+        if not cursor.hasSelection():
+            cursor.select(QTextCursor.BlockUnderCursor)
+        cursor.beginEditBlock()
+        try:
+            bf = QTextBlockFormat()
+            cf = QTextCharFormat()
+            level = {
+                "标题 1": 1, "标题 2": 2, "标题 3": 3, "标题 4": 4,
+            }.get(name, 0)
+            bf.setHeadingLevel(level)
+            if name == "正文":
+                bf.setLineHeight(100.0, _LINE_HEIGHT_PROPORTIONAL)
+                bf.setTopMargin(0)
+                bf.setBottomMargin(0)
+            elif level:
+                bf.setTopMargin(12 if level == 1 else 8)
+                bf.setBottomMargin(6)
+                bf.setLineHeight(120.0, _LINE_HEIGHT_PROPORTIONAL)
+                cf.setFontWeight(QFont.Bold)
+                cf.setFontPointSize({1: 18, 2: 16, 3: 14, 4: 12}[level])
+            elif name == "引用":
+                bf.setLeftMargin(24)
+                bf.setRightMargin(24)
+                bf.setBackground(QColor("#F5F5F5"))
+                cf.setFontItalic(True)
+                cf.setForeground(QColor("#555555"))
+            elif name == "代码":
+                bf.setLeftMargin(12)
+                bf.setBackground(QColor("#F5F5F5"))
+                cf.setFontFamilies(["Consolas", "Courier New"])
+                cf.setFontPointSize(10)
+            cursor.setBlockFormat(bf)
+            cursor.mergeCharFormat(cf)
+        finally:
+            cursor.endEditBlock()
+        self._set_status(f"已应用样式：{name}", 2000)
+
+    def _clear_formatting(self):
+        """清除选中文本/段落的字符和段落格式。"""
+        cursor = self.rich_editor.textCursor()
+        if not cursor.hasSelection():
+            cursor.select(QTextCursor.BlockUnderCursor)
+        cursor.beginEditBlock()
+        try:
+            cursor.setCharFormat(QTextCharFormat())
+            cursor.setBlockFormat(QTextBlockFormat())
+        finally:
+            cursor.endEditBlock()
+        self._set_status("已清除格式", 2000)
+
     def _show_char_shade_dialog(self):
         """字符底纹 / 字符边框设置对话框"""
         if self._edit_mode != "rich_text":

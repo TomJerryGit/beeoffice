@@ -338,6 +338,8 @@ class BeeWriteEditor(
                 label, target, _clone_click(self._toolbar1, target),
                 icon_name="page",
             )
+        para_group.add_small_button("清除格式", "清除格式", self._clear_formatting, icon_name="page")
+        font_group.add_small_button("样式库", "样式库", self._show_style_gallery, icon_name="toc")
 
         # 插入：按 WPS 分组细化（表格/对象、列表、页面、引用审阅）
         page = self._ribbon.add_tab("插入")
