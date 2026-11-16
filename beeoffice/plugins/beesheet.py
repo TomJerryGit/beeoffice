@@ -74,6 +74,7 @@ from beeoffice.plugins.beesheet_model import SheetDataModel
 # ==================== Mixin 层 ====================
 from beeoffice.plugins.beesheet_formula_mixin import FormulaMixin
 from beeoffice.plugins.beesheet_style_mixin import StyleMixin
+from beeoffice.plugins.beesheet_print_mixin import PrintMixin
 from beeoffice.plugins.beesheet_audit_mixin import AuditMixin
 from beeoffice.plugins.beesheet_data_mixin import DataMixin
 from beeoffice.plugins.beesheet_chart_mixin import ChartMixin
@@ -94,6 +95,7 @@ def _t():
 class BeeSheetView(
     FormulaMixin,
     StyleMixin,
+    PrintMixin,
     AuditMixin,
     DataMixin,
     ChartMixin,
@@ -162,6 +164,9 @@ class BeeSheetView(
         self._frozen_top = None
         self._frozen_left = None
         self._frozen_corner = None
+
+        # ---------- 打印设置 ----------
+        self._init_print_settings()
 
         # ---------- 参数气泡（来自 UIMixin） ----------
         self._build_param_tip()

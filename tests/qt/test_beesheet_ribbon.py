@@ -17,12 +17,13 @@ def make_sheet(qtbot):
 def test_ribbon_categories(qtbot):
     sheet = make_sheet(qtbot)
     tabs = sheet._ribbon_tabs
-    assert tabs.count() == 6
+    assert tabs.count() == 7
     names = [tabs.tabText(i) for i in range(tabs.count())]
-    assert names == ["开始", "插入", "数据", "公式", "视图", "表格工具"]
-    assert tabs.isTabVisible(5) is False
+    assert names == ["开始", "插入", "页面", "数据", "公式", "视图", "表格工具"]
+    ctx = sheet._table_tab_index
+    assert tabs.isTabVisible(ctx) is False
 
-    for i in range(5):
+    for i in range(ctx):
         tabs.setCurrentIndex(i)
         assert sheet._ribbon_stack.currentIndex() == i
 
@@ -32,7 +33,7 @@ def test_ribbon_groups(qtbot):
     titles = {g.title.text() for g in sheet._ribbon.findChildren(RibbonGroup)}
     assert {"剪贴板", "字体", "对齐", "数字格式"} <= titles
     assert {"对象", "数据工具"} <= titles
-    assert {"排序和筛选"} <= titles
+    assert {"排序和筛选", "打印", "打印区域"} <= titles
     assert {"函数", "名称与审计"} <= titles
     assert {"冻结窗格", "显示"} <= titles
 
@@ -63,13 +64,14 @@ def test_ribbon_actions_exist(qtbot):
 def test_contextual_table_tab(qtbot):
     sheet = make_sheet(qtbot)
     tabs = sheet._ribbon_tabs
-    assert tabs.isTabVisible(5) is False
+    ctx = sheet._table_tab_index
+    assert tabs.isTabVisible(ctx) is False
     sheet.table_view.selectAll()
     qtbot.wait(10)
-    assert tabs.isTabVisible(5) is True
+    assert tabs.isTabVisible(ctx) is True
     sheet.table_view.clearSelection()
     qtbot.wait(10)
-    assert tabs.isTabVisible(5) is False
+    assert tabs.isTabVisible(ctx) is False
 
 
 def test_compact_on_narrow_window(qtbot):

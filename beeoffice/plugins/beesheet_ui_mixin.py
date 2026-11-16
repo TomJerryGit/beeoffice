@@ -359,6 +359,8 @@ class UIMixin:
             "边框/底纹": "style", "单元格样式": "style",
             "上边框": "border-top", "下边框": "border-bottom",
             "左边框": "border-left", "右边框": "border-right",
+            "打印预览": "print", "页面设置": "page",
+            "设置打印区域": "insert", "取消打印区域": "delete-row",
         }
         self._ribbon_buttons = []
 
@@ -441,6 +443,15 @@ class UIMixin:
         add_btn(obj_group, tr("auto.beesheet_ui_mixin.b3", "批注"), self._add_comment)
         tool_group = add_group(page_insert, "数据工具")
         add_btn(tool_group, tr("auto.beesheet_ui_mixin.b4", "智能填充"), self._flash_fill)
+
+        # ---------- 页面 ----------
+        page_print = add_page("页面")
+        print_group = add_group(page_print, "打印")
+        add_btn(print_group, "打印预览", self._show_print_preview, "Ctrl+P")
+        add_btn(print_group, "页面设置", self._show_page_setup)
+        area_group = add_group(page_print, "打印区域")
+        add_btn(area_group, "设置打印区域", self._set_print_area)
+        add_btn(area_group, "取消打印区域", self._clear_print_area)
 
         # ---------- 数据 ----------
         page_data = add_page("数据")
