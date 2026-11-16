@@ -33,8 +33,8 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, Q
                                 QListWidget, QListWidgetItem, QTextEdit, QFileDialog,
                                 QMessageBox, QSplitter, QDialog, QDialogButtonBox,
                                 QGraphicsView, QGraphicsScene, QColorDialog, QInputDialog)
-from PySide6.QtCore import Qt, QRectF, Signal, QPointF
-from PySide6.QtGui import (QPixmap, QPainter, QColor, QPen, QFont, QPolygonF)
+from PySide6.QtCore import Qt, QRectF, Signal, QPointF, QSize
+from PySide6.QtGui import (QPixmap, QPainter, QColor, QPen, QFont, QPolygonF, QIcon)
 
 from beeoffice.utils import atomic_write_json
 
@@ -249,12 +249,36 @@ class PDFAnnotator(QWidget):
         color_group = self._ribbon.add_group(page_anno, "颜色")
         color_group.add_small_button("选择颜色", "选择颜色", self._choose_color, icon_name="color")
 
+        page_page = self._ribbon.add_tab("页面")
+        nav_group = self._ribbon.add_group(page_page, "导航")
+        nav_group.add_small_button("上一页", "上一页", self._prev_page, icon_name="prev")
+        nav_group.add_small_button("下一页", "下一页", self._next_page, icon_name="next")
+        op_group = self._ribbon.add_group(page_page, "页面管理")
+        op_group.add_small_button("页面工具", "页面工具", self._open_toolbox, icon_name="page")
+        op_group.add_small_button("旋转", "旋转", self._rotate_current, icon_name="view")
+
+        protect_page = self._ribbon.add_tab("保护")
+        protect_group = self._ribbon.add_group(protect_page, "保护")
+        protect_group.add_small_button("加密/权限", "加密/权限", self._open_toolbox, icon_name="save")
+        protect_group.add_small_button("水印", "水印", self._open_toolbox, icon_name="page")
+
+        convert_page = self._ribbon.add_tab("转换")
+        convert_group = self._ribbon.add_group(convert_page, "转换")
+        convert_group.add_small_button("提取文本", "提取文本", self._open_toolbox, icon_name="export")
+        convert_group.add_small_button("提取图片", "提取图片", self._open_toolbox, icon_name="image")
+        convert_group.add_small_button("PDF工具箱", "PDF工具箱", self._open_toolbox, icon_name="command")
+
         layout.addWidget(self._ribbon)
         splitter=QSplitter(Qt.Horizontal)
+        left=QWidget(); ll=QVBoxLayout(left); ll.addWidget(QLabel("页面"))
+        self._thumb_list=QListWidget(); self._thumb_list.setIconSize(QSize(96,128))
+        self._thumb_list.currentRowChanged.connect(self._goto_thumb_page)
+        ll.addWidget(self._thumb_list)
+        splitter.addWidget(left)
         self._page_view=PDFPageView(); self._page_view.annotation_added.connect(self._on_annotation_added); splitter.addWidget(self._page_view)
         right=QWidget(); rl=QVBoxLayout(right); rl.addWidget(QLabel("批注列表"))
         self._anno_list=QListWidget(); rl.addWidget(self._anno_list)
-        splitter.addWidget(right); splitter.setSizes([750,300]); layout.addWidget(splitter)
+        splitter.addWidget(right); splitter.setSizes([150,750,300]); layout.addWidget(splitter)
 
     # ==================== 打开 ====================
     def open_pdf(self, filepath):
@@ -285,6 +309,56 @@ class PDFAnnotator(QWidget):
             self._load_annotations(anno_path)
 
         self._update_view()
+        self._load_thumbnails()
+
+    def _set_status(self, text, timeout=0):
+        """轻量状态提示（PDF 面板无状态栏）。"""
+        try:
+            self.setWindowTitle(f"🐝 PDF 批注 — {text}")
+        except Exception:
+            pass
+
+    def _load_thumbnails(self):
+        self._thumb_list.clear()
+        if not self._doc:
+            return
+        import tempfile, os
+        for i in range(self._page_count):
+            try:
+                fd, tmp = tempfile.mkstemp(suffix=".png")
+                os.close(fd)
+                self._backend.render_page_png(self._doc, i, tmp, scale=0.25)
+                pm = QPixmap(tmp)
+                try:
+                    os.remove(tmp)
+                except OSError:
+                    pass
+                item = QListWidgetItem(QIcon(pm), f"第 {i + 1} 页")
+                item.setData(Qt.UserRole, i)
+                self._thumb_list.addItem(item)
+            except Exception:
+                self._thumb_list.addItem(QListWidgetItem(f"第 {i + 1} 页"))
+        if self._page_count:
+            self._thumb_list.setCurrentRow(0)
+
+    def _goto_thumb_page(self, row):
+        if row < 0 or row >= self._page_count:
+            return
+        if row != self._current_page:
+            self._current_page = row
+            self._update_view()
+
+    def _rotate_current(self):
+        self._set_status("旋转页面请使用“页面工具”（输出新文件，不修改原文件）", 3000)
+        self._open_toolbox()
+
+    def _open_toolbox(self):
+        try:
+            from beeoffice.plugins.pdf_toolbox_dialog import PDFToolboxDialog
+            dlg = PDFToolboxDialog(self)
+            dlg.exec()
+        except Exception as e:
+            QMessageBox.warning(self, "PDF 工具", f"无法打开工具：{e}")
 
     def _load_annotations(self, anno_path):
         """读取 .beeanno；坏条目逐条跳过，不让一条坏数据毁掉全部批注。"""
@@ -332,6 +406,10 @@ class PDFAnnotator(QWidget):
         self._page_label.setText(
             f"第 {self._current_page+1}/{self._page_count} 页"
         )
+        if hasattr(self, "_thumb_list") and self._thumb_list.currentRow() != self._current_page:
+            self._thumb_list.blockSignals(True)
+            self._thumb_list.setCurrentRow(self._current_page)
+            self._thumb_list.blockSignals(False)
         self._anno_list.clear()
         for i,a in enumerate([a for a in self._annotations if a.page==self._current_page]):
             self._anno_list.addItem(QListWidgetItem(f"{i+1}. [{a.type}] {a.text[:20]}"))
