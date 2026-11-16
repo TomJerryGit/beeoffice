@@ -56,12 +56,14 @@ import logging
 from beeoffice.plugins.beeshow_html import render_slide_html
 
 from PySide6.QtWidgets import (
+    QDialog, QVBoxLayout, QFormLayout, QComboBox, QCheckBox, QDialogButtonBox,
     QListWidgetItem, QInputDialog, QColorDialog,
 )
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QTextCursor
 
 from beeoffice.plugins.beeshow_constants import SLIDE_THEMES
+from beeoffice.plugins.beeshow_animation import TRANSITIONS
 
 
 class SlideMixin:
@@ -512,6 +514,7 @@ class SlideMixin:
                 theme_css=theme['css'],
                 layout_css=self._get_layout_css(),
                 bg=bg,
+                extra_css=getattr(self, '_font_css', ''),
                 body_extra=(
                     f'<div class="slide-number">'
                     f"{index + 1}/{len(self._slides_html)}</div>"
@@ -538,6 +541,68 @@ class SlideMixin:
                 self._broadcast_slide()
             except AttributeError:
                 pass
+
+    # ==================== 设计 / 过渡 ====================
+    def _apply_unified_font(self, family: str):
+        self._font_css = (
+            f"body, h1, h2, h3, p, li, td, th {{ font-family: '{family}', "
+            "'Microsoft YaHei', sans-serif; }}"
+        )
+        self._show_slide(self._current_slide)
+        self._set_status(f"统一字体：{family}", 2000)
+
+    def _show_design_panel(self):
+        dlg = QDialog(self)
+        dlg.setWindowTitle("设计")
+        form = QFormLayout(dlg)
+        combo = QComboBox()
+        combo.addItems(["Microsoft YaHei", "SimSun", "SimHei", "KaiTi", "Segoe UI", "Arial"])
+        form.addRow("统一字体", combo)
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        form.addRow(btns)
+        if dlg.exec() == QDialog.Accepted:
+            self._apply_unified_font(combo.currentText())
+
+    def _apply_transition_all(self, transition: str):
+        if not hasattr(self, "_slide_animations"):
+            return
+        while len(self._slide_animations) < len(self._slides_html):
+            self._slide_animations.append({})
+        for i in range(len(self._slides_html)):
+            cfg = self._slide_animations[i] or {}
+            cfg["transition"] = transition
+            self._slide_animations[i] = cfg
+        self._show_slide(self._current_slide)
+        self._set_status(f"已对全部幻灯片应用过渡：{TRANSITIONS.get(transition, transition)}", 3000)
+
+    def _show_transition_panel(self):
+        dlg = QDialog(self)
+        dlg.setWindowTitle("幻灯片过渡")
+        form = QFormLayout(dlg)
+        combo = QComboBox()
+        for key, label in TRANSITIONS.items():
+            combo.addItem(label, key)
+        form.addRow("过渡效果", combo)
+        apply_all = QCheckBox("应用到全部幻灯片")
+        form.addRow(apply_all)
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        form.addRow(btns)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        key = combo.currentData()
+        if apply_all.isChecked():
+            self._apply_transition_all(key)
+        else:
+            while len(self._slide_animations) <= self._current_slide:
+                self._slide_animations.append({})
+            cfg = self._slide_animations[self._current_slide] or {}
+            cfg["transition"] = key
+            self._slide_animations[self._current_slide] = cfg
+            self._show_slide(self._current_slide)
 
     # ==================== 主题 / 备注 / 背景 ====================
     def _on_theme_changed(self, theme: str):

@@ -332,6 +332,13 @@ class ToolbarMixin:
                 label, target, _clone_click(target), icon_name=icon_name
             )
 
+        # 设计
+        page_design = ribbon.add_tab("设计")
+        design_group = ribbon.add_group(page_design, "设计")
+        design_group.add_small_button("设计面板", "设计面板", self._show_design_panel, icon_name="home")
+        design_group.add_small_button("过渡", "过渡", self._show_transition_panel, icon_name="play")
+        design_group.add_small_button("动画", "动画", self._show_animation_panel, icon_name="play")
+
         # 插入：背景/版式/表格/图片
         page = ribbon.add_tab("插入")
         group = ribbon.add_group(page, "🎨 插入与版式")
