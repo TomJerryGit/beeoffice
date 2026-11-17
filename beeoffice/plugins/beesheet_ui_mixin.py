@@ -371,6 +371,8 @@ class UIMixin:
             "拼写检查": "search", "删除重复项": "filter",
             "分列": "insert-col", "分类汇总": "stats",
             "合并计算": "sum", "条件格式管理": "stats",
+            "编辑数据源": "chart", "刷新透视表": "pivot",
+            "背景色": "fill", "水印": "comment",
         }
         self._ribbon_buttons = []
 
@@ -450,6 +452,8 @@ class UIMixin:
         obj_group = add_group(page_insert, "对象")
         add_btn(obj_group, tr("auto.beesheet_ui_mixin.b1", "图表"), self._create_chart)
         add_btn(obj_group, tr("auto.beesheet_ui_mixin.b2", "透视表"), self._show_pivot_table)
+        add_btn(obj_group, "编辑数据源", self._edit_chart_data_source)
+        add_btn(obj_group, "刷新透视表", self._refresh_pivot_table)
         add_btn(obj_group, tr("auto.beesheet_ui_mixin.b3", "批注"), self._add_comment)
         tool_group = add_group(page_insert, "数据工具")
         add_btn(tool_group, tr("auto.beesheet_ui_mixin.b4", "智能填充"), self._flash_fill)
@@ -462,6 +466,9 @@ class UIMixin:
         area_group = add_group(page_print, "打印区域")
         add_btn(area_group, "设置打印区域", self._set_print_area)
         add_btn(area_group, "取消打印区域", self._clear_print_area)
+        deco_group = add_group(page_print, "页面装饰")
+        add_btn(deco_group, "背景色", self._set_sheet_background)
+        add_btn(deco_group, "水印", self._set_sheet_watermark)
 
         # ---------- 数据 ----------
         page_data = add_page("数据")

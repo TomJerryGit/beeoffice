@@ -48,7 +48,8 @@ class ChartMixin:
         selected = {"value": "bar"}
         for label, ct in [("柱状图", "bar"), ("折线图", "line"),
                            ("饼图", "pie"), ("散点图", "scatter"),
-                           ("面积图", "area"), ("雷达图", "radar")]:
+                           ("面积图", "area"), ("雷达图", "radar"),
+                           ("组合图", "combo")]:
             btn = QPushButton(label)
             btn.clicked.connect(
                 lambda checked=False, t=ct:
@@ -131,6 +132,16 @@ class ChartMixin:
             for row in data:
                 ax.fill_between(range(len(row)), row, alpha=0.3)
                 ax.plot(row)
+        elif chart_type == 'combo' and data:
+            base = [r[0] for r in data]
+            ax.bar(range(len(labels)), base, color='#FFB300', label='系列 1')
+            ax.set_xticks(range(len(labels)))
+            ax.set_xticklabels(labels, rotation=45, ha='right')
+            if len(cols) > 1:
+                ax2 = ax.twinx()
+                ax2.plot(range(len(labels)), [r[-1] for r in data],
+                         'o-', color='#1565C0', label='系列 2')
+            ax.legend(loc='upper left')
         elif chart_type == 'radar' and data:
             vals = data[0]
             angles = np.linspace(0, 2 * np.pi, len(vals),
@@ -154,6 +165,17 @@ class ChartMixin:
         dlg.resize(650, 480)
         dlg.setAttribute(Qt.WA_DeleteOnClose)
         dlg.show()
+
+    def _edit_chart_data_source(self):
+        """重新选择数据源并重新生成图表。"""
+        if not self.table_view.selectionModel().selection().indexes():
+            QMessageBox.information(self, "图表", "请先选中新的数据区域。")
+            return
+        self._create_chart()
+
+    def _refresh_pivot_table(self):
+        """重新打开透视表配置并生成新表。"""
+        self._show_pivot_table()
 
     # ==================== 图表保存 ====================
     def _save_chart(self, fig, parent):

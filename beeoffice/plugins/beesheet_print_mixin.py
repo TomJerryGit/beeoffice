@@ -240,3 +240,37 @@ class PrintMixin:
         self._ensure_print_settings()
         self._print_settings["area"] = None
         self._set_status("打印区域已取消", 2000)
+
+
+    def _set_sheet_background(self):
+        from PySide6.QtGui import QColor
+        from PySide6.QtWidgets import QColorDialog
+        color = QColorDialog.getColor(QColor("#FFF8E1"), self, "页面背景色")
+        if not color.isValid():
+            return
+        self.table_view.setStyleSheet(
+            f"QTableView{{background-color:{color.name()};}}"
+        )
+        self._sheet_background = color.name()
+        self._set_status(f"已设置背景色 {color.name()}", 2000)
+
+    def _set_sheet_watermark(self):
+        from PySide6.QtWidgets import QInputDialog, QLabel
+        text, ok = QInputDialog.getText(self, "页面水印", "水印文字：")
+        if not ok or not text.strip():
+            return
+        old = getattr(self, "_watermark_label", None)
+        if old is not None:
+            old.deleteLater()
+        label = QLabel(text.strip(), self.table_view.viewport())
+        label.setStyleSheet(
+            "QLabel{color:rgba(120,120,120,90);font-size:28px;"
+            "font-weight:bold;background:transparent;}"
+        )
+        label.adjustSize()
+        vp = self.table_view.viewport()
+        label.move(max(0, (vp.width() - label.width()) // 2),
+                   max(0, (vp.height() - label.height()) // 2))
+        label.show()
+        self._watermark_label = label
+        self._set_status("已设置页面水印", 2000)
