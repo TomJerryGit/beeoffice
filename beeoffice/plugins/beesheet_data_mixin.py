@@ -760,6 +760,69 @@ class DataMixin:
             )
             self._set_status(tr("auto.beesheet_data_mixin.4c348275", "已清除条件格式"), 2000)
 
+    # ==================== 条件格式管理器 ====================
+    def _remove_conditional_format(self, col):
+        if col in getattr(self, "_conditional_formats", {}):
+            del self._conditional_formats[col]
+            if self.model.rowCount() and col < self.model.columnCount():
+                self.model.dataChanged.emit(
+                    self.model.index(0, col),
+                    self.model.index(self.model.rowCount() - 1, col),
+                )
+            self._set_status("已移除该列条件格式", 2000)
+
+    def _clear_all_conditional_formats(self):
+        self._conditional_formats.clear()
+        if self.model.rowCount() and self.model.columnCount():
+            self.model.dataChanged.emit(
+                self.model.index(0, 0),
+                self.model.index(
+                    self.model.rowCount() - 1,
+                    self.model.columnCount() - 1,
+                ),
+            )
+        self._set_status("已清除全部条件格式", 2000)
+
+    def _show_conditional_format_manager(self):
+        """条件格式规则管理器：查看/删除/清除全部。"""
+        from PySide6.QtWidgets import (
+            QDialog, QDialogButtonBox, QHBoxLayout, QPushButton,
+            QTableWidget, QTableWidgetItem, QVBoxLayout,
+        )
+        dlg = QDialog(self)
+        dlg.setWindowTitle("条件格式管理器")
+        dlg.resize(560, 320)
+        layout = QVBoxLayout(dlg)
+        rules = getattr(self, "_conditional_formats", {})
+        table = QTableWidget(len(rules), 2)
+        table.setHorizontalHeaderLabels(["列", "规则"])
+        labels = {"data_bars": "数据条", "color_scale": "色阶", "icon_set": "图标集"}
+        for row, (col, cfg) in enumerate(sorted(rules.items())):
+            name = str(self.model.df.columns[col]) if col < self.model.columnCount() else str(col + 1)
+            table.setItem(row, 0, QTableWidgetItem(f"{name}（第 {col + 1} 列）"))
+            table.setItem(row, 1, QTableWidgetItem(labels.get(cfg.get("type"), cfg.get("type"))))
+        layout.addWidget(table)
+        btns = QHBoxLayout()
+        remove = QPushButton("删除选中")
+        clear = QPushButton("清除全部")
+        close = QPushButton("关闭")
+        btns.addWidget(remove); btns.addWidget(clear); btns.addStretch(); btns.addWidget(close)
+        layout.addLayout(btns)
+
+        def do_remove():
+            row = table.currentRow()
+            if row < 0:
+                return
+            keys = sorted(rules.keys())
+            if row < len(keys):
+                self._remove_conditional_format(keys[row])
+                dlg.accept()
+
+        remove.clicked.connect(do_remove)
+        clear.clicked.connect(lambda: (self._clear_all_conditional_formats(), dlg.accept()))
+        close.clicked.connect(dlg.reject)
+        dlg.exec()
+
     # ==================== 复制/粘贴 ====================
     def _copy_as_markdown(self):
         """复制选中区域为 Markdown 表格"""

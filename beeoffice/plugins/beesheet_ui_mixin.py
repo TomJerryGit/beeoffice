@@ -370,7 +370,7 @@ class UIMixin:
             "插入批注": "comment", "查看批注": "comment",
             "拼写检查": "search", "删除重复项": "filter",
             "分列": "insert-col", "分类汇总": "stats",
-            "合并计算": "sum",
+            "合并计算": "sum", "条件格式管理": "stats",
         }
         self._ribbon_buttons = []
 
@@ -476,6 +476,7 @@ class UIMixin:
         add_btn(tools_group, "分列", self._split_column_dialog)
         add_btn(tools_group, "分类汇总", self._show_subtotal_dialog)
         add_btn(tools_group, "合并计算", self._show_consolidate_dialog)
+        add_btn(tools_group, "条件格式管理", self._show_conditional_format_manager)
 
         # ---------- 公式 ----------
         page_formula = add_page("公式")
