@@ -43,6 +43,16 @@
 - 页眉/页脚当前只出现在文档首尾，尚未按页重复；
 - 拼写检查为基础常见错误词典，不是完整词典。
 
+## [5.7.13] - 未发布
+
+> P0 硬化：企业模板代表性回归。
+
+### 工具
+- 新增 `tools/enterprise_template_regression.py`；
+- 新增 `tools/validate_enterprise_templates.ps1`；
+- Word/Excel/PPT/PDF 代表性模板经 WPS 真实打开通过；
+- 修复 xlsx 合并单元格导出时 `MergedCell` 只读问题。
+
 ## [5.7.12] - 未发布
 
 > P0 硬化：真实文档样本回归。

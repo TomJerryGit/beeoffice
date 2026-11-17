@@ -7,12 +7,18 @@ import pandas as pd
 def export_xlsx_preserving_styles(src: str, df: pd.DataFrame, out: str) -> bool:
     """把 df 写回已有 xlsx，尽量保留工作表级设置。"""
     from openpyxl import load_workbook
+    from openpyxl.cell.cell import MergedCell
 
     wb = load_workbook(src)
     ws = wb.active
+    merged_ranges = [str(r) for r in ws.merged_cells.ranges]
+    for rng in merged_ranges:
+        ws.unmerge_cells(rng)
     # 清空旧值但保留单元格样式/条件格式/合并信息
     for row in ws.iter_rows():
         for cell in row:
+            if isinstance(cell, MergedCell):
+                continue
             cell.value = None
     for c, col in enumerate(df.columns, 1):
         ws.cell(row=1, column=c, value=str(col))
@@ -21,6 +27,8 @@ def export_xlsx_preserving_styles(src: str, df: pd.DataFrame, out: str) -> bool:
             if pd.isna(value):
                 value = None
             ws.cell(row=r, column=c, value=value)
+    for rng in merged_ranges:
+        ws.merge_cells(rng)
     # 保留 print_area / print_title / page setup 等由 openpyxl 原样保存
     wb.save(out)
     return True
