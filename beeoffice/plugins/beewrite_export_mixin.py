@@ -829,6 +829,18 @@ class ExportMixin:
 
         doc = Document()
 
+        # 页面背景色（w:background）
+        try:
+            bg = getattr(self, "_page_background", "")
+            if bg:
+                from docx.oxml import OxmlElement
+                from docx.oxml.ns import qn
+                bgel = OxmlElement("w:background")
+                bgel.set(qn("w:color"), bg.lstrip("#").upper())
+                doc.element.insert(0, bgel)
+        except Exception as e:
+            logging.warning(f"写入页面背景失败: {e}")
+
         # ========== 应用页面设置 ==========
         try:
             page_settings = self.get_page_settings()

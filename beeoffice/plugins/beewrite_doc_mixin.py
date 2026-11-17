@@ -56,6 +56,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QCheckBox,
     QSpinBox,
+    QColorDialog,
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QTextCursor
@@ -70,6 +71,57 @@ from beeoffice.i18n import tr
 # ==================== DocMixin ====================
 class DocMixin:
     """蜜写文档级操作 Mixin"""
+
+    # ==================================================================
+    # P1：封面 / 页面背景
+    # ==================================================================
+    def _insert_cover_page(self):
+        """在文档开头插入企业封面（标题/副标题/单位/日期）。"""
+        from PySide6.QtWidgets import QInputDialog
+        from PySide6.QtGui import QTextBlockFormat, QTextCharFormat, QTextCursor, QFont
+        title, ok = QInputDialog.getText(self, "封面", "标题：", text="XX 公司")
+        if not ok or not title.strip():
+            return
+        subtitle, _ = QInputDialog.getText(self, "封面", "副标题：")
+        author, _ = QInputDialog.getText(self, "封面", "单位/作者：")
+        cursor = self.rich_editor.textCursor()
+        cursor.movePosition(QTextCursor.Start)
+        cursor.beginEditBlock()
+        try:
+            for text, size, bold in (
+                (title, 28, True),
+                (subtitle, 16, False),
+                (author, 14, False),
+            ):
+                if not text.strip():
+                    continue
+                cursor.insertBlock()
+                bf = QTextBlockFormat()
+                bf.setAlignment(Qt.AlignHCenter)
+                cursor.setBlockFormat(bf)
+                cf = QTextCharFormat()
+                cf.setFontPointSize(size)
+                cf.setFontWeight(QFont.Bold if bold else QFont.Normal)
+                cursor.insertText(text, cf)
+            # 封面后分页
+            cursor.insertBlock()
+            pb = QTextBlockFormat()
+            pb.setPageBreakPolicy(QTextBlockFormat.PageBreak_AlwaysBefore)
+            cursor.setBlockFormat(pb)
+        finally:
+            cursor.endEditBlock()
+        self._set_status("已插入封面", 2000)
+
+    def _set_page_background(self):
+        from PySide6.QtGui import QColor
+        color = QColorDialog.getColor(QColor("#FFFFFF"), self, "页面背景色")
+        if not color.isValid():
+            return
+        self._page_background = color.name()
+        self.rich_editor.setStyleSheet(
+            f"QTextEdit{{background-color:{color.name()};}}"
+        )
+        self._set_status(f"页面背景色：{color.name()}", 2000)
 
     # ==================================================================
     # 页眉 / 页脚

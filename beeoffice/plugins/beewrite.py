@@ -410,6 +410,8 @@ class BeeWriteEditor(
             "页眉页脚设置", "页眉页脚设置",
             self._show_header_footer_dialog, icon_name="page",
         )
+        group.add_small_button("插入封面", "插入封面", self._insert_cover_page, icon_name="page")
+        group.add_small_button("页面背景", "页面背景", self._set_page_background, icon_name="fill")
 
         # 引用：目录/交叉引用/页码/分节符/水印
         page = self._ribbon.add_tab("引用")
@@ -453,6 +455,7 @@ class BeeWriteEditor(
                 icon_name=icon_name,
             )
         group.add_small_button("字数统计", "字数统计", self._show_word_count_dialog, icon_name="page")
+        group.add_small_button("文档比较", "文档比较", self._compare_with_original, icon_name="stats")
 
         # 视图：大纲/阅读/双屏/折叠
         page = self._ribbon.add_tab("视图")
