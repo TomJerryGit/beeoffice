@@ -678,6 +678,113 @@ class SlideMixin:
         self._show_slide(self._current_slide)
         self._set_status("已添加原生形状", 2000)
 
+    def _persist_native_shapes_current(self):
+        from beeoffice.plugins.beeshow_native_shapes import marker_for
+        import re as _re
+        idx = self._current_slide
+        while len(self._native_shapes) <= idx:
+            self._native_shapes.append([])
+        marker = marker_for(self._native_shapes[idx])
+        md = self._slides_md[idx]
+        md = _re.sub(r"<!--\s*beeoffice-shapes:.*?-->", "", md, flags=_re.DOTALL).strip()
+        self._slides_md[idx] = (md + "\n" + marker).strip()
+        self._rebuild_editor_from_slides()
+        self._show_slide(idx)
+
+    def _update_native_shape(self, index, props):
+        shapes = self._native_shapes[self._current_slide]
+        if 0 <= index < len(shapes):
+            shapes[index].update(props)
+            self._persist_native_shapes_current()
+            return True
+        return False
+
+    def _delete_native_shape(self, index):
+        shapes = self._native_shapes[self._current_slide]
+        if 0 <= index < len(shapes):
+            shapes.pop(index)
+            self._persist_native_shapes_current()
+            return True
+        return False
+
+    def _move_native_shape_layer(self, index, delta):
+        shapes = self._native_shapes[self._current_slide]
+        target = index + delta
+        if 0 <= index < len(shapes) and 0 <= target < len(shapes):
+            shapes[index], shapes[target] = shapes[target], shapes[index]
+            self._persist_native_shapes_current()
+            return True
+        return False
+
+    def _show_shape_manager(self):
+        from PySide6.QtWidgets import (
+            QDialog, QVBoxLayout, QHBoxLayout, QListWidget, QPushButton,
+            QFormLayout, QLineEdit, QDoubleSpinBox, QSpinBox, QDialogButtonBox,
+        )
+        if not hasattr(self, "_native_shapes"):
+            self._native_shapes = []
+        while len(self._native_shapes) <= self._current_slide:
+            self._native_shapes.append([])
+        shapes = self._native_shapes[self._current_slide]
+        dlg = QDialog(self)
+        dlg.setWindowTitle("原生形状管理")
+        dlg.resize(620, 420)
+        layout = QVBoxLayout(dlg)
+        lst = QListWidget()
+        for i, s in enumerate(shapes):
+            lst.addItem(f"{i + 1}. {s.get('kind')} {s.get('text', '')[:20]}")
+        layout.addWidget(lst)
+        form = QFormLayout()
+        text_edit = QLineEdit()
+        x = QDoubleSpinBox(); x.setRange(0, 100); x.setSuffix(" %")
+        y = QDoubleSpinBox(); y.setRange(0, 100); y.setSuffix(" %")
+        w = QDoubleSpinBox(); w.setRange(1, 100); w.setSuffix(" %")
+        h = QDoubleSpinBox(); h.setRange(1, 100); h.setSuffix(" %")
+        rot = QSpinBox(); rot.setRange(-180, 180); rot.setSuffix(" °")
+        fill = QLineEdit(); line = QLineEdit()
+        for label, widget in (("文本", text_edit), ("X", x), ("Y", y),
+                              ("宽", w), ("高", h), ("旋转", rot),
+                              ("填充", fill), ("边框", line)):
+            form.addRow(label, widget)
+        layout.addLayout(form)
+
+        def load_row():
+            i = lst.currentRow()
+            if not (0 <= i < len(shapes)):
+                return
+            s = shapes[i]
+            text_edit.setText(str(s.get("text", "")))
+            x.setValue(float(s.get("x", 10))); y.setValue(float(s.get("y", 10)))
+            w.setValue(float(s.get("w", 30))); h.setValue(float(s.get("h", 15)))
+            rot.setValue(int(s.get("rotation", 0) or 0))
+            fill.setText(str(s.get("fill", "#FFF3E0")))
+            line.setText(str(s.get("line", "#E67E22")))
+
+        def apply_row():
+            i = lst.currentRow()
+            if not (0 <= i < len(shapes)):
+                return
+            self._update_native_shape(i, {
+                "text": text_edit.text(), "x": x.value(), "y": y.value(),
+                "w": w.value(), "h": h.value(), "rotation": rot.value(),
+                "fill": fill.text(), "line": line.text(),
+            })
+            dlg.accept()
+
+        lst.currentRowChanged.connect(lambda _: load_row())
+        row = QHBoxLayout()
+        for label, slot in (("应用", apply_row), ("上移一层", lambda: self._move_native_shape_layer(lst.currentRow(), 1)),
+                            ("下移一层", lambda: self._move_native_shape_layer(lst.currentRow(), -1)),
+                            ("删除", lambda: (self._delete_native_shape(lst.currentRow()), dlg.accept()))):
+            b = QPushButton(label); b.clicked.connect(slot); row.addWidget(b)
+        layout.addLayout(row)
+        btns = QDialogButtonBox(QDialogButtonBox.Close)
+        btns.rejected.connect(dlg.reject)
+        layout.addWidget(btns)
+        if shapes:
+            lst.setCurrentRow(0); load_row()
+        dlg.exec()
+
     def _rebuild_editor_from_slides(self):
         parts = []
         for i, md in enumerate(self._slides_md):

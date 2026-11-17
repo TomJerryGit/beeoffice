@@ -33,8 +33,10 @@ def shapes_html(shapes) -> str:
         w = float(s.get("w", 30)); h = float(s.get("h", 15))
         fill = s.get("fill", "#FFF3E0"); line = s.get("line", "#E67E22")
         text = str(s.get("text", ""))
+        rot = float(s.get("rotation", 0) or 0)
         base = (f"position:absolute;left:{x}%;top:{y}%;width:{w}%;height:{h}%;"
                 f"box-sizing:border-box;border:2px solid {line};"
+                f"transform:rotate({rot}deg);"
                 f"display:flex;align-items:center;justify-content:center;")
         if kind == "ellipse":
             base += f"border-radius:50%;background:{fill};"
@@ -85,6 +87,10 @@ def apply_native_shapes(pptx_path: str, configs) -> int:
             if kind in ("text", "art"):
                 shape.text = str(s.get("text", ""))
                 shape.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+            try:
+                shape.rotation = float(s.get("rotation", 0) or 0)
+            except Exception:
+                pass
             count += 1
     prs.save(pptx_path)
     return count

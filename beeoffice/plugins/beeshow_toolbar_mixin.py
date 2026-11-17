@@ -361,6 +361,7 @@ class ToolbarMixin:
         insert_group.add_small_button("艺术字", "艺术字", lambda: self._insert_html_block('<div style="font-size:44px;font-weight:bold;color:#E67E22;">艺术字</div>', "艺术字"), icon_name="insert")
         insert_group.add_small_button("文本框", "文本框", lambda: self._insert_html_block('<div style="padding:12px 16px;border:1px dashed #888;">在此输入文本</div>', "文本框"), icon_name="insert")
         insert_group.add_small_button("原生形状", "原生形状", self._show_native_shape_menu, icon_name="insert")
+        insert_group.add_small_button("形状管理", "形状管理", self._show_shape_manager, icon_name="edit")
 
         # 放映
         page2 = ribbon.add_tab("放映")
