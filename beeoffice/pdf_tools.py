@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from typing import Iterable, Optional
+from pathlib import Path
 
 from beeoffice.pdf_backend import get_backend
 from beeoffice.pdf_common import PdfToolError, parse_page_spec
@@ -170,3 +171,150 @@ def images_to_pdf(images, out) -> dict:
 def pdf_to_text(src, out, pages=None) -> dict:
     """PDF 文本导出。"""
     return _b().extract_text(src, out, pages=pages)
+
+
+# ==================== Wave5 P1：插入/加工/对比 ====================
+def insert_blank_page(src, out, before_page: int = 1) -> dict:
+    """在第 before_page 页前插入一页空白页（1-based）。"""
+    from pypdf import PdfReader, PdfWriter
+    from pypdf._page import PageObject
+    reader = PdfReader(str(src))
+    writer = PdfWriter()
+    inserted = False
+    for i, page in enumerate(reader.pages):
+        if not inserted and i + 1 >= int(before_page):
+            writer.add_page(PageObject.create_blank_page(
+                width=float(page.mediabox.width),
+                height=float(page.mediabox.height),
+            ))
+            inserted = True
+        writer.add_page(page)
+    if not inserted:
+        last = reader.pages[-1]
+        writer.add_page(PageObject.create_blank_page(
+            width=float(last.mediabox.width),
+            height=float(last.mediabox.height),
+        ))
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    with open(out, "wb") as f:
+        writer.write(f)
+    return {"output": str(out), "pages": len(writer.pages)}
+
+
+def reverse_pages(src, out) -> dict:
+    from pypdf import PdfReader, PdfWriter
+    reader = PdfReader(str(src))
+    writer = PdfWriter()
+    for page in reversed(reader.pages):
+        writer.add_page(page)
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    with open(out, "wb") as f:
+        writer.write(f)
+    return {"output": str(out), "pages": len(writer.pages)}
+
+
+def _overlay_pdf(src, out, draw) -> int:
+    from io import BytesIO
+    from pypdf import PdfReader, PdfWriter
+    from reportlab.pdfgen import canvas
+    reader = PdfReader(str(src))
+    writer = PdfWriter()
+    for page in reader.pages:
+        w = float(page.mediabox.width)
+        h = float(page.mediabox.height)
+        buf = BytesIO()
+        c = canvas.Canvas(buf, pagesize=(w, h))
+        draw(c, w, h)
+        c.save()
+        buf.seek(0)
+        overlay_page = PdfReader(buf).pages[0]
+        page.merge_page(overlay_page)
+        writer.add_page(page)
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    with open(out, "wb") as f:
+        writer.write(f)
+    return len(writer.pages)
+
+
+def add_page_numbers(src, out, fmt="第 {page} 页", start=1,
+                     position="bottom-center", fontsize=10) -> dict:
+    def draw(c, w, h):
+        total = len(__import__("pypdf").PdfReader(str(src)).pages)
+        for idx in range(total):
+            text = fmt.format(page=start + idx, total=start + total - 1, index=start + idx)
+            # 每页在 _overlay 中单独绘制，按当前页序号
+            break
+    from pypdf import PdfReader
+    total = len(PdfReader(str(src)).pages)
+
+    def draw_page(c, w, h, page_index):
+        text = fmt.format(page=start + page_index,
+                          total=start + total - 1,
+                          index=start + page_index)
+        c.setFont("Helvetica", fontsize)
+        x = w / 2
+        y = 22
+        if position.startswith("top"):
+            y = h - 24
+        if position.endswith("left"):
+            x = 40
+        elif position.endswith("right"):
+            x = w - 40
+        c.drawCentredString(x, y, text)
+
+    from io import BytesIO
+    from reportlab.pdfgen import canvas
+    from pypdf import PdfWriter
+    reader = PdfReader(str(src))
+    writer = PdfWriter()
+    for i, page in enumerate(reader.pages):
+        w = float(page.mediabox.width); h = float(page.mediabox.height)
+        buf = BytesIO()
+        c = canvas.Canvas(buf, pagesize=(w, h))
+        draw_page(c, w, h, i)
+        c.save(); buf.seek(0)
+        page.merge_page(PdfReader(buf).pages[0])
+        writer.add_page(page)
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    with open(out, "wb") as f:
+        writer.write(f)
+    return {"output": str(out), "pages": len(writer.pages)}
+
+
+def add_header_footer(src, out, header="", footer="", fontsize=9) -> dict:
+    from io import BytesIO
+    from pypdf import PdfReader, PdfWriter
+    from reportlab.pdfgen import canvas
+    reader = PdfReader(str(src))
+    writer = PdfWriter()
+    for page in reader.pages:
+        w = float(page.mediabox.width); h = float(page.mediabox.height)
+        buf = BytesIO()
+        c = canvas.Canvas(buf, pagesize=(w, h))
+        c.setFont("Helvetica", fontsize)
+        if header:
+            c.drawCentredString(w / 2, h - 28, header)
+        if footer:
+            c.drawCentredString(w / 2, 24, footer)
+        c.save(); buf.seek(0)
+        page.merge_page(PdfReader(buf).pages[0])
+        writer.add_page(page)
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    with open(out, "wb") as f:
+        writer.write(f)
+    return {"output": str(out), "pages": len(writer.pages)}
+
+
+def compare_pdf_text(a, b) -> dict:
+    """文本级 PDF 对比，返回新增/删除/修改行数与报告。"""
+    import difflib
+    from beeoffice.pdf_backend import get_backend
+    backend = get_backend()
+    ta = "\n".join(backend.read_text_pages(a))
+    tb = "\n".join(backend.read_text_pages(b))
+    diff = list(difflib.unified_diff(
+        ta.splitlines(), tb.splitlines(), fromfile=str(a), tofile=str(b), lineterm=""
+    ))
+    added = sum(1 for l in diff if l.startswith("+") and not l.startswith("+++"))
+    removed = sum(1 for l in diff if l.startswith("-") and not l.startswith("---"))
+    return {"additions": added, "deletions": removed, "diff": "\n".join(diff)}

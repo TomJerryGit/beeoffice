@@ -239,6 +239,15 @@ class PDFAnnotator(QWidget):
         file_group.add_small_button("烧录", "烧录", self._burn_annotations, icon_name="burn")
         file_group.add_small_button("撤销", "撤销", self._undo_annotation, icon_name="undo")
 
+        page_insert = self._ribbon.add_tab("插入")
+        insert_group = self._ribbon.add_group(page_insert, "插入")
+        insert_group.add_small_button("空白页", "空白页", self._insert_blank_page_dialog, icon_name="page")
+        insert_group.add_small_button("页码", "页码", self._add_page_numbers_dialog, icon_name="stats")
+        insert_group.add_small_button("页眉页脚", "页眉页脚", self._add_header_footer_dialog, icon_name="page")
+        insert_group.add_small_button("图片/图章", "图片/图章", self._stamp_image_dialog, icon_name="image")
+        compare_group = self._ribbon.add_group(page_insert, "对比")
+        compare_group.add_small_button("文档对比", "文档对比", self._compare_pdf_dialog, icon_name="track")
+
         page_anno = self._ribbon.add_tab("标注")
         anno_group = self._ribbon.add_group(page_anno, "标注工具")
         for label, tool, icon_name in (
@@ -282,6 +291,7 @@ class PDFAnnotator(QWidget):
         op_group.add_small_button("页面管理", "页面管理", self._open_page_manager, icon_name="page")
         op_group.add_small_button("页面工具", "页面工具", self._open_toolbox, icon_name="command")
         op_group.add_small_button("旋转", "旋转", self._rotate_current, icon_name="view")
+        op_group.add_small_button("逆序", "逆序", self._reverse_pages_dialog, icon_name="sort")
 
         protect_page = self._ribbon.add_tab("保护")
         protect_group = self._ribbon.add_group(protect_page, "保护")
@@ -337,6 +347,119 @@ class PDFAnnotator(QWidget):
 
         self._update_view()
         self._load_thumbnails()
+
+    def _pick_output(self, title="保存 PDF"):
+        out, _ = QFileDialog.getSaveFileName(self, title, "", "PDF (*.pdf)")
+        return out
+
+    def _insert_blank_page_dialog(self):
+        if not self._doc:
+            QMessageBox.information(self, "插入空白页", "请先打开 PDF。")
+            return
+        page, ok = QInputDialog.getInt(self, "插入空白页", "在第几页前插入：", 1, 1, max(1, self._page_count))
+        if not ok:
+            return
+        out = self._pick_output("保存插入空白页后的 PDF")
+        if not out:
+            return
+        try:
+            from beeoffice.pdf_tools import insert_blank_page
+            insert_blank_page(self._doc, out, page)
+            self.open_pdf(out)
+            self._set_status("已插入空白页", 3000)
+        except Exception as e:
+            QMessageBox.warning(self, "插入失败", str(e))
+
+    def _add_page_numbers_dialog(self):
+        if not self._doc:
+            QMessageBox.information(self, "页码", "请先打开 PDF。")
+            return
+        fmt, ok = QInputDialog.getText(self, "添加页码", "格式（{page}/{total}）：", text="第 {page} 页")
+        if not ok or not fmt:
+            return
+        pos, ok = QInputDialog.getItem(self, "页码位置", "位置：",
+                                       ["bottom-center", "bottom-right", "bottom-left", "top-center"], 0, False)
+        if not ok:
+            return
+        out = self._pick_output("保存带页码的 PDF")
+        if not out:
+            return
+        try:
+            from beeoffice.pdf_tools import add_page_numbers
+            add_page_numbers(self._doc, out, fmt=fmt, position=pos)
+            self.open_pdf(out)
+            self._set_status("已添加页码", 3000)
+        except Exception as e:
+            QMessageBox.warning(self, "页码失败", str(e))
+
+    def _add_header_footer_dialog(self):
+        if not self._doc:
+            QMessageBox.information(self, "页眉页脚", "请先打开 PDF。")
+            return
+        header, ok = QInputDialog.getText(self, "页眉", "页眉文字（可空）：")
+        if not ok:
+            return
+        footer, ok = QInputDialog.getText(self, "页脚", "页脚文字（可空）：")
+        if not ok:
+            return
+        out = self._pick_output("保存带页眉页脚的 PDF")
+        if not out:
+            return
+        try:
+            from beeoffice.pdf_tools import add_header_footer
+            add_header_footer(self._doc, out, header=header, footer=footer)
+            self.open_pdf(out)
+            self._set_status("已添加页眉页脚", 3000)
+        except Exception as e:
+            QMessageBox.warning(self, "页眉页脚失败", str(e))
+
+    def _reverse_pages_dialog(self):
+        if not self._doc:
+            return
+        out = self._pick_output("保存逆序 PDF")
+        if not out:
+            return
+        try:
+            from beeoffice.pdf_tools import reverse_pages
+            reverse_pages(self._doc, out)
+            self.open_pdf(out)
+            self._set_status("页面已逆序", 3000)
+        except Exception as e:
+            QMessageBox.warning(self, "逆序失败", str(e))
+
+    def _stamp_image_dialog(self):
+        if not self._doc:
+            return
+        img, _ = QFileDialog.getOpenFileName(self, "选择图章图片", "", "图片 (*.png *.jpg *.jpeg)")
+        if not img:
+            return
+        out = self._pick_output("保存盖章 PDF")
+        if not out:
+            return
+        try:
+            from beeoffice.pdf_tools import stamp_image
+            stamp_image(self._doc, out, img, page=self._current_page + 1)
+            self.open_pdf(out)
+            self._set_status("已盖章", 3000)
+        except Exception as e:
+            QMessageBox.warning(self, "盖章失败", str(e))
+
+    def _compare_pdf_dialog(self):
+        if not self._doc:
+            return
+        other, _ = QFileDialog.getOpenFileName(self, "选择对比 PDF", "", "PDF (*.pdf)")
+        if not other:
+            return
+        try:
+            from beeoffice.pdf_tools import compare_pdf_text
+            result = compare_pdf_text(self._doc, other)
+            QMessageBox.information(
+                self, "PDF 文档对比",
+                f"新增行：{result['additions']}\n删除行：{result['deletions']}\n\n"
+                + ("\n".join(result["diff"].splitlines()[:40]) or "无文本差异"),
+            )
+        except Exception as e:
+            QMessageBox.warning(self, "对比失败", str(e))
 
     def _set_status(self, text, timeout=0):
         """轻量状态提示（PDF 面板无状态栏）。"""
