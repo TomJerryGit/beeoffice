@@ -56,6 +56,7 @@ import logging
 from beeoffice.plugins.beeshow_html import render_slide_html
 
 from PySide6.QtWidgets import (
+    QMenu,
     QDialog, QVBoxLayout, QFormLayout, QComboBox, QCheckBox, QDialogButtonBox,
     QListWidgetItem, QInputDialog, QColorDialog,
 )
@@ -514,7 +515,7 @@ class SlideMixin:
                 theme_css=theme['css'],
                 layout_css=self._get_layout_css(),
                 bg=bg,
-                extra_css=getattr(self, '_font_css', ''),
+                extra_css=(getattr(self, '_font_css', '') + getattr(self, '_slide_size_css', '') + getattr(self, '_guides_css', '')),
                 body_extra=(
                     f'<div class="slide-number">'
                     f"{index + 1}/{len(self._slides_html)}</div>"
@@ -607,6 +608,51 @@ class SlideMixin:
             self._canvas_deleted.pop(idx, None)
         self._show_slide(idx)
         self._set_status("已重置当前页画布", 2000)
+
+    # ==================== P1：形状/艺术字/幻灯片大小 ====================
+    def _insert_html_block(self, html: str, name: str):
+        cursor = self._editor.textCursor()
+        cursor.insertText("\n" + html + "\n")
+        self._editor.setTextCursor(cursor)
+        self._update_preview()
+        self._set_status(f"已插入{name}", 2000)
+
+    def _show_shape_menu(self):
+        menu = QMenu(self)
+        shapes = {
+            "矩形": '<div style="width:240px;height:120px;border:3px solid #E67E22;background:#FFF3E0;border-radius:6px;"></div>',
+            "圆形": '<div style="width:140px;height:140px;border:3px solid #1565C0;background:#E3F2FD;border-radius:50%;"></div>',
+            "箭头": '<div style="font-size:48px;color:#E67E22;">➜</div>',
+            "文本框": '<div style="padding:12px 16px;border:1px dashed #888;background:#FFFFFF;">在此输入文本</div>',
+            "艺术字": '<div style="font-size:44px;font-weight:bold;color:#E67E22;text-shadow:2px 2px 0 #FFE0B2;">艺术字</div>',
+        }
+        for name, html in shapes.items():
+            act = menu.addAction(name)
+            act.triggered.connect(lambda checked=False, n=name, h=html: self._insert_html_block(h, n))
+        menu.exec(QCursor.pos())
+
+    def _set_slide_size_dialog(self):
+        size, ok = QInputDialog.getItem(self, "幻灯片大小", "比例：", ["16:9", "4:3"], 0, False)
+        if not ok:
+            return
+        self._slide_size = size
+        self._slide_size_css = (
+            ".slide{aspect-ratio:16/9;max-width:100%;}" if size == "16:9"
+            else ".slide{aspect-ratio:4/3;max-width:100%;}"
+        )
+        self._show_slide(self._current_slide)
+        self._set_status(f"幻灯片大小：{size}", 2000)
+
+    def _toggle_guides(self):
+        self._guides_on = not getattr(self, "_guides_on", False)
+        self._guides_css = (
+            ".slide{background-image:linear-gradient(#E0E0E0 1px,transparent 1px),"
+            "linear-gradient(90deg,#E0E0E0 1px,transparent 1px);"
+            "background-size:5% 5%;}"
+            if self._guides_on else ""
+        )
+        self._show_slide(self._current_slide)
+        self._set_status("参考线开" if self._guides_on else "参考线关", 2000)
 
     # ==================== 设计 / 过渡 ====================
     def _apply_unified_font(self, family: str):

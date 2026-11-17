@@ -111,7 +111,11 @@ class ExportMixin:
                     pass
                 export_slides.append(s)
 
-            engine = PPTXEngine(slide_width=10.0, slide_height=7.5)
+            if getattr(self, "_slide_size", "16:9") == "16:9":
+                sw, sh = 13.333, 7.5
+            else:
+                sw, sh = 10.0, 7.5
+            engine = PPTXEngine(slide_width=sw, slide_height=sh)
             success = engine.export(
                 slides_html=export_slides,
                 output_path=path,

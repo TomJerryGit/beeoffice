@@ -340,6 +340,8 @@ class ToolbarMixin:
         design_group.add_small_button("动画", "动画", self._show_animation_panel, icon_name="play")
         design_group.add_small_button("画布撤销", "画布撤销", self._canvas_undo, icon_name="undo")
         design_group.add_small_button("重置画布", "重置画布", self._canvas_reset, icon_name="view")
+        design_group.add_small_button("幻灯片大小", "幻灯片大小", self._set_slide_size_dialog, icon_name="page")
+        design_group.add_small_button("参考线", "参考线", self._toggle_guides, icon_name="table")
 
         # 插入：背景/版式/表格/图片
         page = ribbon.add_tab("插入")
@@ -353,6 +355,11 @@ class ToolbarMixin:
             group.add_large_button(
                 label, target, _clone_click(target), icon_name=icon_name
             )
+
+        insert_group = ribbon.add_group(page, "形状/艺术字")
+        insert_group.add_small_button("形状", "形状", self._show_shape_menu, icon_name="insert")
+        insert_group.add_small_button("艺术字", "艺术字", lambda: self._insert_html_block('<div style="font-size:44px;font-weight:bold;color:#E67E22;">艺术字</div>', "艺术字"), icon_name="insert")
+        insert_group.add_small_button("文本框", "文本框", lambda: self._insert_html_block('<div style="padding:12px 16px;border:1px dashed #888;">在此输入文本</div>', "文本框"), icon_name="insert")
 
         # 放映
         page2 = ribbon.add_tab("放映")
