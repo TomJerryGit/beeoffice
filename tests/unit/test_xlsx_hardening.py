@@ -43,3 +43,20 @@ def test_xlsx_preserves_styles_and_print_area(qtbot, tmp_path, monkeypatch):
     assert ws["A1"].font.bold is True
     assert ws["A1"].fill.fgColor.rgb.endswith("FFE0B2")
     assert len(list(ws.conditional_formatting)) >= 1
+
+
+def test_new_xlsx_has_basic_style(qtbot, tmp_path, monkeypatch):
+    sheet = BeeSheetView()
+    qtbot.addWidget(sheet)
+    sheet.model.set_full_dataframe(__import__("pandas").DataFrame({"名称": ["甲"], "数量": [1]}))
+    out = tmp_path / "new.xlsx"
+    from PySide6.QtWidgets import QFileDialog, QMessageBox
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", staticmethod(lambda *a, **k: (str(out), "Excel (*.xlsx)")))
+    monkeypatch.setattr(QMessageBox, "information", staticmethod(lambda *a, **k: None))
+    sheet._export_xlsx()
+    wb = load_workbook(out)
+    ws = wb.active
+    assert ws["A1"].font.bold is True
+    assert ws["A1"].border.left.style == "thin"
+    assert ws.freeze_panes == "A2"
+    assert ws.print_area.endswith("$A$1:$B$2")

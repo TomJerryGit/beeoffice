@@ -71,7 +71,8 @@ class DataMixin:
                 except Exception:
                     df.to_excel(path, index=False)
             else:
-                df.to_excel(path, index=False)
+                from beeoffice.plugins.beesheet_xlsx_export import export_new_xlsx
+                export_new_xlsx(df, path)
             QMessageBox.information(self, tr("auto.beesheet_data_mixin.51991a5d", "成功"), tr("auto.beesheet_data_mixin.ec44b3f2", "已保存：\n{path}").format(path=path))
         except Exception as e:
             QMessageBox.warning(self, tr("auto.beesheet_data_mixin.3e3c8068", "失败"), str(e))
