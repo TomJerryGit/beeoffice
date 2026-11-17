@@ -120,6 +120,11 @@ class ExportMixin:
             )
 
             if success:
+                try:
+                    from beeoffice.plugins.beeshow_pptx_transitions import apply_slide_transitions
+                    apply_slide_transitions(path, getattr(self, "_slide_animations", []))
+                except Exception as e:  # noqa: BLE001
+                    logging.warning(f"写入 PPTX 过渡失败: {e}")
                 QMessageBox.information(
                     self, tr("auto.beeshow_export_mixin.c893536c", "导出成功"),
                     tr("auto.beeshow_export_mixin.88cd08b2", "已保存: {path}\n\n✅ 文本可编辑、可搜索\n✅ 保留字号/颜色/对齐").format(path=path)
