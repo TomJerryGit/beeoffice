@@ -21,13 +21,19 @@ def _add_effect(parent, spid, effect, duration, nid):
     outer = _el(par, "cTn", id=nid[0], fill="hold")
     nid[0] += 1
     st = _el(outer, "stCondLst")
-    _el(st, "cond", delay="0")
+    _el(st, "cond", delay="indefinite")
     children = _el(outer, "childTnLst")
-    inner_par = _el(children, "par")
+    mid_par = _el(children, "par")
+    mid_ctn = _el(mid_par, "cTn", id=nid[0], fill="hold")
+    nid[0] += 1
+    mid_st = _el(mid_ctn, "stCondLst")
+    _el(mid_st, "cond", delay="0")
+    mid_children = _el(mid_ctn, "childTnLst")
+    inner_par = _el(mid_children, "par")
     effect_node = _el(
         inner_par, "cTn", id=nid[0], presetID="10",
         presetClass="entr", presetSubtype="0", fill="hold",
-        nodeType="clickEffect",
+        grpId="0", nodeType="clickEffect",
     )
     nid[0] += 1
     est = _el(effect_node, "stCondLst")
@@ -100,5 +106,17 @@ def apply_shape_animations(pptx_path: str, configs) -> int:
             for anim in par.iter(qn("p:animEffect")):
                 anim.set("filter", filt)
             total += 1
+        prev = _el(seq, "prevCondLst")
+        pc = _el(prev, "cond", evt="onPrev", delay="0")
+        pt = _el(pc, "tgtEl")
+        _el(pt, "sldTgt")
+        nxt = _el(seq, "nextCondLst")
+        nc = _el(nxt, "cond", evt="onNext", delay="0")
+        nt = _el(nc, "tgtEl")
+        _el(nt, "sldTgt")
+        bld = _el(timing, "bldLst")
+        for i, entry in enumerate(entries):
+            spid = ids[i % len(ids)]
+            _el(bld, "bldP", spid=spid, grpId="0")
         prs.save(pptx_path)
     return total
