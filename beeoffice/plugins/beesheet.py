@@ -589,6 +589,11 @@ class BeeSheetView(
         self.model.set_full_dataframe(df)
         if str(path).lower().endswith((".xlsx", ".xlsm")):
             self._xlsx_source = path
+            try:
+                from beeoffice.plugins.beesheet_xlsx_export import read_xlsx_formulas
+                self._xlsx_formula_map = read_xlsx_formulas(path)
+            except Exception:
+                self._xlsx_formula_map = {}
         self.table_view.setModel(self.model)
         self._undo_stack.clear()
         self._redo_stack.clear()

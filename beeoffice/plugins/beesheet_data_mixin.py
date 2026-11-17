@@ -67,7 +67,7 @@ class DataMixin:
             if source and str(source).lower().endswith((".xlsx", ".xlsm")):
                 from beeoffice.plugins.beesheet_xlsx_export import export_xlsx_preserving_styles
                 try:
-                    export_xlsx_preserving_styles(str(source), df, path)
+                    export_xlsx_preserving_styles(str(source), df, path, getattr(self, "_xlsx_formula_map", {}))
                 except Exception:
                     df.to_excel(path, index=False)
             else:

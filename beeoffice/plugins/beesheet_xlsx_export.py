@@ -4,8 +4,26 @@ from __future__ import annotations
 import pandas as pd
 
 
-def export_xlsx_preserving_styles(src: str, df: pd.DataFrame, out: str) -> bool:
-    """把 df 写回已有 xlsx，尽量保留工作表级设置。"""
+def read_xlsx_formulas(src: str) -> dict:
+    """读取数据区公式：{(df_row, df_col): '=...'}。"""
+    from openpyxl import load_workbook
+    result = {}
+    try:
+        wb = load_workbook(src, data_only=False)
+        ws = wb.active
+        for row in ws.iter_rows(min_row=2):
+            for cell in row:
+                val = cell.value
+                if isinstance(val, str) and val.startswith("="):
+                    result[(cell.row - 2, cell.column - 1)] = val
+    except Exception:
+        return {}
+    return result
+
+
+def export_xlsx_preserving_styles(src: str, df: pd.DataFrame, out: str,
+                                  formulas: dict | None = None) -> bool:
+    """把 df 写回已有 xlsx，尽量保留工作表级设置与公式。"""
     from openpyxl import load_workbook
     from openpyxl.cell.cell import MergedCell
 
@@ -22,9 +40,13 @@ def export_xlsx_preserving_styles(src: str, df: pd.DataFrame, out: str) -> bool:
             cell.value = None
     for c, col in enumerate(df.columns, 1):
         ws.cell(row=1, column=c, value=str(col))
+    formulas = formulas or {}
     for r, row in enumerate(df.itertuples(index=False), 2):
         for c, value in enumerate(row, 1):
-            if pd.isna(value):
+            formula = formulas.get((r - 2, c - 1))
+            if formula:
+                value = formula
+            elif pd.isna(value):
                 value = None
             ws.cell(row=r, column=c, value=value)
     for rng in merged_ranges:
