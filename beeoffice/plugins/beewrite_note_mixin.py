@@ -1,7 +1,7 @@
 """BeeWrite 脚注/尾注/题注/交叉引用/目录更新/字数统计（W7）。"""
 from __future__ import annotations
 
-from PySide6.QtGui import QTextCharFormat, QTextCursor
+from PySide6.QtGui import QTextCharFormat, QTextCursor, QTextFormat, QTextBlockFormat
 from PySide6.QtWidgets import QInputDialog, QMessageBox
 
 
@@ -95,15 +95,42 @@ class NoteMixin:
         try:
             cursor.insertBlock()
             cursor.insertText("目录")
+            marker_bf = QTextBlockFormat()
+            marker_bf.setProperty(QTextFormat.UserProperty, 0xBEEF)
+            cursor.setBlockFormat(marker_bf)
             for level, text in headings:
                 cursor.insertBlock()
                 cursor.insertText("    " * (level - 1) + text)
+                cursor.setBlockFormat(marker_bf)
             if not headings:
                 cursor.insertBlock()
                 cursor.insertText("（暂无标题）")
+                cursor.setBlockFormat(marker_bf)
         finally:
             cursor.endEditBlock()
         self._set_status(f"目录已更新（{len(headings)} 个标题）", 3000)
+
+    def _add_toc_field(self, doc):
+        """在 DOCX 中插入可更新的 Word TOC 域。"""
+        from docx.oxml import OxmlElement
+        from docx.oxml.ns import qn
+        para = doc.add_paragraph()
+        run = para.add_run()
+        begin = OxmlElement("w:fldChar")
+        begin.set(qn("w:fldCharType"), "begin")
+        instr = OxmlElement("w:instrText")
+        instr.set(qn("xml:space"), "preserve")
+        instr.text = 'TOC \\o "1-3" \\h \\z \\u'
+        sep = OxmlElement("w:fldChar")
+        sep.set(qn("w:fldCharType"), "separate")
+        end = OxmlElement("w:fldChar")
+        end.set(qn("w:fldCharType"), "end")
+        run._r.append(begin)
+        run._r.append(instr)
+        run._r.append(sep)
+        para.add_run("（打开 Word 后右键目录 → 更新域）")
+        para.add_run()._r.append(end)
+        return para
 
     def _show_word_count_dialog(self):
         text = self.rich_editor.toPlainText()

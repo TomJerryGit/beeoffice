@@ -878,6 +878,7 @@ class ExportMixin:
 
         # ========== 遍历文档 block ==========
         document = self.rich_editor.document()
+        toc_written = False
         block = document.begin()
         while block.isValid():
             cursor = QTextCursor(block)
@@ -901,6 +902,20 @@ class ExportMixin:
                     doc.add_page_break()
             except Exception as e:
                 logging.debug(f"分页符判断失败（跳过）: {e}")
+
+            # ---------- 目录域（P0 硬化：标记块生成 Word TOC 域） ----------
+            try:
+                is_toc = bf.intProperty(QTextFormat.UserProperty) == 0xBEEF
+            except Exception:
+                is_toc = False
+            if is_toc:
+                if not toc_written:
+                    doc.add_paragraph(block.text() or "目录")
+                    if hasattr(self, "_add_toc_field"):
+                        self._add_toc_field(doc)
+                    toc_written = True
+                block = block.next()
+                continue
 
             # ---------- 普通段落 / 标题（含图片） ----------
             has_text = bool(block.text().strip())
