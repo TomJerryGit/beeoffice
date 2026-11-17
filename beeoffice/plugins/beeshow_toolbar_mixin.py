@@ -358,6 +358,7 @@ class ToolbarMixin:
         page2 = ribbon.add_tab("放映")
         group2 = ribbon.add_group(page2, "▶ 放映控制")
         group2.add_large_button("▶\n播放", "开始播放 (F5)", self._start_play, icon_name="play")
+        group2.add_large_button("▶\n从当前", "从当前开始", self._start_from_current, icon_name="play")
         group2.add_large_button("🎤\n演讲者", "演讲者模式", self._start_presenter_mode, icon_name="play")
         group2.add_large_button("🖨\n打印", "打印预览", self._print_preview, icon_name="print")
         group2.add_large_button("⏱\n排练", "开始/停止排练计时", self.toggle_rehearsal, icon_name="track")

@@ -64,7 +64,11 @@ class PlayMixin:
     """蜜演全屏播放 / 演讲者模式 / 排练计时 Mixin"""
 
     # ==================== 启动播放（P0-2） ====================
-    def _start_play(self):
+    def _start_from_current(self):
+        """从当前幻灯片开始放映。"""
+        self._start_play(self._current_slide)
+
+    def _start_play(self, start_index=0):
         """
         启动全屏播放。
 
@@ -78,7 +82,7 @@ class PlayMixin:
             return
 
         self._is_playing = True
-        self._current_slide = 0
+        self._current_slide = max(0, min(int(start_index or 0), len(self._slides_html) - 1))
         self._start_time = time.time()
         self._timer_label.show()
 
