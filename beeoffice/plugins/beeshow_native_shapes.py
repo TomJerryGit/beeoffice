@@ -94,3 +94,59 @@ def apply_native_shapes(pptx_path: str, configs) -> int:
             count += 1
     prs.save(pptx_path)
     return count
+
+
+def get_native_shape_edit_js(count: int) -> str:
+    """拖拽/Alt+拖拽旋转原生形状的注入脚本。"""
+    return r"""
+<script>
+(function(){
+  if (window.__beeNativeShapeEdit) return;
+  window.__beeNativeShapeEdit = true;
+  const slide = document.querySelector('.slide');
+  if (!slide) return;
+  const items = Array.from(document.querySelectorAll('.native-shapes > div'));
+  items.forEach((el, idx) => {
+    el.style.pointerEvents = 'auto';
+    el.style.cursor = 'move';
+    el.dataset.nativeIndex = idx;
+    let state = null;
+    el.addEventListener('mousedown', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const box = slide.getBoundingClientRect();
+      state = {box, startX: e.clientX, startY: e.clientY,
+               left: parseFloat(el.style.left) || 0,
+               top: parseFloat(el.style.top) || 0,
+               rot: parseFloat((el.style.transform.match(/rotate\(([-\d.]+)deg\)/) || [0,0])[1]) || 0,
+               rotate: e.altKey};
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!state) return;
+      if (state.rotate) {
+        const cx = state.box.left + state.box.width / 2;
+        const cy = state.box.top + state.box.height / 2;
+        let ang = Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI + 90;
+        el.style.transform = `rotate(${ang}deg)`;
+        state.angle = ang;
+      } else {
+        el.style.left = (state.left + (e.clientX - state.startX) / state.box.width * 100) + '%';
+        el.style.top = (state.top + (e.clientY - state.startY) / state.box.height * 100) + '%';
+      }
+    });
+    window.addEventListener('mouseup', () => {
+      if (!state) return;
+      const done = state; state = null;
+      const payload = {
+        index: idx,
+        x: parseFloat(el.style.left) || 0,
+        y: parseFloat(el.style.top) || 0,
+        w: parseFloat(el.style.width) || 30,
+        h: parseFloat(el.style.height) || 15,
+        rotation: done.angle || done.rot
+      };
+      window.location.href = 'beeoffice://native-shape-edit?data=' + encodeURIComponent(JSON.stringify(payload));
+    });
+  });
+})();
+</script>
+"""

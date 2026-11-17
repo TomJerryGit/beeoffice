@@ -524,12 +524,14 @@ class SlideMixin:
                 theme_css=theme['css'],
                 layout_css=self._get_layout_css(),
                 bg=bg,
-                extra_css=(getattr(self, '_font_css', '') + getattr(self, '_slide_size_css', '') + getattr(self, '_guides_css', '')),
+                extra_css=(getattr(self, '_font_css', '') + getattr(self, '_slide_size_css', '') + getattr(self, '_guides_css', '') + getattr(self, '_master_css', '')),
                 body_extra=(
                     f'<div class="slide-number">'
                     f"{index + 1}/{len(self._slides_html)}</div>"
                     f"{dynamic_js}{editor_js}{image_js}"
                     f"{self._canvas_js_for(index)}"
+                    f"{self._native_shape_js_for(index)}"
+                    f"{getattr(self, '_master_overlay_html', '')}"
                 ),
             )
 
@@ -618,6 +620,32 @@ class SlideMixin:
         self._show_slide(idx)
         self._set_status("已重置当前页画布", 2000)
 
+    def _native_shape_js_for(self, index):
+        try:
+            from beeoffice.plugins.beeshow_native_shapes import get_native_shape_edit_js
+            shapes = getattr(self, "_native_shapes", [])
+            if index < len(shapes) and shapes[index]:
+                return get_native_shape_edit_js(len(shapes[index]))
+        except Exception:
+            pass
+        return ""
+
+    def _on_native_shape_edit(self, data):
+        try:
+            idx = int(data.get("index", -1))
+        except Exception:
+            return
+        shapes = self._native_shapes[self._current_slide]
+        if not (0 <= idx < len(shapes)):
+            return
+        for key in ("x", "y", "w", "h", "rotation"):
+            if key in data:
+                try:
+                    shapes[idx][key] = float(data[key])
+                except Exception:
+                    pass
+        self._persist_native_shapes_current()
+
     # ==================== 母版 / 视图模式 ====================
     def _show_master_dialog(self):
         dlg = QDialog(self)
@@ -629,6 +657,15 @@ class SlideMixin:
         bg = QComboBox()
         bg.addItems(["默认主题背景", "白色", "浅灰", "米色", "深色"])
         form.addRow("母版背景", bg)
+        from PySide6.QtWidgets import QLineEdit, QCheckBox
+        footer = QLineEdit()
+        footer.setPlaceholderText("例如：XX 公司 · 内部资料")
+        form.addRow("母版页脚", footer)
+        page_no = QCheckBox("显示页码")
+        page_no.setChecked(True)
+        form.addRow("页码", page_no)
+        title_color = QLineEdit("#E67E22")
+        form.addRow("标题颜色", title_color)
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject)
         form.addRow(btns)
@@ -641,6 +678,12 @@ class SlideMixin:
         else:
             self._custom_bg = {"白色": "#FFFFFF", "浅灰": "#F5F5F5",
                                "米色": "#FFF8E1", "深色": "#263238"}[chosen]
+        self._master_css = f"h1,h2,h3{{color:{title_color.text().strip() or '#E67E22'};}}"
+        self._master_overlay_html = (
+            f'<div style="position:fixed;bottom:8px;left:16px;font-size:12px;color:#888;">{footer.text()}</div>'
+            if footer.text().strip() else ""
+        )
+        self._master_page_number = page_no.isChecked()
         self._show_slide(self._current_slide)
         self._set_status("母版样式已应用", 2000)
 

@@ -740,6 +740,18 @@ def _make_web_engine_page_class():
                 if data is not None and handler:
                     handler(data)
 
+            elif url_str.startswith("beeoffice://native-shape-edit"):
+                try:
+                    from urllib.parse import urlparse, parse_qs
+                    import json
+                    q = parse_qs(urlparse(url_str).query)
+                    data = json.loads(q.get("data", ["{}"])[0])
+                except Exception:
+                    data = None
+                handler = getattr(self._owner, "_on_native_shape_edit", None) if self._owner else None
+                if data is not None and handler:
+                    handler(data)
+
             elif url_str.startswith("beeoffice://canvas-delete"):
                 try:
                     from urllib.parse import urlparse, parse_qs

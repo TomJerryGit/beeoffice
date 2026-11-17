@@ -53,3 +53,20 @@ def test_native_shape_rotation_export(qtbot, tmp_path):
         s._export_pptx()
     prs = Presentation(str(out))
     assert any(abs(sh.rotation - 45) < 0.1 for sh in prs.slides[0].shapes)
+
+
+def test_native_shape_drag_handler(qtbot):
+    s = make_show(qtbot)
+    s._add_native_shape("rect")
+    s._on_native_shape_edit({"index": 0, "x": 42, "y": 33, "w": 25, "h": 12, "rotation": 30})
+    shape = s._native_shapes[0][0]
+    assert shape["x"] == 42 and shape["rotation"] == 30
+    assert "native-shape-edit" in s._native_shape_js_for(0)
+
+
+def test_master_overlay_state(qtbot):
+    s = make_show(qtbot)
+    s._master_css = "h1{color:#123456;}"
+    s._master_overlay_html = "<div>内部资料</div>"
+    assert "123456" in s._master_css
+    assert "内部资料" in s._master_overlay_html
