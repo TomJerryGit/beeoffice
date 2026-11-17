@@ -1,8 +1,11 @@
-"""把 BeeShow 元素进入动画写入 PPTX 基础 timing。"""
+"""把 BeeShow 元素进入/退出/强调动画写入 PPTX 基础 timing。"""
 from __future__ import annotations
 
 from lxml import etree
 from pptx.oxml.ns import qn
+
+EXIT_EFFECTS = {"fade_out", "slide_out", "zoom_out"}
+EMPH_EFFECTS = {"pulse", "grow", "shake"}
 
 
 def _el(parent, tag, **attrs):
@@ -16,7 +19,35 @@ def _shape_ids(slide):
     return [shape.shape_id for shape in slide.shapes]
 
 
+def _filter_for(effect: str) -> str:
+    return {
+        "slide_in": "slide(fromBottom)",
+        "slide_out": "slide(fromBottom)",
+        "zoom_in": "zoom(in)",
+        "zoom_out": "zoom(out)",
+    }.get(effect, "fade")
+
+
+def _target(ecl, spid, nid, duration):
+    anim = _el(ecl, "animEffect",
+               transition="out" if False else "in", filter="fade")
+    ab = _el(anim, "cBhvr")
+    _el(ab, "cTn", id=nid[0], dur=str(max(100, int(duration))))
+    nid[0] += 1
+    tgt = _el(ab, "tgtEl")
+    _el(tgt, "spTgt", spid=spid)
+    return anim
+
+
 def _add_effect(parent, spid, effect, duration, nid):
+    duration = max(100, int(duration))
+    if effect in EXIT_EFFECTS:
+        preset_class, preset_id = "exit", "10"
+    elif effect in EMPH_EFFECTS:
+        preset_class, preset_id = "emph", "6"
+    else:
+        preset_class, preset_id = "entr", "10"
+
     par = _el(parent, "par")
     outer = _el(par, "cTn", id=nid[0], fill="hold")
     nid[0] += 1
@@ -31,8 +62,8 @@ def _add_effect(parent, spid, effect, duration, nid):
     mid_children = _el(mid_ctn, "childTnLst")
     inner_par = _el(mid_children, "par")
     effect_node = _el(
-        inner_par, "cTn", id=nid[0], presetID="10",
-        presetClass="entr", presetSubtype="0", fill="hold",
+        inner_par, "cTn", id=nid[0], presetID=preset_id,
+        presetClass=preset_class, presetSubtype="0", fill="hold",
         grpId="0", nodeType="clickEffect",
     )
     nid[0] += 1
@@ -40,33 +71,39 @@ def _add_effect(parent, spid, effect, duration, nid):
     _el(est, "cond", delay="0")
     ecl = _el(effect_node, "childTnLst")
 
-    # visibility set
+    if preset_class == "emph":
+        # 基础强调：缩放 105%（grow/pulse/shake 共用最小可行效果）
+        scale = _el(ecl, "animScale")
+        sb = _el(scale, "cBhvr")
+        _el(sb, "cTn", id=nid[0], dur=str(duration))
+        nid[0] += 1
+        stgt = _el(sb, "tgtEl")
+        _el(stgt, "spTgt", spid=spid)
+        _el(scale, "by", x="105000", y="105000")
+        return par
+
+    # 进入/退出：先 animEffect，再切换可见性
+    anim = _target(ecl, spid, nid, duration)
+    anim.set("transition", "out" if preset_class == "exit" else "in")
+    anim.set("filter", _filter_for(effect))
     set_node = _el(ecl, "set")
     bhvr = _el(set_node, "cBhvr")
     ct = _el(bhvr, "cTn", id=nid[0], dur="1", fill="hold")
     nid[0] += 1
     cs = _el(ct, "stCondLst")
-    _el(cs, "cond", delay="0")
+    _el(cs, "cond", delay=str(max(0, duration - 1)) if preset_class == "exit" else "0")
     target = _el(bhvr, "tgtEl")
     _el(target, "spTgt", spid=spid)
     names = _el(bhvr, "attrNameLst")
     name = _el(names, "attrName")
     name.text = "style.visibility"
     to = _el(set_node, "to")
-    val = _el(to, "strVal", val="visible")
-
-    # entrance effect
-    anim = _el(ecl, "animEffect", transition="in", filter="fade")
-    ab = _el(anim, "cBhvr")
-    _el(ab, "cTn", id=nid[0], dur=str(max(100, int(duration))))
-    nid[0] += 1
-    tgt = _el(ab, "tgtEl")
-    _el(tgt, "spTgt", spid=spid)
+    val = _el(to, "strVal", val="hidden" if preset_class == "exit" else "visible")
     return par
 
 
 def apply_shape_animations(pptx_path: str, configs) -> int:
-    """按页写入基础进入动画；返回写入效果数。"""
+    """按页写入进入/退出/强调动画；返回写入效果数。"""
     from pptx import Presentation
     prs = Presentation(pptx_path)
     total = 0
@@ -94,17 +131,9 @@ def apply_shape_animations(pptx_path: str, configs) -> int:
         nid = [3]
         for i, entry in enumerate(entries):
             effect = (entry or {}).get("effect", "fade_in")
-            filt = "fade"
-            if effect == "slide_in":
-                filt = "slide(fromBottom)"
-            elif effect == "zoom_in":
-                filt = "zoom(in)"
             duration = (entry or {}).get("duration", 500)
             spid = ids[i % len(ids)]
-            par = _add_effect(seq_children, spid, effect, duration, nid)
-            # override filter on last effect's animEffect
-            for anim in par.iter(qn("p:animEffect")):
-                anim.set("filter", filt)
+            _add_effect(seq_children, spid, effect, duration, nid)
             total += 1
         prev = _el(seq, "prevCondLst")
         pc = _el(prev, "cond", evt="onPrev", delay="0")
@@ -116,6 +145,8 @@ def apply_shape_animations(pptx_path: str, configs) -> int:
         _el(nt, "sldTgt")
         bld = _el(timing, "bldLst")
         for i, entry in enumerate(entries):
+            if (entry or {}).get("effect") in EMPH_EFFECTS:
+                continue
             spid = ids[i % len(ids)]
             _el(bld, "bldP", spid=spid, grpId="0")
         prs.save(pptx_path)

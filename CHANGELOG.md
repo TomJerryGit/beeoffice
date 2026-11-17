@@ -43,6 +43,18 @@
 - 页眉/页脚当前只出现在文档首尾，尚未按页重复；
 - 拼写检查为基础常见错误词典，不是完整词典。
 
+## [5.7.10] - 未发布
+
+> P0 硬化：PPT 退出/强调动画。
+
+### BeeShow
+- PPTX 动画支持：
+  - 进入（fade_in / slide_in / zoom_in）
+  - 退出（fade_out / slide_out / zoom_out，presetClass=exit）
+  - 强调（pulse / grow / shake，animScale 基础效果）
+- WPS COM 验证：3 个效果（进入/退出/强调）均识别；
+- 全量测试：1630 passed。
+
 ## [5.7.9] - 未发布
 
 > P0 硬化：Word 题注/交叉引用域。

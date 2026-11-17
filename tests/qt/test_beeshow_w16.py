@@ -87,3 +87,35 @@ def test_pptx_element_animation_retention(qtbot, tmp_path):
         timing = slide._element.find(qn("p:timing"))
         assert timing is not None
         assert timing.find(".//" + qn("p:animEffect")) is not None
+
+
+def test_pptx_exit_emphasis_retention(qtbot, tmp_path):
+    from pptx import Presentation
+    from pptx.oxml.ns import qn
+    s = make_show(qtbot, 1)
+    s._slide_animations = [{
+        "transition": "fade",
+        "entries": [
+            {"selector": "h1", "effect": "fade_in", "duration": 300},
+            {"selector": "h1", "effect": "fade_out", "duration": 300},
+            {"selector": "p", "effect": "grow", "duration": 300},
+        ],
+    }]
+    out = tmp_path / "exit-emph.pptx"
+    from unittest.mock import patch
+    with patch(
+        "beeoffice.plugins.beeshow_export_mixin.QFileDialog.getSaveFileName",
+        return_value=(str(out), "PowerPoint (*.pptx)"),
+    ), patch(
+        "beeoffice.plugins.beeshow_export_mixin.QMessageBox.information",
+        return_value=None,
+    ), patch(
+        "beeoffice.plugins.beeshow_export_mixin.QMessageBox.warning",
+        return_value=None,
+    ):
+        s._export_pptx()
+    slide = Presentation(str(out)).slides[0]
+    xml = slide._element.xml
+    assert 'presetClass="exit"' in xml
+    assert 'presetClass="emph"' in xml
+    assert "animScale" in xml
