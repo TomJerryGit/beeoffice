@@ -563,6 +563,45 @@ def export_to_pdf(content, output_path):
 
 
 # ==================== DOCX → Markdown ====================
+def read_docx_header_footer(docx_path):
+    """读取 DOCX 首页/奇偶页/普通页眉页脚，返回编辑器配置字典。"""
+    if not HAS_DOCX:
+        return {}
+    try:
+        doc = Document(docx_path)
+        section = doc.sections[0]
+
+        def text_of(container):
+            if container is None:
+                return ""
+            return "\n".join(
+                p.text.strip() for p in container.paragraphs if p.text.strip()
+            )
+
+        meta = {
+            "header": text_of(section.header),
+            "footer": text_of(section.footer),
+            "different_first_page": bool(
+                getattr(section, "different_first_page_header_footer", False)
+            ),
+            "header_first": text_of(getattr(section, "first_page_header", None)),
+            "header_even": "",
+            "footer_even": "",
+            "odd_even_pages": False,
+        }
+        try:
+            if doc.settings.odd_and_even_pages_header_footer:
+                meta["odd_even_pages"] = True
+                meta["header_even"] = text_of(section.even_page_header)
+                meta["footer_even"] = text_of(section.even_page_footer)
+        except Exception:
+            pass
+        return meta
+    except Exception as e:
+        logging.error(f"读取 DOCX 页眉页脚失败: {e}")
+        return {}
+
+
 def import_from_docx(docx_path):
     """
     从 DOCX 文件导入为 Markdown

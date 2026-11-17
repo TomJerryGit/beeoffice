@@ -9,8 +9,11 @@ from docx import Document
 from pptx import Presentation
 from pptx.util import Inches
 
-from beeoffice.plugins.bee_export import export_to_docx, import_from_docx
+from beeoffice.plugins.bee_export import (
+    export_to_docx, import_from_docx, read_docx_header_footer,
+)
 from beeoffice.plugins.beeshow import BeeShowView
+from beeoffice.plugins.beewrite import BeeWriteEditor
 
 
 def test_docx_heading_table_roundtrip(tmp_path):
@@ -37,17 +40,29 @@ def test_docx_heading_table_roundtrip(tmp_path):
     assert len(again.tables) == 1
 
 
-@pytest.mark.xfail(reason="DOCX 页眉页脚尚未导入编辑器配置", strict=False)
-def test_docx_header_footer_roundtrip(tmp_path):
+def test_docx_header_footer_roundtrip(qtbot, tmp_path):
     src = tmp_path / "src.docx"
     doc = Document()
     doc.add_paragraph("正文")
     doc.sections[0].header.paragraphs[0].text = "页眉"
+    doc.sections[0].footer.paragraphs[0].text = "页脚"
     doc.save(str(src))
-    md = import_from_docx(str(src))
+
+    meta = read_docx_header_footer(str(src))
+    assert meta["header"] == "页眉"
+    assert meta["footer"] == "页脚"
+
+    editor = BeeWriteEditor()
+    qtbot.addWidget(editor)
+    editor._edit_mode = "rich_text"
+    editor.rich_editor.setPlainText("正文")
+    editor._header_text = meta["header"]
+    editor._footer_text = meta["footer"]
     out = tmp_path / "out.docx"
-    export_to_docx(md, str(out))
-    assert Document(str(out)).sections[0].header.paragraphs[0].text == "页眉"
+    assert editor._write_docx(str(out)) is True
+    again = Document(str(out))
+    assert again.sections[0].header.paragraphs[0].text == "页眉"
+    assert again.sections[0].footer.paragraphs[0].text == "页脚"
 
 
 def test_pptx_text_roundtrip(qtbot, tmp_path):

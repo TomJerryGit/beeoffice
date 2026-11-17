@@ -606,6 +606,20 @@ class BeeApp(QMainWindow):
                     widget._switch_mode("rich_text")
                 except Exception as e:
                     logging.error(f"切换到富文本模式失败: {e}")
+            # 恢复页眉/页脚/首页/奇偶页配置（P0 硬化）
+            try:
+                from beeoffice.plugins.bee_export import read_docx_header_footer
+                meta = read_docx_header_footer(path)
+                widget._header_text = meta.get("header", "")
+                widget._footer_text = meta.get("footer", "")
+                widget._different_first_page = meta.get("different_first_page", False)
+                widget._header_first_text = meta.get("header_first", "")
+                widget._odd_even_pages = meta.get("odd_even_pages", False)
+                widget._header_even_text = meta.get("header_even", "")
+                widget._footer_even_text = meta.get("footer_even", "")
+            except Exception as e:
+                logging.error(f"恢复 DOCX 页眉页脚失败: {e}")
+
             if hasattr(widget, "_enter_paged_edit"):
                 widget._enter_paged_edit()
 
