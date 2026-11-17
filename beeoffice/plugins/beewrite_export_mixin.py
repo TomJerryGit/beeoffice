@@ -297,8 +297,6 @@ class ExportMixin:
         try:
             if self._edit_mode == "rich_text":
                 self._rich_to_docx(path)
-                if hasattr(self, "_append_notes_to_docx"):
-                    self._append_notes_to_docx(path)
             else:
                 from beeoffice.plugins.bee_export import export_to_docx
                 content = self.get_rendered_content()
@@ -960,6 +958,17 @@ class ExportMixin:
                 self._apply_header_footer(doc)
         except Exception as e:
             logging.error(f"应用页眉页脚失败: {e}")
+
+        # 脚注/尾注：注入 Word 原生 footnotes.xml / endnotes.xml
+        try:
+            from beeoffice.plugins.beewrite_docx_notes import add_docx_notes
+            add_docx_notes(
+                doc,
+                getattr(self, "_footnotes", []),
+                getattr(self, "_endnotes", []),
+            )
+        except Exception as e:
+            logging.error(f"写入 Word 脚注/尾注失败: {e}")
 
         # 保存（若文件被占用，会在此处抛 PermissionError）
         doc.save(path)

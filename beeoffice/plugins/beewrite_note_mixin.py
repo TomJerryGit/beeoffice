@@ -16,11 +16,11 @@ class NoteMixin:
         if not hasattr(self, "_captions"):
             self._captions = []
 
-    def _insert_note_marker(self, number, char_format=None):
+    def _insert_note_marker(self, number, prefix="F", char_format=None):
         cursor = self.rich_editor.textCursor()
         cf = char_format or QTextCharFormat()
         cf.setVerticalAlignment(QTextCharFormat.VerticalAlignment.AlignSuperScript)
-        cursor.insertText(f"[{number}]", cf)
+        cursor.insertText(f"[{prefix}{number}]", cf)
         self.rich_editor.setTextCursor(cursor)
 
     def _insert_footnote(self):
@@ -29,7 +29,7 @@ class NoteMixin:
         if not ok or not text.strip():
             return
         self._footnotes.append(text.strip())
-        self._insert_note_marker(len(self._footnotes))
+        self._insert_note_marker(len(self._footnotes), "F")
         self._set_status(f"已插入脚注 {len(self._footnotes)}（导出时写入文末）", 3000)
 
     def _insert_endnote(self):
@@ -38,7 +38,7 @@ class NoteMixin:
         if not ok or not text.strip():
             return
         self._endnotes.append(text.strip())
-        self._insert_note_marker(len(self._endnotes))
+        self._insert_note_marker(len(self._endnotes), "E")
         self._set_status(f"已插入尾注 {len(self._endnotes)}（导出时写入文末）", 3000)
 
     def _insert_caption(self):
@@ -144,9 +144,8 @@ class NoteMixin:
         )
 
     def _append_notes_to_docx(self, path):
-        """把脚注/尾注以文末注释区写入 DOCX。"""
-        if not getattr(self, "_footnotes", None) and not getattr(self, "_endnotes", None):
-            return
+        """兼容旧接口：脚注/尾注已由原生 DOCX 部件处理。"""
+        return
         try:
             from docx import Document
             doc = Document(path)

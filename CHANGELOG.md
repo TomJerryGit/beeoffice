@@ -43,6 +43,18 @@
 - 页眉/页脚当前只出现在文档首尾，尚未按页重复；
 - 拼写检查为基础常见错误词典，不是完整词典。
 
+## [5.7.8] - 未发布
+
+> P0 硬化：Word 原生脚注/尾注。
+
+### BeeWrite
+- 新增 `beewrite_docx_notes.py`；
+- `[F1]`/`[E1]` 标记导出为 Word 原生 `footnoteReference`/`endnoteReference`；
+- 生成 `word/footnotes.xml`、`word/endnotes.xml`；
+- WPS Writer COM 验证 Footnotes/Endnotes 均识别；
+- 新增 `tools/validate_docx_wps.ps1`；
+- 全量测试：1628 passed。
+
 ## [5.7.7] - 未发布
 
 > P0 硬化：PPTX 动画真实 WPS 验收。

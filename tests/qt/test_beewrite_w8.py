@@ -29,16 +29,21 @@ def test_view_toggles(qtbot):
 
 def test_footnotes_export_to_docx(qtbot, tmp_path):
     e = make_editor(qtbot)
-    e.rich_editor.setPlainText("正文")
+    e.rich_editor.setPlainText("正文[F1][E1]")
     e._footnotes = ["第一条脚注"]
     e._endnotes = ["第一条尾注"]
     out = tmp_path / "notes.docx"
     assert e._write_docx(str(out)) is True
-    doc = Document(str(out))
-    texts = [p.text for p in doc.paragraphs]
-    assert "注释" in texts
-    assert any("第一条脚注" in t for t in texts)
-    assert any("第一条尾注" in t for t in texts)
+    from zipfile import ZipFile
+    with ZipFile(out) as z:
+        assert "word/footnotes.xml" in z.namelist()
+        assert "word/endnotes.xml" in z.namelist()
+        notes = z.read("word/footnotes.xml").decode("utf-8")
+        ends = z.read("word/endnotes.xml").decode("utf-8")
+        body = z.read("word/document.xml").decode("utf-8")
+    assert "第一条脚注" in notes
+    assert "第一条尾注" in ends
+    assert "footnoteReference" in body
 
 
 def test_20_paragraph_export_performance(qtbot, tmp_path):

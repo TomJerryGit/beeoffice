@@ -23,8 +23,8 @@ def test_footnote_and_endnote(qtbot, monkeypatch):
     e._insert_footnote()
     e._insert_endnote()
     text = e.rich_editor.toPlainText()
-    assert "[1]" in text
-    assert "[1]" in text
+    assert "[F1]" in text
+    assert "[E1]" in text
     assert e._footnotes == ["脚注内容"]
     assert e._endnotes == ["尾注内容"]
 
