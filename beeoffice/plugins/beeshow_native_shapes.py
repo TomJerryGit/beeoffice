@@ -106,6 +106,7 @@ def get_native_shape_edit_js(count: int) -> str:
   const slide = document.querySelector('.slide');
   if (!slide) return;
   const items = Array.from(document.querySelectorAll('.native-shapes > div'));
+  const snap = (v) => Math.round(v / 5) * 5;
   items.forEach((el, idx) => {
     el.style.pointerEvents = 'auto';
     el.style.cursor = 'move';
@@ -138,13 +139,50 @@ def get_native_shape_edit_js(count: int) -> str:
       const done = state; state = null;
       const payload = {
         index: idx,
-        x: parseFloat(el.style.left) || 0,
-        y: parseFloat(el.style.top) || 0,
+        x: snap(parseFloat(el.style.left) || 0),
+        y: snap(parseFloat(el.style.top) || 0),
         w: parseFloat(el.style.width) || 30,
         h: parseFloat(el.style.height) || 15,
         rotation: done.angle || done.rot
       };
       window.location.href = 'beeoffice://native-shape-edit?data=' + encodeURIComponent(JSON.stringify(payload));
+    });
+    // 四角缩放手柄
+    [['nw', -5, -5], ['ne', 100, -5], ['sw', -5, 100], ['se', 100, 100]].forEach(([dir, hx, hy]) => {
+      const h = document.createElement('div');
+      h.className = 'bee-shape-handle';
+      h.style.cssText = `position:absolute;left:${hx}%;top:${hy}%;width:10px;height:10px;` +
+        `background:#fff;border:1px solid #E67E22;border-radius:2px;z-index:9999;cursor:${dir}-resize;transform:translate(-50%,-50%);`;
+      h.addEventListener('mousedown', (ev) => {
+        ev.preventDefault(); ev.stopPropagation();
+        const box = slide.getBoundingClientRect();
+        const start = { x: ev.clientX, y: ev.clientY,
+          w: parseFloat(el.style.width) || 30, h: parseFloat(el.style.height) || 15,
+          left: parseFloat(el.style.left) || 0, top: parseFloat(el.style.top) || 0 };
+        const move = (e2) => {
+          const dx = (e2.clientX - start.x) / box.width * 100;
+          const dy = (e2.clientY - start.y) / box.height * 100;
+          let nw = start.w, nh = start.h, nl = start.left, nt = start.top;
+          if (dir.includes('e')) nw = Math.max(5, start.w + dx);
+          if (dir.includes('s')) nh = Math.max(5, start.h + dy);
+          if (dir.includes('w')) { nw = Math.max(5, start.w - dx); nl = start.left + dx; }
+          if (dir.includes('n')) { nh = Math.max(5, start.h - dy); nt = start.top + dy; }
+          el.style.width = snap(nw) + '%'; el.style.height = snap(nh) + '%';
+          el.style.left = snap(nl) + '%'; el.style.top = snap(nt) + '%';
+        };
+        const up = () => {
+          window.removeEventListener('mousemove', move);
+          window.removeEventListener('mouseup', up);
+          const payload = {index: idx, x: snap(parseFloat(el.style.left) || 0),
+            y: snap(parseFloat(el.style.top) || 0),
+            w: snap(parseFloat(el.style.width) || 30),
+            h: snap(parseFloat(el.style.height) || 15), rotation: 0};
+          window.location.href = 'beeoffice://native-shape-edit?data=' + encodeURIComponent(JSON.stringify(payload));
+        };
+        window.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', up);
+      });
+      el.appendChild(h);
     });
   });
 })();

@@ -108,6 +108,12 @@ class SlideMixin:
         except AttributeError:
             pass
 
+        try:
+            from beeoffice.plugins.beeshow_master import parse_master
+            self._master_config, _ = parse_master(text)
+        except Exception:
+            self._master_config = {}
+
         raw_parts = re.split(r'\n---', text)
 
         self._slides_html = []
@@ -129,7 +135,7 @@ class SlideMixin:
             # 负向前瞻放在 `<!--` 之后、`\s*` 之前，避免 `\s*` 回溯后又匹配上。
             nm = re.search(
                 r'<!--(?!\s*(?:comments:|beeoffice-style:|beeoffice-image:'
-                r'|morph-id:|beeoffice-shapes:))\s*(.*?)\s*-->',
+                r'|morph-id:|beeoffice-shapes:|beeoffice-master:))\s*(.*?)\s*-->',
                 part,
                 re.DOTALL,
             )
@@ -524,14 +530,14 @@ class SlideMixin:
                 theme_css=theme['css'],
                 layout_css=self._get_layout_css(),
                 bg=bg,
-                extra_css=(getattr(self, '_font_css', '') + getattr(self, '_slide_size_css', '') + getattr(self, '_guides_css', '') + getattr(self, '_master_css', '')),
+                extra_css=(getattr(self, '_font_css', '') + getattr(self, '_slide_size_css', '') + getattr(self, '_guides_css', '') + getattr(self, '_master_css', '') + __import__('beeoffice.plugins.beeshow_master', fromlist=['master_css']).master_css(getattr(self, '_master_config', {}) or {'title_font':'Microsoft YaHei','body_font':'Microsoft YaHei'})),
                 body_extra=(
                     f'<div class="slide-number">'
                     f"{index + 1}/{len(self._slides_html)}</div>"
                     f"{dynamic_js}{editor_js}{image_js}"
                     f"{self._canvas_js_for(index)}"
                     f"{self._native_shape_js_for(index)}"
-                    f"{getattr(self, '_master_overlay_html', '')}"
+                    f"{__import__('beeoffice.plugins.beeshow_master', fromlist=['overlay_html']).overlay_html(getattr(self, '_master_config', {}) or {}, index + 1)}"
                 ),
             )
 
@@ -666,6 +672,9 @@ class SlideMixin:
         form.addRow("页码", page_no)
         title_color = QLineEdit("#E67E22")
         form.addRow("标题颜色", title_color)
+        date_text = QLineEdit()
+        date_text.setPlaceholderText("例如：2026-11-17")
+        form.addRow("日期占位符", date_text)
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject)
         form.addRow(btns)
@@ -678,14 +687,24 @@ class SlideMixin:
         else:
             self._custom_bg = {"白色": "#FFFFFF", "浅灰": "#F5F5F5",
                                "米色": "#FFF8E1", "深色": "#263238"}[chosen]
-        self._master_css = f"h1,h2,h3{{color:{title_color.text().strip() or '#E67E22'};}}"
-        self._master_overlay_html = (
-            f'<div style="position:fixed;bottom:8px;left:16px;font-size:12px;color:#888;">{footer.text()}</div>'
-            if footer.text().strip() else ""
-        )
-        self._master_page_number = page_no.isChecked()
+        from beeoffice.plugins.beeshow_master import marker_for
+        cfg = dict(getattr(self, "_master_config", {}) or {})
+        cfg.update({
+            "title_font": font.currentText(),
+            "title_color": title_color.text().strip() or "#E67E22",
+            "footer": footer.text().strip(),
+            "date": date_text.text().strip(),
+            "show_date": bool(date_text.text().strip()),
+            "show_page": page_no.isChecked(),
+        })
+        self._master_config = cfg
+        if self._slides_md:
+            import re as _re
+            md = _re.sub(r"<!--\s*beeoffice-master:.*?-->", "", self._slides_md[0], flags=_re.DOTALL).strip()
+            self._slides_md[0] = marker_for(cfg) + "\n" + md
+            self._rebuild_editor_from_slides()
         self._show_slide(self._current_slide)
-        self._set_status("母版样式已应用", 2000)
+        self._set_status("母版占位符样式已应用", 2000)
 
     def _toggle_slide_sorter(self):
         self._view_mode = "sorter" if getattr(self, "_view_mode", "normal") != "sorter" else "normal"

@@ -70,3 +70,25 @@ def test_master_overlay_state(qtbot):
     s._master_overlay_html = "<div>内部资料</div>"
     assert "123456" in s._master_css
     assert "内部资料" in s._master_overlay_html
+
+
+def test_native_shape_resize_js(qtbot):
+    s = make_show(qtbot)
+    s._add_native_shape("rect")
+    js = s._native_shape_js_for(0)
+    assert "bee-shape-handle" in js
+    assert "snap" in js
+
+
+def test_master_config_parse_and_overlay(qtbot):
+    from beeoffice.plugins.beeshow_master import marker_for, master_css, overlay_html
+    cfg = {"title_font": "SimHei", "title_color": "#112233", "footer": "内部",
+           "date": "2026-11-17", "show_date": True, "show_page": True}
+    md = marker_for(cfg) + "\n# 标题"
+    s = make_show(qtbot)
+    s._editor.setPlainText(md)
+    s._update_preview()
+    assert s._master_config["footer"] == "内部"
+    assert "SimHei" in master_css(s._master_config)
+    html = overlay_html(s._master_config, 2)
+    assert "内部" in html and "2026-11-17" in html
