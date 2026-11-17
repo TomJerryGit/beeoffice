@@ -342,6 +342,7 @@ class ToolbarMixin:
         design_group.add_small_button("重置画布", "重置画布", self._canvas_reset, icon_name="view")
         design_group.add_small_button("幻灯片大小", "幻灯片大小", self._set_slide_size_dialog, icon_name="page")
         design_group.add_small_button("参考线", "参考线", self._toggle_guides, icon_name="table")
+        design_group.add_small_button("槽位填充", "槽位填充", self._show_layout_slot_dialog, icon_name="insert")
 
         # 插入：背景/版式/表格/图片
         page = ribbon.add_tab("插入")

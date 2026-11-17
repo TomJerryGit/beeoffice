@@ -92,3 +92,20 @@ def test_master_config_parse_and_overlay(qtbot):
     assert "SimHei" in master_css(s._master_config)
     html = overlay_html(s._master_config, 2)
     assert "内部" in html and "2026-11-17" in html
+
+
+def test_layout_slot_binding(qtbot):
+    from beeoffice.plugins.beeshow_layout_slots import bind_layout
+    md = bind_layout("title_content", {"title": "汇报", "body": "要点 A\n要点 B"})
+    assert "# 汇报" in md
+    assert "- 要点 A" in md and "- 要点 B" in md
+    img = bind_layout("image_caption", {"image": "chart.png", "caption": "图表说明"})
+    assert "chart.png" in img and "图表说明" in img
+
+
+def test_smart_guides_js(qtbot):
+    s = make_show(qtbot)
+    s._add_native_shape("rect")
+    s._add_native_shape("ellipse")
+    js = s._native_shape_js_for(0)
+    assert "guideV" in js and "smart" in js and "others" in js

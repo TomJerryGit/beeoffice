@@ -107,6 +107,29 @@ def get_native_shape_edit_js(count: int) -> str:
   if (!slide) return;
   const items = Array.from(document.querySelectorAll('.native-shapes > div'));
   const snap = (v) => Math.round(v / 5) * 5;
+  const guideV = document.createElement('div');
+  guideV.style.cssText = 'position:absolute;top:0;bottom:0;width:1px;background:#2196F3;z-index:9998;display:none;';
+  const guideH = document.createElement('div');
+  guideH.style.cssText = 'position:absolute;left:0;right:0;height:1px;background:#2196F3;z-index:9998;display:none;';
+  slide.appendChild(guideV); slide.appendChild(guideH);
+  function others(idx) {
+    return items.filter((o, i) => i !== idx).map(o => {
+      const l = parseFloat(o.style.left) || 0, t = parseFloat(o.style.top) || 0;
+      const w = parseFloat(o.style.width) || 30, h = parseFloat(o.style.height) || 15;
+      return {x: [l, l + w / 2, l + w], y: [t, t + h / 2, t + h]};
+    });
+  }
+  function smart(value, candidates, guide, axis) {
+    let best = null;
+    candidates.forEach(c => { if (Math.abs(value - c) <= 2 && (best === null || Math.abs(value - c) < Math.abs(value - best))) best = c; });
+    if (best !== null) {
+      guide.style.display = 'block';
+      if (axis === 'x') { guide.style.left = best + '%'; } else { guide.style.top = best + '%'; }
+      return best;
+    }
+    guide.style.display = 'none';
+    return snap(value);
+  }
   items.forEach((el, idx) => {
     el.style.pointerEvents = 'auto';
     el.style.cursor = 'move';
@@ -130,13 +153,19 @@ def get_native_shape_edit_js(count: int) -> str:
         el.style.transform = `rotate(${ang}deg)`;
         state.angle = ang;
       } else {
-        el.style.left = (state.left + (e.clientX - state.startX) / state.box.width * 100) + '%';
-        el.style.top = (state.top + (e.clientY - state.startY) / state.box.height * 100) + '%';
+        const rawX = state.left + (e.clientX - state.startX) / state.box.width * 100;
+        const rawY = state.top + (e.clientY - state.startY) / state.box.height * 100;
+        const ob = others(idx);
+        const xs = [50].concat(...ob.map(o => o.x));
+        const ys = [50].concat(...ob.map(o => o.y));
+        el.style.left = smart(rawX, xs, guideV, 'x') + '%';
+        el.style.top = smart(rawY, ys, guideH, 'y') + '%';
       }
     });
     window.addEventListener('mouseup', () => {
       if (!state) return;
       const done = state; state = null;
+      guideV.style.display = 'none'; guideH.style.display = 'none';
       const payload = {
         index: idx,
         x: snap(parseFloat(el.style.left) || 0),

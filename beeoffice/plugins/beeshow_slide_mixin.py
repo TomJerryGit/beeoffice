@@ -652,6 +652,51 @@ class SlideMixin:
                     pass
         self._persist_native_shapes_current()
 
+    # ==================== 版式槽位绑定 ====================
+    def _apply_layout_slots(self, layout_id, slots):
+        from beeoffice.plugins.beeshow_layout_slots import bind_layout
+        md = bind_layout(layout_id, slots)
+        if not md:
+            return False
+        if not getattr(self, "_slides_md", None):
+            self._editor.setPlainText(md)
+            self._update_preview()
+            return True
+        self._slides_md[self._current_slide] = md
+        self._rebuild_editor_from_slides()
+        self._show_slide(self._current_slide)
+        self._set_status("版式槽位已填充", 2000)
+        return True
+
+    def _show_layout_slot_dialog(self):
+        from PySide6.QtWidgets import (
+            QDialog, QComboBox, QLineEdit, QTextEdit, QFormLayout,
+            QDialogButtonBox, QFileDialog,
+        )
+        dlg = QDialog(self)
+        dlg.setWindowTitle("版式槽位填充")
+        dlg.resize(520, 420)
+        form = QFormLayout(dlg)
+        combo = QComboBox()
+        for layout_id, meta in __import__("beeoffice.plugins.beeshow_constants", fromlist=["LAYOUTS"]).LAYOUTS.items():
+            combo.addItem(f"{meta['icon']} {meta['name']}", layout_id)
+        form.addRow("版式", combo)
+        title = QLineEdit(); form.addRow("标题", title)
+        subtitle = QLineEdit(); form.addRow("副标题", subtitle)
+        body = QTextEdit(); body.setPlaceholderText("每行一个要点"); body.setMaximumHeight(110); form.addRow("正文要点", body)
+        image = QLineEdit(); form.addRow("图片路径", image)
+        caption = QLineEdit(); form.addRow("图片说明", caption)
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject)
+        form.addRow(btns)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        self._apply_layout_slots(combo.currentData(), {
+            "title": title.text(), "subtitle": subtitle.text(),
+            "body": body.toPlainText(), "image": image.text(),
+            "caption": caption.text(),
+        })
+
     # ==================== 母版 / 视图模式 ====================
     def _show_master_dialog(self):
         dlg = QDialog(self)
