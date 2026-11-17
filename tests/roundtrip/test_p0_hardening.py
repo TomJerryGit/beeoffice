@@ -4,7 +4,6 @@
 标记 xfail：当前明确不保真的复杂结构，先记录不阻塞 Beta。
 """
 import pandas as pd
-import pytest
 from docx import Document
 from pptx import Presentation
 from pptx.util import Inches
@@ -79,10 +78,3 @@ def test_pptx_text_roundtrip(qtbot, tmp_path):
     assert view.open_pptx(str(src)) is True
     assert "标题" in view._slides_md[0]
     assert "正文" in view._slides_md[0]
-
-
-@pytest.mark.xfail(reason="XLSX 导出为 DataFrame，条件格式/打印设置不保真", strict=False)
-def test_xlsx_print_settings_roundtrip(tmp_path):
-    """记录当前边界：打印设置不随导出保留。"""
-    # 这里只用于标记边界；真实导出仍会丢条件格式/打印设置。
-    assert False

@@ -587,6 +587,8 @@ class BeeSheetView(
             df = df.head(200000)
 
         self.model.set_full_dataframe(df)
+        if str(path).lower().endswith((".xlsx", ".xlsm")):
+            self._xlsx_source = path
         self.table_view.setModel(self.model)
         self._undo_stack.clear()
         self._redo_stack.clear()

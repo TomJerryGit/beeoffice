@@ -63,7 +63,15 @@ class DataMixin:
             return
         try:
             df = self._get_export_df()
-            df.to_excel(path, index=False)
+            source = getattr(self, "_xlsx_source", None)
+            if source and str(source).lower().endswith((".xlsx", ".xlsm")):
+                from beeoffice.plugins.beesheet_xlsx_export import export_xlsx_preserving_styles
+                try:
+                    export_xlsx_preserving_styles(str(source), df, path)
+                except Exception:
+                    df.to_excel(path, index=False)
+            else:
+                df.to_excel(path, index=False)
             QMessageBox.information(self, tr("auto.beesheet_data_mixin.51991a5d", "成功"), tr("auto.beesheet_data_mixin.ec44b3f2", "已保存：\n{path}").format(path=path))
         except Exception as e:
             QMessageBox.warning(self, tr("auto.beesheet_data_mixin.3e3c8068", "失败"), str(e))
