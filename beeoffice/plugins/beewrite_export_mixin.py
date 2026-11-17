@@ -915,6 +915,15 @@ class ExportMixin:
                 block = block.next()
                 continue
 
+            # ---------- 题注/交叉引用域 ----------
+            if block.text().strip() and hasattr(self, "_try_export_caption_or_xref"):
+                try:
+                    if self._try_export_caption_or_xref(doc, block.text()):
+                        block = block.next()
+                        continue
+                except Exception as e:
+                    logging.warning(f"题注/交叉引用导出失败: {e}")
+
             # ---------- 普通段落 / 标题（含图片） ----------
             has_text = bool(block.text().strip())
             has_image = self._block_has_image(block)

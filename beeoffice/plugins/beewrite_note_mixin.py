@@ -110,6 +110,79 @@ class NoteMixin:
             cursor.endEditBlock()
         self._set_status(f"目录已更新（{len(headings)} 个标题）", 3000)
 
+    # ==================== 题注 / 交叉引用域 ====================
+    def _caption_bookmark(self, kind, number):
+        mapping = {"图": "Fig", "表": "Tab", "公式": "Eq"}
+        return f"BeeCaption_{mapping.get(kind, 'Cap')}_{number}"
+
+    def _add_caption_field(self, doc, kind, number, text):
+        from docx.oxml import OxmlElement
+        from docx.oxml.ns import qn
+        para = doc.add_paragraph()
+        para.add_run(f"{kind} ")
+        name = self._caption_bookmark(kind, number)
+        bm_id = getattr(self, "_docx_bookmark_id", 100)
+        self._docx_bookmark_id = bm_id + 1
+        start = OxmlElement("w:bookmarkStart")
+        start.set(qn("w:id"), str(bm_id))
+        start.set(qn("w:name"), name)
+        end = OxmlElement("w:bookmarkEnd")
+        end.set(qn("w:id"), str(bm_id))
+        para._p.append(start)
+        fld = OxmlElement("w:fldSimple")
+        fld.set(qn("w:instr"), f" SEQ {kind} \\* ARABIC ")
+        r = OxmlElement("w:r")
+        t = OxmlElement("w:t")
+        t.text = str(number)
+        r.append(t)
+        fld.append(r)
+        para._p.append(fld)
+        para._p.append(end)
+        para.add_run(f"：{text}")
+        return True
+
+    def _add_crossref_field(self, doc, kind, number, prefix="", suffix=""):
+        from docx.oxml import OxmlElement
+        from docx.oxml.ns import qn
+        para = doc.add_paragraph()
+        if prefix:
+            para.add_run(prefix)
+        fld = OxmlElement("w:fldSimple")
+        name = self._caption_bookmark(kind, number)
+        fld.set(qn("w:instr"), f" REF {name} \\h ")
+        r = OxmlElement("w:r")
+        t = OxmlElement("w:t")
+        t.text = f"{kind} {number}"
+        r.append(t)
+        fld.append(r)
+        para._p.append(fld)
+        if suffix:
+            para.add_run(suffix)
+        return True
+
+    def _try_export_caption_or_xref(self, doc, text):
+        """把题注/交叉引用文本导出为 Word 域。"""
+        import re
+        text = (text or "").strip()
+        if not text:
+            return False
+        m = re.match(r"^(图|表|公式)\s*(\d+)[：:]\s*(.*)$", text)
+        if m and getattr(self, "_captions", None):
+            kind, number, body = m.group(1), int(m.group(2)), m.group(3)
+            return self._add_caption_field(doc, kind, number, body)
+        m = re.match(r"^(图|表|公式)\s*(\d+)$", text)
+        if m and getattr(self, "_captions", None):
+            return self._add_crossref_field(doc, m.group(1), int(m.group(2)))
+        # 句中引用：重建为“前缀 + REF 域 + 后缀”（仅文本级，格式降级）
+        m = re.search(r"(图|表|公式)\s*(\d+)", text)
+        if m and getattr(self, "_captions", None):
+            kind, number = m.group(1), int(m.group(2))
+            return self._add_crossref_field(
+                doc, kind, number,
+                prefix=text[:m.start()], suffix=text[m.end():],
+            )
+        return False
+
     def _add_toc_field(self, doc):
         """在 DOCX 中插入可更新的 Word TOC 域。"""
         from docx.oxml import OxmlElement

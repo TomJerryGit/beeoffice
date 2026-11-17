@@ -7,7 +7,7 @@ try {
     $doc = $wps.Documents.Open($full, $false, $true)
     $foot = $doc.Footnotes.Count
     $end = $doc.Endnotes.Count
-    Write-Host "Footnotes: $foot Endnotes: $end"
+    Write-Host "Footnotes: $foot Endnotes: $end Fields: $($doc.Fields.Count)"
     if ($foot -le 0) { throw "未识别到脚注" }
     if ($end -le 0) { throw "未识别到尾注" }
     Write-Host "WPS_DOCX_VALIDATION_OK"
