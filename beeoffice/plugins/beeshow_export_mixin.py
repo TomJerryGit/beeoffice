@@ -129,6 +129,8 @@ class ExportMixin:
                     apply_slide_transitions(path, getattr(self, "_slide_animations", []))
                     from beeoffice.plugins.beeshow_pptx_animations import apply_shape_animations
                     apply_shape_animations(path, getattr(self, "_slide_animations", []))
+                    from beeoffice.plugins.beeshow_native_shapes import apply_native_shapes
+                    apply_native_shapes(path, getattr(self, "_native_shapes", []))
                 except Exception as e:  # noqa: BLE001
                     logging.warning(f"写入 PPTX 过渡失败: {e}")
                 QMessageBox.information(

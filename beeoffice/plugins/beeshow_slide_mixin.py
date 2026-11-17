@@ -51,6 +51,7 @@ v5.1.1 修复：
 """
 
 import re
+import json
 import logging
 
 from beeoffice.plugins.beeshow_html import render_slide_html
@@ -112,6 +113,7 @@ class SlideMixin:
         self._slides_html = []
         self._slides_md = []           # P1-13：同步清空
         self._slide_animations = []
+        self._native_shapes = []
         self._speaker_notes = []
         self._slide_titles = []
 
@@ -127,7 +129,7 @@ class SlideMixin:
             # 负向前瞻放在 `<!--` 之后、`\s*` 之前，避免 `\s*` 回溯后又匹配上。
             nm = re.search(
                 r'<!--(?!\s*(?:comments:|beeoffice-style:|beeoffice-image:'
-                r'|morph-id:))\s*(.*?)\s*-->',
+                r'|morph-id:|beeoffice-shapes:))\s*(.*?)\s*-->',
                 part,
                 re.DOTALL,
             )
@@ -144,8 +146,10 @@ class SlideMixin:
             # `beeshow_notes_mixin._remove_plain_comment()` 的 docstring 也明确
             # 写着这些前缀必须保留 —— 说明 _slides_md 的设计意图本就是保留标记。
             source = part
+            from beeoffice.plugins.beeshow_native_shapes import parse_shapes
+            native_shapes, cleaned_part = parse_shapes(part)
             from beeoffice.plugins.beeshow_animation import parse_animation
-            anim_cfg, cleaned_part = parse_animation(part)
+            anim_cfg, cleaned_part = parse_animation(cleaned_part)
 
             # 预览 HTML：只剥掉 comments（它就是一段 HTML 注释，留着不可见但没必要）；
             # beeoffice-style / beeoffice-image 必须**交给** _md_to_html ——
@@ -163,6 +167,7 @@ class SlideMixin:
                 self._slides_html.append(html)
                 self._slides_md.append(source)    # P1-13：保留源文本（含特殊标记）
                 self._slide_animations.append(anim_cfg)
+                self._native_shapes.append(native_shapes)
 
                 # 提取标题
                 title_match = re.search(
@@ -510,8 +515,12 @@ class SlideMixin:
 
             # 任务 2.1：拼入版式 CSS
             # 优化规划 §3.3：骨架统一走 beeshow_html.render_slide_html()
+            from beeoffice.plugins.beeshow_native_shapes import shapes_html
+            inner = self._slides_html[index]
+            if index < len(getattr(self, '_native_shapes', [])):
+                inner += shapes_html(self._native_shapes[index])
             full_html = render_slide_html(
-                self._slides_html[index],
+                inner,
                 theme_css=theme['css'],
                 layout_css=self._get_layout_css(),
                 bg=bg,
@@ -608,6 +617,87 @@ class SlideMixin:
             self._canvas_deleted.pop(idx, None)
         self._show_slide(idx)
         self._set_status("已重置当前页画布", 2000)
+
+    # ==================== 母版 / 视图模式 ====================
+    def _show_master_dialog(self):
+        dlg = QDialog(self)
+        dlg.setWindowTitle("幻灯片母版")
+        form = QFormLayout(dlg)
+        font = QComboBox()
+        font.addItems(["Microsoft YaHei", "SimSun", "SimHei", "KaiTi", "Arial"])
+        form.addRow("统一样式字体", font)
+        bg = QComboBox()
+        bg.addItems(["默认主题背景", "白色", "浅灰", "米色", "深色"])
+        form.addRow("母版背景", bg)
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject)
+        form.addRow(btns)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        self._apply_unified_font(font.currentText())
+        chosen = bg.currentText()
+        if chosen == "默认主题背景":
+            self._custom_bg = ""
+        else:
+            self._custom_bg = {"白色": "#FFFFFF", "浅灰": "#F5F5F5",
+                               "米色": "#FFF8E1", "深色": "#263238"}[chosen]
+        self._show_slide(self._current_slide)
+        self._set_status("母版样式已应用", 2000)
+
+    def _toggle_slide_sorter(self):
+        self._view_mode = "sorter" if getattr(self, "_view_mode", "normal") != "sorter" else "normal"
+        self._thumb_list.setMaximumWidth(280 if self._view_mode == "sorter" else 180)
+        self._set_status("幻灯片浏览视图" if self._view_mode == "sorter" else "普通视图", 2000)
+
+    def _toggle_notes_view(self):
+        visible = getattr(self, "_notes_editor", None) is not None and self._notes_editor.isVisible()
+        if getattr(self, "_notes_editor", None) is not None:
+            self._notes_editor.setVisible(not visible)
+        self._set_status("隐藏备注" if visible else "显示备注", 2000)
+
+    def _show_reading_view(self):
+        self._preview.setFocus()
+        self._set_status("阅读视图：使用 F5 进入全屏放映", 3000)
+
+    # ==================== 原生形状 ====================
+    def _add_native_shape(self, kind, text=""):
+        if not hasattr(self, "_native_shapes"):
+            self._native_shapes = []
+        while len(self._native_shapes) <= self._current_slide:
+            self._native_shapes.append([])
+        shape = {"kind": kind, "x": 10, "y": 10, "w": 30, "h": 15,
+                 "text": text or ("文本" if kind == "text" else ""),
+                 "fill": "#FFF3E0", "line": "#E67E22"}
+        self._native_shapes[self._current_slide].append(shape)
+        from beeoffice.plugins.beeshow_native_shapes import marker_for
+        marker = marker_for(self._native_shapes[self._current_slide])
+        md = self._slides_md[self._current_slide]
+        md = __import__("re").sub(r"<!--\s*beeoffice-shapes:.*?-->", "", md, flags=__import__("re").DOTALL).strip()
+        self._slides_md[self._current_slide] = md + "\n" + marker
+        self._rebuild_editor_from_slides()
+        self._show_slide(self._current_slide)
+        self._set_status("已添加原生形状", 2000)
+
+    def _rebuild_editor_from_slides(self):
+        parts = []
+        for i, md in enumerate(self._slides_md):
+            note = ""
+            if i < len(self._speaker_notes) and self._speaker_notes[i]:
+                note = f"\n<!-- {self._speaker_notes[i]} -->"
+            parts.append(md + note)
+        self._editor.blockSignals(True)
+        self._editor.setPlainText("\n---\n".join(parts))
+        self._editor.blockSignals(False)
+        self._update_preview()
+
+    def _show_native_shape_menu(self):
+        menu = QMenu(self)
+        for label, kind in (("矩形", "rect"), ("椭圆", "ellipse"),
+                            ("箭头", "arrow"), ("文本框", "text"),
+                            ("艺术字", "art")):
+            act = menu.addAction(label)
+            act.triggered.connect(lambda checked=False, k=kind: self._add_native_shape(k))
+        menu.exec(QCursor.pos())
 
     # ==================== P1：形状/艺术字/幻灯片大小 ====================
     def _insert_html_block(self, html: str, name: str):

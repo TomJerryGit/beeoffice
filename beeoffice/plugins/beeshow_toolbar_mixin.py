@@ -360,6 +360,7 @@ class ToolbarMixin:
         insert_group.add_small_button("形状", "形状", self._show_shape_menu, icon_name="insert")
         insert_group.add_small_button("艺术字", "艺术字", lambda: self._insert_html_block('<div style="font-size:44px;font-weight:bold;color:#E67E22;">艺术字</div>', "艺术字"), icon_name="insert")
         insert_group.add_small_button("文本框", "文本框", lambda: self._insert_html_block('<div style="padding:12px 16px;border:1px dashed #888;">在此输入文本</div>', "文本框"), icon_name="insert")
+        insert_group.add_small_button("原生形状", "原生形状", self._show_native_shape_menu, icon_name="insert")
 
         # 放映
         page2 = ribbon.add_tab("放映")
@@ -381,6 +382,10 @@ class ToolbarMixin:
             group.add_large_button(
                 label, target, _clone_click(target), icon_name=icon_name
             )
+        group.add_small_button("母版", "母版", self._show_master_dialog, icon_name="home")
+        group.add_small_button("浏览视图", "浏览视图", self._toggle_slide_sorter, icon_name="view")
+        group.add_small_button("备注页", "备注页", self._toggle_notes_view, icon_name="comment")
+        group.add_small_button("阅读视图", "阅读视图", self._show_reading_view, icon_name="view")
         ribbon.add_quick_action("💾", "保存 (Ctrl+S)", self.save, icon_name="save")
         ribbon.add_quick_action("▶", "播放 (F5)", self._start_play, icon_name="play")
         self._ribbon = ribbon
