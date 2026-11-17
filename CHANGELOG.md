@@ -43,6 +43,20 @@
 - 页眉/页脚当前只出现在文档首尾，尚未按页重复；
 - 拼写检查为基础常见错误词典，不是完整词典。
 
+## [5.7.12] - 未发布
+
+> P0 硬化：真实文档样本回归。
+
+### 工具/验收
+- 新增 `tools/real_document_regression.py`；
+- 新增 `tools/validate_real_docs.ps1`；
+- WPS 真实打开：
+  - Word：fields=2, footnotes=1, endnotes=1；
+  - Excel：打印区域保留；
+  - PPT：8 页 16 个动画识别；
+  - PDF：20 页批注烧录通过；
+- 全量测试：1631 passed。
+
 ## [5.7.11] - 未发布
 
 > P0 硬化：XLSX 新文件样式导出。
