@@ -1,0 +1,228 @@
+{
+  "version": 1,
+  "updated": "2026-11-18",
+  "samples": [
+    {
+      "id": "word-001",
+      "kind": "word",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\01_都市职场_逆流而上.docx",
+      "source": "user-provided-2026-11-18",
+      "hash_sha256": "d47be0bcd435ad7ab5e34b1d7191dbb5815098591abf5b1787579108b1f597c2",
+      "tags": [
+        "narrative",
+        "text"
+      ],
+      "license": "user-provided",
+      "sensitive": false
+    },
+    {
+      "id": "word-002",
+      "kind": "word",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\02_悬疑探案_雨夜钟楼.docx",
+      "source": "user-provided-2026-11-18",
+      "hash_sha256": "80ba6ea0197a518da2a1451ec5f06f6eb86855d3e8f301002529e72c18515cbb",
+      "tags": [
+        "narrative",
+        "text"
+      ],
+      "license": "user-provided",
+      "sensitive": false
+    },
+    {
+      "id": "word-003",
+      "kind": "word",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\03_科幻末世_长夜余温.docx",
+      "source": "user-provided-2026-11-18",
+      "hash_sha256": "dd2cbb7ebfe49c5cbd71e22908fbdf631ef90956d0221a8a76898df8c428a276",
+      "tags": [
+        "narrative",
+        "text"
+      ],
+      "license": "user-provided",
+      "sensitive": false
+    },
+    {
+      "id": "word-004",
+      "kind": "word",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\04_历史权谋_碧血京华.docx",
+      "source": "user-provided-2026-11-18",
+      "hash_sha256": "219b07a7aa98bd9bc4f9bf91d58ef6a2c9890810605af918ad071c944d183c21",
+      "tags": [
+        "narrative",
+        "text"
+      ],
+      "license": "user-provided",
+      "sensitive": false
+    },
+    {
+      "id": "word-005",
+      "kind": "word",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\05_青春治愈_夏末的风信子.docx",
+      "source": "user-provided-2026-11-18",
+      "hash_sha256": "6606ba45090b57b6f1502e42ee7731d4d6a59bc9674795b832704ff739f4444a",
+      "tags": [
+        "narrative",
+        "text"
+      ],
+      "license": "user-provided",
+      "sensitive": false
+    },
+    {
+      "id": "excel-001",
+      "kind": "excel",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\01_销售台账.xlsx",
+      "source": "user-provided-2026-11-18",
+      "hash_sha256": "d9e2d963a245e3efac843019fd0ecd3afb92930e826e14667ff9a4613ee6367a",
+      "tags": [
+        "formula",
+        "table"
+      ],
+      "license": "user-provided",
+      "sensitive": false
+    },
+    {
+      "id": "excel-002",
+      "kind": "excel",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\02_员工名册.xlsx",
+      "source": "user-provided-2026-11-18",
+      "hash_sha256": "4b3d532ac36d6aea8bd16418d18d4fdbb2e350cf0c2424e98e800c01f7969548",
+      "tags": [
+        "table"
+      ],
+      "license": "user-provided",
+      "sensitive": false
+    },
+    {
+      "id": "excel-003",
+      "kind": "excel",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\03_库存管理表.xlsx",
+      "source": "user-provided-2026-11-18",
+      "hash_sha256": "67118c772edbf7ccf7ea37a2887e265559c70dbb198475915fbd8b5937b6cd3e",
+      "tags": [
+        "table"
+      ],
+      "license": "user-provided",
+      "sensitive": false
+    },
+    {
+      "id": "excel-004",
+      "kind": "excel",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\04_财务预算表.xlsx",
+      "source": "user-provided-2026-11-18",
+      "hash_sha256": "e398f654d47b5b0dfdd8986d721f1fb981f38e3b8a5807cecc77cc53759b285e",
+      "tags": [
+        "table",
+        "formula"
+      ],
+      "license": "user-provided",
+      "sensitive": false
+    },
+    {
+      "id": "excel-005",
+      "kind": "excel",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\05_项目进度表.xlsx",
+      "source": "user-provided-2026-11-18",
+      "hash_sha256": "28d21f09d5fc1db715e22c9fbb8513cc43b0ff98d4c33a9bfdeeb21be7609d52",
+      "tags": [
+        "table"
+      ],
+      "license": "user-provided",
+      "sensitive": false
+    },
+    {
+      "id": "ppt-001",
+      "kind": "ppt",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\01_人工智能产业分析.pptx",
+      "source": "user-provided-2026-11-18",
+      "hash_sha256": "658fa128f17eabfbd6a8a30ae99fb89ccec621da0c570b60b73053034e40801e",
+      "tags": [
+        "slides",
+        "chart"
+      ],
+      "license": "user-provided",
+      "sensitive": false
+    },
+    {
+      "id": "ppt-002",
+      "kind": "ppt",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\02_新能源汽车行业分析.pptx",
+      "source": "user-provided-2026-11-18",
+      "hash_sha256": "1bce1ba18c812e3bc10ae610286866aa326a9d927fb9110ebd6abbce9b33088d",
+      "tags": [
+        "slides",
+        "chart"
+      ],
+      "license": "user-provided",
+      "sensitive": false
+    },
+    {
+      "id": "ppt-003",
+      "kind": "ppt",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\03_跨境电商行业分析.pptx",
+      "source": "user-provided-2026-11-18",
+      "hash_sha256": "95016732610133e99e3eaf33dcd98097b58ec4bf3395bf947114e20e38113d4f",
+      "tags": [
+        "slides",
+        "chart"
+      ],
+      "license": "user-provided",
+      "sensitive": false
+    },
+    {
+      "id": "ppt-004",
+      "kind": "ppt",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\04_生物医药行业分析.pptx",
+      "source": "user-provided-2026-11-18",
+      "hash_sha256": "27fa80ca9074fc262d5da09f430955ee7d563a0d562525117297a6fac0487659",
+      "tags": [
+        "slides",
+        "chart"
+      ],
+      "license": "user-provided",
+      "sensitive": false
+    },
+    {
+      "id": "ppt-005",
+      "kind": "ppt",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\05_智能家居行业分析.pptx",
+      "source": "user-provided-2026-11-18",
+      "hash_sha256": "29f824425f147dc594e6ad7241697e12d278a74060ebc21df8935ea8329b4000",
+      "tags": [
+        "slides",
+        "chart"
+      ],
+      "license": "user-provided",
+      "sensitive": false
+    }
+  ]
+}
