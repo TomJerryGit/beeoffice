@@ -156,6 +156,11 @@ class BeeWriteEditor(
             "margin_bottom": 2.54,
             "margin_left": 3.17,
             "margin_right": 3.17,
+            "columns": 1,
+            "line_numbers": False,
+            "page_border": False,
+            "page_border_color": "#000000",
+            "page_border_width": 4,
         }
 
         # 协作管理器
@@ -412,6 +417,7 @@ class BeeWriteEditor(
         )
         group.add_small_button("插入封面", "插入封面", self._insert_cover_page, icon_name="page")
         group.add_small_button("页面背景", "页面背景", self._set_page_background, icon_name="fill")
+        group.add_small_button("分节符", "分节符", self._insert_section_break, icon_name="page")
 
         # 引用：目录/交叉引用/页码/分节符/水印
         page = self._ribbon.add_tab("引用")

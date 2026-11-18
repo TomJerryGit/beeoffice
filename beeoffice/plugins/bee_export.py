@@ -634,7 +634,7 @@ def read_docx_page_settings(docx_path):
             line_numbers = sectPr.find(qn("w:lnNumType")) is not None
         except Exception:
             pass
-        return {
+        result = {
             "paper": paper,
             "orientation": orientation,
             "margin_top": float(sec.top_margin.mm) if sec.top_margin else 25.4,
@@ -643,7 +643,26 @@ def read_docx_page_settings(docx_path):
             "margin_right": float(sec.right_margin.mm) if sec.right_margin else 31.7,
             "columns": max(1, min(4, cols)),
             "line_numbers": bool(line_numbers),
+            "page_border": False,
+            "page_border_color": "#000000",
+            "page_border_width": 4,
         }
+        try:
+            from docx.oxml.ns import qn
+            pgb = sec._sectPr.find(qn("w:pgBorders"))
+            if pgb is not None:
+                top = pgb.find(qn("w:top"))
+                if top is not None:
+                    result["page_border"] = top.get(qn("w:val")) not in (None, "nil", "none")
+                    color = top.get(qn("w:color"))
+                    if color:
+                        result["page_border_color"] = "#" + color
+                    sz = top.get(qn("w:sz"))
+                    if sz:
+                        result["page_border_width"] = max(1, int(sz) // 2)
+        except Exception:
+            pass
+        return result
     except Exception as e:
         logging.error(f"读取 DOCX 页面设置失败: {e}")
         return {}

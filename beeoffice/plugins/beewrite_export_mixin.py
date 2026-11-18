@@ -810,6 +810,47 @@ class ExportMixin:
     # ==================================================================
     # 富文本 → DOCX（核心转换）
     # ==================================================================
+    def _apply_page_settings_to_section(self, section, page_settings):
+        """把纸张/方向/页边距/分栏/行号/边框写入指定 section。"""
+        from docx.shared import Mm
+        from docx.enum.section import WD_ORIENT
+        from docx.oxml import OxmlElement
+        from docx.oxml.ns import qn
+        paper_sizes = {"A4": (210, 297), "A3": (297, 420), "A5": (148, 210),
+                       "Letter": (216, 279), "Legal": (216, 356)}
+        w, h = paper_sizes.get(page_settings.get("paper", "A4"), (210, 297))
+        orientation = page_settings.get("orientation", "portrait")
+        if orientation == "landscape":
+            w, h = h, w
+        section.page_width = Mm(w); section.page_height = Mm(h)
+        section.top_margin = Mm(page_settings.get("margin_top", 25.4))
+        section.bottom_margin = Mm(page_settings.get("margin_bottom", 25.4))
+        section.left_margin = Mm(page_settings.get("margin_left", 31.7))
+        section.right_margin = Mm(page_settings.get("margin_right", 31.7))
+        section.orientation = WD_ORIENT.LANDSCAPE if orientation == "landscape" else WD_ORIENT.PORTRAIT
+        sectPr = section._sectPr
+        cols = max(1, min(4, int(page_settings.get("columns", 1) or 1)))
+        cols_el = sectPr.find(qn("w:cols"))
+        if cols_el is None:
+            cols_el = OxmlElement("w:cols"); sectPr.append(cols_el)
+        cols_el.set(qn("w:num"), str(cols)); cols_el.set(qn("w:space"), "720")
+        if page_settings.get("line_numbers"):
+            if sectPr.find(qn("w:lnNumType")) is None:
+                ln = OxmlElement("w:lnNumType"); ln.set(qn("w:countBy"), "1"); ln.set(qn("w:restart"), "continuous"); sectPr.append(ln)
+        if page_settings.get("page_border"):
+            pgb = sectPr.find(qn("w:pgBorders"))
+            if pgb is None:
+                pgb = OxmlElement("w:pgBorders"); sectPr.append(pgb)
+            pgb.set(qn("w:offsetFrom"), "page")
+            for side in ("top", "left", "bottom", "right"):
+                el = pgb.find(qn(f"w:{side}"))
+                if el is None:
+                    el = OxmlElement(f"w:{side}"); pgb.append(el)
+                el.set(qn("w:val"), "single")
+                el.set(qn("w:sz"), str(int(page_settings.get("page_border_width", 4)) * 2))
+                el.set(qn("w:space"), "24")
+                el.set(qn("w:color"), str(page_settings.get("page_border_color", "#000000")).lstrip("#").upper())
+
     def _rich_to_docx(self, path):
         """
         把 QTextDocument 内容写到 DOCX。
@@ -894,6 +935,25 @@ class ExportMixin:
                 old_ln.set(qn("w:restart"), "continuous")
             elif old_ln is not None:
                 sectPr.remove(old_ln)
+
+            # 页面边框
+            old_pgb = sectPr.find(qn("w:pgBorders"))
+            if page_settings.get("page_border"):
+                pgb = old_pgb if old_pgb is not None else OxmlElement("w:pgBorders")
+                pgb.set(qn("w:offsetFrom"), "page")
+                for side in ("top", "left", "bottom", "right"):
+                    el = pgb.find(qn(f"w:{side}"))
+                    if el is None:
+                        el = OxmlElement(f"w:{side}")
+                        pgb.append(el)
+                    el.set(qn("w:val"), "single")
+                    el.set(qn("w:sz"), str(int(page_settings.get("page_border_width", 4)) * 2))
+                    el.set(qn("w:space"), "24")
+                    el.set(qn("w:color"), str(page_settings.get("page_border_color", "#000000")).lstrip("#").upper())
+                if old_pgb is None:
+                    sectPr.append(pgb)
+            elif old_pgb is not None:
+                sectPr.remove(old_pgb)
         except Exception as e:
             logging.warning(tr("auto.beewrite_export_mixin.42a3bd4e", "应用页面设置失败（使用默认值）: {e}").format(e=e))
 
@@ -926,8 +986,19 @@ class ExportMixin:
                 block = last_cursor.block().next()
                 continue
 
-            # ---------- 分页符 ----------
+            # ---------- 分节符 ----------
             bf = block.blockFormat()
+            try:
+                if bf.intProperty(QTextFormat.UserProperty) == 0xBEE2:
+                    from docx.enum.section import WD_SECTION
+                    new_sec = doc.add_section(WD_SECTION.NEW_PAGE)
+                    self._apply_page_settings_to_section(new_sec, self.get_page_settings())
+                    block = block.next()
+                    continue
+            except Exception:
+                pass
+
+            # ---------- 分页符 ----------
             try:
                 if bf.pageBreakPolicy() & QTextFormat.PageBreak_AlwaysBefore:
                     doc.add_page_break()

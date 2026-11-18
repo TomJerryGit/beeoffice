@@ -91,6 +91,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import (
+    QTextFormat,
     QFont,
     QTextCursor,
     QTextCharFormat,
@@ -1150,6 +1151,9 @@ class RichTextEditor(QTextEdit):
         char_fmt.setForeground(QColor("#FF8F00"))
         char_fmt.setFontPointSize(10)
         c.insertText("════ 分节符（新节开始） ════", char_fmt)
+        marker_fmt = QTextBlockFormat()
+        marker_fmt.setProperty(QTextFormat.UserProperty, 0xBEE2)
+        c.setBlockFormat(marker_fmt)
         c.insertBlock()
         fmt = QTextBlockFormat()
         fmt.setPageBreakPolicy(QTextBlockFormat.PageBreak_AlwaysBefore)

@@ -269,6 +269,20 @@ class DocMixin:
         self.rich_editor.textCursor().insertText(toc + "\n")
         self._set_status(tr("auto.beewrite_doc_mixin.ce1d16eb", "目录已生成"), 3000)
 
+    def _insert_section_break(self):
+        """插入分节符（下一页），导出 DOCX 时生成新 section。"""
+        from PySide6.QtGui import QTextBlockFormat, QTextFormat, QTextCursor
+        cursor = self.rich_editor.textCursor()
+        cursor.beginEditBlock()
+        try:
+            cursor.insertBlock()
+            bf = QTextBlockFormat()
+            bf.setProperty(QTextFormat.UserProperty, 0xBEE2)
+            cursor.setBlockFormat(bf)
+        finally:
+            cursor.endEditBlock()
+        self._set_status("已插入分节符", 2000)
+
     # ==================================================================
     # 水印
     # ==================================================================
@@ -393,6 +407,20 @@ class DocMixin:
         layout_form.addRow(line_numbers)
         layout.addWidget(layout_group)
 
+        # ---------- 页面边框 ----------
+        border_group = QGroupBox("页面边框")
+        border_form = QFormLayout(border_group)
+        border_check = QCheckBox("显示页面边框")
+        border_check.setChecked(bool(self._page_settings.get("page_border", False)))
+        border_form.addRow(border_check)
+        border_color = QLineEdit(self._page_settings.get("page_border_color", "#000000"))
+        border_form.addRow("边框颜色:", border_color)
+        border_width = QSpinBox()
+        border_width.setRange(1, 12)
+        border_width.setValue(int(self._page_settings.get("page_border_width", 4)))
+        border_form.addRow("边框宽度:", border_width)
+        layout.addWidget(border_group)
+
         # ---------- 提示 ----------
         tip = QLabel(
             tr("auto.beewrite_doc_mixin.e2861613", "💡 页面设置会保存到当前文档，导出 PDF 时自动应用。")
@@ -433,6 +461,9 @@ class DocMixin:
             self._page_settings["margin_right"] = right_spin.value() * 10
             self._page_settings["columns"] = columns_spin.value()
             self._page_settings["line_numbers"] = line_numbers.isChecked()
+            self._page_settings["page_border"] = border_check.isChecked()
+            self._page_settings["page_border_color"] = border_color.text().strip() or "#000000"
+            self._page_settings["page_border_width"] = border_width.value()
 
             self._set_status(
                 tr("auto.beewrite_doc_mixin.0d812700", "✅ 页面设置已更新（{0}）").format(paper_combo.currentText()), 3000
