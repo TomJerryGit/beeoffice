@@ -11,13 +11,14 @@
     {
       "id": "word-001",
       "kind": "word",
-      "status": "pending",
+      "status": "synthetic-ready",
       "tags": [
         "heading",
         "table",
-        "header-footer"
+        "header-footer",
+        "synthetic"
       ],
-      "path": ""
+      "path": "raw/word-001-complex.docx"
     },
     {
       "id": "word-002",
@@ -53,21 +54,23 @@
     {
       "id": "word-005",
       "kind": "word",
-      "status": "pending",
+      "status": "synthetic-ready",
       "tags": [
-        "long-document"
+        "long-document",
+        "synthetic"
       ],
-      "path": ""
+      "path": "raw/word-005-long.docx"
     },
     {
       "id": "excel-001",
       "kind": "excel",
-      "status": "pending",
+      "status": "synthetic-ready",
       "tags": [
         "formula",
-        "style"
+        "style",
+        "synthetic"
       ],
-      "path": ""
+      "path": "raw/excel-001-formula.xlsx"
     },
     {
       "id": "excel-002",
@@ -111,12 +114,13 @@
     {
       "id": "ppt-001",
       "kind": "ppt",
-      "status": "pending",
+      "status": "synthetic-ready",
       "tags": [
         "master",
-        "placeholder"
+        "placeholder",
+        "synthetic"
       ],
-      "path": ""
+      "path": "raw/ppt-001-shapes.pptx"
     },
     {
       "id": "ppt-002",
@@ -160,12 +164,13 @@
     {
       "id": "pdf-001",
       "kind": "pdf",
-      "status": "pending",
+      "status": "synthetic-ready",
       "tags": [
         "annotation",
-        "watermark"
+        "watermark",
+        "synthetic"
       ],
-      "path": ""
+      "path": "raw/pdf-001-basic.pdf"
     },
     {
       "id": "pdf-002",
