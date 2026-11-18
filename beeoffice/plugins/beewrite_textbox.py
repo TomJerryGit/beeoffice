@@ -52,6 +52,13 @@ class TextBoxDialog(QDialog):
         width_row.addWidget(self._width_spin)
         form.addRow("自定义宽度:", width_row)
 
+        self._float_combo = QComboBox()
+        self._float_combo.addItems(["嵌入", "左浮动", "右浮动"])
+        form.addRow("浮动方式:", self._float_combo)
+        self._x_spin = QSpinBox(); self._x_spin.setRange(-2000, 2000); self._x_spin.setSuffix(" px"); form.addRow("X 偏移:", self._x_spin)
+        self._y_spin = QSpinBox(); self._y_spin.setRange(-2000, 2000); self._y_spin.setSuffix(" px"); form.addRow("Y 偏移:", self._y_spin)
+        self._height_spin = QSpinBox(); self._height_spin.setRange(20, 2000); self._height_spin.setValue(120); self._height_spin.setSuffix(" px"); form.addRow("高度:", self._height_spin)
+
         # 边框
         self._border_spin = QSpinBox()
         self._border_spin.setRange(0, 10)
@@ -144,6 +151,10 @@ class TextBoxDialog(QDialog):
             )
         return {
             "width": width_length,
+            "height": self._height_spin.value(),
+            "float_mode": self._float_combo.currentText(),
+            "x": self._x_spin.value(),
+            "y": self._y_spin.value(),
             "border": self._border_spin.value(),
             "border_color": self._border_color,
             "bg_color": self._bg_color,
@@ -168,8 +179,28 @@ def insert_textbox(rich_editor, config):
     frame_format.setBorderBrush(QBrush(QColor(config.get("border_color", "#E67E22"))))
     frame_format.setBackground(QBrush(QColor(config.get("bg_color", "#FFF3E0"))))
     frame_format.setPadding(config["padding"])
-    frame_format.setWidth(config["width"])
+    width_obj = config["width"]
+    if hasattr(width_obj, "rawValue"):
+        frame_format.setWidth(width_obj)
+        width_raw = width_obj.rawValue()
+    else:
+        width_raw = float(width_obj)
+        frame_format.setWidth(QTextLength(QTextLength.FixedLength, width_raw))
+    frame_format.setHeight(config.get("height", 120))
     frame_format.setMargin(6)
+    import json as _json
+    mode = config.get("float_mode", "嵌入")
+    try:
+        if mode == "左浮动":
+            frame_format.setPositionPolicy(QTextFrameFormat.FloatLeft)
+        elif mode == "右浮动":
+            frame_format.setPositionPolicy(QTextFrameFormat.FloatRight)
+    except Exception:
+        pass
+    frame_format.setProperty(0xBEE3, _json.dumps({
+        "float_mode": mode, "x": config.get("x", 0), "y": config.get("y", 0),
+        "width": width_raw, "height": config.get("height", 120),
+    }))
 
     frame = cursor.insertFrame(frame_format)
     inner_cursor = frame.firstCursorPosition()

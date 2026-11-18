@@ -577,8 +577,19 @@ class BeeApp(QMainWindow):
         )
 
         try:
-            from beeoffice.plugins.bee_export import import_from_docx, read_docx_sections
+            from beeoffice.plugins.bee_export import (
+                import_from_docx, read_docx_sections,
+                read_docx_header_footer_images_by_section,
+                read_docx_footer_images_by_section,
+            )
             docx_sections = read_docx_sections(path)
+            hf_by_section = read_docx_header_footer_images_by_section(path)
+            footer_imgs = read_docx_footer_images_by_section(path)
+            for i, section in enumerate(docx_sections):
+                if i < len(hf_by_section):
+                    section.setdefault("settings", {})["header_images"] = hf_by_section[i]
+                if i < len(footer_imgs):
+                    section.setdefault("settings", {})["footer_images"] = footer_imgs[i]
             section_breaks = [s.get("paragraph_index") for s in docx_sections if s.get("paragraph_index") is not None]
         except Exception as e:
             logging.error(f"导入 bee_export 失败: {e}")

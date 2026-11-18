@@ -300,6 +300,17 @@ class DocMixin:
                     section.header.paragraphs[0].add_run().add_picture(img)
             except Exception:
                 pass
+        if meta.get("footer_images"):
+            try:
+                section.footer.is_linked_to_previous = False
+            except Exception:
+                pass
+        for img in meta.get("footer_images", []) or []:
+            try:
+                if Path(img).is_file():
+                    section.footer.paragraphs[0].add_run().add_picture(img)
+            except Exception:
+                pass
         if meta.get("different_first_page"):
             section.different_first_page_header_footer = True
             first = meta.get("header_first", "") or header
@@ -315,9 +326,11 @@ class DocMixin:
         """
         header_text = getattr(self, "_header_text", "") or ""
         footer_text = getattr(self, "_footer_text", "") or ""
+        first_cfg = (getattr(self, "_section_page_settings", []) or [{}])[0]
+        header_images = getattr(self, "_header_images", None) or first_cfg.get("header_images", [])
+        footer_images = getattr(self, "_footer_images", None) or first_cfg.get("footer_images", [])
         if (not header_text and not footer_text
-                and not getattr(self, "_header_images", None)
-                and not getattr(self, "_footer_images", None)):
+                and not header_images and not footer_images):
             return False
         try:
             from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -330,7 +343,7 @@ class DocMixin:
                 para = section.header.paragraphs[0]
                 para.text = header_text
                 para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            for img in getattr(self, "_header_images", []) or []:
+            for img in header_images or []:
                 try:
                     if Path(img).is_file():
                         section.header.paragraphs[0].add_run().add_picture(img, width=None)
@@ -340,6 +353,17 @@ class DocMixin:
                 para = section.footer.paragraphs[0]
                 para.text = footer_text
                 para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            if footer_images:
+                try:
+                    section.footer.is_linked_to_previous = False
+                except Exception:
+                    pass
+            for img in footer_images or []:
+                try:
+                    if Path(img).is_file():
+                        section.footer.paragraphs[0].add_run().add_picture(img)
+                except Exception:
+                    pass
             if getattr(self, "_different_first_page", False):
                 section.different_first_page_header_footer = True
                 first = getattr(self, "_header_first_text", "") or header_text

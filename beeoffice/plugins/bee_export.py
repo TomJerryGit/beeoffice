@@ -565,6 +565,41 @@ def export_to_pdf(content, output_path):
 
 
 # ==================== DOCX → Markdown ====================
+def read_docx_footer_images_by_section(docx_path, outdir=None):
+    """按节提取页脚图片，返回 [[path,...], ...]。"""
+    if not HAS_DOCX:
+        return []
+    try:
+        import re as _re
+        doc = Document(docx_path)
+        docx_p = Path(docx_path).resolve()
+        media_dir = Path(outdir) if outdir else docx_p.parent / (docx_p.stem + "_media_hf")
+        media_dir.mkdir(parents=True, exist_ok=True)
+        counter = [0]
+        result = []
+        for section in doc.sections:
+            paths = []
+            for container in (section.footer, getattr(section, "first_page_footer", None), getattr(section, "even_page_footer", None)):
+                if container is None:
+                    continue
+                try:
+                    for para in container.paragraphs:
+                        for md in _extract_para_images(para, doc, media_dir, counter, docx_p):
+                            m = _re.search(r"!\[[^\]]*\]\(([^)]+)\)", md)
+                            if m:
+                                raw = Path(m.group(1))
+                                for cand in (raw, docx_p.parent / raw, media_dir / raw.name):
+                                    if cand.is_file():
+                                        paths.append(str(cand.resolve())); break
+                except Exception:
+                    continue
+            result.append(paths)
+        return result
+    except Exception as e:
+        logging.error(f"按节提取页脚图片失败: {e}")
+        return []
+
+
 def read_docx_header_footer_images_by_section(docx_path, outdir=None):
     """按节提取页眉/页脚图片，返回 [[path,...], ...]。"""
     if not HAS_DOCX:

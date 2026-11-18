@@ -1189,7 +1189,7 @@ class ExportMixin:
     # 表格 → DOCX
     # ==================================================================
     def _add_docx_textbox(self, doc, frame):
-        """把 QTextFrame 文本框导出为 Word 原生 wps:txbx。"""
+        """把 QTextFrame 文本框导出为 Word 原生 wps:txbx（支持浮动）。"""
         from xml.sax.saxutils import escape
         from docx.oxml import parse_xml
         try:
@@ -1200,7 +1200,7 @@ class ExportMixin:
         except Exception:
             text = ""
         fmt = frame.format()
-        bg = "#FFF3E0"; border = "#E67E22"
+        bg = "#FFF3E0"; border = "#E67E22"; meta = {}
         try:
             bg = fmt.background().color().name().lstrip("#").upper()
         except Exception:
@@ -1209,22 +1209,28 @@ class ExportMixin:
             border = fmt.borderBrush().color().name().lstrip("#").upper()
         except Exception:
             pass
+        try:
+            import json as _json
+            raw = fmt.property(0xBEE3)
+            if raw:
+                meta = _json.loads(raw)
+        except Exception:
+            meta = {}
         cx = 2743200; cy = 1371600
         try:
-            raw = fmt.width().rawValue()
-            if raw and raw > 0:
-                cx = int(raw * 9525)
+            raw_w = fmt.width().rawValue()
+            if raw_w and raw_w > 0:
+                cx = int(raw_w * 9525)
+        except Exception:
+            pass
+        try:
+            if meta.get("height"):
+                cy = int(float(meta["height"]) * 9525)
         except Exception:
             pass
         uid = getattr(self, "_textbox_xml_id", 1)
         self._textbox_xml_id = uid + 1
-        xml = (
-            '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
-            'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
-            'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
-            'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">'
-            '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">'
-            f'<wp:extent cx="{cx}" cy="{cy}"/><wp:docPr id="{uid}" name="TextBox {uid}"/>'
+        shape_inner = (
             '<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">'
             '<wps:wsp><wps:cNvSpPr txBox="1"/><wps:spPr>'
             f'<a:xfrm><a:off x="0" y="0"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm>'
@@ -1236,10 +1242,37 @@ class ExportMixin:
             '<wps:bodyPr rot="0" vertOverflow="overflow" horzOverflow="overflow" '
             'vert="horz" wrap="square" lIns="91440" tIns="45720" rIns="91440" bIns="45720" '
             'anchor="t" anchorCtr="0" upright="1"/>'
-            '</wps:wsp></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>'
+            '</wps:wsp></a:graphicData></a:graphic>'
+        )
+        floating = meta.get("float_mode") in ("左浮动", "右浮动")
+        if floating:
+            x = int(float(meta.get("x", 0)) * 9525)
+            y = int(float(meta.get("y", 0)) * 9525)
+            drawing = (
+                '<w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" '
+                'simplePos="0" relativeHeight="251659264" behindDoc="0" locked="0" '
+                'layoutInCell="1" allowOverlap="1">'
+                '<wp:simplePos x="0" y="0"/>'
+                f'<wp:positionH relativeFrom="column"><wp:posOffset>{x}</wp:posOffset></wp:positionH>'
+                f'<wp:positionV relativeFrom="paragraph"><wp:posOffset>{y}</wp:posOffset></wp:positionV>'
+                f'<wp:extent cx="{cx}" cy="{cy}"/><wp:wrapNone/>'
+                f'<wp:docPr id="{uid}" name="TextBox {uid}"/>{shape_inner}</wp:anchor></w:drawing>'
+            )
+        else:
+            drawing = (
+                '<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">'
+                f'<wp:extent cx="{cx}" cy="{cy}"/><wp:docPr id="{uid}" name="TextBox {uid}"/>'
+                f'{shape_inner}</wp:inline></w:drawing>'
+            )
+        body_xml = (
+            '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+            'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
+            'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+            'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">'
+            f'<w:r>{drawing}</w:r></w:p>'
         )
         body = doc.element.body
-        body.insert(len(body) - 1, parse_xml(xml))
+        body.insert(len(body) - 1, parse_xml(body_xml))
 
     def _qtexttable_to_docx(self, doc, qtable, style=None):
         """
