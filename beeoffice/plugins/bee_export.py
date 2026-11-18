@@ -746,6 +746,52 @@ def read_docx_page_settings(docx_path):
         return {}
 
 
+def read_docx_table_styles(docx_path):
+    """读取 DOCX 表格样式：表头填充、边框色、斑马纹。"""
+    if not HAS_DOCX:
+        return []
+    try:
+        doc = Document(docx_path)
+        from docx.oxml.ns import qn
+        styles = []
+        for table in doc.tables:
+            style = {"style": "", "header_fill": "", "border_color": "", "zebra": False}
+            try:
+                style["style"] = table.style.name if table.style else ""
+            except Exception:
+                pass
+            try:
+                tblPr = table._tbl.tblPr
+                borders = tblPr.find(qn("w:tblBorders"))
+                if borders is not None:
+                    for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
+                        el = borders.find(qn(f"w:{side}"))
+                        if el is not None and el.get(qn("w:color")):
+                            style["border_color"] = "#" + el.get(qn("w:color"))
+                            break
+            except Exception:
+                pass
+            try:
+                if table.rows and table.rows[0].cells:
+                    tcPr = table.rows[0].cells[0]._tc.get_or_add_tcPr()
+                    shd = tcPr.find(qn("w:shd"))
+                    if shd is not None and shd.get(qn("w:fill")):
+                        style["header_fill"] = "#" + shd.get(qn("w:fill"))
+            except Exception:
+                pass
+            try:
+                if len(table.rows) > 2:
+                    tcPr = table.rows[2].cells[0]._tc.get_or_add_tcPr()
+                    style["zebra"] = tcPr.find(qn("w:shd")) is not None
+            except Exception:
+                pass
+            styles.append(style)
+        return styles
+    except Exception as e:
+        logging.error(f"读取 DOCX 表格样式失败: {e}")
+        return []
+
+
 def import_from_docx(docx_path, section_breaks=None):
     """
     从 DOCX 文件导入为 Markdown

@@ -972,6 +972,7 @@ class ExportMixin:
         # ========== 遍历文档 block ==========
         document = self.rich_editor.document()
         toc_written = False
+        table_index = 0
         block = document.begin()
         while block.isValid():
             cursor = QTextCursor(block)
@@ -979,7 +980,10 @@ class ExportMixin:
 
             # ---------- 表格 ----------
             if table:
-                self._qtexttable_to_docx(doc, table)
+                styles = getattr(self, "_docx_table_styles", []) or []
+                style = styles[table_index] if table_index < len(styles) else None
+                self._qtexttable_to_docx(doc, table, style)
+                table_index += 1
                 last_cell = table.cellAt(
                     table.rows() - 1, table.columns() - 1
                 )
@@ -1165,11 +1169,12 @@ class ExportMixin:
     # ==================================================================
     # 表格 → DOCX
     # ==================================================================
-    def _qtexttable_to_docx(self, doc, qtable):
+    def _qtexttable_to_docx(self, doc, qtable, style=None):
         """
         将 QTextTable 转换为 python-docx 表格。
 
         处理：
+          - 导入的表格样式（表头填充/边框/斑马纹）
           - 表头加粗
           - 单元格背景色
           - 单元格段落对齐（来自 cell 的 blockFormat）
@@ -1289,6 +1294,59 @@ class ExportMixin:
                             it += 1
                 except Exception as e:
                     logging.warning(tr("auto.beewrite_export_mixin.411288e0", "处理单元格图片失败: {e}").format(e=e))
+
+        self._apply_docx_table_style(doc_table, style)
+
+    def _apply_docx_table_style(self, doc_table, style):
+        if not style:
+            return
+        try:
+            from docx.oxml import OxmlElement
+            from docx.oxml.ns import qn
+            from docx.dml.color import RGBColor
+        except Exception:
+            return
+        header = style.get("header_fill", "")
+        border = style.get("border_color", "")
+        zebra = bool(style.get("zebra", False))
+        if header:
+            for cell in doc_table.rows[0].cells:
+                try:
+                    tcPr = cell._tc.get_or_add_tcPr()
+                    shd = OxmlElement("w:shd")
+                    shd.set(qn("w:fill"), header.lstrip("#").upper())
+                    tcPr.append(shd)
+                except Exception:
+                    pass
+        if zebra:
+            for ri, row in enumerate(doc_table.rows):
+                if ri == 0 or ri % 2 != 0:
+                    continue
+                for cell in row.cells:
+                    try:
+                        tcPr = cell._tc.get_or_add_tcPr()
+                        shd = OxmlElement("w:shd")
+                        shd.set(qn("w:fill"), "F7F7F7")
+                        tcPr.append(shd)
+                    except Exception:
+                        pass
+        if border:
+            try:
+                tblPr = doc_table._tbl.tblPr
+                old = tblPr.find(qn("w:tblBorders"))
+                if old is not None:
+                    tblPr.remove(old)
+                borders = OxmlElement("w:tblBorders")
+                for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
+                    el = OxmlElement(f"w:{side}")
+                    el.set(qn("w:val"), "single")
+                    el.set(qn("w:sz"), "4")
+                    el.set(qn("w:space"), "0")
+                    el.set(qn("w:color"), border.lstrip("#").upper())
+                    borders.append(el)
+                tblPr.append(borders)
+            except Exception:
+                pass
 
     def _open_file_externally(self, path):
         """用系统默认程序打开导出的文件"""
