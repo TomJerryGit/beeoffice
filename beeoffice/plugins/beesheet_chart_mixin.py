@@ -69,6 +69,8 @@ class ChartMixin:
         """
         try:
             import matplotlib.pyplot as plt
+            plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "DejaVu Sans"]
+            plt.rcParams["axes.unicode_minus"] = False
             # Qt6 / PySide6 应使用 backend_qtagg。
             # backend_qt5agg 在 matplotlib 3.5+ 只是兼容垫片，而且
             # beeoffice.spec 曾把它列进 excludes，导致打包后图表必崩。

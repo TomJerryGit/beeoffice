@@ -72,6 +72,8 @@ def render_chart_png(text: str, chart_type: str, out: str) -> str:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "DejaVu Sans"]
+    plt.rcParams["axes.unicode_minus"] = False
     labels, series = parse_chart_series(text)
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
