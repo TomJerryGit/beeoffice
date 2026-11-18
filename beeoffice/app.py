@@ -577,7 +577,9 @@ class BeeApp(QMainWindow):
         )
 
         try:
-            from beeoffice.plugins.bee_export import import_from_docx
+            from beeoffice.plugins.bee_export import import_from_docx, read_docx_sections
+            docx_sections = read_docx_sections(path)
+            section_breaks = [s.get("paragraph_index") for s in docx_sections if s.get("paragraph_index") is not None]
         except Exception as e:
             logging.error(f"导入 bee_export 失败: {e}")
             QMessageBox.warning(
@@ -606,6 +608,11 @@ class BeeApp(QMainWindow):
                     widget._switch_mode("rich_text")
                 except Exception as e:
                     logging.error(f"切换到富文本模式失败: {e}")
+            if hasattr(widget, "_apply_imported_sections"):
+                try:
+                    widget._apply_imported_sections(docx_sections)
+                except Exception as e:
+                    logging.error(f"恢复 DOCX 分节失败: {e}")
             # 恢复页眉/页脚/首页/奇偶页配置（P0 硬化）
             try:
                 from beeoffice.plugins.bee_export import read_docx_header_footer
@@ -649,11 +656,13 @@ class BeeApp(QMainWindow):
             )
             self.set_global_status(tr("msg.open_failed", "打开失败"), 3000)
 
+        extra = {"section_breaks": section_breaks} if section_breaks else {}
         AsyncTaskManager.run(
             import_from_docx,
             path,
             on_result=on_result,
             on_error=on_error,
+            **extra,
         )
 
     def _open_text_file(self, path):

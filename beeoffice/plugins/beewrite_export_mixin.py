@@ -884,7 +884,9 @@ class ExportMixin:
 
         # ========== 应用页面设置 ==========
         try:
-            page_settings = self.get_page_settings()
+            section_cfgs = getattr(self, "_section_page_settings", []) or []
+            page_settings = dict(section_cfgs[0]) if section_cfgs else self.get_page_settings()
+            self._export_section_index = 0
             paper_sizes = {
                 "A4": (210, 297),
                 "A3": (297, 420),
@@ -992,7 +994,10 @@ class ExportMixin:
                 if bf.intProperty(QTextFormat.UserProperty) == 0xBEE2:
                     from docx.enum.section import WD_SECTION
                     new_sec = doc.add_section(WD_SECTION.NEW_PAGE)
-                    self._apply_page_settings_to_section(new_sec, self.get_page_settings())
+                    section_cfgs = getattr(self, "_section_page_settings", []) or []
+                    self._export_section_index = getattr(self, "_export_section_index", 0) + 1
+                    cfg = section_cfgs[self._export_section_index] if self._export_section_index < len(section_cfgs) else self.get_page_settings()
+                    self._apply_page_settings_to_section(new_sec, cfg)
                     block = block.next()
                     continue
             except Exception:

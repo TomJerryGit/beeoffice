@@ -37,6 +37,8 @@ import difflib
 from pathlib import Path
 from beeoffice.i18n import tr
 
+SECTION_BREAK_MARKER = "〖BEEOFFICE_SECTION_BREAK〗"
+
 # ==================== 可选依赖导入 ====================
 try:
     import markdown
@@ -602,6 +604,68 @@ def read_docx_header_footer(docx_path):
         return {}
 
 
+def _section_settings_from_obj(sec):
+    orientation = "landscape" if float(sec.page_width.mm) > float(sec.page_height.mm) else "portrait"
+    width = float(sec.page_width.mm); height = float(sec.page_height.mm)
+    paper = "A4"
+    for name, (pw, ph) in {"A4": (210, 297), "A3": (297, 420), "A5": (148, 210),
+                           "Letter": (215.9, 279.4), "Legal": (215.9, 355.6)}.items():
+        if (abs(width - pw) < 2 and abs(height - ph) < 2) or (abs(width - ph) < 2 and abs(height - pw) < 2):
+            paper = name; break
+    cols = 1; line_numbers = False; border = False; border_color = "#000000"; border_width = 4
+    try:
+        from docx.oxml.ns import qn
+        sectPr = sec._sectPr
+        cols_el = sectPr.find(qn("w:cols"))
+        if cols_el is not None:
+            cols = int(cols_el.get(qn("w:num")) or 1)
+        line_numbers = sectPr.find(qn("w:lnNumType")) is not None
+        pgb = sectPr.find(qn("w:pgBorders"))
+        if pgb is not None:
+            top = pgb.find(qn("w:top"))
+            if top is not None:
+                border = top.get(qn("w:val")) not in (None, "nil", "none")
+                if top.get(qn("w:color")):
+                    border_color = "#" + top.get(qn("w:color"))
+                if top.get(qn("w:sz")):
+                    border_width = max(1, int(top.get(qn("w:sz"))) // 2)
+    except Exception:
+        pass
+    return {
+        "paper": paper, "orientation": orientation,
+        "margin_top": float(sec.top_margin.mm) if sec.top_margin else 25.4,
+        "margin_bottom": float(sec.bottom_margin.mm) if sec.bottom_margin else 25.4,
+        "margin_left": float(sec.left_margin.mm) if sec.left_margin else 31.7,
+        "margin_right": float(sec.right_margin.mm) if sec.right_margin else 31.7,
+        "columns": max(1, min(4, cols)), "line_numbers": bool(line_numbers),
+        "page_border": bool(border), "page_border_color": border_color,
+        "page_border_width": border_width,
+    }
+
+
+def read_docx_sections(docx_path):
+    """返回各节设置及节结束段落索引（用于导入还原）。"""
+    if not HAS_DOCX:
+        return []
+    try:
+        doc = Document(docx_path)
+        boundaries = []
+        for idx, para in enumerate(doc.paragraphs):
+            pPr = para._p.pPr
+            if pPr is not None and pPr.sectPr is not None:
+                boundaries.append(idx)
+        result = []
+        for i, sec in enumerate(doc.sections):
+            result.append({
+                "settings": _section_settings_from_obj(sec),
+                "paragraph_index": boundaries[i] if i < len(boundaries) else None,
+            })
+        return result
+    except Exception as e:
+        logging.error(f"读取 DOCX 节失败: {e}")
+        return []
+
+
 def read_docx_page_settings(docx_path):
     """读取 DOCX 页面/分栏/行号设置，返回编辑器 page_settings 片段。"""
     if not HAS_DOCX:
@@ -668,7 +732,7 @@ def read_docx_page_settings(docx_path):
         return {}
 
 
-def import_from_docx(docx_path):
+def import_from_docx(docx_path, section_breaks=None):
     """
     从 DOCX 文件导入为 Markdown
 
@@ -703,7 +767,12 @@ def import_from_docx(docx_path):
 
         # ---------- 1. 顶层段落 ----------
         logging.debug("[import_from_docx] 开始处理顶层段落")
-        for para in doc.paragraphs:
+        breaks = set(section_breaks or [])
+        def emit_break(idx):
+            if idx in breaks:
+                md_lines.append(SECTION_BREAK_MARKER)
+                md_lines.append("")
+        for para_idx, para in enumerate(doc.paragraphs):
             text = para.text.strip()
 
             # 提取段落内嵌图片
@@ -718,6 +787,7 @@ def import_from_docx(docx_path):
                         md_lines.append(img_md)
                 else:
                     md_lines.append("")
+                emit_break(para_idx)
                 continue
 
             style_name = para.style.name if para.style else ""
@@ -731,6 +801,7 @@ def import_from_docx(docx_path):
                 md_lines.append("#" * level + " " + text)
                 for img_md in inline_imgs:
                     md_lines.append(img_md)
+                emit_break(para_idx)
                 continue
 
             # 列表
@@ -741,12 +812,14 @@ def import_from_docx(docx_path):
                     md_lines.append("- " + text)
                 for img_md in inline_imgs:
                     md_lines.append(img_md)
+                emit_break(para_idx)
                 continue
 
             # 普通段落（处理粗体、斜体）
             md_lines.append(_para_to_md(para))
             for img_md in inline_imgs:
                 md_lines.append(img_md)
+            emit_break(para_idx)
 
         # ---------- 2. v5.0.2 增强：表格单元格图片 ----------
         logging.debug("[import_from_docx] 开始处理表格")

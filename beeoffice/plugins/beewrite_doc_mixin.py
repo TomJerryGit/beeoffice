@@ -73,6 +73,65 @@ class DocMixin:
     """蜜写文档级操作 Mixin"""
 
     # ==================================================================
+    # 多节导入 / 每节独立设置
+    # ==================================================================
+    def _apply_imported_sections(self, sections):
+        """保存导入的节设置，并把标记段落转为分节符。"""
+        from beeoffice.plugins.bee_export import SECTION_BREAK_MARKER
+        from PySide6.QtGui import QTextBlockFormat, QTextFormat, QTextCursor
+        self._section_page_settings = [dict(s.get("settings", {})) for s in (sections or [])]
+        if self._section_page_settings:
+            self._page_settings.update(self._section_page_settings[0])
+        block = self.rich_editor.document().begin()
+        while block.isValid():
+            if SECTION_BREAK_MARKER in block.text():
+                cursor = QTextCursor(block)
+                cursor.beginEditBlock()
+                cursor.select(QTextCursor.BlockUnderCursor)
+                cursor.removeSelectedText()
+                bf = QTextBlockFormat()
+                bf.setProperty(QTextFormat.UserProperty, 0xBEE2)
+                cursor.setBlockFormat(bf)
+                cursor.endEditBlock()
+            block = block.next()
+
+    def _show_section_settings_dialog(self):
+        from PySide6.QtWidgets import QInputDialog
+        secs = getattr(self, "_section_page_settings", [])
+        if not secs:
+            QMessageBox.information(self, "节设置", "当前文档没有多节信息。")
+            return
+        labels = [f"第 {i + 1} 节" for i in range(len(secs))]
+        label, ok = QInputDialog.getItem(self, "节设置", "选择节：", labels, 0, False)
+        if not ok:
+            return
+        idx = labels.index(label)
+        cfg = secs[idx]
+        from PySide6.QtWidgets import (
+            QDialog, QFormLayout, QDoubleSpinBox, QSpinBox,
+            QCheckBox, QDialogButtonBox,
+        )
+        dlg = QDialog(self); dlg.setWindowTitle(label)
+        form = QFormLayout(dlg)
+        top = QDoubleSpinBox(); top.setRange(0, 100); top.setValue(float(cfg.get("margin_top", 25.4))); form.addRow("上边距(mm)", top)
+        bottom = QDoubleSpinBox(); bottom.setRange(0, 100); bottom.setValue(float(cfg.get("margin_bottom", 25.4))); form.addRow("下边距(mm)", bottom)
+        left = QDoubleSpinBox(); left.setRange(0, 100); left.setValue(float(cfg.get("margin_left", 31.7))); form.addRow("左边距(mm)", left)
+        right = QDoubleSpinBox(); right.setRange(0, 100); right.setValue(float(cfg.get("margin_right", 31.7))); form.addRow("右边距(mm)", right)
+        cols = QSpinBox(); cols.setRange(1, 4); cols.setValue(int(cfg.get("columns", 1))); form.addRow("分栏", cols)
+        border = QCheckBox("页面边框"); border.setChecked(bool(cfg.get("page_border", False))); form.addRow(border)
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject); form.addRow(btns)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        cfg.update({"margin_top": top.value(), "margin_bottom": bottom.value(),
+                    "margin_left": left.value(), "margin_right": right.value(),
+                    "columns": cols.value(), "page_border": border.isChecked()})
+        self._section_page_settings[idx] = cfg
+        if idx == 0:
+            self._page_settings.update(cfg)
+        self._set_status(f"{label} 设置已更新", 2000)
+
+    # ==================================================================
     # P1：封面 / 页面背景
     # ==================================================================
     def _insert_cover_page(self):

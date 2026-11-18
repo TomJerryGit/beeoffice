@@ -418,6 +418,7 @@ class BeeWriteEditor(
         group.add_small_button("插入封面", "插入封面", self._insert_cover_page, icon_name="page")
         group.add_small_button("页面背景", "页面背景", self._set_page_background, icon_name="fill")
         group.add_small_button("分节符", "分节符", self._insert_section_break, icon_name="page")
+        group.add_small_button("节设置", "节设置", self._show_section_settings_dialog, icon_name="page")
 
         # 引用：目录/交叉引用/页码/分节符/水印
         page = self._ribbon.add_tab("引用")
