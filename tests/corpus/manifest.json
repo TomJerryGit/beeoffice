@@ -1,0 +1,208 @@
+{
+  "version": 1,
+  "updated": "2026-11-18",
+  "targets": {
+    "word": 10,
+    "excel": 10,
+    "ppt": 5,
+    "pdf": 5
+  },
+  "samples": [
+    {
+      "id": "word-001",
+      "kind": "word",
+      "status": "pending",
+      "tags": [
+        "heading",
+        "table",
+        "header-footer"
+      ],
+      "path": ""
+    },
+    {
+      "id": "word-002",
+      "kind": "word",
+      "status": "pending",
+      "tags": [
+        "toc",
+        "footnote",
+        "caption"
+      ],
+      "path": ""
+    },
+    {
+      "id": "word-003",
+      "kind": "word",
+      "status": "pending",
+      "tags": [
+        "columns",
+        "section"
+      ],
+      "path": ""
+    },
+    {
+      "id": "word-004",
+      "kind": "word",
+      "status": "pending",
+      "tags": [
+        "image",
+        "table"
+      ],
+      "path": ""
+    },
+    {
+      "id": "word-005",
+      "kind": "word",
+      "status": "pending",
+      "tags": [
+        "long-document"
+      ],
+      "path": ""
+    },
+    {
+      "id": "excel-001",
+      "kind": "excel",
+      "status": "pending",
+      "tags": [
+        "formula",
+        "style"
+      ],
+      "path": ""
+    },
+    {
+      "id": "excel-002",
+      "kind": "excel",
+      "status": "pending",
+      "tags": [
+        "conditional-format",
+        "print-area"
+      ],
+      "path": ""
+    },
+    {
+      "id": "excel-003",
+      "kind": "excel",
+      "status": "pending",
+      "tags": [
+        "merged-cells",
+        "freeze"
+      ],
+      "path": ""
+    },
+    {
+      "id": "excel-004",
+      "kind": "excel",
+      "status": "pending",
+      "tags": [
+        "large-sheet"
+      ],
+      "path": ""
+    },
+    {
+      "id": "excel-005",
+      "kind": "excel",
+      "status": "pending",
+      "tags": [
+        "chart",
+        "pivot"
+      ],
+      "path": ""
+    },
+    {
+      "id": "ppt-001",
+      "kind": "ppt",
+      "status": "pending",
+      "tags": [
+        "master",
+        "placeholder"
+      ],
+      "path": ""
+    },
+    {
+      "id": "ppt-002",
+      "kind": "ppt",
+      "status": "pending",
+      "tags": [
+        "transition",
+        "animation"
+      ],
+      "path": ""
+    },
+    {
+      "id": "ppt-003",
+      "kind": "ppt",
+      "status": "pending",
+      "tags": [
+        "table",
+        "chart"
+      ],
+      "path": ""
+    },
+    {
+      "id": "ppt-004",
+      "kind": "ppt",
+      "status": "pending",
+      "tags": [
+        "20-slides"
+      ],
+      "path": ""
+    },
+    {
+      "id": "ppt-005",
+      "kind": "ppt",
+      "status": "pending",
+      "tags": [
+        "image",
+        "shape"
+      ],
+      "path": ""
+    },
+    {
+      "id": "pdf-001",
+      "kind": "pdf",
+      "status": "pending",
+      "tags": [
+        "annotation",
+        "watermark"
+      ],
+      "path": ""
+    },
+    {
+      "id": "pdf-002",
+      "kind": "pdf",
+      "status": "pending",
+      "tags": [
+        "100-pages"
+      ],
+      "path": ""
+    },
+    {
+      "id": "pdf-003",
+      "kind": "pdf",
+      "status": "pending",
+      "tags": [
+        "scan",
+        "ocr"
+      ],
+      "path": ""
+    },
+    {
+      "id": "pdf-004",
+      "kind": "pdf",
+      "status": "pending",
+      "tags": [
+        "forms"
+      ],
+      "path": ""
+    },
+    {
+      "id": "pdf-005",
+      "kind": "pdf",
+      "status": "pending",
+      "tags": [
+        "convert"
+      ],
+      "path": ""
+    }
+  ]
+}
