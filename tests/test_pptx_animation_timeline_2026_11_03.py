@@ -51,7 +51,7 @@ def test_tool_script_structural(tmp_path):
     proc = subprocess.run(
         [sys.executable, str(root / "tools" / "verify_pptx_animations.py"),
          "--json", str(out)],
-        cwd=str(root), capture_output=True, text=True, timeout=120,
+        cwd=str(root), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120,
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert out.is_file()
