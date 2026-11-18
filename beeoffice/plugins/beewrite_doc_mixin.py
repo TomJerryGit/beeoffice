@@ -81,7 +81,12 @@ class DocMixin:
         from PySide6.QtGui import QTextBlockFormat, QTextFormat, QTextCursor
         self._section_page_settings = [dict(s.get("settings", {})) for s in (sections or [])]
         if self._section_page_settings:
-            self._page_settings.update(self._section_page_settings[0])
+            first = self._section_page_settings[0]
+            self._page_settings.update(first)
+            self._header_text = first.get("header", getattr(self, "_header_text", ""))
+            self._footer_text = first.get("footer", getattr(self, "_footer_text", ""))
+            self._different_first_page = bool(first.get("different_first_page", getattr(self, "_different_first_page", False)))
+            self._header_first_text = first.get("header_first", getattr(self, "_header_first_text", ""))
         block = self.rich_editor.document().begin()
         while block.isValid():
             if SECTION_BREAK_MARKER in block.text():
@@ -119,13 +124,17 @@ class DocMixin:
         right = QDoubleSpinBox(); right.setRange(0, 100); right.setValue(float(cfg.get("margin_right", 31.7))); form.addRow("右边距(mm)", right)
         cols = QSpinBox(); cols.setRange(1, 4); cols.setValue(int(cfg.get("columns", 1))); form.addRow("分栏", cols)
         border = QCheckBox("页面边框"); border.setChecked(bool(cfg.get("page_border", False))); form.addRow(border)
+        from PySide6.QtWidgets import QLineEdit
+        header = QLineEdit(str(cfg.get("header", ""))); form.addRow("页眉", header)
+        footer = QLineEdit(str(cfg.get("footer", ""))); form.addRow("页脚", footer)
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject); form.addRow(btns)
         if dlg.exec() != QDialog.Accepted:
             return
         cfg.update({"margin_top": top.value(), "margin_bottom": bottom.value(),
                     "margin_left": left.value(), "margin_right": right.value(),
-                    "columns": cols.value(), "page_border": border.isChecked()})
+                    "columns": cols.value(), "page_border": border.isChecked(),
+                    "header": header.text(), "footer": footer.text()})
         self._section_page_settings[idx] = cfg
         if idx == 0:
             self._page_settings.update(cfg)
@@ -260,6 +269,30 @@ class DocMixin:
         self._different_first_page = first_diff.isChecked()
         self._odd_even_pages = odd_even.isChecked()
         self._set_status("页眉页脚设置已更新（导出 Word/PDF 生效）", 3000)
+
+    def _apply_header_footer_to_section(self, section, meta):
+        """把单节页眉页脚设置写入指定 section。"""
+        if not section or not meta:
+            return
+        header = meta.get("header", "")
+        footer = meta.get("footer", "")
+        if header:
+            try:
+                section.header.is_linked_to_previous = False
+            except Exception:
+                pass
+            section.header.paragraphs[0].text = header
+        if footer:
+            try:
+                section.footer.is_linked_to_previous = False
+            except Exception:
+                pass
+            section.footer.paragraphs[0].text = footer
+        if meta.get("different_first_page"):
+            section.different_first_page_header_footer = True
+            first = meta.get("header_first", "") or header
+            if first:
+                section.first_page_header.paragraphs[0].text = first
 
     def _apply_header_footer(self, doc):
         """

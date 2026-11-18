@@ -998,6 +998,7 @@ class ExportMixin:
                     self._export_section_index = getattr(self, "_export_section_index", 0) + 1
                     cfg = section_cfgs[self._export_section_index] if self._export_section_index < len(section_cfgs) else self.get_page_settings()
                     self._apply_page_settings_to_section(new_sec, cfg)
+                    self._apply_header_footer_to_section(new_sec, cfg)
                     block = block.next()
                     continue
             except Exception:

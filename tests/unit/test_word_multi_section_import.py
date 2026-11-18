@@ -63,3 +63,22 @@ def test_import_apply_and_export(qtbot, tmp_path):
     assert len(doc.sections) == 2
     assert doc.sections[1]._sectPr.find(qn("w:cols")).get(qn("w:num")) == "2"
     assert doc.sections[1]._sectPr.find(qn("w:pgBorders")) is not None
+
+
+def test_per_section_headers_export(qtbot, tmp_path):
+    e = BeeWriteEditor(); qtbot.addWidget(e); e.show(); e._edit_mode = "rich_text"
+    e.rich_editor.setPlainText("第一节")
+    e._insert_section_break()
+    cur = e.rich_editor.textCursor(); cur.movePosition(cur.MoveOperation.End); cur.insertText("第二节")
+    e._section_page_settings = [
+        {"header": "第一节页眉", "footer": "第一节页脚", "paper": "A4", "orientation": "portrait", "columns": 1},
+        {"header": "第二节页眉", "footer": "第二节页脚", "paper": "A4", "orientation": "portrait", "columns": 2},
+    ]
+    e._header_text = "第一节页眉"; e._footer_text = "第一节页脚"
+    out = tmp_path / "section-headers.docx"
+    assert e._write_docx(str(out))
+    doc = Document(str(out))
+    assert len(doc.sections) == 2
+    assert doc.sections[0].header.paragraphs[0].text == "第一节页眉"
+    assert doc.sections[1].header.paragraphs[0].text == "第二节页眉"
+    assert doc.sections[1].footer.paragraphs[0].text == "第二节页脚"

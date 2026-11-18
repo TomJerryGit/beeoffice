@@ -631,6 +631,18 @@ def _section_settings_from_obj(sec):
                     border_width = max(1, int(top.get(qn("w:sz"))) // 2)
     except Exception:
         pass
+    def _text(container):
+        if container is None:
+            return ""
+        try:
+            return "\n".join(p.text.strip() for p in container.paragraphs if p.text.strip())
+        except Exception:
+            return ""
+
+    header = _text(getattr(sec, "header", None))
+    footer = _text(getattr(sec, "footer", None))
+    different_first = bool(getattr(sec, "different_first_page_header_footer", False))
+    header_first = _text(getattr(sec, "first_page_header", None)) if different_first else ""
     return {
         "paper": paper, "orientation": orientation,
         "margin_top": float(sec.top_margin.mm) if sec.top_margin else 25.4,
@@ -640,6 +652,8 @@ def _section_settings_from_obj(sec):
         "columns": max(1, min(4, cols)), "line_numbers": bool(line_numbers),
         "page_border": bool(border), "page_border_color": border_color,
         "page_border_width": border_width,
+        "header": header, "footer": footer,
+        "different_first_page": different_first, "header_first": header_first,
     }
 
 
@@ -765,90 +779,75 @@ def import_from_docx(docx_path, section_breaks=None):
             f"[import_from_docx] 媒体目录: {media_dir}"
         )
 
-        # ---------- 1. 顶层段落 ----------
-        logging.debug("[import_from_docx] 开始处理顶层段落")
+        # ---------- 1. 按文档顺序处理段落 / 表格 ----------
+        from docx.oxml.ns import qn
+        from docx.table import Table
+        from docx.text.paragraph import Paragraph
+        logging.debug("[import_from_docx] 按 body 顺序处理段落/表格")
         breaks = set(section_breaks or [])
+
         def emit_break(idx):
             if idx in breaks:
                 md_lines.append(SECTION_BREAK_MARKER)
                 md_lines.append("")
-        for para_idx, para in enumerate(doc.paragraphs):
-            text = para.text.strip()
 
-            # 提取段落内嵌图片
-            inline_imgs = _extract_para_images(
-                para, doc, media_dir, img_counter, docx_p
-            )
-
-            if not text:
-                # 段落无文字
-                if inline_imgs:
-                    for img_md in inline_imgs:
-                        md_lines.append(img_md)
-                else:
-                    md_lines.append("")
-                emit_break(para_idx)
-                continue
-
-            style_name = para.style.name if para.style else ""
-
-            # 标题
-            if style_name.startswith("Heading"):
-                try:
-                    level = int(style_name.split()[-1])
-                except (ValueError, IndexError):
-                    level = 1
-                md_lines.append("#" * level + " " + text)
-                for img_md in inline_imgs:
-                    md_lines.append(img_md)
-                emit_break(para_idx)
-                continue
-
-            # 列表
-            if "List" in style_name:
-                if "Number" in style_name:
-                    md_lines.append("1. " + text)
-                else:
-                    md_lines.append("- " + text)
-                for img_md in inline_imgs:
-                    md_lines.append(img_md)
-                emit_break(para_idx)
-                continue
-
-            # 普通段落（处理粗体、斜体）
-            md_lines.append(_para_to_md(para))
-            for img_md in inline_imgs:
-                md_lines.append(img_md)
-            emit_break(para_idx)
-
-        # ---------- 2. v5.0.2 增强：表格单元格图片 ----------
-        logging.debug("[import_from_docx] 开始处理表格")
-        for t_idx, table in enumerate(doc.tables):
-            md_lines.append("")
-            md_lines.append(_docx_table_to_md(table))
-            md_lines.append("")
-
-            # 提取表格单元格内的图片
-            for para in _iter_table_paragraphs(table):
-                cell_imgs = _extract_para_images(
+        para_idx = 0
+        for child in doc.element.body.iterchildren():
+            if child.tag == qn("w:p"):
+                para = Paragraph(child, doc)
+                text = para.text.strip()
+                inline_imgs = _extract_para_images(
                     para, doc, media_dir, img_counter, docx_p
                 )
-                for img_md in cell_imgs:
+                if not text:
+                    if inline_imgs:
+                        for img_md in inline_imgs:
+                            md_lines.append(img_md)
+                    else:
+                        md_lines.append("")
+                    emit_break(para_idx)
+                    para_idx += 1
+                    continue
+                style_name = para.style.name if para.style else ""
+                if style_name.startswith("Heading"):
+                    try:
+                        level = int(style_name.split()[-1])
+                    except (ValueError, IndexError):
+                        level = 1
+                    md_lines.append("#" * level + " " + text)
+                    for img_md in inline_imgs:
+                        md_lines.append(img_md)
+                    emit_break(para_idx)
+                    para_idx += 1
+                    continue
+                if "List" in style_name:
+                    if "Number" in style_name:
+                        md_lines.append("1. " + text)
+                    else:
+                        md_lines.append("- " + text)
+                    for img_md in inline_imgs:
+                        md_lines.append(img_md)
+                    emit_break(para_idx)
+                    para_idx += 1
+                    continue
+                md_lines.append(_para_to_md(para))
+                for img_md in inline_imgs:
                     md_lines.append(img_md)
-
-        # ---------- 3. v5.0.2 增强：页眉/页脚图片 ----------
-        logging.debug("[import_from_docx] 开始处理页眉页脚")
-        for s_idx, section in enumerate(doc.sections):
-            try:
-                for para in _iter_header_footer_paragraphs(section):
-                    hf_imgs = _extract_para_images(
+                emit_break(para_idx)
+                para_idx += 1
+            elif child.tag == qn("w:tbl"):
+                table = Table(child, doc)
+                md_lines.append("")
+                md_lines.append(_docx_table_to_md(table))
+                md_lines.append("")
+                for para in _iter_table_paragraphs(table):
+                    cell_imgs = _extract_para_images(
                         para, doc, media_dir, img_counter, docx_p
                     )
-                    for img_md in hf_imgs:
+                    for img_md in cell_imgs:
                         md_lines.append(img_md)
-            except Exception as e:
-                logging.debug(f"处理 section {s_idx} 页眉页脚失败: {e}")
 
+        # 页眉/页脚图片不再混入正文：由 section 元数据单独处理
         # ---------- 完成汇总 ----------
         logging.info(
             f"[import_from_docx] 提取完成，共提取 {img_counter[0]} 张图片"
