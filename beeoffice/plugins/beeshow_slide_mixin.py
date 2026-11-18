@@ -121,6 +121,7 @@ class SlideMixin:
         self._slide_animations = []
         self._native_shapes = []
         self._native_charts = []
+        self._table_styles = []
         self._speaker_notes = []
         self._slide_titles = []
 
@@ -136,7 +137,7 @@ class SlideMixin:
             # 负向前瞻放在 `<!--` 之后、`\s*` 之前，避免 `\s*` 回溯后又匹配上。
             nm = re.search(
                 r'<!--(?!\s*(?:comments:|beeoffice-style:|beeoffice-image:'
-                r'|morph-id:|beeoffice-shapes:|beeoffice-master:|beeoffice-chartobj:))\s*(.*?)\s*-->',
+                r'|morph-id:|beeoffice-shapes:|beeoffice-master:|beeoffice-chartobj:|beeoffice-table-style:))\s*(.*?)\s*-->',
                 part,
                 re.DOTALL,
             )
@@ -157,6 +158,8 @@ class SlideMixin:
             native_shapes, cleaned_part = parse_shapes(part)
             from beeoffice.plugins.beeshow_native_chart import parse_charts
             native_charts, cleaned_part = parse_charts(cleaned_part)
+            from beeoffice.plugins.beeshow_pptx_table_style import parse_table_style
+            table_style, cleaned_part = parse_table_style(cleaned_part)
             from beeoffice.plugins.beeshow_animation import parse_animation
             anim_cfg, cleaned_part = parse_animation(cleaned_part)
 
@@ -178,6 +181,7 @@ class SlideMixin:
                 self._slide_animations.append(anim_cfg)
                 self._native_shapes.append(native_shapes)
                 self._native_charts.append(native_charts)
+                self._table_styles.append(table_style)
 
                 # 提取标题
                 title_match = re.search(

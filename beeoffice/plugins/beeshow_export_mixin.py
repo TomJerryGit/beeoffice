@@ -133,6 +133,8 @@ class ExportMixin:
                     apply_native_shapes(path, getattr(self, "_native_shapes", []))
                     from beeoffice.plugins.beeshow_native_chart import apply_native_charts
                     apply_native_charts(path, getattr(self, "_native_charts", []))
+                    from beeoffice.plugins.beeshow_pptx_table_style import apply_table_styles
+                    apply_table_styles(path, getattr(self, "_table_styles", []))
                 except Exception as e:  # noqa: BLE001
                     logging.warning(f"写入 PPTX 过渡失败: {e}")
                 QMessageBox.information(

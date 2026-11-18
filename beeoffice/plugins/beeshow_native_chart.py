@@ -60,8 +60,8 @@ def apply_native_charts(pptx_path: str, configs) -> int:
         if isinstance(charts, dict):
             charts = [charts]
         for i, cfg in enumerate(charts or []):
-            from beeoffice.plugins.beeshow_chart import parse_chart_data
-            labels, values = parse_chart_data(str(cfg.get("data", "")))
+            from beeoffice.plugins.beeshow_chart import parse_chart_series
+            labels, series = parse_chart_series(str(cfg.get("data", "")))
             if not labels:
                 continue
             kind = str(cfg.get("type", "bar"))
@@ -70,7 +70,8 @@ def apply_native_charts(pptx_path: str, configs) -> int:
             )
             data = CategoryChartData()
             data.categories = labels
-            data.add_series(cfg.get("title", "系列 1"), values)
+            for name, values in series:
+                data.add_series(str(name), values)
             left = Inches(1.0 + i * 0.2)
             top = Inches(1.5 + i * 0.2)
             width = Inches(8.0)

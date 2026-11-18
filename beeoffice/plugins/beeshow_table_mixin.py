@@ -469,6 +469,8 @@ class TableMixin:
             return
 
         self._insert_table_md(md_table)
+        if hasattr(dlg, "_use_style_check") and dlg._use_style_check.isChecked():
+            self._persist_table_style(dlg.get_style())
         self._set_status(tr("auto.beeshow_table_mixin.2e671706", "✅ 表格已插入"), 2000)
 
     # ==================== 提取当前表格 ====================
@@ -540,6 +542,18 @@ class TableMixin:
         except Exception as e:
             logging.error(f"插入表格失败：{e}")
             QMessageBox.warning(self, tr("auto.beeshow_table_mixin.4620fab0", "插入失败"), str(e))
+
+    def _persist_table_style(self, style):
+        try:
+            from beeoffice.plugins.beeshow_pptx_table_style import marker_for
+            import re as _re
+            idx = self._current_slide
+            md = _re.sub(r"<!--\s*beeoffice-table-style:.*?-->", "", self._slides_md[idx], flags=_re.DOTALL).strip()
+            self._slides_md[idx] = (md + "\n" + marker_for(style)).strip()
+            self._rebuild_editor_from_slides()
+            self._show_slide(idx)
+        except Exception as e:
+            logging.error(f"保存表格样式失败：{e}")
 
     # ==================== 编辑已有表格 ====================
     def _edit_current_table(self):
