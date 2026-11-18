@@ -146,11 +146,35 @@ def check_coverage() -> list[str]:
     return [] if result.returncode == 0 else ["核心覆盖率门槛未通过"]
 
 
+def check_corpus(strict: bool = False, manifest=None) -> list[str]:
+    """语料门禁：已验证样本不得损坏；strict 时还要求无缺失。"""
+    try:
+        sys.path.insert(0, str(ROOT / "tools"))
+        from corpus_check import check_manifest
+        path = Path(manifest) if manifest else ROOT / "tests" / "corpus" / "manifest.json"
+        if not path.is_file():
+            return [f"缺少语料清单: {path}"]
+        result = check_manifest(path, strict=strict)
+        print(
+            f"语料检查: total={result['total']} ready={result['ready']} "
+            f"missing={result['missing']} failed={result['failed']}"
+        )
+        if result["failed"]:
+            return [f"语料校验失败 {result['failed']} 项"]
+        if strict and result["missing"]:
+            return [f"语料缺失 {result['missing']} 项（strict）"]
+        return []
+    except Exception as exc:
+        return [f"语料检查异常: {exc}"]
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="BeeOffice 发布前检查")
     parser.add_argument("--skip-coverage", action="store_true")
     parser.add_argument("--skip-security", action="store_true")
     parser.add_argument("--require-signed", action="store_true")
+    parser.add_argument("--with-corpus", action="store_true", help="执行语料完整性门禁")
+    parser.add_argument("--corpus-strict", action="store_true", help="语料缺失也视为失败")
     args = parser.parse_args(argv)
 
     version = read_version()
@@ -173,6 +197,8 @@ def main(argv=None) -> int:
         errors += check_security()
     if not args.skip_coverage:
         errors += check_coverage()
+    if args.with_corpus:
+        errors += check_corpus(strict=args.corpus_strict)
 
     if errors:
         print("\n发布检查失败：")
