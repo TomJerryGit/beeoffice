@@ -652,6 +652,43 @@ class SlideMixin:
                     pass
         self._persist_native_shapes_current()
 
+    # ==================== 图表 ====================
+    def _show_chart_dialog(self):
+        from PySide6.QtWidgets import (
+            QDialog, QVBoxLayout, QComboBox, QPlainTextEdit,
+            QDialogButtonBox, QLabel,
+        )
+        from pathlib import Path
+        import tempfile, time
+        dlg = QDialog(self)
+        dlg.setWindowTitle("插入图表")
+        dlg.resize(460, 380)
+        layout = QVBoxLayout(dlg)
+        kind = QComboBox()
+        kind.addItems(["柱状图", "折线图", "饼图"])
+        layout.addWidget(kind)
+        layout.addWidget(QLabel("数据（每行：标签,数值）"))
+        data = QPlainTextEdit("一月,100\n二月,120\n三月,90\n四月,150")
+        layout.addWidget(data)
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject)
+        layout.addWidget(btns)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        chart_type = {"柱状图": "bar", "折线图": "line", "饼图": "pie"}[kind.currentText()]
+        out = Path(tempfile.gettempdir()) / "beeoffice_charts" / f"chart_{int(time.time())}.png"
+        try:
+            from beeoffice.plugins.beeshow_chart import render_chart_png
+            path = render_chart_png(data.toPlainText(), chart_type, str(out))
+            cursor = self._editor.textCursor()
+            cursor.insertText(f"\n![]({path})\n")
+            self._editor.setTextCursor(cursor)
+            self._update_preview()
+            self._set_status("已插入图表", 2000)
+        except Exception as e:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "图表失败", str(e))
+
     # ==================== 版式槽位绑定 ====================
     def _apply_layout_slots(self, layout_id, slots):
         from beeoffice.plugins.beeshow_layout_slots import bind_layout
