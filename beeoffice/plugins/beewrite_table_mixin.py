@@ -910,3 +910,61 @@ class TableMixin:
             self._set_status(tr("auto.beewrite_table_mixin.dc0dd2be", "已插入文件数据: {title}").format(title=title), 3000)
         except Exception as e:
             QMessageBox.warning(self, tr("auto.beewrite_table_mixin.a01a8d53", "导入失败"), str(e))
+
+    # ==================================================================
+    # 表格样式面板
+    # ==================================================================
+    def _apply_table_style_to_current(self, style):
+        from PySide6.QtGui import QBrush, QColor, QTextTableFormat, QTextTableCellFormat
+        cursor = self.rich_editor.textCursor()
+        table = cursor.currentTable()
+        if table is None:
+            return False
+        for r in range(table.rows()):
+            for c in range(table.columns()):
+                cell = table.cellAt(r, c)
+                fmt = QTextTableCellFormat()
+                if r == 0:
+                    fmt.setBackground(QBrush(QColor(style.get("header_fill", "#FFE0B2"))))
+                elif style.get("zebra") and r % 2 == 0:
+                    fmt.setBackground(QBrush(QColor("#F7F7F7")))
+                cell.setFormat(fmt)
+        tf = table.format()
+        tf.setBorder(1)
+        tf.setBorderBrush(QBrush(QColor(style.get("border_color", "#1E88E5"))))
+        table.setFormat(tf)
+        try:
+            frames = list(self.rich_editor.document().rootFrame().childFrames())
+            idx = frames.index(table) if table in frames else 0
+            styles = list(getattr(self, "_docx_table_styles", []) or [])
+            while len(styles) <= idx:
+                styles.append({})
+            styles[idx] = dict(style)
+            self._docx_table_styles = styles
+        except Exception:
+            pass
+        return True
+
+    def _show_table_style_dialog(self):
+        from PySide6.QtWidgets import (
+            QDialog, QFormLayout, QLineEdit, QCheckBox, QDialogButtonBox,
+        )
+        if self.rich_editor.textCursor().currentTable() is None:
+            QMessageBox.information(self, "表格样式", "请先把光标放在表格内。")
+            return
+        dlg = QDialog(self); dlg.setWindowTitle("表格样式")
+        form = QFormLayout(dlg)
+        header = QLineEdit("#FFE0B2"); form.addRow("表头填充色", header)
+        border = QLineEdit("#1E88E5"); form.addRow("边框颜色", border)
+        zebra = QCheckBox("斑马纹"); form.addRow(zebra)
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject)
+        form.addRow(btns)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        self._apply_table_style_to_current({
+            "header_fill": header.text().strip() or "#FFE0B2",
+            "border_color": border.text().strip() or "#1E88E5",
+            "zebra": zebra.isChecked(),
+        })
+        self._set_status("表格样式已应用", 2000)

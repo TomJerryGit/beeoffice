@@ -50,3 +50,18 @@ def test_export_table_style(qtbot, tmp_path):
     assert shd is not None
     assert shd.get(qn("w:fill")) == "FFE0B2"
     assert t._tbl.tblPr.find(qn("w:tblBorders")) is not None
+
+
+def test_table_style_panel_applies_and_exports(qtbot, tmp_path):
+    e = BeeWriteEditor(); qtbot.addWidget(e); e.show(); e._edit_mode = "rich_text"
+    cursor = e.rich_editor.textCursor()
+    table = cursor.insertTable(2, 2)
+    table.cellAt(0, 0).firstCursorPosition().insertText("A")
+    table.cellAt(0, 1).firstCursorPosition().insertText("B")
+    e.rich_editor.setTextCursor(table.cellAt(0, 0).firstCursorPosition())
+    assert e._apply_table_style_to_current({"header_fill": "#FFCC80", "border_color": "#1E88E5", "zebra": True})
+    out = tmp_path / "panel.docx"
+    assert e._write_docx(str(out))
+    doc = Document(str(out))
+    shd = doc.tables[0].cell(0, 0)._tc.get_or_add_tcPr().find(qn("w:shd"))
+    assert shd is not None and shd.get(qn("w:fill")).upper() == "FFCC80"

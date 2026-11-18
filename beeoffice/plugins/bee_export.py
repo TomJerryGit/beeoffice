@@ -565,6 +565,45 @@ def export_to_pdf(content, output_path):
 
 
 # ==================== DOCX → Markdown ====================
+def read_docx_header_footer_images(docx_path, outdir=None):
+    """提取页眉/页脚图片，返回文件路径列表。"""
+    if not HAS_DOCX:
+        return []
+    try:
+        import re as _re
+        doc = Document(docx_path)
+        docx_p = Path(docx_path).resolve()
+        media_dir = Path(outdir) if outdir else docx_p.parent / (docx_p.stem + "_media_hf")
+        media_dir.mkdir(parents=True, exist_ok=True)
+        counter = [0]
+        paths = []
+        for section in doc.sections:
+            for container in (section.header, section.footer,
+                              getattr(section, "first_page_header", None),
+                              getattr(section, "first_page_footer", None),
+                              getattr(section, "even_page_header", None),
+                              getattr(section, "even_page_footer", None)):
+                if container is None:
+                    continue
+                try:
+                    for para in container.paragraphs:
+                        for md in _extract_para_images(para, doc, media_dir, counter, docx_p):
+                            m = _re.search(r"!\[[^\]]*\]\(([^)]+)\)", md)
+                            if m:
+                                raw = Path(m.group(1))
+                                candidates = [raw, docx_p.parent / raw, media_dir / raw.name]
+                                for cand in candidates:
+                                    if cand.is_file():
+                                        paths.append(str(cand.resolve()))
+                                        break
+                except Exception:
+                    continue
+        return paths
+    except Exception as e:
+        logging.error(f"提取页眉页脚图片失败: {e}")
+        return []
+
+
 def read_docx_header_footer(docx_path):
     """读取 DOCX 首页/奇偶页/普通页眉页脚，返回编辑器配置字典。"""
     if not HAS_DOCX:

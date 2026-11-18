@@ -484,6 +484,7 @@ class BeeWriteEditor(
         # 上下文标签：光标进入表格时出现“表格工具”
         ctx = self._ribbon.add_context_tab("表格工具")
         ctx_group = self._ribbon.add_group(ctx, "📋 表格")
+        ctx_group.add_small_button("表格样式", "表格样式", self._show_table_style_dialog, icon_name="fill")
         for label, target, icon_name in (
             ("📋\n表格", "表格", "table"),
             ("🔗\n合并", "合并", "table"),

@@ -161,11 +161,12 @@ def insert_textbox(rich_editor, config):
     # 先换行，保证框在独立段落
     cursor.insertBlock()
 
+    from PySide6.QtGui import QBrush, QColor
     frame_format = QTextFrameFormat()
-    frame_format.setBorder(config["border"])
+    frame_format.setBorder(1)
     frame_format.setBorderStyle(QTextFrameFormat.BorderStyle_Solid)
-    frame_format.setBorderBrush(config["border_color"])
-    frame_format.setBackground(config["bg_color"])
+    frame_format.setBorderBrush(QBrush(QColor(config.get("border_color", "#E67E22"))))
+    frame_format.setBackground(QBrush(QColor(config.get("bg_color", "#FFF3E0"))))
     frame_format.setPadding(config["padding"])
     frame_format.setWidth(config["width"])
     frame_format.setMargin(6)

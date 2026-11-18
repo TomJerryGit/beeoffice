@@ -39,6 +39,7 @@ def _t():
   - 不导入其他 beewrite_* Mixin，避免循环依赖
 """
 import logging
+from pathlib import Path
 
 from PySide6.QtWidgets import (
     QDialog,
@@ -303,7 +304,9 @@ class DocMixin:
         """
         header_text = getattr(self, "_header_text", "") or ""
         footer_text = getattr(self, "_footer_text", "") or ""
-        if not header_text and not footer_text:
+        if (not header_text and not footer_text
+                and not getattr(self, "_header_images", None)
+                and not getattr(self, "_footer_images", None)):
             return False
         try:
             from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -316,6 +319,12 @@ class DocMixin:
                 para = section.header.paragraphs[0]
                 para.text = header_text
                 para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            for img in getattr(self, "_header_images", []) or []:
+                try:
+                    if Path(img).is_file():
+                        section.header.paragraphs[0].add_run().add_picture(img, width=None)
+                except Exception:
+                    pass
             if footer_text:
                 para = section.footer.paragraphs[0]
                 para.text = footer_text

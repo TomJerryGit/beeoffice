@@ -624,9 +624,15 @@ class BeeApp(QMainWindow):
                 widget._odd_even_pages = meta.get("odd_even_pages", False)
                 widget._header_even_text = meta.get("header_even", "")
                 widget._footer_even_text = meta.get("footer_even", "")
-                from beeoffice.plugins.bee_export import read_docx_page_settings, read_docx_table_styles
+                from beeoffice.plugins.bee_export import (
+                    read_docx_page_settings, read_docx_table_styles,
+                    read_docx_header_footer_images,
+                )
                 widget._page_settings.update(read_docx_page_settings(path))
                 widget._docx_table_styles = read_docx_table_styles(path)
+                hf_imgs = read_docx_header_footer_images(path)
+                widget._header_images = hf_imgs
+                widget._footer_images = []
             except Exception as e:
                 logging.error(f"恢复 DOCX 页眉页脚/页面设置失败: {e}")
 
