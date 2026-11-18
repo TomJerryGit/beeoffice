@@ -21,6 +21,9 @@ def docx_metrics(path):
         "sections": len(d.sections),
         "images": len(d.inline_shapes),
         "headers": sum(1 for p in d.sections[0].header.paragraphs if p.text.strip()),
+        "footers": sum(1 for p in d.sections[0].footer.paragraphs if p.text.strip()),
+        "styles": len({p.style.name for p in d.paragraphs if p.style}),
+        "fields": sum(1 for el in d.element.body.iter() if el.tag.endswith("}fldSimple") or el.tag.endswith("}fldChar")),
     }
 
 
@@ -50,7 +53,9 @@ def excel_metrics(path):
     formulas = sum(1 for row in ws.iter_rows() for c in row if isinstance(c.value, str) and c.value.startswith("="))
     return {"sheets": len(wb.sheetnames), "rows": ws.max_row, "cols": ws.max_column,
             "formulas": formulas, "print_area": str(ws.print_area or ""),
-            "merged": len(ws.merged_cells.ranges)}
+            "merged": len(ws.merged_cells.ranges),
+            "conditional_formats": len(list(ws.conditional_formatting)),
+            "charts": len(ws._charts), "freeze": str(ws.freeze_panes or "")}
 
 
 def run_excel(src, out):
@@ -63,12 +68,18 @@ def run_excel(src, out):
 def ppt_metrics(path):
     from pptx import Presentation
     prs = Presentation(path)
-    texts = 0
+    texts = charts = tables = pics = trans = timing = notes = 0
     for slide in prs.slides:
-        for shape in slide.shapes:
-            if getattr(shape, "has_text_frame", False):
-                texts += len(shape.text_frame.text.strip())
-    return {"slides": len(prs.slides), "text_chars": texts}
+        texts += sum(len(shape.text_frame.text.strip()) for shape in slide.shapes if getattr(shape, "has_text_frame", False))
+        charts += sum(1 for shape in slide.shapes if getattr(shape, "has_chart", False))
+        tables += sum(1 for shape in slide.shapes if getattr(shape, "has_table", False))
+        pics += sum(1 for shape in slide.shapes if shape.shape_type == 13)
+        trans += 1 if slide.element.find("{http://schemas.openxmlformats.org/presentationml/2006/main}transition") is not None else 0
+        timing += 1 if slide.element.find("{http://schemas.openxmlformats.org/presentationml/2006/main}timing") is not None else 0
+        notes += 1 if slide.has_notes_slide and slide.notes_slide.notes_text_frame.text.strip() else 0
+    return {"slides": len(prs.slides), "text_chars": texts,
+            "charts": charts, "tables": tables, "pics": pics,
+            "transitions": trans, "timing": timing, "notes": notes}
 
 
 def run_ppt(src, out):
