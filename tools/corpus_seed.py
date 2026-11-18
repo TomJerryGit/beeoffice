@@ -51,6 +51,29 @@ def seed_word_long(path: Path):
     d.save(path)
 
 
+def seed_word_page_settings(path: Path):
+    from docx import Document
+    from docx.enum.section import WD_ORIENT
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    from docx.shared import Mm
+    d = Document()
+    sec = d.sections[0]
+    sec.orientation = WD_ORIENT.LANDSCAPE
+    sec.page_width, sec.page_height = Mm(297), Mm(210)
+    sec.top_margin = Mm(10); sec.bottom_margin = Mm(20)
+    sec.left_margin = Mm(30); sec.right_margin = Mm(40)
+    sectPr = sec._sectPr
+    cols = sectPr.find(qn("w:cols"))
+    if cols is None:
+        cols = OxmlElement("w:cols"); sectPr.append(cols)
+    cols.set(qn("w:num"), "2")
+    ln = OxmlElement("w:lnNumType"); ln.set(qn("w:countBy"), "1"); sectPr.append(ln)
+    d.add_heading("分栏与行号", level=1)
+    d.add_paragraph("双栏页面设置样本。")
+    d.save(path)
+
+
 def seed_excel(path: Path):
     from openpyxl import Workbook
     from openpyxl.formatting.rule import CellIsRule
@@ -109,12 +132,14 @@ def main():
     RAW.mkdir(parents=True, exist_ok=True)
     path = RAW / "word-001-complex.docx"; seed_word_basic(path)
     path = RAW / "word-005-long.docx"; seed_word_long(path)
+    path = RAW / "word-002-page-settings.docx"; seed_word_page_settings(path)
     path = RAW / "excel-001-formula.xlsx"; seed_excel(path)
     path = RAW / "ppt-001-shapes.pptx"; seed_ppt(path)
     path = RAW / "pdf-001-basic.pdf"; seed_pdf(path)
     update_manifest({
         "word-001": "raw/word-001-complex.docx",
         "word-005": "raw/word-005-long.docx",
+        "word-002": "raw/word-002-page-settings.docx",
         "excel-001": "raw/excel-001-formula.xlsx",
         "ppt-001": "raw/ppt-001-shapes.pptx",
         "pdf-001": "raw/pdf-001-basic.pdf",

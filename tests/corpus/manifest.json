@@ -16,6 +16,7 @@
         "heading",
         "table",
         "header-footer",
+        "synthetic",
         "synthetic"
       ],
       "path": "raw/word-001-complex.docx"
@@ -23,13 +24,14 @@
     {
       "id": "word-002",
       "kind": "word",
-      "status": "pending",
+      "status": "synthetic-ready",
       "tags": [
         "toc",
         "footnote",
-        "caption"
+        "caption",
+        "synthetic"
       ],
-      "path": ""
+      "path": "raw/word-002-page-settings.docx"
     },
     {
       "id": "word-003",
@@ -57,6 +59,7 @@
       "status": "synthetic-ready",
       "tags": [
         "long-document",
+        "synthetic",
         "synthetic"
       ],
       "path": "raw/word-005-long.docx"
@@ -68,6 +71,7 @@
       "tags": [
         "formula",
         "style",
+        "synthetic",
         "synthetic"
       ],
       "path": "raw/excel-001-formula.xlsx"
@@ -118,6 +122,7 @@
       "tags": [
         "master",
         "placeholder",
+        "synthetic",
         "synthetic"
       ],
       "path": "raw/ppt-001-shapes.pptx"
@@ -168,6 +173,7 @@
       "tags": [
         "annotation",
         "watermark",
+        "synthetic",
         "synthetic"
       ],
       "path": "raw/pdf-001-basic.pdf"

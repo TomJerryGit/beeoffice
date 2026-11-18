@@ -43,6 +43,18 @@
 - 页眉/页脚当前只出现在文档首尾，尚未按页重复；
 - 拼写检查为基础常见错误词典，不是完整词典。
 
+## [5.8.15] - 未发布
+
+> Word 保真专项：页面/分栏/行号。
+
+### BeeWrite
+- 新增 `read_docx_page_settings()`；
+- 打开 DOCX 恢复方向/纸张/页边距/分栏/行号；
+- 导出 DOCX 写入 `w:cols`、`w:lnNumType`；
+- 新增 `tests/unit/test_word_page_fidelity.py`；
+- 语料新增 `word-002-page-settings.docx`；
+- 全量测试：1669 passed。
+
 ## [5.8.14] - 未发布
 
 > P1：PPT 多系列图表 + 表格样式写入 PPTX。

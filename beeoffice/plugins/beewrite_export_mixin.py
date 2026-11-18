@@ -873,6 +873,27 @@ class ExportMixin:
                 section.orientation = WD_ORIENT.LANDSCAPE
             else:
                 section.orientation = WD_ORIENT.PORTRAIT
+
+            # 分栏 / 行号
+            from docx.oxml import OxmlElement
+            from docx.oxml.ns import qn
+            sectPr = section._sectPr
+            cols = max(1, min(4, int(page_settings.get("columns", 1) or 1)))
+            cols_el = sectPr.find(qn("w:cols"))
+            if cols_el is None:
+                cols_el = OxmlElement("w:cols")
+                sectPr.append(cols_el)
+            cols_el.set(qn("w:num"), str(cols))
+            cols_el.set(qn("w:space"), "720")
+            old_ln = sectPr.find(qn("w:lnNumType"))
+            if page_settings.get("line_numbers"):
+                if old_ln is None:
+                    old_ln = OxmlElement("w:lnNumType")
+                    sectPr.append(old_ln)
+                old_ln.set(qn("w:countBy"), "1")
+                old_ln.set(qn("w:restart"), "continuous")
+            elif old_ln is not None:
+                sectPr.remove(old_ln)
         except Exception as e:
             logging.warning(tr("auto.beewrite_export_mixin.42a3bd4e", "应用页面设置失败（使用默认值）: {e}").format(e=e))
 

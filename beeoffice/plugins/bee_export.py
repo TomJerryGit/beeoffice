@@ -602,6 +602,53 @@ def read_docx_header_footer(docx_path):
         return {}
 
 
+def read_docx_page_settings(docx_path):
+    """读取 DOCX 页面/分栏/行号设置，返回编辑器 page_settings 片段。"""
+    if not HAS_DOCX:
+        return {}
+    try:
+        doc = Document(docx_path)
+        sec = doc.sections[0]
+        width = float(sec.page_width.mm) if sec.page_width else 210.0
+        height = float(sec.page_height.mm) if sec.page_height else 297.0
+        orientation = "landscape" if width > height else "portrait"
+        paper = "A4"
+        for name, (pw, ph) in {
+            "A4": (210, 297), "A3": (297, 420), "A5": (148, 210),
+            "Letter": (215.9, 279.4), "Legal": (215.9, 355.6),
+        }.items():
+            if abs(width - pw) < 2 and abs(height - ph) < 2:
+                paper = name
+                break
+            if abs(width - ph) < 2 and abs(height - pw) < 2:
+                paper = name
+                break
+        cols = 1
+        line_numbers = False
+        try:
+            from docx.oxml.ns import qn
+            sectPr = sec._sectPr
+            cols_el = sectPr.find(qn("w:cols"))
+            if cols_el is not None:
+                cols = int(cols_el.get(qn("w:num")) or 1)
+            line_numbers = sectPr.find(qn("w:lnNumType")) is not None
+        except Exception:
+            pass
+        return {
+            "paper": paper,
+            "orientation": orientation,
+            "margin_top": float(sec.top_margin.mm) if sec.top_margin else 25.4,
+            "margin_bottom": float(sec.bottom_margin.mm) if sec.bottom_margin else 25.4,
+            "margin_left": float(sec.left_margin.mm) if sec.left_margin else 31.7,
+            "margin_right": float(sec.right_margin.mm) if sec.right_margin else 31.7,
+            "columns": max(1, min(4, cols)),
+            "line_numbers": bool(line_numbers),
+        }
+    except Exception as e:
+        logging.error(f"读取 DOCX 页面设置失败: {e}")
+        return {}
+
+
 def import_from_docx(docx_path):
     """
     从 DOCX 文件导入为 Markdown
