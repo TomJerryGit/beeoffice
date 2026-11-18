@@ -46,7 +46,7 @@ import logging
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableWidget, QTableWidgetItem, QTextEdit, QCheckBox,
-    QSpinBox, QDialogButtonBox, QMessageBox, QHeaderView,
+    QSpinBox, QDialogButtonBox, QMessageBox, QHeaderView, QLineEdit,
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
@@ -112,6 +112,23 @@ class TableEditorDialog(QDialog):
         top_bar.addWidget(self._header_check)
 
         layout.addLayout(top_bar)
+
+        # ===== 表格样式 =====
+        style_bar = QHBoxLayout()
+        style_bar.addWidget(QLabel("表头色:"))
+        self._header_color = QLineEdit("#FFF3E0")
+        self._header_color.setMaximumWidth(80)
+        style_bar.addWidget(self._header_color)
+        style_bar.addWidget(QLabel("边框色:"))
+        self._border_color = QLineEdit("#DDDDDD")
+        self._border_color.setMaximumWidth(80)
+        style_bar.addWidget(self._border_color)
+        self._zebra_check = QCheckBox("斑马纹")
+        style_bar.addWidget(self._zebra_check)
+        self._use_style_check = QCheckBox("应用样式")
+        style_bar.addWidget(self._use_style_check)
+        style_bar.addStretch()
+        layout.addLayout(style_bar)
 
         # ===== 中部：表格 =====
         self._table = QTableWidget()
@@ -380,6 +397,39 @@ class TableEditorDialog(QDialog):
         """返回二维列表"""
         return self._get_grid()
 
+    def get_style(self) -> dict:
+        return {
+            "header": self._header_color.text().strip() or "#FFF3E0",
+            "border": self._border_color.text().strip() or "#DDDDDD",
+            "zebra": self._zebra_check.isChecked(),
+        }
+
+    def _build_styled_html(self) -> str:
+        from html import escape
+        rows = self._get_grid()
+        if not rows:
+            return ""
+        style = self.get_style()
+        out = ['<table style="border-collapse:collapse;width:100%;">']
+        for i, row in enumerate(rows):
+            out.append("<tr>")
+            for cell in row:
+                bg = style["header"] if i == 0 else (
+                    "#F7F7F7" if style["zebra"] and i % 2 == 0 else "transparent"
+                )
+                out.append(
+                    f'<td style="border:1px solid {style["border"]};padding:8px;'
+                    f'background:{bg};">{escape(str(cell))}</td>'
+                )
+            out.append("</tr>")
+        out.append("</table>")
+        return "".join(out)
+
+    def get_output_table(self) -> str:
+        if self._use_style_check.isChecked():
+            return self._build_styled_html()
+        return self._build_markdown()
+
     def has_header(self) -> bool:
         """返回是否含表头"""
         return self._header_check.isChecked()
@@ -414,7 +464,7 @@ class TableMixin:
         if dlg.exec() != QDialog.Accepted:
             return
 
-        md_table = dlg.get_markdown_table()
+        md_table = (dlg.get_output_table() if hasattr(dlg, "get_output_table") else dlg.get_markdown_table())
         if not md_table:
             return
 
@@ -513,7 +563,7 @@ class TableMixin:
         if dlg.exec() != QDialog.Accepted:
             return
 
-        md_table = dlg.get_markdown_table()
+        md_table = (dlg.get_output_table() if hasattr(dlg, "get_output_table") else dlg.get_markdown_table())
         if not md_table:
             return
 

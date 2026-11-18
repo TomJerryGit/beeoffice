@@ -120,6 +120,7 @@ class SlideMixin:
         self._slides_md = []           # P1-13：同步清空
         self._slide_animations = []
         self._native_shapes = []
+        self._native_charts = []
         self._speaker_notes = []
         self._slide_titles = []
 
@@ -135,7 +136,7 @@ class SlideMixin:
             # 负向前瞻放在 `<!--` 之后、`\s*` 之前，避免 `\s*` 回溯后又匹配上。
             nm = re.search(
                 r'<!--(?!\s*(?:comments:|beeoffice-style:|beeoffice-image:'
-                r'|morph-id:|beeoffice-shapes:|beeoffice-master:))\s*(.*?)\s*-->',
+                r'|morph-id:|beeoffice-shapes:|beeoffice-master:|beeoffice-chartobj:))\s*(.*?)\s*-->',
                 part,
                 re.DOTALL,
             )
@@ -154,6 +155,8 @@ class SlideMixin:
             source = part
             from beeoffice.plugins.beeshow_native_shapes import parse_shapes
             native_shapes, cleaned_part = parse_shapes(part)
+            from beeoffice.plugins.beeshow_native_chart import parse_charts
+            native_charts, cleaned_part = parse_charts(cleaned_part)
             from beeoffice.plugins.beeshow_animation import parse_animation
             anim_cfg, cleaned_part = parse_animation(cleaned_part)
 
@@ -174,6 +177,7 @@ class SlideMixin:
                 self._slides_md.append(source)    # P1-13：保留源文本（含特殊标记）
                 self._slide_animations.append(anim_cfg)
                 self._native_shapes.append(native_shapes)
+                self._native_charts.append(native_charts)
 
                 # 提取标题
                 title_match = re.search(
@@ -525,6 +529,9 @@ class SlideMixin:
             inner = self._slides_html[index]
             if index < len(getattr(self, '_native_shapes', [])):
                 inner += shapes_html(self._native_shapes[index])
+            if index < len(getattr(self, '_native_charts', [])):
+                from beeoffice.plugins.beeshow_native_chart import chart_html
+                inner += chart_html(self._native_charts[index])
             full_html = render_slide_html(
                 inner,
                 theme_css=theme['css'],
@@ -658,10 +665,8 @@ class SlideMixin:
             QDialog, QVBoxLayout, QComboBox, QPlainTextEdit,
             QDialogButtonBox, QLabel,
         )
-        from pathlib import Path
-        import tempfile, time
         dlg = QDialog(self)
-        dlg.setWindowTitle("插入图表")
+        dlg.setWindowTitle("插入原生图表")
         dlg.resize(460, 380)
         layout = QVBoxLayout(dlg)
         kind = QComboBox()
@@ -675,19 +680,31 @@ class SlideMixin:
         layout.addWidget(btns)
         if dlg.exec() != QDialog.Accepted:
             return
-        chart_type = {"柱状图": "bar", "折线图": "line", "饼图": "pie"}[kind.currentText()]
-        out = Path(tempfile.gettempdir()) / "beeoffice_charts" / f"chart_{int(time.time())}.png"
-        try:
-            from beeoffice.plugins.beeshow_chart import render_chart_png
-            path = render_chart_png(data.toPlainText(), chart_type, str(out))
-            cursor = self._editor.textCursor()
-            cursor.insertText(f"\n![]({path})\n")
-            self._editor.setTextCursor(cursor)
-            self._update_preview()
-            self._set_status("已插入图表", 2000)
-        except Exception as e:
-            from PySide6.QtWidgets import QMessageBox
-            QMessageBox.warning(self, "图表失败", str(e))
+        if not hasattr(self, "_native_charts"):
+            self._native_charts = []
+        while len(self._native_charts) <= self._current_slide:
+            self._native_charts.append([])
+        self._native_charts[self._current_slide].append({
+            "type": {"柱状图": "bar", "折线图": "line", "饼图": "pie"}[kind.currentText()],
+            "title": "BeeShow 图表",
+            "data": data.toPlainText(),
+        })
+        self._persist_native_charts_current()
+        self._set_status("已插入原生图表", 2000)
+
+    def _persist_native_charts_current(self):
+        from beeoffice.plugins.beeshow_native_chart import marker_for
+        import re as _re
+        idx = self._current_slide
+        while len(self._native_charts) <= idx:
+            self._native_charts.append([])
+        if isinstance(self._native_charts[idx], dict):
+            self._native_charts[idx] = [self._native_charts[idx]]
+        marker = marker_for(self._native_charts[idx])
+        md = _re.sub(r"<!--\s*beeoffice-chartobj:.*?-->", "", self._slides_md[idx], flags=_re.DOTALL).strip()
+        self._slides_md[idx] = (md + "\n" + marker).strip()
+        self._rebuild_editor_from_slides()
+        self._show_slide(idx)
 
     # ==================== 版式槽位绑定 ====================
     def _apply_layout_slots(self, layout_id, slots):
