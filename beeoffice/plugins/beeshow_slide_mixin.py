@@ -823,6 +823,91 @@ class SlideMixin:
             return True
         return False
 
+    def _align_native_shapes(self, indices, mode):
+        shapes = self._native_shapes[self._current_slide]
+        chosen = [shapes[i] for i in indices if 0 <= i < len(shapes)]
+        if len(chosen) < 2:
+            return False
+        left = min(float(s.get("x", 0)) for s in chosen)
+        right = max(float(s.get("x", 0)) + float(s.get("w", 30)) for s in chosen)
+        top = min(float(s.get("y", 0)) for s in chosen)
+        bottom = max(float(s.get("y", 0)) + float(s.get("h", 15)) for s in chosen)
+        cx = (left + right) / 2; cy = (top + bottom) / 2
+        for s in chosen:
+            if mode == "left": s["x"] = left
+            elif mode == "right": s["x"] = right - float(s.get("w", 30))
+            elif mode == "center": s["x"] = cx - float(s.get("w", 30)) / 2
+            elif mode == "top": s["y"] = top
+            elif mode == "bottom": s["y"] = bottom - float(s.get("h", 15))
+            elif mode == "middle": s["y"] = cy - float(s.get("h", 15)) / 2
+        self._persist_native_shapes_current()
+        return True
+
+    def _distribute_native_shapes(self, indices, axis="h"):
+        shapes = self._native_shapes[self._current_slide]
+        chosen = [(i, shapes[i]) for i in indices if 0 <= i < len(shapes)]
+        if len(chosen) < 3:
+            return False
+        key = (lambda p: float(p[1].get("x", 0))) if axis == "h" else (lambda p: float(p[1].get("y", 0)))
+        chosen.sort(key=key)
+        if axis == "h":
+            first = float(chosen[0][1].get("x", 0))
+            last = float(chosen[-1][1].get("x", 0)) + float(chosen[-1][1].get("w", 30))
+            total = sum(float(s.get("w", 30)) for _, s in chosen)
+            gap = (last - first - total) / (len(chosen) - 1)
+            pos = first
+            for _, s in chosen:
+                s["x"] = pos
+                pos += float(s.get("w", 30)) + gap
+        else:
+            first = float(chosen[0][1].get("y", 0))
+            last = float(chosen[-1][1].get("y", 0)) + float(chosen[-1][1].get("h", 15))
+            total = sum(float(s.get("h", 15)) for _, s in chosen)
+            gap = (last - first - total) / (len(chosen) - 1)
+            pos = first
+            for _, s in chosen:
+                s["y"] = pos
+                pos += float(s.get("h", 15)) + gap
+        self._persist_native_shapes_current()
+        return True
+
+    def _show_align_distribute_dialog(self):
+        from PySide6.QtWidgets import (
+            QDialog, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem,
+            QPushButton, QDialogButtonBox,
+        )
+        if not getattr(self, "_native_shapes", None) or not self._native_shapes[self._current_slide]:
+            return
+        shapes = self._native_shapes[self._current_slide]
+        dlg = QDialog(self)
+        dlg.setWindowTitle("对齐与分布")
+        layout = QVBoxLayout(dlg)
+        lst = QListWidget()
+        for i, s in enumerate(shapes):
+            item = QListWidgetItem(f"{i + 1}. {s.get('kind')} {s.get('text', '')[:20]}")
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked)
+            lst.addItem(item)
+        layout.addWidget(lst)
+        row1 = QHBoxLayout()
+        for label, mode in (("左对齐", "left"), ("水平居中", "center"), ("右对齐", "right")):
+            b = QPushButton(label); b.clicked.connect(lambda checked=False, m=mode: (self._align_native_shapes(self._checked_rows(lst), m), dlg.accept())); row1.addWidget(b)
+        row2 = QHBoxLayout()
+        for label, mode in (("顶端对齐", "top"), ("垂直居中", "middle"), ("底端对齐", "bottom")):
+            b = QPushButton(label); b.clicked.connect(lambda checked=False, m=mode: (self._align_native_shapes(self._checked_rows(lst), m), dlg.accept())); row2.addWidget(b)
+        row3 = QHBoxLayout()
+        for label, axis in (("水平等距分布", "h"), ("垂直等距分布", "v")):
+            b = QPushButton(label); b.clicked.connect(lambda checked=False, ax=axis: (self._distribute_native_shapes(self._checked_rows(lst), ax), dlg.accept())); row3.addWidget(b)
+        layout.addLayout(row1); layout.addLayout(row2); layout.addLayout(row3)
+        btns = QDialogButtonBox(QDialogButtonBox.Close)
+        btns.rejected.connect(dlg.reject)
+        layout.addWidget(btns)
+        dlg.exec()
+
+    @staticmethod
+    def _checked_rows(lst):
+        return [i for i in range(lst.count()) if lst.item(i).checkState() == Qt.Checked]
+
     def _show_shape_manager(self):
         from PySide6.QtWidgets import (
             QDialog, QVBoxLayout, QHBoxLayout, QListWidget, QPushButton,

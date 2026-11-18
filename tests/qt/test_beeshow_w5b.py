@@ -109,3 +109,18 @@ def test_smart_guides_js(qtbot):
     s._add_native_shape("ellipse")
     js = s._native_shape_js_for(0)
     assert "guideV" in js and "smart" in js and "others" in js
+
+
+def test_align_and_distribute_shapes(qtbot):
+    s = make_show(qtbot)
+    for _ in range(3):
+        s._add_native_shape("rect")
+    shapes = s._native_shapes[s._current_slide]
+    shapes[0].update({"x": 10, "y": 5, "w": 20, "h": 10})
+    shapes[1].update({"x": 40, "y": 20, "w": 20, "h": 10})
+    shapes[2].update({"x": 80, "y": 35, "w": 10, "h": 10})
+    assert s._align_native_shapes([0, 1, 2], "left") is True
+    assert len({sh["x"] for sh in shapes}) == 1
+    shapes[0].update({"x": 10}); shapes[1].update({"x": 40}); shapes[2].update({"x": 80})
+    assert s._distribute_native_shapes([0, 1, 2], "h") is True
+    assert shapes[1]["x"] > shapes[0]["x"]
