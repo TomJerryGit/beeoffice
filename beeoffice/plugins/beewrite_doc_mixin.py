@@ -289,6 +289,17 @@ class DocMixin:
             except Exception:
                 pass
             section.footer.paragraphs[0].text = footer
+        if meta.get("header_images"):
+            try:
+                section.header.is_linked_to_previous = False
+            except Exception:
+                pass
+        for img in meta.get("header_images", []) or []:
+            try:
+                if Path(img).is_file():
+                    section.header.paragraphs[0].add_run().add_picture(img)
+            except Exception:
+                pass
         if meta.get("different_first_page"):
             section.different_first_page_header_footer = True
             first = meta.get("header_first", "") or header

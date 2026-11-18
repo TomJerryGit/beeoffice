@@ -565,6 +565,45 @@ def export_to_pdf(content, output_path):
 
 
 # ==================== DOCX → Markdown ====================
+def read_docx_header_footer_images_by_section(docx_path, outdir=None):
+    """按节提取页眉/页脚图片，返回 [[path,...], ...]。"""
+    if not HAS_DOCX:
+        return []
+    try:
+        import re as _re
+        doc = Document(docx_path)
+        docx_p = Path(docx_path).resolve()
+        media_dir = Path(outdir) if outdir else docx_p.parent / (docx_p.stem + "_media_hf")
+        media_dir.mkdir(parents=True, exist_ok=True)
+        counter = [0]
+        result = []
+        for section in doc.sections:
+            paths = []
+            for container in (section.header, section.footer,
+                              getattr(section, "first_page_header", None),
+                              getattr(section, "first_page_footer", None),
+                              getattr(section, "even_page_header", None),
+                              getattr(section, "even_page_footer", None)):
+                if container is None:
+                    continue
+                try:
+                    for para in container.paragraphs:
+                        for md in _extract_para_images(para, doc, media_dir, counter, docx_p):
+                            m = _re.search(r"!\[[^\]]*\]\(([^)]+)\)", md)
+                            if m:
+                                raw = Path(m.group(1))
+                                for cand in (raw, docx_p.parent / raw, media_dir / raw.name):
+                                    if cand.is_file():
+                                        paths.append(str(cand.resolve())); break
+                except Exception:
+                    continue
+            result.append(paths)
+        return result
+    except Exception as e:
+        logging.error(f"按节提取页眉页脚图片失败: {e}")
+        return []
+
+
 def read_docx_header_footer_images(docx_path, outdir=None):
     """提取页眉/页脚图片，返回文件路径列表。"""
     if not HAS_DOCX:
@@ -884,6 +923,9 @@ def import_from_docx(docx_path, section_breaks=None):
                 inline_imgs = _extract_para_images(
                     para, doc, media_dir, img_counter, docx_p
                 )
+                for tb_text in _extract_textbox_texts(para):
+                    if tb_text != text:
+                        md_lines.append(tb_text)
                 if not text:
                     if inline_imgs:
                         for img_md in inline_imgs:
@@ -942,6 +984,27 @@ def import_from_docx(docx_path, section_breaks=None):
     except Exception as e:
         logging.error(f"DOCX 导入失败: {e}")
         raise
+
+
+def _extract_textbox_texts(para):
+    """提取段落内 Word 原生文本框文本。"""
+    try:
+        from xml.etree import ElementTree
+        xml = para._p.xml
+        if "wps:txbx" not in xml:
+            return []
+        root = ElementTree.fromstring(xml)
+        w = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+        wps = "{http://schemas.microsoft.com/office/word/2010/wordprocessingShape}"
+        texts = []
+        for txbx in root.iter(wps + "txbx"):
+            parts = [el.text or "" for el in txbx.iter(w + "t")]
+            text = "".join(parts).strip()
+            if text:
+                texts.append(text)
+        return texts
+    except Exception:
+        return []
 
 
 def _extract_para_images(para, doc, media_dir, img_counter, docx_p):

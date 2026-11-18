@@ -973,10 +973,29 @@ class ExportMixin:
         document = self.rich_editor.document()
         toc_written = False
         table_index = 0
+        textbox_frames = {}
+        try:
+            from PySide6.QtGui import QTextTable
+            for frame in document.rootFrame().childFrames():
+                if isinstance(frame, QTextTable):
+                    continue
+                textbox_frames[frame.firstPosition()] = frame
+        except Exception:
+            pass
         block = document.begin()
         while block.isValid():
             cursor = QTextCursor(block)
             table = cursor.currentTable()
+
+            # ---------- 文本框（原生 Word text box） ----------
+            try:
+                if block.position() in textbox_frames:
+                    frame = textbox_frames[block.position()]
+                    self._add_docx_textbox(doc, frame)
+                    block = document.findBlock(frame.lastPosition()).next()
+                    continue
+            except Exception as e:
+                logging.warning(f"文本框导出失败: {e}")
 
             # ---------- 表格 ----------
             if table:
@@ -1169,6 +1188,59 @@ class ExportMixin:
     # ==================================================================
     # 表格 → DOCX
     # ==================================================================
+    def _add_docx_textbox(self, doc, frame):
+        """把 QTextFrame 文本框导出为 Word 原生 wps:txbx。"""
+        from xml.sax.saxutils import escape
+        from docx.oxml import parse_xml
+        try:
+            cursor = frame.firstCursorPosition()
+            cursor.setPosition(frame.firstPosition())
+            cursor.setPosition(frame.lastPosition(), cursor.MoveMode.KeepAnchor)
+            text = cursor.selectedText().replace("\u2029", "\n")
+        except Exception:
+            text = ""
+        fmt = frame.format()
+        bg = "#FFF3E0"; border = "#E67E22"
+        try:
+            bg = fmt.background().color().name().lstrip("#").upper()
+        except Exception:
+            pass
+        try:
+            border = fmt.borderBrush().color().name().lstrip("#").upper()
+        except Exception:
+            pass
+        cx = 2743200; cy = 1371600
+        try:
+            raw = fmt.width().rawValue()
+            if raw and raw > 0:
+                cx = int(raw * 9525)
+        except Exception:
+            pass
+        uid = getattr(self, "_textbox_xml_id", 1)
+        self._textbox_xml_id = uid + 1
+        xml = (
+            '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+            'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
+            'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+            'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">'
+            '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">'
+            f'<wp:extent cx="{cx}" cy="{cy}"/><wp:docPr id="{uid}" name="TextBox {uid}"/>'
+            '<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">'
+            '<wps:wsp><wps:cNvSpPr txBox="1"/><wps:spPr>'
+            f'<a:xfrm><a:off x="0" y="0"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm>'
+            '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'
+            f'<a:solidFill><a:srgbClr val="{bg}"/></a:solidFill>'
+            f'<a:ln w="12700"><a:solidFill><a:srgbClr val="{border}"/></a:solidFill></a:ln>'
+            '</wps:spPr><wps:txbx><w:txbxContent><w:p><w:r><w:t xml:space="preserve">'
+            f'{escape(text)}</w:t></w:r></w:p></w:txbxContent></wps:txbx>'
+            '<wps:bodyPr rot="0" vertOverflow="overflow" horzOverflow="overflow" '
+            'vert="horz" wrap="square" lIns="91440" tIns="45720" rIns="91440" bIns="45720" '
+            'anchor="t" anchorCtr="0" upright="1"/>'
+            '</wps:wsp></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>'
+        )
+        body = doc.element.body
+        body.insert(len(body) - 1, parse_xml(xml))
+
     def _qtexttable_to_docx(self, doc, qtable, style=None):
         """
         将 QTextTable 转换为 python-docx 表格。
