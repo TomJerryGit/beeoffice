@@ -962,6 +962,11 @@ class DataMixin:
                 f"列{len(self.model._loaded_df.columns)+1}"
             ] = ''
             self.model._total_cols = len(self.model._loaded_df.columns)
+        from beeoffice.plugins.beesheet_dtype import ensure_column_dtype
+        for ci in range(sc, sc + (max((len(r) for r in data), default=0))):
+            if ci < len(self.model._loaded_df.columns):
+                ensure_column_dtype(self.model._loaded_df, self.model._loaded_df.columns[ci],
+                                    [row[ci - sc] for row in data if len(row) > ci - sc])
         for r, rd in enumerate(data):
             for c, cv in enumerate(rd):
                 ri, ci = sr + r, sc + c

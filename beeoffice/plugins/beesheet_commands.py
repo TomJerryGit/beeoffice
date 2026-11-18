@@ -23,6 +23,9 @@ class EditCellCommand:
     def execute(self, m):
         """执行：设置新值"""
         if self.r < len(m._loaded_df):
+            from beeoffice.plugins.beesheet_dtype import ensure_cell_dtype
+            if self.c < len(m._loaded_df.columns):
+                ensure_cell_dtype(m._loaded_df, m._loaded_df.columns[self.c], self.new)
             m._loaded_df.iloc[self.r, self.c] = self.new
             m.dataChanged.emit(
                 m.index(self.r, self.c),
@@ -32,6 +35,9 @@ class EditCellCommand:
     def undo(self, m):
         """撤销：恢复旧值"""
         if self.r < len(m._loaded_df):
+            from beeoffice.plugins.beesheet_dtype import ensure_cell_dtype
+            if self.c < len(m._loaded_df.columns):
+                ensure_cell_dtype(m._loaded_df, m._loaded_df.columns[self.c], self.old)
             m._loaded_df.iloc[self.r, self.c] = self.old
             m.dataChanged.emit(
                 m.index(self.r, self.c),

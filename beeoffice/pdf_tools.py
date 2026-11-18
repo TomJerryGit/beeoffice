@@ -228,8 +228,8 @@ def _overlay_pdf(src, out, draw) -> int:
         c.save()
         buf.seek(0)
         overlay_page = PdfReader(buf).pages[0]
-        page.merge_page(overlay_page)
         writer.add_page(page)
+        writer.pages[-1].merge_page(overlay_page)
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     with open(out, "wb") as f:
         writer.write(f)
@@ -273,8 +273,8 @@ def add_page_numbers(src, out, fmt="第 {page} 页", start=1,
         c = canvas.Canvas(buf, pagesize=(w, h))
         draw_page(c, w, h, i)
         c.save(); buf.seek(0)
-        page.merge_page(PdfReader(buf).pages[0])
         writer.add_page(page)
+        writer.pages[-1].merge_page(PdfReader(buf).pages[0])
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     with open(out, "wb") as f:
         writer.write(f)
@@ -297,8 +297,8 @@ def add_header_footer(src, out, header="", footer="", fontsize=9) -> dict:
         if footer:
             c.drawCentredString(w / 2, 24, footer)
         c.save(); buf.seek(0)
-        page.merge_page(PdfReader(buf).pages[0])
         writer.add_page(page)
+        writer.pages[-1].merge_page(PdfReader(buf).pages[0])
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     with open(out, "wb") as f:
         writer.write(f)

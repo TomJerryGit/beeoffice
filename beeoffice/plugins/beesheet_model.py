@@ -457,6 +457,11 @@ class SheetDataModel(QAbstractTableModel):
                 return False          # 属于未加载的分块，先滚动触发加载
             self._grow_to(r + 1)      # 工作区空白行：按需扩展数据
         value = self._coerce_value(c, value)
+        from beeoffice.plugins.beesheet_dtype import ensure_cell_dtype
+        if c < len(self._loaded_df.columns):
+            ensure_cell_dtype(self._loaded_df, self._loaded_df.columns[c], value)
+        if self._full_df is not None and c < len(self._full_df.columns):
+            ensure_cell_dtype(self._full_df, self._full_df.columns[c], value)
         self._loaded_df.iloc[r, c] = value
         if self._full_df is not None:
             self._full_df.iloc[r, c] = value

@@ -141,24 +141,30 @@ class LargeFileLoader(QThread):
         encoding = chardet.detect(raw).get('encoding', 'utf-8') or 'utf-8'
 
         total_rows = 0
-        for idx, chunk in enumerate(pd.read_csv(
+        reader = pd.read_csv(
             path,
             encoding=encoding,
             chunksize=self.chunk_size,
             low_memory=False,
             on_bad_lines='skip'
-        )):
-            # P0-15：每处理一块前检查中断
-            if self.isInterruptionRequested():
-                return
-
-            chunks.append(chunk)
-            total_rows += len(chunk)
-            self.chunk_ready.emit(chunk, idx, -1)
-            # 每 5 万行约 2% 进度
-            self.progress_updated.emit(
-                min(int(total_rows / 100000 * 2), 95)
-            )
+        )
+        try:
+            for idx, chunk in enumerate(reader):
+                # P0-15：每处理一块前检查中断
+                if self.isInterruptionRequested():
+                    return
+                chunks.append(chunk)
+                total_rows += len(chunk)
+                self.chunk_ready.emit(chunk, idx, -1)
+                # 每 5 万行约 2% 进度
+                self.progress_updated.emit(
+                    min(int(total_rows / 100000 * 2), 95)
+                )
+        finally:
+            try:
+                reader.close()
+            except Exception:
+                pass
 
     def _load_excel(self, path, chunks):
         """

@@ -373,7 +373,7 @@ def test_block_and_char_format_appliers(writer):
     cf.setFontItalic(True)
     cf.setFontUnderline(True)
     cf.setForeground(QColor("#FF0000"))
-    cf.setFontFamily("Arial")
+    cf.setFontFamilies(["Arial"])
     cf.setFontPointSize(14)
     run = doc.add_paragraph().add_run("x")
     writer._apply_char_format_to_run(run, cf)

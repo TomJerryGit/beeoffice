@@ -43,6 +43,19 @@
 - 页眉/页脚当前只出现在文档首尾，尚未按页重复；
 - 拼写检查为基础常见错误词典，不是完整词典。
 
+## [5.8.24] - 未发布
+
+> 质量治理：测试警告从 116 降至 1。
+
+### 质量
+- matplotlib 图表统一中文字体，消除缺字形警告；
+- pandas 单元格混合类型写入前转 object，消除 FutureWarning；
+- CSV 分块读取器 finally 关闭，消除 ResourceWarning；
+- pypdf 页面先加入 writer 再 merge，消除 replace_contents 弃用警告；
+- 测试改用 `setFontFamilies`；
+- pytest 移除全局 `--disable-warnings`，改为分类过滤并保留摘要；
+- 全量测试：1684 passed，1 warning（测试线程 GBK 解码，待查）。
+
 ## [5.8.23] - 未发布
 
 > 质量修复：图表中文字体警告。

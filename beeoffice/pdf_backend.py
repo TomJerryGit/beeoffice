@@ -423,8 +423,10 @@ class PypdfBackend(PdfBackend):
                     c.drawCentredString(0, 0, text)
                     c.restoreState()
 
-                page.merge_page(self._overlay_pdf(page, draw))
-            writer.add_page(page)
+                writer.add_page(page)
+                writer.pages[-1].merge_page(self._overlay_pdf(writer.pages[-1], draw))
+            else:
+                writer.add_page(page)
         out = Path(out)
         out.parent.mkdir(parents=True, exist_ok=True)
         with open(out, "wb") as f:
@@ -501,10 +503,12 @@ class PypdfBackend(PdfBackend):
             c.drawImage(str(img_path), left, h - top - ih,
                         width=iw, height=ih, mask="auto")
 
-        target.merge_page(self._overlay_pdf(target, draw))
         writer = PdfWriter()
-        for p in reader.pages:
+        for idx, p in enumerate(reader.pages):
             writer.add_page(p)
+            if idx == int(page) - 1:
+                target = writer.pages[-1]
+                target.merge_page(self._overlay_pdf(target, draw))
         out = Path(out)
         out.parent.mkdir(parents=True, exist_ok=True)
         with open(out, "wb") as f:
@@ -623,8 +627,10 @@ class PypdfBackend(PdfBackend):
                                    x1 - size * ux - size * 0.5 * uy,
                                    (hh - y1) - size * uy + size * 0.5 * ux)
 
-                page.merge_page(self._overlay_pdf(page, draw))
-            writer.add_page(page)
+                writer.add_page(page)
+                writer.pages[-1].merge_page(self._overlay_pdf(writer.pages[-1], draw))
+            else:
+                writer.add_page(page)
         out = Path(out)
         out.parent.mkdir(parents=True, exist_ok=True)
         with open(out, "wb") as f:
