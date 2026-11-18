@@ -178,3 +178,9 @@ build*/
 *.pfx
 *.cer
 _ptmp/signing/
+
+# 真实文档语料（含隐私，不入库）
+tests/corpus/raw/*
+!tests/corpus/raw/.gitkeep
+tests/corpus/reports/*
+!tests/corpus/reports/.gitkeep
