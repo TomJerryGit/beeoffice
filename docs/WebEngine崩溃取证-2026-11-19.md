@@ -18,6 +18,21 @@ Dump 目录：
 D:\beeofficeV\_ptmp\analysis\crashes
 ```
 
+## faulthandler 复现
+
+以 `python -X faulthandler -m pytest tests` 运行，其中一次崩溃栈：
+
+```text
+Windows fatal exception: code 0x80000003
+beeoffice/plugins/beeshow_slide_mixin.py:562 in _show_slide
+beeshow_slide_mixin.py:201 in _update_preview
+beeshow.py:479 in _apply_initial_content
+beeshow.py:112 in __init__
+tests/qt/test_app.py:107 in test_new_beeshow
+```
+
+说明崩溃集中在 QtWebEngine 渲染/加载路径，而不是普通业务代码。
+
 ## 已确认
 
 - Qt 86 个测试文件逐个隔离全部通过；
@@ -34,4 +49,7 @@ D:\beeofficeV\_ptmp\analysis\crashes
 
 ## 当前状态
 
-仅完成取证环境，**根因尚未修复**。
+- WER 服务被系统禁用且无管理员权限，无法生成 dump；
+- faulthandler 已把范围缩小到 `_show_slide` / WebEngine 加载；
+- Qt 86 文件逐个隔离全部通过；
+- **根因尚未修复**。
