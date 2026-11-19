@@ -25,3 +25,6 @@ def test_master_style_and_placeholder_metadata(qtbot, tmp_path):
     with patch("beeoffice.plugins.beeshow_export_mixin.QFileDialog.getSaveFileName", return_value=(str(out), "PowerPoint (*.pptx)")), patch("beeoffice.plugins.beeshow_export_mixin.QMessageBox.information", return_value=None), patch("beeoffice.plugins.beeshow_export_mixin.QMessageBox.warning", return_value=None):
         s._export_pptx()
     assert str(Presentation(str(out)).slides[0].background.fill.fore_color.rgb) == "1E88E5"
+    shapes = list(Presentation(str(out)).slides[0].shapes)
+    assert any(getattr(sh, "is_placeholder", False) for sh in shapes)
+    assert any("母版标题" in (getattr(sh, "text", "") or "") for sh in shapes)
