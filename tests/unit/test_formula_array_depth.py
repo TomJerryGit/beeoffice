@@ -29,3 +29,26 @@ def test_cross_sheet_array_arithmetic():
     m = _Model([[1]], {"S1": pd.DataFrame({"A": [10, 20], "B": [2, 3]})})
     assert FormulaEngine.evaluate("=SUM(S1!A1:A2*S1!B1:B2)", m) == 80.0
     assert FormulaEngine.evaluate("=AVERAGE(S1!A1:A2+S1!B1:B2)", m) == 17.5
+
+
+def test_dynamic_array_functions():
+    m = _Model([[1, 10], [2, 20], [3, 30]])
+    assert FormulaEngine.evaluate("=SEQUENCE(2,2)", m) == [[1.0, 2.0], [3.0, 4.0]]
+    assert FormulaEngine.evaluate("=FILTER(A1:B3,A1:A3>1)", m) == [[2.0, 20.0], [3.0, 30.0]]
+    assert FormulaEngine.evaluate("=SORT(A1:B3,2,-1)", m)[0] == [3.0, 30.0]
+    assert len(FormulaEngine.evaluate("=UNIQUE(A1:A3)", m)) == 3
+
+
+def test_array_constants():
+    m = _Model([[0]])
+    assert FormulaEngine.evaluate("={1,2;3,4}", m) == [[1.0, 2.0], [3.0, 4.0]]
+    assert FormulaEngine.evaluate("=SUM({1,2;3,4})", m) == 10.0
+
+
+def test_finance_and_percentile_functions():
+    m = _Model([[1], [2], [3]])
+    assert round(FormulaEngine.evaluate("=SYD(1000,100,5,1)", m), 2) == 300.0
+    assert FormulaEngine.evaluate("=PERCENTILE(A1:A3,0.5)", m) == 2.0
+    assert FormulaEngine.evaluate("=QUARTILE(A1:A3,2)", m) == 2.0
+    assert FormulaEngine.evaluate("=SIGN(-3)", m) == -1
+    assert FormulaEngine.evaluate("=CHAR(65)", m) == "A"

@@ -19,6 +19,21 @@ tests/unit/test_formula_array_depth.py  2 passed
 全量：1701 passed
 ```
 
+## 动态数组/数组常量/函数覆盖
+
+- FILTER/SORT/UNIQUE/SEQUENCE 返回二维数组；
+- 公式提交支持溢出到相邻单元格；
+- 支持数组常量 `{1,2;3,4}`；
+- 新增函数覆盖审计：`tools/formula_coverage_audit.py`；
+- 参考函数集 115/115 覆盖：财务/统计/文本/日期/查找/逻辑/动态数组/数学。
+
+新增测试：
+
+```text
+tests/unit/test_formula_array_depth.py  5 passed
+tests/qt/test_beesheet_spill.py  1 passed
+```
+
 ## 已知边界
 
 - 只有 SUM/AVERAGE/MAX/MIN 支持数组区间；

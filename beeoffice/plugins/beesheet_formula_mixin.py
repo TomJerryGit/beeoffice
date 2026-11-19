@@ -28,6 +28,36 @@ def _t():
 class FormulaMixin:
     """公式相关功能的 Mixin"""
 
+    # ==================== 动态数组溢出 ====================
+    def _apply_spill_result(self, row, col, result):
+        """把二维数组结果写入从 (row,col) 开始的区域。"""
+        matrix = result
+        if matrix and not isinstance(matrix[0], (list, tuple)):
+            matrix = [[v] for v in matrix]
+        matrix = [list(r) for r in matrix if isinstance(r, (list, tuple))]
+        if not matrix:
+            return False
+        urows, ucols = len(matrix), max(len(r) for r in matrix)
+        df = self.model._loaded_df
+        while row + urows > len(df):
+            df.loc[len(df)] = [None] * len(df.columns)
+        while col + ucols > len(df.columns):
+            df[f"列{len(df.columns) + 1}"] = ""
+        for ri, values in enumerate(matrix):
+            for ci, value in enumerate(values):
+                try:
+                    df.iloc[row + ri, col + ci] = value
+                except Exception:
+                    pass
+        try:
+            self.model.dataChanged.emit(
+                self.model.index(row, col),
+                self.model.index(row + urows - 1, col + ucols - 1),
+            )
+        except Exception:
+            pass
+        return True
+
     # ==================== 公式栏事件 ====================
     def _on_formula_enter(self):
         """公式栏回车：解析公式并写入单元格"""
@@ -40,7 +70,12 @@ class FormulaMixin:
 
         if value.startswith('='):
             result = FormulaEngine.evaluate(value, self.model)
-            if isinstance(result, (int, float)):
+            if isinstance(result, list):
+                self._formula_cells[key] = value
+                self._apply_spill_result(index.row(), index.column(), result)
+                self.formula_bar.setText(str(result[0][0] if result and isinstance(result[0], list) else result[0] if result else ""))
+                self._set_status(f"✅ {value} 已溢出 {len(result)} 行", 3000)
+            elif isinstance(result, (int, float)):
                 self._push_command(
                     EditCellCommand(index.row(), index.column(), old, result)
                 )
@@ -576,7 +611,10 @@ class FormulaMixin:
             for (r, c), formula in list(self._formula_cells.items()):
                 try:
                     result = FormulaEngine.evaluate(formula, self.model)
-                    if isinstance(result, (int, float)):
+                    if isinstance(result, list):
+                        if self._apply_spill_result(r, c, result):
+                            changed = True
+                    elif isinstance(result, (int, float)):
                         cur = self.model.get_value(r, c)
                         if str(cur) != str(result):
                             self.model._loaded_df.iloc[r, c] = result

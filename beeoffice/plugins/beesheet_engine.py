@@ -55,6 +55,10 @@ class FormulaEngine:
                 if upper == name.upper():
                     expr_stripped = ref.upper()
                     break
+        if expr_stripped.startswith("{") and expr_stripped.endswith("}"):
+            const = cls._array_constant(expr_stripped, model)
+            if const is not None:
+                return const
         if '!' in expr_stripped:
             return cls._eval_sheet_ref(expr_stripped, model)
         # v5.1 B1fix：\(.+\) → \((.*)\)，允许空参数（如 =SUM() / =XMATCH()）
@@ -215,6 +219,18 @@ class FormulaEngine:
 
     @classmethod
     def _func(cls, name, args, model):
+        if name in ("SUM", "AVERAGE", "MAX", "MIN") and args.strip().startswith("{"):
+            arr = cls._array_constant(args.strip(), model)
+            if arr is not None:
+                flat = [v for row in arr for v in row if isinstance(v, (int, float))]
+                if name == "SUM":
+                    return sum(flat)
+                if name == "AVERAGE":
+                    return sum(flat) / len(flat) if flat else "#DIV/0!"
+                if name == "MAX":
+                    return max(flat) if flat else "#VALUE!"
+                if name == "MIN":
+                    return min(flat) if flat else "#VALUE!"
         if name in ("SUM", "AVERAGE", "MAX", "MIN"):
             arr = cls._array_arithmetic(args, model)
             if arr is not None:
@@ -296,6 +312,171 @@ class FormulaEngine:
         return out
 
     @classmethod
+    def _syd(cls, a, m):
+        p = cls._args(a)
+        cost, salvage, life, per = [float(cls._av(x, m)) for x in p[:4]]
+        return (cost - salvage) * (life - per + 1) * 2 / (life * (life + 1))
+
+    @classmethod
+    def _ddb(cls, a, m):
+        p = cls._args(a)
+        cost, salvage, life = [float(cls._av(x, m)) for x in p[:3]]
+        period = int(cls._av(p[3], m))
+        factor = float(cls._av(p[4], m)) if len(p) > 4 else 2.0
+        book = cost; dep = 0.0
+        for _ in range(max(1, period)):
+            dep = min((book - salvage) * factor / life, book - salvage)
+            book -= dep
+        return dep
+
+    @classmethod
+    def _ipmt(cls, a, m):
+        p = cls._args(a)
+        rate, per, nper, pv = float(cls._av(p[0], m)), int(cls._av(p[1], m)), int(cls._av(p[2], m)), float(cls._av(p[3], m))
+        interest = pv * rate
+        for _ in range(per - 1):
+            principal = -cls._pmt(f"{rate},{nper},{pv}", m) - interest
+            pv -= principal
+            interest = pv * rate
+        return -interest
+
+    @classmethod
+    def _ppmt(cls, a, m):
+        pmt = cls._pmt(a, m)
+        return pmt - cls._ipmt(a, m)
+
+    @classmethod
+    def _percentile(cls, a, m):
+        p = cls._args(a)
+        vals = sorted(cls._vals(p[0], m))
+        if not vals:
+            return "#NUM!"
+        k = float(cls._av(p[1], m))
+        k = max(0.0, min(1.0, k))
+        pos = (len(vals) - 1) * k
+        lo = int(pos); hi = min(lo + 1, len(vals) - 1)
+        return vals[lo] + (vals[hi] - vals[lo]) * (pos - lo)
+
+    @classmethod
+    def _quartile(cls, a, m):
+        p = cls._args(a)
+        q = int(cls._av(p[1], m))
+        return cls._percentile(f"{p[0]},{q / 4}", m)
+
+    @classmethod
+    def _filter(cls, a, m):
+        p = cls._args(a)
+        if len(p) < 2:
+            return "#ERROR"
+        src = cls._range_matrix(p[0], m)
+        if src is None:
+            return "#ERROR"
+        cond = p[1].strip()
+        import re as _re
+        cm = _re.match(r'^\s*(.+?)\s*(>=|<=|<>|=|>|<)\s*(.+?)\s*$', cond)
+        if not cm:
+            return "#ERROR"
+        spec, op, rhs = cm.groups()
+        test = cls._range_matrix(spec, m)
+        if not test:
+            return "#ERROR"
+        if len(test) == 1 and len(test[0]) == len(src):
+            flags = test[0]
+        else:
+            flags = [row[0] for row in test]
+        try:
+            rhs_v = float(rhs.strip('"'))
+        except ValueError:
+            rhs_v = rhs.strip('"')
+        keep = []
+        for i, row in enumerate(src[:len(flags)]):
+            v = flags[i]
+            try:
+                ok = {"=": v == rhs_v, ">": v > rhs_v, "<": v < rhs_v,
+                      ">=": v >= rhs_v, "<=": v <= rhs_v, "<>": v != rhs_v}[op]
+            except TypeError:
+                ok = False
+            if ok:
+                keep.append(row)
+        if not keep and len(p) >= 3:
+            return [[cls._eval_arg(p[2], m)]]
+        return keep
+
+    @classmethod
+    def _sort(cls, a, m):
+        p = cls._args(a)
+        if not p:
+            return "#ERROR"
+        rows = cls._range_matrix(p[0], m)
+        if not rows:
+            return "#ERROR"
+        idx = 0
+        try:
+            idx = int(cls._av(p[1], m)) - 1 if len(p) > 1 else 0
+        except Exception:
+            idx = 0
+        order = 1
+        if len(p) > 2:
+            raw = p[2].upper()
+            if "DESC" in raw:
+                order = -1
+            elif raw.strip() in ("-1", "1"):
+                order = int(raw.strip())
+        return sorted(rows, key=lambda row: row[idx] if idx < len(row) else 0, reverse=order < 0)
+
+    @classmethod
+    def _unique(cls, a, m):
+        p = cls._args(a)
+        if not p:
+            return "#ERROR"
+        rows = cls._range_matrix(p[0], m)
+        if not rows:
+            return "#ERROR"
+        seen = [] ; out = []
+        for row in rows:
+            key = tuple(row)
+            if key not in seen:
+                seen.append(key); out.append(row)
+        return out
+
+    @classmethod
+    def _sequence(cls, a, m):
+        p = cls._args(a)
+        if not p:
+            return "#ERROR"
+        try:
+            rows = int(cls._av(p[0], m))
+            cols = int(cls._av(p[1], m)) if len(p) > 1 else 1
+            start = float(cls._av(p[2], m)) if len(p) > 2 else 1.0
+            step = float(cls._av(p[3], m)) if len(p) > 3 else 1.0
+        except Exception:
+            return "#ERROR"
+        rows = max(1, min(rows, 1000)); cols = max(1, min(cols, 100))
+        out = []; v = start
+        for _ in range(rows):
+            row = []
+            for _ in range(cols):
+                row.append(v); v += step
+            out.append(row)
+        return out
+
+    @classmethod
+    def _array_constant(cls, spec, model):
+        """解析 {1,2;3,4} 数组常量。"""
+        body = spec.strip()[1:-1]
+        rows = []
+        for part in body.split(";"):
+            row = []
+            for token in part.split(","):
+                token = token.strip()
+                try:
+                    row.append(float(token))
+                except ValueError:
+                    row.append(token.strip('"'))
+            rows.append(row)
+        return rows if rows else None
+
+    @classmethod
     def _get_all_functions(cls):
         return {
             'SUM': cls._sum, 'AVERAGE': cls._avg, 'MAX': cls._max, 'MIN': cls._min,
@@ -344,6 +525,25 @@ class FormulaEngine:
             'ISTEXT': cls._istext,
             'ISLOGICAL': cls._islogical,
             'ISERROR': cls._iserror,
+            'ABS': lambda a, m: abs(float(cls._av(a, m))),
+            'SQRT': lambda a, m: float(cls._av(a, m)) ** 0.5,
+            'EXP': lambda a, m: __import__('math').exp(float(cls._av(a, m))),
+            'LN': lambda a, m: __import__('math').log(float(cls._av(a, m))),
+            'LOG': lambda a, m: __import__('math').log(float(cls._av(a, m)), 10),
+            'SIGN': lambda a, m: (1 if float(cls._av(a, m)) > 0 else -1 if float(cls._av(a, m)) < 0 else 0),
+            'PI': lambda a, m: __import__('math').pi,
+            'CHAR': lambda a, m: chr(int(cls._av(a, m))),
+            'CODE': lambda a, m: ord(str(cls._av(a, m))[:1]) if str(cls._av(a, m)) else 0,
+            'CLEAN': lambda a, m: ''.join(ch for ch in str(cls._av(a, m)) if ord(ch) >= 32),
+            'DAYS': lambda a, m: (cls._parse_date(cls._eval_arg(cls._args(a)[0], m)) - cls._parse_date(cls._eval_arg(cls._args(a)[1], m))).days,
+            'ISOWEEKNUM': lambda a, m: cls._parse_date(cls._eval_arg(a, m)).isocalendar()[1],
+            'SYD': cls._syd, 'DDB': cls._ddb, 'IPMT': cls._ipmt, 'PPMT': cls._ppmt,
+            'PERCENTILE': cls._percentile, 'QUARTILE': cls._quartile,
+            # ---------- 动态数组 ----------
+            'FILTER': cls._filter,
+            'SORT': cls._sort,
+            'UNIQUE': cls._unique,
+            'SEQUENCE': cls._sequence,
         }
 
     @staticmethod
@@ -400,18 +600,22 @@ class FormulaEngine:
 
     @staticmethod
     def _args(s):
-        args, cur, d, q = [], "", False, 0
+        args, cur, d, q, br = [], "", False, 0, 0
         for c in s:
             if c == '"':
                 d = not d
                 cur += c
+            elif c == '{' and not d:
+                br += 1; cur += c
+            elif c == '}' and not d:
+                br -= 1; cur += c
             elif c == '(' and not d:
                 q += 1
                 cur += c
             elif c == ')' and not d:
                 q -= 1
                 cur += c
-            elif c == ',' and not d and q == 0:
+            elif c == ',' and not d and q == 0 and br == 0:
                 args.append(cur.strip())
                 cur = ""
             else:
