@@ -49,6 +49,9 @@ def export_xlsx_preserving_styles(src: str, df: pd.DataFrame, out: str,
             elif pd.isna(value):
                 value = None
             ws.cell(row=r, column=c, value=value)
+    # 公式列可能因 pandas 读取时没有缓存值而被丢弃，这里补写
+    for (r, c), formula in formulas.items():
+        ws.cell(row=r + 2, column=c + 1, value=formula)
     for rng in merged_ranges:
         ws.merge_cells(rng)
     # 保留 print_area / print_title / page setup 等由 openpyxl 原样保存

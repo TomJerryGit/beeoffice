@@ -301,6 +301,14 @@ class BeeShowView(
         except Exception as e:  # noqa: BLE001
             logging.warning(f"[蜜演] 原生图表/表格提取失败（已忽略）: {e}")
 
+        try:
+            from beeoffice.plugins.beeshow_pptx_extras import extract_extras
+            extras = extract_extras(path)
+            self._pptx_extras = extras
+            self._speaker_notes = [e.get("notes", "") for e in extras]
+        except Exception as e:  # noqa: BLE001
+            logging.warning(f"[蜜演] 切换/动画/备注提取失败（已忽略）: {e}")
+
         # ⚠️ 不设 _current_file_path：源文件是 .pptx，本编辑器**不能**写回它。
         # 保存时走"另存为"，用户自己选 .beshow 路径 —— 这条是数据安全红线。
         self._current_file_path = None
