@@ -1400,6 +1400,20 @@ class ExportMixin:
                 except Exception as e:
                     logging.warning(tr("auto.beewrite_export_mixin.411288e0", "处理单元格图片失败: {e}").format(e=e))
 
+        # ---------- 合并单元格 ----------
+        try:
+            for r in range(rows):
+                for c in range(cols):
+                    qcell = qtable.cellAt(r, c)
+                    rs = max(1, int(qcell.rowSpan()))
+                    cs = max(1, int(qcell.columnSpan()))
+                    if rs > 1 or cs > 1:
+                        doc_table.cell(r, c).merge(
+                            doc_table.cell(r + rs - 1, c + cs - 1)
+                        )
+        except Exception as e:
+            logging.debug(f"合并单元格导出失败: {e}")
+
         self._apply_docx_table_style(doc_table, style)
 
     def _apply_docx_table_style(self, doc_table, style):

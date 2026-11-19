@@ -1265,12 +1265,39 @@ def _para_to_md(para):
     return "".join(parts)
 
 
+def _flatten_nested_table(table, depth=0):
+    """把嵌套表格压成单元格内可读文本，保留内容而不是丢弃。"""
+    if depth > 2:
+        return ""
+    rows = []
+    for row in table.rows:
+        rows.append(" / ".join(cell.text.strip().replace("|", "\\|") for cell in row.cells))
+    return " <br> ".join(r for r in rows if r)
+
+
 def _docx_table_to_md(table):
-    """将 docx 表格转为 Markdown 表格"""
+    """将 docx 表格转为 Markdown 表格。
+
+    合并单元格：同一底层 tc 在 python-docx 的 row.cells 中会重复出现，
+    这里只保留左上角文本，其余置空，避免导入后内容重复。
+    嵌套表格：压平为单元格内文本（<br>），至少不丢内容。
+    """
     lines = []
+    seen = set()
     for ri, row in enumerate(table.rows):
-        cells = [cell.text.strip().replace("|", "\\|")
-                 for cell in row.cells]
+        cells = []
+        for cell in row.cells:
+            tc_id = id(cell._tc)
+            if tc_id in seen:
+                cells.append("")
+                continue
+            seen.add(tc_id)
+            text = cell.text.strip().replace("|", "\\|")
+            nested = [_flatten_nested_table(nt) for nt in getattr(cell, "tables", [])]
+            nested = [n for n in nested if n]
+            if nested:
+                text = (text + " <br> " if text else "") + " <br> ".join(nested)
+            cells.append(text)
         lines.append("| " + " | ".join(cells) + " |")
         if ri == 0:
             lines.append("|" + "|".join(["---"] * len(cells)) + "|")
