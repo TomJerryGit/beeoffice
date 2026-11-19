@@ -121,6 +121,8 @@ class ExportMixin:
                 output_path=path,
                 theme_css=theme["css"],
                 bg_color=bg_solid,
+                master_source=getattr(self, "_pptx_source_path", None),
+                layout_names=[s.get("layout", "") for s in (getattr(self, "_pptx_master_style", {}).get("slides", []) or [])],
             )
 
             if success:

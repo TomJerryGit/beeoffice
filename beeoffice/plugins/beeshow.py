@@ -275,6 +275,7 @@ class BeeShowView(
             )
             return False
 
+        self._pptx_source_path = str(path)
         self._editor.setPlainText(markdown)
         try:
             self._update_preview()

@@ -1031,6 +1031,8 @@ class PPTXGenerator:
         output_path: str,
         transitions: Optional[List[str]] = None,
         element_animations: Optional[List[dict]] = None,
+        master_source: Optional[str] = None,
+        layout_names: Optional[List[str]] = None,
     ) -> bool:
         """
         生成 PPTX 文件。
@@ -1045,15 +1047,30 @@ class PPTXGenerator:
             # 第十一批 F401 清理核实，将来用到会被 F821 门禁拦下）
             from pptx.util import Inches
 
-            prs = Presentation()
-            prs.slide_width = Inches(self.slide_width)
-            prs.slide_height = Inches(self.slide_height)
+            if master_source:
+                prs = Presentation(master_source)
+                # 移除源演示的所有 slide，只保留 master/layout/theme
+                sldIdLst = prs.slides._sldIdLst
+                for sldId in list(sldIdLst):
+                    try:
+                        prs.part.drop_rel(sldId.rId)
+                    except Exception:
+                        pass
+                    sldIdLst.remove(sldId)
+            else:
+                prs = Presentation()
+                prs.slide_width = Inches(self.slide_width)
+                prs.slide_height = Inches(self.slide_height)
 
-            # 空白布局（不用占位符，全部手动放）
-            blank_layout = prs.slide_layouts[6]
+            def _layout_for(index):
+                if master_source and layout_names and index < len(layout_names) and layout_names[index]:
+                    for layout in prs.slide_layouts:
+                        if layout.name == layout_names[index]:
+                            return layout
+                return prs.slide_layouts[6]
 
             for index, ms in enumerate(slides):
-                slide = prs.slides.add_slide(blank_layout)
+                slide = prs.slides.add_slide(_layout_for(index))
                 if transitions and index < len(transitions):
                     add_slide_transition(slide, transitions[index])
 
@@ -1351,6 +1368,8 @@ class PPTXEngine:
         base_dir: Optional[str] = None,
         transitions: Optional[List[str]] = None,
         element_animations: Optional[List[dict]] = None,
+        master_source: Optional[str] = None,
+        layout_names: Optional[List[str]] = None,
     ) -> bool:
         """
         执行导出。
@@ -1405,6 +1424,7 @@ class PPTXEngine:
         success = self.generator.generate(
             measured_slides, output_path, transitions=transitions,
             element_animations=element_animations,
+            master_source=master_source, layout_names=layout_names,
         )
         if not success:
             return False
