@@ -168,12 +168,64 @@ class ChartMixin:
         dlg.setAttribute(Qt.WA_DeleteOnClose)
         dlg.show()
 
+    # ==================== 原生 Excel 图表 ====================
+    def _selection_range(self):
+        indexes = self.table_view.selectionModel().selectedIndexes()
+        if not indexes:
+            return ""
+        from openpyxl.utils import get_column_letter
+        rows = [i.row() + 1 for i in indexes]
+        cols = [i.column() + 1 for i in indexes]
+        return f"{get_column_letter(min(cols))}{min(rows)}:{get_column_letter(max(cols))}{max(rows)}"
+
+    def _show_native_chart_dialog(self):
+        from PySide6.QtWidgets import (
+            QDialog, QVBoxLayout, QComboBox, QLineEdit, QLabel,
+            QDialogButtonBox,
+        )
+        rng = self._selection_range()
+        if not rng:
+            QMessageBox.information(self, "原生图表", "请先选中数据区域。")
+            return
+        dlg = QDialog(self); dlg.setWindowTitle("插入原生 Excel 图表")
+        layout = QVBoxLayout(dlg)
+        layout.addWidget(QLabel(f"数据区域：{rng}"))
+        kind = QComboBox(); kind.addItems(["柱状图", "折线图", "饼图"]); layout.addWidget(kind)
+        title = QLineEdit("BeeSheet 图表"); layout.addWidget(title)
+        anchor = QLineEdit("G2"); layout.addWidget(anchor)
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject); layout.addWidget(btns)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        specs = getattr(self, "_native_chart_specs", None)
+        if specs is None:
+            specs = []; self._native_chart_specs = specs
+        specs.append({
+            "sheet": getattr(self, "_current_sheet_name", "") or "",
+            "kind": {"柱状图": "bar", "折线图": "line", "饼图": "pie"}[kind.currentText()],
+            "title": title.text().strip() or "BeeSheet 图表",
+            "range": rng, "anchor": anchor.text().strip() or "G2", "created": True,
+        })
+        self._set_status("已加入原生图表，导出 XLSX 时写入", 2500)
+
     def _edit_chart_data_source(self):
-        """重新选择数据源并重新生成图表。"""
-        if not self.table_view.selectionModel().selection().indexes():
+        """更新原生图表的数据源（对已加入待导出的图表生效）。"""
+        specs = getattr(self, "_native_chart_specs", []) or []
+        if not specs:
+            QMessageBox.information(self, "图表", "没有可编辑的原生图表。请先插入原生图表。")
+            return
+        from PySide6.QtWidgets import QInputDialog
+        labels = [f"{i + 1}. {s.get('title', '')} {s.get('range', '')}" for i, s in enumerate(specs)]
+        label, ok = QInputDialog.getItem(self, "编辑图表数据源", "选择图表：", labels, 0, False)
+        if not ok:
+            return
+        idx = labels.index(label)
+        rng = self._selection_range()
+        if not rng:
             QMessageBox.information(self, "图表", "请先选中新的数据区域。")
             return
-        self._create_chart()
+        specs[idx]["range"] = rng
+        self._set_status(f"图表数据源已更新：{rng}", 2500)
 
     def _refresh_pivot_table(self):
         """重新打开透视表配置并生成新表。"""

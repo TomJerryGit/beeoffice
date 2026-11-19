@@ -451,6 +451,7 @@ class UIMixin:
         page_insert = add_page("插入")
         obj_group = add_group(page_insert, "对象")
         add_btn(obj_group, tr("auto.beesheet_ui_mixin.b1", "图表"), self._create_chart)
+        add_btn(obj_group, "原生图表", self._show_native_chart_dialog)
         add_btn(obj_group, tr("auto.beesheet_ui_mixin.b2", "透视表"), self._show_pivot_table)
         add_btn(obj_group, "编辑数据源", self._edit_chart_data_source)
         add_btn(obj_group, "刷新透视表", self._refresh_pivot_table)

@@ -73,6 +73,10 @@ class DataMixin:
             else:
                 from beeoffice.plugins.beesheet_xlsx_export import export_new_xlsx
                 export_new_xlsx(df, path)
+            specs = getattr(self, "_native_chart_specs", []) or []
+            if specs:
+                from beeoffice.plugins.beesheet_native_chart_export import apply_native_chart_specs
+                apply_native_chart_specs(path, specs)
             QMessageBox.information(self, tr("auto.beesheet_data_mixin.51991a5d", "成功"), tr("auto.beesheet_data_mixin.ec44b3f2", "已保存：\n{path}").format(path=path))
         except Exception as e:
             QMessageBox.warning(self, tr("auto.beesheet_data_mixin.3e3c8068", "失败"), str(e))
