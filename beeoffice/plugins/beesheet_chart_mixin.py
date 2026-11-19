@@ -225,6 +225,9 @@ class ChartMixin:
             QMessageBox.information(self, "图表", "请先选中新的数据区域。")
             return
         specs[idx]["range"] = rng
+        specs[idx]["modified"] = True
+        if not specs[idx].get("created"):
+            specs[idx]["has_header"] = True
         self._set_status(f"图表数据源已更新：{rng}", 2500)
 
     def _refresh_pivot_table(self):

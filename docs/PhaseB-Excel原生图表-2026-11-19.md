@@ -20,6 +20,19 @@ tests/unit/test_beesheet_native_chart.py  1 passed
 全量：1698 passed
 ```
 
+## 已有图表读取与编辑
+
+- 打开 xlsx 时读取图表类型/标题/数据源范围；
+- 编辑数据源后标记 `modified`；
+- 导出时更新原图表 series/category 引用；
+- 不新增重复图表。
+
+测试：
+
+```text
+tests/unit/test_beesheet_native_chart.py  2 passed
+```
+
 ## 已知边界
 
 - 只对本次会话新增的图表生效；

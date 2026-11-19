@@ -599,6 +599,11 @@ class BeeSheetView(
                 self._xlsx_formula_map = read_xlsx_formulas(path)
             except Exception:
                 self._xlsx_formula_map = {}
+            try:
+                from beeoffice.plugins.beesheet_native_chart_export import read_native_chart_specs
+                self._native_chart_specs = read_native_chart_specs(path)
+            except Exception:
+                self._native_chart_specs = []
         self.table_view.setModel(self.model)
         self._undo_stack.clear()
         self._redo_stack.clear()
