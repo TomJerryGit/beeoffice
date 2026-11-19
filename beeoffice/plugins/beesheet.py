@@ -202,6 +202,11 @@ class BeeSheetView(
         layout.addWidget(self.table_view)
         layout.addWidget(self._info_panel)
 
+        # 允许窗口缩到 1000px 触发 Ribbon 紧凑模式
+        self.setMinimumWidth(800)
+        if hasattr(self, "_ribbon"):
+            self._ribbon.setMinimumWidth(0)
+
     # ==================== 基础功能 ====================
     def _f2_edit(self):
         """F2：进入单元格编辑"""

@@ -23,6 +23,14 @@ import sys
 import tempfile
 from pathlib import Path
 
+# QtWebEngine 在 offscreen 全量累计执行时会触发 Chromium 多进程崩溃；
+# 测试统一使用单进程 WebEngine。仅影响 pytest，不影响打包应用。
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+os.environ.setdefault(
+    "QTWEBENGINE_CHROMIUM_FLAGS",
+    "--no-sandbox --disable-gpu --single-process --disable-dev-shm-usage",
+)
+
 import pytest
 
 # 确保项目根目录在 sys.path 里，便于 import beeoffice
