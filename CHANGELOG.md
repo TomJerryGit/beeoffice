@@ -43,6 +43,15 @@
 - 页眉/页脚当前只出现在文档首尾，尚未按页重复；
 - 拼写检查为基础常见错误词典，不是完整词典。
 
+## [5.8.37] - 未发布
+
+> Office 2016 VM 验收包。
+
+### 质量
+- 新增 `tools/office2016_vm_acceptance.ps1`；
+- 新增 `docs/Office2016-VM验收-2026-11-19.md`；
+- 本机无 Hyper-V/VMware/VirtualBox 与 Office 2016 介质，真实 VM 验收仍阻塞。
+
 ## [5.8.36] - 未发布
 
 > Office 2016 模拟兼容性测试。
