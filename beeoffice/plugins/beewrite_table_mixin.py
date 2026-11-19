@@ -957,6 +957,7 @@ class TableMixin:
         header = QLineEdit("#FFE0B2"); form.addRow("表头填充色", header)
         border = QLineEdit("#1E88E5"); form.addRow("边框颜色", border)
         zebra = QCheckBox("斑马纹"); form.addRow(zebra)
+        repeat_header = QCheckBox("首行跨页重复"); form.addRow(repeat_header)
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject)
         form.addRow(btns)
@@ -966,5 +967,6 @@ class TableMixin:
             "header_fill": header.text().strip() or "#FFE0B2",
             "border_color": border.text().strip() or "#1E88E5",
             "zebra": zebra.isChecked(),
+            "header_repeat": repeat_header.isChecked(),
         })
         self._set_status("表格样式已应用", 2000)

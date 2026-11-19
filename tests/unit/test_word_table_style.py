@@ -22,6 +22,9 @@ def make_styled_table(path):
         el.set(qn("w:space"), "0"); el.set(qn("w:color"), "1E88E5")
         borders.append(el)
     tblPr.append(borders)
+    trPr = table.rows[0]._tr.get_or_add_trPr()
+    trPr.append(OxmlElement("w:tblHeader"))
+    table.columns[0].width = __import__("docx").shared.Cm(4)
     doc.save(path)
 
 
@@ -32,6 +35,7 @@ def test_read_table_styles(tmp_path):
     assert len(styles) == 1
     assert styles[0]["header_fill"].upper() == "#FFE0B2"
     assert styles[0]["border_color"].upper() == "#1E88E5"
+    assert styles[0]["header_repeat"] is True
 
 
 def test_export_table_style(qtbot, tmp_path):
@@ -65,3 +69,15 @@ def test_table_style_panel_applies_and_exports(qtbot, tmp_path):
     doc = Document(str(out))
     shd = doc.tables[0].cell(0, 0)._tc.get_or_add_tcPr().find(qn("w:shd"))
     assert shd is not None and shd.get(qn("w:fill")).upper() == "FFCC80"
+
+
+def test_table_header_repeat_export(qtbot, tmp_path):
+    e = BeeWriteEditor(); qtbot.addWidget(e); e.show(); e._edit_mode = "rich_text"
+    cursor = e.rich_editor.textCursor()
+    table = cursor.insertTable(2, 2)
+    table.cellAt(0, 0).firstCursorPosition().insertText("A")
+    e._docx_table_styles = [{"header_repeat": True, "column_widths": [40], "zebra": False, "header_fill": "", "border_color": ""}]
+    out = tmp_path / "header-repeat.docx"
+    assert e._write_docx(str(out))
+    doc = Document(str(out))
+    assert doc.tables[0].rows[0]._tr.trPr.find(qn("w:tblHeader")) is not None

@@ -869,7 +869,8 @@ def read_docx_table_styles(docx_path):
         from docx.oxml.ns import qn
         styles = []
         for table in doc.tables:
-            style = {"style": "", "header_fill": "", "border_color": "", "zebra": False}
+            style = {"style": "", "header_fill": "", "border_color": "", "zebra": False,
+                     "header_repeat": False, "column_widths": [], "alignment": ""}
             try:
                 style["style"] = table.style.name if table.style else ""
             except Exception:
@@ -897,6 +898,19 @@ def read_docx_table_styles(docx_path):
                 if len(table.rows) > 2:
                     tcPr = table.rows[2].cells[0]._tc.get_or_add_tcPr()
                     style["zebra"] = tcPr.find(qn("w:shd")) is not None
+            except Exception:
+                pass
+            try:
+                trPr = table.rows[0]._tr.trPr
+                style["header_repeat"] = trPr is not None and trPr.find(qn("w:tblHeader")) is not None
+            except Exception:
+                pass
+            try:
+                style["column_widths"] = [round(col.width.mm, 2) for col in table.columns if col.width]
+            except Exception:
+                pass
+            try:
+                style["alignment"] = str(table.alignment) if table.alignment is not None else ""
             except Exception:
                 pass
             styles.append(style)

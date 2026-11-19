@@ -1414,6 +1414,31 @@ class ExportMixin:
         header = style.get("header_fill", "")
         border = style.get("border_color", "")
         zebra = bool(style.get("zebra", False))
+        if style.get("column_widths"):
+            try:
+                from docx.shared import Cm
+                for ci, width_mm in enumerate(style["column_widths"]):
+                    if ci < len(doc_table.columns) and width_mm:
+                        doc_table.columns[ci].width = Cm(float(width_mm) / 10.0)
+            except Exception:
+                pass
+        if style.get("header_repeat") and len(doc_table.rows):
+            try:
+                tr = doc_table.rows[0]._tr
+                trPr = tr.get_or_add_trPr()
+                if trPr.find(qn("w:tblHeader")) is None:
+                    trPr.append(OxmlElement("w:tblHeader"))
+            except Exception:
+                pass
+        if style.get("alignment"):
+            try:
+                from docx.enum.table import WD_TABLE_ALIGNMENT
+                if "CENTER" in style["alignment"].upper():
+                    doc_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+                elif "RIGHT" in style["alignment"].upper():
+                    doc_table.alignment = WD_TABLE_ALIGNMENT.RIGHT
+            except Exception:
+                pass
         if header:
             for cell in doc_table.rows[0].cells:
                 try:
