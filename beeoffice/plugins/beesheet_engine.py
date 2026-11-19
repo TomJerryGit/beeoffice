@@ -97,6 +97,11 @@ class FormulaEngine:
         if not hasattr(model, '_get_sheet_data'):
             raise ValueError("跨表引用不可用")
 
+        # 数组区间运算：SUM(S1!A1:A2*S1!B1:B2)
+        arr = re.match(r'^\s*(SUM|AVERAGE|MAX|MIN)\s*\((.*)\)\s*$', expr.strip(), re.IGNORECASE | re.DOTALL)
+        if arr and re.search(r"[+\-*/]", arr.group(2)):
+            return cls._func(arr.group(1).upper(), arr.group(2), model)
+
         # 查找类函数依赖"区域形状"，不能把 S1!A1:B3 压平成 "1,一,2,..."：
         # 压平会把一个区域拆成多个参数，导致列号参数拿到单元格内容
         # （历史上表现为 `int('一')` 直接抛错）。
@@ -210,6 +215,17 @@ class FormulaEngine:
 
     @classmethod
     def _func(cls, name, args, model):
+        if name in ("SUM", "AVERAGE", "MAX", "MIN"):
+            arr = cls._array_arithmetic(args, model)
+            if arr is not None:
+                flat = [v for row in arr for v in row]
+                if name == "SUM":
+                    return sum(flat)
+                if name == "AVERAGE":
+                    return sum(flat) / len(flat) if flat else "#DIV/0!"
+                if name == "MAX":
+                    return max(flat) if flat else "#VALUE!"
+                return min(flat) if flat else "#VALUE!"
         funcs = cls._get_all_functions()
         f = funcs.get(name)
         if f:
@@ -233,6 +249,51 @@ class FormulaEngine:
         if name in math_funcs:
             return math_funcs[name](args, model)
         return f"#ERROR: 未知函数 {name}"
+
+    @classmethod
+    def _range_matrix(cls, spec, model):
+        """把区域读成二维数值矩阵；支持跨表。"""
+        parsed = cls._sheet_range(spec, model)
+        if not parsed:
+            return None
+        r1, c1, r2, c2, getter = parsed
+        rows = []
+        for r in range(r1, r2 + 1):
+            row = []
+            for c in range(c1, c2 + 1):
+                try:
+                    row.append(float(getter(r, c)))
+                except (TypeError, ValueError):
+                    row.append(0.0)
+            rows.append(row)
+        return rows
+
+    @classmethod
+    def _array_arithmetic(cls, args, model):
+        """支持 SUM(A1:A3*B1:B3) 这类逐元素数组运算。"""
+        import re as _re
+        m = _re.fullmatch(r"\s*(.+?)\s*([+\-*/])\s*(.+?)\s*", args or "")
+        if not m:
+            return None
+        left_spec, op, right_spec = m.group(1), m.group(2), m.group(3)
+        if ":" not in left_spec or ":" not in right_spec:
+            return None
+        a = cls._range_matrix(left_spec, model)
+        b = cls._range_matrix(right_spec, model)
+        if not a or not b or len(a) != len(b):
+            return None
+        out = []
+        for ra, rb in zip(a, b):
+            if len(ra) != len(rb):
+                return None
+            row = []
+            for x, y in zip(ra, rb):
+                try:
+                    row.append({"+": x + y, "-": x - y, "*": x * y, "/": x / y}[op])
+                except ZeroDivisionError:
+                    row.append(float("inf"))
+            out.append(row)
+        return out
 
     @classmethod
     def _get_all_functions(cls):
