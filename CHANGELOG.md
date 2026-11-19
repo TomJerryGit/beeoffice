@@ -43,6 +43,25 @@
 - 页眉/页脚当前只出现在文档首尾，尚未按页重复；
 - 拼写检查为基础常见错误词典，不是完整词典。
 
+## [5.8.33] - 未发布
+
+> Phase A：签名/时间戳流水线与 MS Office 结构验收。
+
+### 发布信任
+- 新增 `tools/sign_release.ps1`；
+- signtool 签名 + RFC3161 时间戳验证可用（本地测试证书）；
+- 正式证书仍未采购。
+
+### Microsoft Office
+- 新增 `tools/ms_office_acceptance.ps1`；
+- Office 2007 打开验证：
+  - Word pages=12 tables=4
+  - Excel sheets=3 charts=1
+  - PPT slides=8 charts=1 tables=1
+
+### 质量
+- 仍以分段/按文件隔离作为测试门禁。
+
 ## [5.8.32] - 未发布
 
 > P1：`.beshow` 持久化源 PPTX 母版路径。
