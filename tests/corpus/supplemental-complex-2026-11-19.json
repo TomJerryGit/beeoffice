@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "updated": "2026-11-19",
+  "samples": [
+    {
+      "id": "word-complex-001",
+      "kind": "word",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\15_医疗健康_门诊病历_Word.docx",
+      "hash_sha256": "b92314c98f7894afd82c8cae626cc51750504ced45b5542e5ec2ad29069bcbd1",
+      "tags": [
+        "real",
+        "table",
+        "footer"
+      ],
+      "source": "existing-fidelity-corpus"
+    },
+    {
+      "id": "word-complex-002",
+      "kind": "word",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\16_政务公共服务_办事事项指南_Word.docx",
+      "hash_sha256": "eafaabf3ea29d7a5c02d7d224472e3986f2b9582229f7cb77dfbf01c0f092918",
+      "tags": [
+        "real",
+        "table",
+        "footer"
+      ],
+      "source": "existing-fidelity-corpus"
+    },
+    {
+      "id": "word-complex-003",
+      "kind": "word",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\17_质量控制_产品检验报告_Word.docx",
+      "hash_sha256": "f468b9049a6aba2b28bc03a784b5d559188b2a971ec770883b49fb78f12634b5",
+      "tags": [
+        "real",
+        "table",
+        "footer"
+      ],
+      "source": "existing-fidelity-corpus"
+    },
+    {
+      "id": "word-complex-004",
+      "kind": "word",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\18_项目管理_项目周报_Word.docx",
+      "hash_sha256": "1489b9edbe7af47f23ac12111000e9442ce04f4afde24d1c9a7095417d9aebd6",
+      "tags": [
+        "real",
+        "table",
+        "footer"
+      ],
+      "source": "existing-fidelity-corpus"
+    },
+    {
+      "id": "word-complex-005",
+      "kind": "word",
+      "status": "ready",
+      "synthetic": false,
+      "path": "D:\\beeofficeV\\tests\\fidelity\\corpus\\19_旅游行业_行程规划书_Word.docx",
+      "hash_sha256": "5018a8d860db2918e74e4f5735013f98ed6824657880a3bd905f715256836a00",
+      "tags": [
+        "real",
+        "table",
+        "footer"
+      ],
+      "source": "existing-fidelity-corpus"
+    }
+  ]
+}
