@@ -214,6 +214,22 @@
         "convert"
       ],
       "path": ""
+    },
+    {
+      "id": "excel-complex-001",
+      "kind": "excel",
+      "status": "ready",
+      "synthetic": true,
+      "path": "complex/复杂销售分析-2026-11-19.xlsx",
+      "hash_sha256": "c11546537e940dada2ccd771ecb7fbb72285cd24eec4cb95b43bea117f64aa0e",
+      "tags": [
+        "formula",
+        "conditional-format",
+        "chart",
+        "print-area",
+        "validation",
+        "multi-sheet"
+      ]
     }
   ]
 }

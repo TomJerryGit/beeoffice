@@ -139,6 +139,8 @@ class ExportMixin:
                     apply_native_tables(path, getattr(self, "_native_tables", []))
                     from beeoffice.plugins.beeshow_pptx_extras import apply_extras
                     apply_extras(path, getattr(self, "_pptx_extras", []))
+                    from beeoffice.plugins.beeshow_pptx_master import apply_master_style
+                    apply_master_style(path, getattr(self, "_pptx_master_style", {}))
                 except Exception as e:  # noqa: BLE001
                     logging.warning(f"写入 PPTX 过渡失败: {e}")
                 QMessageBox.information(
