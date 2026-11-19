@@ -43,6 +43,20 @@
 - 页眉/页脚当前只出现在文档首尾，尚未按页重复；
 - 拼写检查为基础常见错误词典，不是完整词典。
 
+## [5.8.34] - 未发布
+
+> Phase A：零成本签名路径与现代 Office 验收准备。
+
+### 发布信任
+- 新增 `CODE_SIGNING_POLICY.md`；
+- 新增 SignPath Foundation / Certum 开源证书评估；
+- 本地测试证书签名 + DigiCert 时间戳已验证；
+- 无预算时不建议自签名冒充公共信任。
+
+### Microsoft Office
+- Office 2007 结构验收通过；
+- 新增 Office 2016/2019/365 VM 验收清单。
+
 ## [5.8.33] - 未发布
 
 > Phase A：签名/时间戳流水线与 MS Office 结构验收。
