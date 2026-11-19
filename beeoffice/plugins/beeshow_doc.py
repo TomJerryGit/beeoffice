@@ -40,9 +40,11 @@ DECK_MARKER = "<!-- beeshow-deck v1 -->"
 KNOWN_MARKERS = (DECK_MARKER,)
 #: 排练计时元数据（Markdown 注释，渲染时忽略；2026-10-22 4.6）
 REHEARSAL_PREFIX = "<!-- beeshow-rehearsal:"
+#: 源 PPTX 路径元数据（用于恢复母版/版式基底）
+PPTX_SOURCE_PREFIX = "<!-- beeshow-pptx-source:"
 
 
-def serialize(text: str, rehearsal=None) -> str:
+def serialize(text: str, rehearsal=None, pptx_source=None) -> str:
     """
     把编辑器里的 Markdown 变成"要写盘的内容"（幂等：已有标记则不重复加）。
 
@@ -51,6 +53,12 @@ def serialize(text: str, rehearsal=None) -> str:
     """
     body = text or ""
     meta = ""
+    if pptx_source:
+        try:
+            payload = json.dumps({"path": str(pptx_source)}, ensure_ascii=False, separators=(",", ":"))
+            meta += f"{PPTX_SOURCE_PREFIX}{payload} -->\n"
+        except Exception:
+            pass
     if rehearsal:
         try:
             payload = json.dumps(
@@ -66,11 +74,39 @@ def serialize(text: str, rehearsal=None) -> str:
     if body.lstrip().startswith(KNOWN_MARKERS):
         # 已有 marker：把新 meta 插到 marker 行后（去重旧 meta）
         body = strip_rehearsal_meta(body)
+        body = strip_pptx_source_meta(body)
         first_newline = body.find("\n")
         if first_newline < 0:
             return body + "\n" + meta
         return body[:first_newline + 1] + meta + body[first_newline + 1:]
     return f"{DECK_MARKER}\n{meta}\n{body}"
+
+
+def strip_pptx_source_meta(text: str) -> str:
+    """去掉源 PPTX 路径元数据注释。"""
+    if not text:
+        return ""
+    lines = []
+    for line in str(text).splitlines(keepends=True):
+        if line.lstrip().startswith(PPTX_SOURCE_PREFIX):
+            continue
+        lines.append(line)
+    return "".join(lines)
+
+
+def load_pptx_source(path) -> str:
+    """读取 .beshow 中记录的源 PPTX 路径；没有则返回空串。"""
+    try:
+        raw = Path(path).read_text(encoding="utf-8")
+    except Exception:
+        return ""
+    match = re.search(re.escape(PPTX_SOURCE_PREFIX) + r"(.+?)\s*-->", raw, re.S)
+    if not match:
+        return ""
+    try:
+        return str(json.loads(match.group(1).strip()).get("path", ""))
+    except Exception:
+        return ""
 
 
 def strip_rehearsal_meta(text: str) -> str:
@@ -89,7 +125,7 @@ def strip_marker(text: str) -> str:
     """去掉文稿标记 + 排练计时元数据，返回纯 Markdown（读入编辑器时用）。"""
     if not text:
         return ""
-    stripped = strip_rehearsal_meta(text).lstrip()
+    stripped = strip_pptx_source_meta(strip_rehearsal_meta(text)).lstrip()
     for marker in KNOWN_MARKERS:
         if stripped.startswith(marker):
             return stripped[len(marker):].lstrip("\r\n")
@@ -109,7 +145,7 @@ def is_deck_file(path) -> bool:
         return False
 
 
-def save_deck(path, text: str, rehearsal=None) -> bool:
+def save_deck(path, text: str, rehearsal=None, pptx_source=None) -> bool:
     """
     把文稿写入 `path`（**原子写**）。
 
@@ -122,7 +158,7 @@ def save_deck(path, text: str, rehearsal=None) -> bool:
         logging.error(f"[蜜演] 创建目录失败 {target.parent}: {e}")
         return False
 
-    payload = serialize(text, rehearsal=rehearsal)
+    payload = serialize(text, rehearsal=rehearsal, pptx_source=pptx_source)
     temp = target.with_suffix(target.suffix + ".tmp")
     try:
         temp.write_text(payload, encoding="utf-8")

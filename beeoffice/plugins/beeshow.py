@@ -173,6 +173,7 @@ class BeeShowView(
         if not beeshow_doc.save_deck(
             path, self.content(),
             rehearsal=getattr(self, "_rehearsal_page_seconds", None),
+            pptx_source=getattr(self, "_pptx_source_path", None),
         ):
             from PySide6.QtWidgets import QMessageBox
 
@@ -244,6 +245,14 @@ class BeeShowView(
         except Exception as e:  # noqa: BLE001
             logging.warning(f"[蜜演] 刷新预览失败（已忽略）: {e}")
         self._current_file_path = str(path)
+        source = beeshow_doc.load_pptx_source(path)
+        self._pptx_source_path = source or getattr(self, "_pptx_source_path", None)
+        if source:
+            try:
+                from beeoffice.plugins.beeshow_pptx_master import extract_master_style
+                self._pptx_master_style = extract_master_style(source)
+            except Exception:
+                pass
         self._sync_tab_title(str(path))
         try:
             self._rehearsal_page_seconds = beeshow_doc.load_rehearsal(path)
