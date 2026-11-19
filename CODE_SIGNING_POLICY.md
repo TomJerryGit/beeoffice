@@ -1,8 +1,26 @@
 # Code Signing Policy
 
+**Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).**
+
 Project: BeeOffice  
 License: MIT  
 Repository: https://github.com/TomJerryGit/beeoffice
+
+## Team roles
+
+BeeOffice is currently maintained by a single maintainer:
+
+- Authors/Committers: repository owner (`TomJerryGit`)
+- Reviewers: repository owner; external PRs must be reviewed before merge
+- Approvers: repository owner; each signing request must be manually approved
+
+All team members must use MFA for GitHub and SignPath access.
+
+## Privacy
+
+See [PRIVACY.md](PRIVACY.md). The application does not transfer user documents
+to networked services unless the user explicitly enables/configures an online
+service (e.g. AI provider, cloud sync, update check).
 
 ## Policy
 

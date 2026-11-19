@@ -43,6 +43,16 @@
 - 页眉/页脚当前只出现在文档首尾，尚未按页重复；
 - 拼写检查为基础常见错误词典，不是完整词典。
 
+## [5.8.35] - 未发布
+
+> Release preparation：SignPath 申请材料与隐私政策。
+
+### 发布信任
+- `CODE_SIGNING_POLICY.md` 补齐 SignPath 要求（角色/隐私/政策声明）；
+- 新增 `PRIVACY.md`；
+- 新增 `docs/SignPath-申请包-2026-11-19.md`；
+- 正式 Release v5.8.34 已创建。
+
 ## [5.8.34] - 未发布
 
 > Phase A：零成本签名路径与现代 Office 验收准备。
