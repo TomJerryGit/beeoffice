@@ -121,6 +121,7 @@ class SlideMixin:
         self._slide_animations = []
         self._native_shapes = []
         self._native_charts = []
+        self._native_tables = []
         self._table_styles = []
         self._speaker_notes = []
         self._slide_titles = []
@@ -137,7 +138,7 @@ class SlideMixin:
             # 负向前瞻放在 `<!--` 之后、`\s*` 之前，避免 `\s*` 回溯后又匹配上。
             nm = re.search(
                 r'<!--(?!\s*(?:comments:|beeoffice-style:|beeoffice-image:'
-                r'|morph-id:|beeoffice-shapes:|beeoffice-master:|beeoffice-chartobj:|beeoffice-table-style:))\s*(.*?)\s*-->',
+                r'|morph-id:|beeoffice-shapes:|beeoffice-master:|beeoffice-chartobj:|beeoffice-tableobj:|beeoffice-table-style:))\s*(.*?)\s*-->',
                 part,
                 re.DOTALL,
             )
@@ -158,6 +159,8 @@ class SlideMixin:
             native_shapes, cleaned_part = parse_shapes(part)
             from beeoffice.plugins.beeshow_native_chart import parse_charts
             native_charts, cleaned_part = parse_charts(cleaned_part)
+            from beeoffice.plugins.beeshow_native_table import parse_tables
+            native_tables, cleaned_part = parse_tables(cleaned_part)
             from beeoffice.plugins.beeshow_pptx_table_style import parse_table_style
             table_style, cleaned_part = parse_table_style(cleaned_part)
             from beeoffice.plugins.beeshow_animation import parse_animation
@@ -181,6 +184,7 @@ class SlideMixin:
                 self._slide_animations.append(anim_cfg)
                 self._native_shapes.append(native_shapes)
                 self._native_charts.append(native_charts)
+                self._native_tables.append(native_tables)
                 self._table_styles.append(table_style)
 
                 # 提取标题
@@ -536,6 +540,9 @@ class SlideMixin:
             if index < len(getattr(self, '_native_charts', [])):
                 from beeoffice.plugins.beeshow_native_chart import chart_html
                 inner += chart_html(self._native_charts[index])
+            if index < len(getattr(self, '_native_tables', [])):
+                from beeoffice.plugins.beeshow_native_table import table_html
+                inner += table_html(self._native_tables[index])
             full_html = render_slide_html(
                 inner,
                 theme_css=theme['css'],

@@ -52,7 +52,7 @@ def apply_native_charts(pptx_path: str, configs) -> int:
     from pptx import Presentation
     from pptx.chart.data import CategoryChartData
     from pptx.enum.chart import XL_CHART_TYPE
-    from pptx.util import Inches
+    from pptx.util import Emu, Inches
 
     prs = Presentation(pptx_path)
     count = 0
@@ -72,10 +72,16 @@ def apply_native_charts(pptx_path: str, configs) -> int:
             data.categories = labels
             for name, values in series:
                 data.add_series(str(name), values)
-            left = Inches(1.0 + i * 0.2)
-            top = Inches(1.5 + i * 0.2)
-            width = Inches(8.0)
-            height = Inches(4.5)
+            if cfg.get("left") is not None:
+                left = Emu(int(cfg.get("left")))
+                top = Emu(int(cfg.get("top")))
+                width = Emu(int(cfg.get("width")))
+                height = Emu(int(cfg.get("height")))
+            else:
+                left = Inches(1.0 + i * 0.2)
+                top = Inches(1.5 + i * 0.2)
+                width = Inches(8.0)
+                height = Inches(4.5)
             gf = slide.shapes.add_chart(xl, left, top, width, height, data)
             gf.chart.has_title = True
             gf.chart.chart_title.text_frame.text = cfg.get("title", "BeeShow 图表")

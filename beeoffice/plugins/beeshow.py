@@ -281,6 +281,26 @@ class BeeShowView(
         except Exception as e:  # noqa: BLE001
             logging.warning(f"[蜜演] 刷新预览失败（已忽略）: {e}")
 
+        # P0：保留 PPTX 原生图表/表格，导出时重建
+        try:
+            from beeoffice.plugins.beeshow_pptx_objects import extract_native_objects
+            from beeoffice.plugins.beeshow_native_chart import marker_for as chart_marker
+            from beeoffice.plugins.beeshow_native_table import marker_for as table_marker
+            charts_by_slide, tables_by_slide = extract_native_objects(path)
+            self._native_charts = [list(x) for x in charts_by_slide]
+            self._native_tables = [list(x) for x in tables_by_slide]
+            for i in range(min(len(self._slides_md), len(charts_by_slide))):
+                md = self._slides_md[i]
+                for marker in (chart_marker(charts_by_slide[i]) if charts_by_slide[i] else "",
+                               table_marker(tables_by_slide[i]) if tables_by_slide[i] else ""):
+                    if marker and marker not in md:
+                        md = md.rstrip() + "\n" + marker
+                self._slides_md[i] = md
+            if hasattr(self, "_rebuild_editor_from_slides"):
+                self._rebuild_editor_from_slides()
+        except Exception as e:  # noqa: BLE001
+            logging.warning(f"[蜜演] 原生图表/表格提取失败（已忽略）: {e}")
+
         # ⚠️ 不设 _current_file_path：源文件是 .pptx，本编辑器**不能**写回它。
         # 保存时走"另存为"，用户自己选 .beshow 路径 —— 这条是数据安全红线。
         self._current_file_path = None

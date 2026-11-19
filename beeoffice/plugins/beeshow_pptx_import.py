@@ -150,10 +150,9 @@ def _count_unsupported(slide, content: SlideContent, result: PptxImport) -> None
             result.losses["图片"] = result.losses.get("图片", 0) + 1
         elif getattr(shape, "has_table", False):
             content.tables += 1
-            result.losses["表格"] = result.losses.get("表格", 0) + 1
+            # 表格/图表现在由 open_pptx 提取为原生对象并重建，不再记为丢失
         elif getattr(shape, "has_chart", False):
             content.charts += 1
-            result.losses["图表"] = result.losses.get("图表", 0) + 1
         elif shape_type == getattr(MSO_SHAPE_TYPE, "GROUP", None):
             result.losses["组合形状"] = result.losses.get("组合形状", 0) + 1
         elif shape_type in (
