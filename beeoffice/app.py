@@ -624,6 +624,11 @@ class BeeApp(QMainWindow):
                     widget._apply_imported_sections(docx_sections)
                 except Exception as e:
                     logging.error(f"恢复 DOCX 分节失败: {e}")
+            if hasattr(widget, "_apply_imported_toc_markers"):
+                try:
+                    widget._apply_imported_toc_markers()
+                except Exception as e:
+                    logging.error(f"恢复 DOCX TOC 域失败: {e}")
             # 恢复页眉/页脚/首页/奇偶页配置（P0 硬化）
             try:
                 from beeoffice.plugins.bee_export import read_docx_header_footer

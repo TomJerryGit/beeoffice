@@ -101,6 +101,22 @@ class DocMixin:
                 cursor.endEditBlock()
             block = block.next()
 
+    def _apply_imported_toc_markers(self):
+        from beeoffice.plugins.bee_export import TOC_MARKER
+        from PySide6.QtGui import QTextBlockFormat, QTextFormat, QTextCursor
+        block = self.rich_editor.document().begin()
+        while block.isValid():
+            if TOC_MARKER in block.text():
+                cursor = QTextCursor(block)
+                cursor.beginEditBlock()
+                cursor.select(QTextCursor.BlockUnderCursor)
+                cursor.removeSelectedText()
+                bf = QTextBlockFormat()
+                bf.setProperty(QTextFormat.UserProperty, 0xBEEF)
+                cursor.setBlockFormat(bf)
+                cursor.endEditBlock()
+            block = block.next()
+
     def _show_section_settings_dialog(self):
         from PySide6.QtWidgets import QInputDialog
         secs = getattr(self, "_section_page_settings", [])

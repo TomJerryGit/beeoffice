@@ -68,3 +68,20 @@ def test_excel_complex_fixture_roundtrip(tmp_path):
     assert len(list(ws2.conditional_formatting)) == 1
     assert len(ws2._charts) == 1
     assert ws2["D2"].value == "=B2-C2"
+
+
+def test_word_toc_import_export(qtbot, tmp_path):
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    from beeoffice.plugins.bee_export import import_from_docx, TOC_MARKER
+    src = tmp_path / "toc.docx"
+    d = Document(); d.add_heading("标题", level=1)
+    p = d.add_paragraph(); run = p.add_run()
+    fld = OxmlElement("w:fldSimple"); fld.set(qn("w:instr"), 'TOC \\o "1-3" \\h')
+    run._r.addnext(fld); d.save(src)
+    md = import_from_docx(str(src))
+    assert TOC_MARKER in md
+    e = BeeWriteEditor(); qtbot.addWidget(e); e.show(); e._edit_mode = "rich_text"
+    e.set_content(md); e._switch_mode("rich_text"); e._apply_imported_toc_markers()
+    out = tmp_path / "toc-out.docx"; assert e._write_docx(str(out))
+    assert "TOC" in Document(str(out)).element.body.xml

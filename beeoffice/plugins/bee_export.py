@@ -38,6 +38,7 @@ from pathlib import Path
 from beeoffice.i18n import tr
 
 SECTION_BREAK_MARKER = "〖BEEOFFICE_SECTION_BREAK〗"
+TOC_MARKER = "〖BEEOFFICE_TOC〗"
 
 # ==================== 可选依赖导入 ====================
 try:
@@ -905,6 +906,14 @@ def read_docx_table_styles(docx_path):
         return []
 
 
+def _paragraph_has_toc(para) -> bool:
+    try:
+        xml = para._p.xml
+        return "TOC \\o" in xml or "TOC \\h" in xml or 'instrText' in xml and "TOC" in xml
+    except Exception:
+        return False
+
+
 def import_from_docx(docx_path, section_breaks=None):
     """
     从 DOCX 文件导入为 Markdown
@@ -961,6 +970,11 @@ def import_from_docx(docx_path, section_breaks=None):
                 for tb_text in _extract_textbox_texts(para):
                     if tb_text != text:
                         md_lines.append(tb_text)
+                if _paragraph_has_toc(para):
+                    md_lines.append(TOC_MARKER)
+                    emit_break(para_idx)
+                    para_idx += 1
+                    continue
                 if not text:
                     if inline_imgs:
                         for img_md in inline_imgs:
