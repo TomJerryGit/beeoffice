@@ -29,11 +29,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 允许 Runner 执行本地脚本
+      - name: 使用自托管 Python
+        if: runner.environment != 'github-hosted'
         shell: powershell
-        run: Set-ExecutionPolicy -Scope CurrentUser Bypass -Force
+        run: |
+          python --version
+          python -c "import pandas, PySide6, openpyxl, docx, pptx; print('deps_ok')"
 
       - uses: actions/setup-python@v5
+        if: runner.environment == 'github-hosted'
         with:
           python-version: "3.11"
           cache: pip
@@ -69,11 +73,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 允许 Runner 执行本地脚本
+      - name: 使用自托管 Python
+        if: runner.environment != 'github-hosted'
         shell: powershell
-        run: Set-ExecutionPolicy -Scope CurrentUser Bypass -Force
+        run: |
+          python --version
+          python -c "import pandas, PySide6, openpyxl, docx, pptx; print('deps_ok')"
 
       - uses: actions/setup-python@v5
+        if: runner.environment == 'github-hosted'
         with:
           python-version: "3.11"
           cache: pip
