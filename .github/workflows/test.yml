@@ -15,7 +15,7 @@ env:
   PYTHONUTF8: "1"
   PYTHONIOENCODING: "utf-8"
   QT_QPA_PLATFORM: "offscreen"
-  QTWEBENGINE_CHROMIUM_FLAGS: "--no-sandbox --disable-gpu"
+  QTWEBENGINE_CHROMIUM_FLAGS: "--no-sandbox --disable-gpu --single-process --disable-dev-shm-usage"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -24,7 +24,7 @@ concurrency:
 jobs:
   fast:
     name: 快速回归（语法/公式/安全）
-    runs-on: windows-latest
+    runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -60,7 +60,7 @@ jobs:
 
   full:
     name: 全量测试（含 GUI，阻塞）
-    runs-on: windows-latest
+    runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4

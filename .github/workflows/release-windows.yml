@@ -15,6 +15,7 @@ env:
   PYTHONUTF8: "1"
   PYTHONIOENCODING: "utf-8"
   QT_QPA_PLATFORM: "offscreen"
+  QTWEBENGINE_CHROMIUM_FLAGS: "--no-sandbox --disable-gpu --single-process --disable-dev-shm-usage"
 
 jobs:
   build-windows:
