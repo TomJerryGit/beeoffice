@@ -112,6 +112,17 @@ from beeoffice.i18n import tr
 
 
 # ==================== 主编辑器 ====================
+def _safe_disconnect(signal):
+    """PySide6 6.12 对无连接信号 disconnect 会发 RuntimeWarning；清理阶段静默处理。"""
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        try:
+            signal.disconnect()
+        except Exception:
+            pass
+
+
 class BeeWriteEditor(
     ToolbarMixin,
     ModeMixin,
@@ -1042,11 +1053,11 @@ class BeeWriteEditor(
         try:
             if hasattr(self, "rich_editor"):
                 try:
-                    self.rich_editor.cursorPositionChanged.disconnect()
+                    _safe_disconnect(self.rich_editor.cursorPositionChanged)
                 except Exception:
                     pass
                 try:
-                    self.rich_editor.textChanged.disconnect()
+                    _safe_disconnect(self.rich_editor.textChanged)
                 except Exception:
                     pass
         except Exception as e:
@@ -1056,11 +1067,11 @@ class BeeWriteEditor(
         try:
             if hasattr(self, "markdown_editor"):
                 try:
-                    self.markdown_editor.textChanged.disconnect()
+                    _safe_disconnect(self.markdown_editor.textChanged)
                 except Exception:
                     pass
                 try:
-                    self.markdown_editor.cursorPositionChanged.disconnect()
+                    _safe_disconnect(self.markdown_editor.cursorPositionChanged)
                 except Exception:
                     pass
         except Exception as e:

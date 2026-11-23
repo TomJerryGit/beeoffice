@@ -45,6 +45,14 @@
 
 ## [5.8.47] - 未发布
 
+> 质量：PySide6 6.12 disconnect 警告清零。
+
+### BeeWrite
+- 关闭时安全断开信号，静默 PySide6 RuntimeWarning；
+- 全量测试：1709 passed，0 warnings。
+
+## [5.8.47] - 未发布
+
 > Phase B：Excel 图表样式/图例/坐标轴。
 
 ### BeeSheet
