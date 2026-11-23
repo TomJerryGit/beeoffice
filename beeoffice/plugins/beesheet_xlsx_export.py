@@ -4,6 +4,35 @@ from __future__ import annotations
 import pandas as pd
 
 
+def apply_data_validations(ws, validations=None):
+    """把 BeeSheet 数据验证写到 openpyxl 工作表。"""
+    from openpyxl.worksheet.datavalidation import DataValidation
+    from openpyxl.utils import get_column_letter
+    for spec in validations or []:
+        try:
+            r, c = int(spec["row"]), int(spec["col"])
+            cell = f"{get_column_letter(c + 1)}{r + 1}"
+            vtype = spec.get("type", "list")
+            if vtype == "list":
+                options = ",".join(str(x).replace(",", "，") for x in spec.get("options", []))
+                if not options:
+                    continue
+                dv = DataValidation(type="list", formula1=f'"{options}"', allow_blank=True)
+            elif vtype == "range":
+                lo, hi = spec.get("min"), spec.get("max")
+                dv = DataValidation(type="decimal", operator="between",
+                                    formula1=str(lo if lo is not None else ""),
+                                    formula2=str(hi if hi is not None else ""),
+                                    allow_blank=True)
+            else:
+                continue
+            ws.add_data_validation(dv)
+            dv.add(cell)
+        except Exception:
+            continue
+
+
+
 def read_xlsx_formulas(src: str) -> dict:
     """读取数据区公式：{(df_row, df_col): '=...'}。"""
     from openpyxl import load_workbook
@@ -23,7 +52,8 @@ def read_xlsx_formulas(src: str) -> dict:
 
 def export_xlsx_preserving_styles(src: str, df: pd.DataFrame, out: str,
                                   formulas: dict | None = None,
-                                  spill_cells: set | None = None) -> bool:
+                                  spill_cells: set | None = None,
+                                  validations: list | None = None) -> bool:
     """把 df 写回已有 xlsx，尽量保留工作表级设置与公式。"""
     from openpyxl import load_workbook
     from openpyxl.cell.cell import MergedCell
@@ -58,13 +88,15 @@ def export_xlsx_preserving_styles(src: str, df: pd.DataFrame, out: str,
         ws.cell(row=r + 2, column=c + 1, value=formula)
     for rng in merged_ranges:
         ws.merge_cells(rng)
+    apply_data_validations(ws, validations)
     # 保留 print_area / print_title / page setup 等由 openpyxl 原样保存
     wb.save(out)
     return True
 
 
 def export_new_xlsx(df, out: str, formulas: dict | None = None,
-                    spill_cells: set | None = None) -> bool:
+                    spill_cells: set | None = None,
+                    validations: list | None = None) -> bool:
     """全新表格导出：写入基础表头样式、边框、列宽、冻结和打印区域。"""
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -106,5 +138,6 @@ def export_new_xlsx(df, out: str, formulas: dict | None = None,
     if len(df.columns):
         ws.print_area = f"A1:{get_column_letter(len(df.columns))}{max(1, len(df) + 1)}"
     ws.page_setup.orientation = "landscape"
+    apply_data_validations(ws, validations)
     wb.save(out)
     return True

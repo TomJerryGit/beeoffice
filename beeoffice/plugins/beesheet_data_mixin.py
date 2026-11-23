@@ -71,18 +71,25 @@ class DataMixin:
                 for key in info.get("values", {}):
                     if key not in formula_map:
                         spill_cells.add(key)
+            validations = []
+            for (r, c), spec in (getattr(self, "_data_validations", {}) or {}).items():
+                if isinstance(spec, list):
+                    validations.append({"row": r, "col": c, "type": "list", "options": spec})
+                elif isinstance(spec, dict) and spec.get("_type") == "range":
+                    validations.append({"row": r, "col": c, "type": "range",
+                                        "min": spec.get("min"), "max": spec.get("max")})
             source = getattr(self, "_xlsx_source", None)
             if source and str(source).lower().endswith((".xlsx", ".xlsm")):
                 from beeoffice.plugins.beesheet_xlsx_export import export_xlsx_preserving_styles
                 try:
                     export_xlsx_preserving_styles(
-                        str(source), df, path, formula_map, spill_cells
+                        str(source), df, path, formula_map, spill_cells, validations
                     )
                 except Exception:
                     df.to_excel(path, index=False)
             else:
                 from beeoffice.plugins.beesheet_xlsx_export import export_new_xlsx
-                export_new_xlsx(df, path, formula_map, spill_cells)
+                export_new_xlsx(df, path, formula_map, spill_cells, validations)
             specs = getattr(self, "_native_chart_specs", []) or []
             if specs:
                 from beeoffice.plugins.beesheet_native_chart_export import apply_native_chart_specs

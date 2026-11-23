@@ -43,6 +43,16 @@
 - 页眉/页脚当前只出现在文档首尾，尚未按页重复；
 - 拼写检查为基础常见错误词典，不是完整词典。
 
+## [5.8.48] - 未发布
+
+> Phase B：Excel 数据验证导出。
+
+### BeeSheet
+- 下拉列表/数值范围验证随 XLSX 导出；
+- 新文件和已有文件导出都应用；
+- 新增 `tests/unit/test_beesheet_spill_export.py` 验证用例；
+- 全量测试：1710 passed。
+
 ## [5.8.47] - 未发布
 
 > 质量：PySide6 6.12 disconnect 警告清零。

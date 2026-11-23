@@ -16,3 +16,20 @@ def test_spill_values_not_written(tmp_path):
     assert ws["B2"].value is None
     assert ws["A3"].value is None
     assert ws["B3"].value is None
+
+
+def test_data_validations_export(tmp_path):
+    import pandas as pd
+    from openpyxl import load_workbook
+    from beeoffice.plugins.beesheet_xlsx_export import export_new_xlsx
+    out = tmp_path / "dv.xlsx"
+    df = pd.DataFrame({"A": ["北京", 5]})
+    validations = [
+        {"row": 0, "col": 0, "type": "list", "options": ["北京", "上海"]},
+        {"row": 1, "col": 0, "type": "range", "min": 0, "max": 10},
+    ]
+    assert export_new_xlsx(df, str(out), None, None, validations)
+    wb = load_workbook(out)
+    dvs = wb.active.data_validations.dataValidation
+    assert len(dvs) == 2
+    assert any("北京" in (dv.formula1 or "") for dv in dvs)
