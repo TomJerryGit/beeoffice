@@ -77,7 +77,7 @@ if ($IncludeCaches) {
   }
   $temp = Join-Path $env:LOCALAPPDATA "Temp"
   Get-ChildItem -LiteralPath $temp -Force -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -match '^(BeeOffice|_MEI|pyinstaller|pip-)' -or $_.Name -like 'tmp*' } |
+    Where-Object { $_.Name -match '^(BeeOffice|_MEI|pyinstaller|pip-)' } |
     ForEach-Object { Add-Action "temp" $_.FullName (Get-SizeMB $_.FullName) }
 }
 
