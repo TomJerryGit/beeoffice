@@ -16,6 +16,8 @@ env:
   PYTHONIOENCODING: "utf-8"
   QT_QPA_PLATFORM: "offscreen"
   QTWEBENGINE_CHROMIUM_FLAGS: "--no-sandbox --disable-gpu --single-process --disable-dev-shm-usage"
+  # 自托管 Runner 走 SSH，避免本机 GitHub HTTPS 网络阻断
+  GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL -o ConnectTimeout=20"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
