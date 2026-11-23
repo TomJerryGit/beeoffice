@@ -27,6 +27,12 @@ jobs:
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 20
     steps:
+      - name: 自托管 Runner 使用 SSH 拉取
+        if: runner.environment != 'github-hosted'
+        shell: powershell
+        run: |
+          git config --global url."git@github.com:".insteadOf "https://github.com/"
+
       - uses: actions/checkout@v4
 
       - name: 使用自托管 Python
@@ -71,6 +77,12 @@ jobs:
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 30
     steps:
+      - name: 自托管 Runner 使用 SSH 拉取
+        if: runner.environment != 'github-hosted'
+        shell: powershell
+        run: |
+          git config --global url."git@github.com:".insteadOf "https://github.com/"
+
       - uses: actions/checkout@v4
 
       - name: 使用自托管 Python
