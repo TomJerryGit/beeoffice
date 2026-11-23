@@ -181,7 +181,7 @@ class ChartMixin:
     def _show_native_chart_dialog(self):
         from PySide6.QtWidgets import (
             QDialog, QVBoxLayout, QComboBox, QLineEdit, QLabel,
-            QDialogButtonBox,
+            QDialogButtonBox, QSpinBox, QDoubleSpinBox,
         )
         rng = self._selection_range()
         if not rng:
@@ -193,6 +193,12 @@ class ChartMixin:
         kind = QComboBox(); kind.addItems(["柱状图", "折线图", "饼图"]); layout.addWidget(kind)
         title = QLineEdit("BeeSheet 图表"); layout.addWidget(title)
         anchor = QLineEdit("G2"); layout.addWidget(anchor)
+        legend = QComboBox(); legend.addItems(["right", "bottom", "top", "left", "none"]); layout.addWidget(legend)
+        style = QSpinBox(); style.setRange(1, 48); style.setValue(10); layout.addWidget(style)
+        x_label = QLineEdit(""); x_label.setPlaceholderText("X 轴标题（可空）"); layout.addWidget(x_label)
+        y_label = QLineEdit(""); y_label.setPlaceholderText("Y 轴标题（可空）"); layout.addWidget(y_label)
+        width = QDoubleSpinBox(); width.setRange(2, 30); width.setValue(10); layout.addWidget(width)
+        height = QDoubleSpinBox(); height.setRange(2, 20); height.setValue(6); layout.addWidget(height)
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         btns.accepted.connect(dlg.accept); btns.rejected.connect(dlg.reject); layout.addWidget(btns)
         if dlg.exec() != QDialog.Accepted:
@@ -205,6 +211,9 @@ class ChartMixin:
             "kind": {"柱状图": "bar", "折线图": "line", "饼图": "pie"}[kind.currentText()],
             "title": title.text().strip() or "BeeSheet 图表",
             "range": rng, "anchor": anchor.text().strip() or "G2", "created": True,
+            "legend": legend.currentText(), "style": style.value(),
+            "x_label": x_label.text().strip(), "y_label": y_label.text().strip(),
+            "width_cm": width.value(), "height_cm": height.value(),
         })
         self._set_status("已加入原生图表，导出 XLSX 时写入", 2500)
 

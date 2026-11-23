@@ -9,6 +9,45 @@ def _range_str(ws, start_col, start_row, end_col, end_row):
     return f"{get_column_letter(start_col)}{start_row}:{get_column_letter(end_col)}{end_row}"
 
 
+def _apply_chart_style(chart, spec, ws):
+    """应用标题/图例/坐标轴/样式/尺寸。"""
+    from openpyxl.chart.legend import Legend
+    from openpyxl.drawing.spreadsheet_drawing import AnchorMarker
+    chart.title = spec.get("title") or "BeeSheet 图表"
+    try:
+        style = int(spec.get("style", 10) or 10)
+        if 1 <= style <= 48:
+            chart.style = style
+    except Exception:
+        pass
+    legend = spec.get("legend", "right")
+    try:
+        if legend == "none":
+            chart.legend = None
+        else:
+            if chart.legend is None:
+                chart.legend = Legend()
+            pos = {"right": "r", "left": "l", "top": "t", "bottom": "b"}.get(legend, legend)
+            chart.legend.position = pos
+            chart.legend.overlay = False
+    except Exception:
+        pass
+    try:
+        if spec.get("x_label"):
+            chart.x_axis.title = spec["x_label"]
+        if spec.get("y_label"):
+            chart.y_axis.title = spec["y_label"]
+    except Exception:
+        pass
+    try:
+        if spec.get("width_cm"):
+            chart.width = float(spec["width_cm"])
+        if spec.get("height_cm"):
+            chart.height = float(spec["height_cm"])
+    except Exception:
+        pass
+
+
 def _update_chart_source(chart, ws, spec):
     """把现有 chart 的系列/分类引用更新到新范围。"""
     from openpyxl.utils import get_column_letter, range_boundaries
@@ -65,6 +104,7 @@ def apply_native_chart_specs(path: str, specs) -> int:
             idx = int(spec.get("chart_index", 0))
             if 0 <= idx < len(charts):
                 if _update_chart_source(charts[idx], ws, spec):
+                    _apply_chart_style(charts[idx], spec, ws)
                     count += 1
             continue
         data_range = spec.get("range") or ""
@@ -80,7 +120,6 @@ def apply_native_chart_specs(path: str, specs) -> int:
         data = Reference(ws, min_col=min_col, min_row=min_row, max_col=max_col, max_row=max_row)
         kind = spec.get("kind", "bar")
         chart = {"bar": BarChart, "line": LineChart, "pie": PieChart}.get(kind, BarChart)()
-        chart.title = spec.get("title") or "BeeSheet 图表"
         chart.add_data(data, titles_from_data=True)
         try:
             if max_col > min_col:
@@ -88,6 +127,7 @@ def apply_native_chart_specs(path: str, specs) -> int:
                 chart.set_categories(cats)
         except Exception:
             pass
+        _apply_chart_style(chart, spec, ws)
         ws.add_chart(chart, spec.get("anchor") or "G2")
         count += 1
     wb.save(str(path))

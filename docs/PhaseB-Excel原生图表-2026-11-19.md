@@ -33,6 +33,15 @@ tests/unit/test_beesheet_native_chart.py  1 passed
 tests/unit/test_beesheet_native_chart.py  2 passed
 ```
 
+## 图表样式/图例/坐标轴
+
+- 标题；
+- 图例位置 right/left/top/bottom/none；
+- 图表样式 1–48；
+- X/Y 轴标题；
+- 宽高；
+- 测试检查生成的 chart XML。
+
 ## 已知边界
 
 - 只对本次会话新增的图表生效；

@@ -49,3 +49,21 @@ def test_read_existing_chart_and_update_source(tmp_path):
     assert len(charts) == 1
     ref = charts[0].series[0].val.numRef.f
     assert "B2:B4" in ref.replace("$", "")
+
+
+def test_native_chart_style_axes(tmp_path):
+    p = tmp_path / "styled.xlsx"; make_workbook(p)
+    spec = {"sheet": "数据", "kind": "bar", "title": "销量图", "range": "A1:B4",
+            "anchor": "D2", "created": True, "style": 12, "legend": "bottom",
+            "x_label": "月份", "y_label": "销量", "width_cm": 12, "height_cm": 7}
+    assert apply_native_chart_specs(p, [spec]) == 1
+    chart = load_workbook(p)["数据"]._charts[0]
+    # openpyxl 读取端不暴露 <style>，直接检查 chart XML
+    import zipfile
+    with zipfile.ZipFile(p) as z:
+        xml = z.read([n for n in z.namelist() if n.startswith("xl/charts/chart")][0]).decode("utf-8")
+    assert '<style val="12"/>' in xml
+    assert '<legendPos val="b"/>' in xml
+    assert chart.legend is not None and chart.legend.position == "b"
+    assert chart.x_axis.title is not None
+    assert chart.y_axis.title is not None
