@@ -34,6 +34,17 @@ tests/unit/test_formula_array_depth.py  5 passed
 tests/qt/test_beesheet_spill.py  1 passed
 ```
 
+## #SPILL! 冲突检测
+
+- 溢出前检查目标区域；
+- 有内容则显示 `#SPILL!`，不覆盖；
+- 冲突解除后重算恢复；
+- 测试：
+
+```text
+tests/qt/test_beesheet_spill.py  3 passed
+```
+
 ## 已知边界
 
 - 只有 SUM/AVERAGE/MAX/MIN 支持数组区间；

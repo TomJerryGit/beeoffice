@@ -29,8 +29,54 @@ class FormulaMixin:
     """公式相关功能的 Mixin"""
 
     # ==================== 动态数组溢出 ====================
+    def _spill_state(self):
+        if not hasattr(self, "_spill_values"):
+            self._spill_values = {}
+        return self._spill_values
+
+    def _clear_spill(self, row, col):
+        state = self._spill_state()
+        info = state.pop((row, col), None)
+        if not info:
+            return
+        df = self.model._loaded_df
+        for (r, c), old in info.get("values", {}).items():
+            try:
+                if str(df.iloc[r, c]) == str(old):
+                    df.iloc[r, c] = None
+            except Exception:
+                pass
+        try:
+            self.model.dataChanged.emit(
+                self.model.index(row, col),
+                self.model.index(row + info["rows"] - 1, col + info["cols"] - 1),
+            )
+        except Exception:
+            pass
+
+    def _spill_conflict(self, row, col, matrix):
+        df = self.model._loaded_df
+        for ri, values in enumerate(matrix):
+            for ci in range(len(values)):
+                if ri == 0 and ci == 0:
+                    continue
+                r, c = row + ri, col + ci
+                if c >= len(df.columns):
+                    continue
+                if r >= len(df):
+                    continue
+                value = df.iloc[r, c]
+                try:
+                    if pd.isna(value):
+                        continue
+                except Exception:
+                    pass
+                if value is not None and str(value).strip() != "":
+                    return True
+        return False
+
     def _apply_spill_result(self, row, col, result):
-        """把二维数组结果写入从 (row,col) 开始的区域。"""
+        """把二维数组结果写入从 (row,col) 开始的区域；冲突时返回 #SPILL!。"""
         matrix = result
         if matrix and not isinstance(matrix[0], (list, tuple)):
             matrix = [[v] for v in matrix]
@@ -39,16 +85,27 @@ class FormulaMixin:
             return False
         urows, ucols = len(matrix), max(len(r) for r in matrix)
         df = self.model._loaded_df
+        self._clear_spill(row, col)
+        if self._spill_conflict(row, col, matrix):
+            try:
+                df.iloc[row, col] = "#SPILL!"
+            except Exception:
+                pass
+            self.model.dataChanged.emit(self.model.index(row, col), self.model.index(row, col))
+            return False
         while row + urows > len(df):
             df.loc[len(df)] = [None] * len(df.columns)
         while col + ucols > len(df.columns):
             df[f"列{len(df.columns) + 1}"] = ""
-        for ri, values in enumerate(matrix):
-            for ci, value in enumerate(values):
+        values = {}
+        for ri, values_row in enumerate(matrix):
+            for ci, value in enumerate(values_row):
                 try:
                     df.iloc[row + ri, col + ci] = value
+                    values[(row + ri, col + ci)] = value
                 except Exception:
                     pass
+        self._spill_state()[(row, col)] = {"rows": urows, "cols": ucols, "values": values}
         try:
             self.model.dataChanged.emit(
                 self.model.index(row, col),
@@ -71,10 +128,15 @@ class FormulaMixin:
         if value.startswith('='):
             result = FormulaEngine.evaluate(value, self.model)
             if isinstance(result, list):
+                self._clear_spill(index.row(), index.column())
                 self._formula_cells[key] = value
-                self._apply_spill_result(index.row(), index.column(), result)
-                self.formula_bar.setText(str(result[0][0] if result and isinstance(result[0], list) else result[0] if result else ""))
-                self._set_status(f"✅ {value} 已溢出 {len(result)} 行", 3000)
+                ok = self._apply_spill_result(index.row(), index.column(), result)
+                if ok:
+                    self.formula_bar.setText(str(result[0][0] if result and isinstance(result[0], list) else result[0] if result else ""))
+                    self._set_status(f"✅ {value} 已溢出 {len(result)} 行", 3000)
+                else:
+                    self.formula_bar.setText("#SPILL!")
+                    self._set_status("❌ 溢出区域与已有内容冲突（#SPILL!）", 5000)
             elif isinstance(result, (int, float)):
                 self._push_command(
                     EditCellCommand(index.row(), index.column(), old, result)
@@ -94,6 +156,7 @@ class FormulaMixin:
             self._push_command(
                 EditCellCommand(index.row(), index.column(), old, value)
             )
+            self._clear_spill(index.row(), index.column())
             self.model.setData(index, value)
             self._formula_cells.pop(key, None)
             self._recalc_formulas()
