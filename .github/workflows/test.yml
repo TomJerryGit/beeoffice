@@ -16,7 +16,7 @@ env:
   PYTHONIOENCODING: "utf-8"
   QT_QPA_PLATFORM: "offscreen"
   QTWEBENGINE_CHROMIUM_FLAGS: "--no-sandbox --disable-gpu --single-process --disable-dev-shm-usage"
-  GIT_SSH_COMMAND: 'ssh -i D:\actions-runner-beeoffice\ci_deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL -o ConnectTimeout=20' 
+  GIT_SSH_COMMAND: 'ssh -i D:/actions-runner-beeoffice/ci_deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL -o ConnectTimeout=20' 
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
