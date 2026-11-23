@@ -21,6 +21,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: cmd
+
 jobs:
   fast:
     name: 快速回归（语法/公式/安全）
@@ -29,15 +33,14 @@ jobs:
     steps:
       - name: 自托管 Runner 使用 SSH 拉取
         if: runner.environment != 'github-hosted'
-        shell: powershell
-        run: |
-          git config --global url."git@github.com:".insteadOf "https://github.com/"
+        shell: cmd
+        run: git config --global url."git@github.com:".insteadOf "https://github.com/"
 
       - uses: actions/checkout@v4
 
       - name: 使用自托管 Python
         if: runner.environment != 'github-hosted'
-        shell: powershell
+        shell: cmd
         run: |
           python --version
           python -c "import pandas, PySide6, openpyxl, docx, pptx; print('deps_ok')"
@@ -79,15 +82,14 @@ jobs:
     steps:
       - name: 自托管 Runner 使用 SSH 拉取
         if: runner.environment != 'github-hosted'
-        shell: powershell
-        run: |
-          git config --global url."git@github.com:".insteadOf "https://github.com/"
+        shell: cmd
+        run: git config --global url."git@github.com:".insteadOf "https://github.com/"
 
       - uses: actions/checkout@v4
 
       - name: 使用自托管 Python
         if: runner.environment != 'github-hosted'
-        shell: powershell
+        shell: cmd
         run: |
           python --version
           python -c "import pandas, PySide6, openpyxl, docx, pptx; print('deps_ok')"
