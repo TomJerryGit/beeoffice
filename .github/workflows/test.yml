@@ -53,6 +53,7 @@ jobs:
           cache: pip
 
       - name: 安装最小依赖
+        if: runner.environment == 'github-hosted'
         run: |
           python -m pip install --upgrade pip
           python -m pip install numpy pandas python-docx beautifulsoup4 markdown lxml pillow pytest
@@ -102,6 +103,7 @@ jobs:
           cache: pip
 
       - name: 安装全部依赖
+        if: runner.environment == 'github-hosted'
         run: |
           python -m pip install --upgrade pip
           python -m pip install --require-hashes -r requirements-dev.lock
