@@ -22,7 +22,8 @@ def read_xlsx_formulas(src: str) -> dict:
 
 
 def export_xlsx_preserving_styles(src: str, df: pd.DataFrame, out: str,
-                                  formulas: dict | None = None) -> bool:
+                                  formulas: dict | None = None,
+                                  spill_cells: set | None = None) -> bool:
     """把 df 写回已有 xlsx，尽量保留工作表级设置与公式。"""
     from openpyxl import load_workbook
     from openpyxl.cell.cell import MergedCell
@@ -41,11 +42,14 @@ def export_xlsx_preserving_styles(src: str, df: pd.DataFrame, out: str,
     for c, col in enumerate(df.columns, 1):
         ws.cell(row=1, column=c, value=str(col))
     formulas = formulas or {}
+    spill_cells = spill_cells or set()
     for r, row in enumerate(df.itertuples(index=False), 2):
         for c, value in enumerate(row, 1):
             formula = formulas.get((r - 2, c - 1))
             if formula:
                 value = formula
+            elif (r - 2, c - 1) in spill_cells:
+                value = None
             elif pd.isna(value):
                 value = None
             ws.cell(row=r, column=c, value=value)
@@ -59,7 +63,8 @@ def export_xlsx_preserving_styles(src: str, df: pd.DataFrame, out: str,
     return True
 
 
-def export_new_xlsx(df, out: str) -> bool:
+def export_new_xlsx(df, out: str, formulas: dict | None = None,
+                    spill_cells: set | None = None) -> bool:
     """全新表格导出：写入基础表头样式、边框、列宽、冻结和打印区域。"""
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -80,9 +85,16 @@ def export_new_xlsx(df, out: str) -> bool:
         cell.fill = header_fill
         cell.border = border
         cell.alignment = Alignment(horizontal="center")
+    formulas = formulas or {}
+    spill_cells = spill_cells or set()
     for r, row in enumerate(df.itertuples(index=False), 2):
         for c, value in enumerate(row, 1):
-            if pd.isna(value):
+            formula = formulas.get((r - 2, c - 1))
+            if formula:
+                value = formula
+            elif (r - 2, c - 1) in spill_cells:
+                value = None
+            elif pd.isna(value):
                 value = None
             cell = ws.cell(row=r, column=c, value=value)
             cell.border = border

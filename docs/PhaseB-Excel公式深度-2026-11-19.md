@@ -45,6 +45,13 @@ tests/qt/test_beesheet_spill.py  1 passed
 tests/qt/test_beesheet_spill.py  3 passed
 ```
 
+## 动态数组导出
+
+- 顶部单元格写公式；
+- 溢出区域不写过期值；
+- 新文件/已有文件导出都支持；
+- 测试：`tests/unit/test_beesheet_spill_export.py`
+
 ## 已知边界
 
 - 只有 SUM/AVERAGE/MAX/MIN 支持数组区间；

@@ -63,16 +63,26 @@ class DataMixin:
             return
         try:
             df = self._get_export_df()
+            formula_map = dict(getattr(self, "_xlsx_formula_map", {}) or {})
+            for (r, c), formula in (getattr(self, "_formula_cells", {}) or {}).items():
+                formula_map[(r, c)] = formula
+            spill_cells = set()
+            for info in (getattr(self, "_spill_values", {}) or {}).values():
+                for key in info.get("values", {}):
+                    if key not in formula_map:
+                        spill_cells.add(key)
             source = getattr(self, "_xlsx_source", None)
             if source and str(source).lower().endswith((".xlsx", ".xlsm")):
                 from beeoffice.plugins.beesheet_xlsx_export import export_xlsx_preserving_styles
                 try:
-                    export_xlsx_preserving_styles(str(source), df, path, getattr(self, "_xlsx_formula_map", {}))
+                    export_xlsx_preserving_styles(
+                        str(source), df, path, formula_map, spill_cells
+                    )
                 except Exception:
                     df.to_excel(path, index=False)
             else:
                 from beeoffice.plugins.beesheet_xlsx_export import export_new_xlsx
-                export_new_xlsx(df, path)
+                export_new_xlsx(df, path, formula_map, spill_cells)
             specs = getattr(self, "_native_chart_specs", []) or []
             if specs:
                 from beeoffice.plugins.beesheet_native_chart_export import apply_native_chart_specs
