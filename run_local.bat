@@ -37,7 +37,9 @@ if not exist "beeoffice\main.py" (
 
 REM ---------- select interpreter ----------
 set "PY="
-if exist ".venv\Scripts\python.exe" (
+if defined BEEOFFICE_VENV if exist "%BEEOFFICE_VENV%\Scripts\python.exe" set "PY=%BEEOFFICE_VENV%\Scripts\python.exe"
+if not defined PY if exist "..\ci-env\Scripts\python.exe" set "PY=..\ci-env\Scripts\python.exe"
+if not defined PY if exist ".venv\Scripts\python.exe" (
     set "PY=.venv\Scripts\python.exe"
 ) else if "%CREATE_VENV%"=="1" (
     echo [INFO] Creating .venv with Python 3.11...

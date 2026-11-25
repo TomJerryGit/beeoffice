@@ -43,6 +43,21 @@
 - 页眉/页脚当前只出现在文档首尾，尚未按页重复；
 - 拼写检查为基础常见错误词典，不是完整词典。
 
+## [5.8.49] - 未发布
+
+> Phase B：Excel 组合图 + 本地 venv 脚本。
+
+### BeeSheet
+- 原生图表新增组合图：柱状序列 + 折线次坐标轴；
+- 图表样式/图例/坐标轴继续生效；
+- 数据验证导出保留；
+- 全量测试：1711 passed。
+
+### 工程
+- `run_tests.bat` / `run_local.bat` 优先使用 `BEEOFFICE_VENV` 或 `..\ci-env`；
+- 新增 `build_local.bat`、`tools/package_release.py`；
+- 固定使用隔离 venv，避免共享 Python 被其他 Runner 污染。
+
 ## [5.8.48] - 未发布
 
 > Phase B：Excel 数据验证导出。

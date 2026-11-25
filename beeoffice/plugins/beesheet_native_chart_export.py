@@ -119,6 +119,22 @@ def apply_native_chart_specs(path: str, specs) -> int:
             continue
         data = Reference(ws, min_col=min_col, min_row=min_row, max_col=max_col, max_row=max_row)
         kind = spec.get("kind", "bar")
+        if kind == "combo" and max_col >= min_col + 2:
+            bar = BarChart()
+            bar.add_data(Reference(ws, min_col=min_col + 1, min_row=min_row, max_col=min_col + 1, max_row=max_row), titles_from_data=True)
+            line = LineChart()
+            line.add_data(Reference(ws, min_col=min_col + 2, min_row=min_row, max_col=max_col, max_row=max_row), titles_from_data=True)
+            cats = Reference(ws, min_col=min_col, min_row=min_row + 1, max_row=max_row)
+            bar.set_categories(cats); line.set_categories(cats)
+            line.y_axis.axId = 200
+            line.y_axis.title = spec.get("y2_label") or "次坐标轴"
+            line.y_axis.crosses = "max"
+            bar.y_axis.crosses = "autoZero"
+            bar += line
+            _apply_chart_style(bar, spec, ws)
+            ws.add_chart(bar, spec.get("anchor") or "G2")
+            count += 1
+            continue
         chart = {"bar": BarChart, "line": LineChart, "pie": PieChart}.get(kind, BarChart)()
         chart.add_data(data, titles_from_data=True)
         try:

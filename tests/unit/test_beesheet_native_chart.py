@@ -67,3 +67,21 @@ def test_native_chart_style_axes(tmp_path):
     assert chart.legend is not None and chart.legend.position == "b"
     assert chart.x_axis.title is not None
     assert chart.y_axis.title is not None
+
+
+def test_combo_chart(tmp_path):
+    import zipfile
+    from openpyxl import Workbook
+    from beeoffice.plugins.beesheet_native_chart_export import apply_native_chart_specs
+    p = tmp_path / "combo.xlsx"
+    wb = Workbook(); ws = wb.active; ws.title = "数据"
+    ws.append(["月份", "销量", "增长率"])
+    ws.append(["一月", 10, 0.1]); ws.append(["二月", 20, 0.2])
+    wb.save(p)
+    spec = {"sheet": "数据", "kind": "combo", "title": "组合图",
+            "range": "A1:C3", "anchor": "E2", "created": True}
+    assert apply_native_chart_specs(p, [spec]) == 1
+    with zipfile.ZipFile(p) as z:
+        xml = z.read([n for n in z.namelist() if n.startswith("xl/charts/chart")][0]).decode("utf-8")
+    assert "barChart" in xml and "lineChart" in xml
+    assert "<style" in xml

@@ -13,17 +13,25 @@ echo   BeeOffice Test Suite
 echo ============================================
 echo.
 
-where python >nul 2>nul
-if errorlevel 1 (
-    echo [ERROR] Python not found.
-    pause
-    exit /b 1
+set "PY="
+if defined BEEOFFICE_VENV if exist "%BEEOFFICE_VENV%\Scripts\python.exe" set "PY=%BEEOFFICE_VENV%\Scripts\python.exe"
+if not defined PY if exist ".venv\Scripts\python.exe" set "PY=.venv\Scripts\python.exe"
+if not defined PY if exist "..\ci-env\Scripts\python.exe" set "PY=..\ci-env\Scripts\python.exe"
+if not defined PY (
+    where python >nul 2>nul
+    if errorlevel 1 (
+        echo [ERROR] Python not found.
+        pause
+        exit /b 1
+    )
+    set "PY=python"
 )
 
-python -c "import pytest" >nul 2>nul
+echo [INFO] Python: %PY%
+"%PY%" -c "import pytest" >nul 2>nul
 if errorlevel 1 (
     echo [INFO] Installing dev dependencies...
-    python -m pip install -r requirements-dev.txt
+    "%PY%" -m pip install -r requirements-dev.txt
     if errorlevel 1 (
         echo [ERROR] Failed to install dev dependencies.
         pause
@@ -34,7 +42,7 @@ if errorlevel 1 (
 echo Running full test suite with coverage...
 echo.
 
-pytest tests/ ^
+"%PY%" -m pytest tests/ ^
     --cov=beeoffice ^
     --cov-report=term-missing:skip-covered ^
     --cov-report=xml ^
