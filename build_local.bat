@@ -4,6 +4,8 @@ REM  BeeOffice local build (uses isolated venv when present)
 REM ============================================================
 setlocal EnableExtensions
 cd /d "%~dp0"
+set "PYTHONUTF8=1"
+set "PYTHONIOENCODING=utf-8"
 
 set "PY="
 if defined BEEOFFICE_VENV if exist "%BEEOFFICE_VENV%\Scripts\python.exe" set "PY=%BEEOFFICE_VENV%\Scripts\python.exe"
