@@ -61,6 +61,9 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QApplication,
+    QLineEdit,
+    QDoubleSpinBox,
+    QCheckBox,
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import (
@@ -377,6 +380,26 @@ class TableMixin:
         cellpad_spin.setValue(table.format().cellPadding())
         form.addRow("单元格内边距:", cellpad_spin)
 
+        # ---------- 列宽 / 表格宽度 ----------
+        width_edit = QLineEdit()
+        width_edit.setPlaceholderText("列宽 cm，逗号分隔；留空=自动")
+        try:
+            cons = table.format().columnWidthConstraints()
+            if cons:
+                width_edit.setText(", ".join(f"{c.rawValue() * 2.54 / 96:.2f}" for c in cons))
+        except Exception:
+            pass
+        form.addRow("列宽(cm):", width_edit)
+        table_width = QDoubleSpinBox()
+        table_width.setRange(5.0, 40.0)
+        table_width.setDecimals(1)
+        table_width.setValue(16.0)
+        table_width.setSuffix(" cm")
+        form.addRow("表格宽度:", table_width)
+        equal_cols = QCheckBox("按表格宽度等分列宽")
+        equal_cols.setChecked(False)
+        form.addRow("", equal_cols)
+
         # ---------- 背景色 ----------
         bg_btn = QPushButton(tr("auto.beewrite_table_mixin.5bd1333a", "选择背景色"))
         bg_color = {"value": None}
@@ -414,6 +437,20 @@ class TableMixin:
             fmt.setCellPadding(cellpad_spin.value())
             if bg_color["value"]:
                 fmt.setBackground(bg_color["value"])
+            constraints = []
+            px = max(1.0, table_width.value() * 96 / 2.54)
+            if equal_cols.isChecked():
+                n = max(1, table.columns())
+                constraints = [QTextLength(QTextLength.FixedLength, px / n) for _ in range(n)]
+            elif width_edit.text().strip():
+                try:
+                    cm_values = [float(x.strip()) for x in width_edit.text().split(",") if x.strip()]
+                    constraints = [QTextLength(QTextLength.FixedLength, max(1.0, c * 96 / 2.54)) for c in cm_values]
+                except ValueError:
+                    QMessageBox.warning(dlg, "列宽", "列宽格式应为 cm 数字，逗号分隔")
+                    return
+            if constraints:
+                fmt.setColumnWidthConstraints(constraints)
             table.setFormat(fmt)
 
     # ==================================================================

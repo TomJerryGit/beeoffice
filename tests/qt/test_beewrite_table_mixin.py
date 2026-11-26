@@ -105,3 +105,34 @@ def test_markdown_table_wrappers(writer):
     assert parsed
     rendered = writer._render_md_table([["a", "b"], ["1", "2"]])
     assert "|" in rendered
+
+
+def test_table_column_drag_resize(writer, qtbot):
+    from PySide6.QtCore import QPoint
+    from PySide6.QtTest import QTest
+    ed = writer
+    ed.show()
+    qtbot.wait(100)
+    table = table_of(ed)
+    # 第二列首字符的 x 近似列边界
+    boundary = ed.rich_editor.cursorRect(table.cellAt(0, 1).firstCursorPosition()).left()
+    y = ed.rich_editor.cursorRect(table.cellAt(0, 0).firstCursorPosition()).center().y()
+    before = [c.rawValue() for c in table.format().columnWidthConstraints()]
+    vp = ed.rich_editor.viewport()
+    QTest.mousePress(vp, Qt.LeftButton, Qt.NoModifier, QPoint(boundary, y))
+    QTest.mouseMove(vp, QPoint(boundary + 60, y))
+    QTest.mouseRelease(vp, Qt.LeftButton, Qt.NoModifier, QPoint(boundary + 60, y))
+    after = [c.rawValue() for c in table.format().columnWidthConstraints()]
+    assert after and (not before or after[0] != before[0])
+
+def test_table_cell_is_editable(writer, qtbot):
+    from PySide6.QtCore import QPoint
+    from PySide6.QtTest import QTest
+    ed = writer
+    ed.show(); qtbot.wait(100)
+    table = table_of(ed)
+    pos = ed.rich_editor.cursorRect(table.cellAt(0, 0).firstCursorPosition()).center()
+    ed.rich_editor.setFocus()
+    QTest.mouseClick(ed.rich_editor.viewport(), Qt.LeftButton, Qt.NoModifier, pos)
+    QTest.keyClicks(ed.rich_editor, "Z")
+    assert "Z" in table.cellAt(0, 0).firstCursorPosition().block().text()

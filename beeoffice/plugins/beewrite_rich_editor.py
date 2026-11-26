@@ -99,6 +99,7 @@ from PySide6.QtGui import (
     QTextListFormat,
     QColor,
     QTextTableFormat,
+    QTextLength,
     QTextImageFormat,
     QImage,
 )
@@ -134,10 +135,86 @@ class RichTextEditor(QTextEdit):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAcceptRichText(True)
+        self.setReadOnly(False)
+        self.setTextInteractionFlags(Qt.TextEditorInteraction)
+        self._bee_resize = None
         self._current_file_dir = str(Path.home())
         self.apply_theme()
         # 光标移动时通知父窗口
         self.cursorPositionChanged.connect(self._notify_cursor_position)
+
+    # ==================== 表格列宽拖拽 ====================
+    def _table_col_boundary(self, pos):
+        """返回 (table, column, boundary_x) 或 None。"""
+        try:
+            cursor = self.cursorForPosition(pos)
+            table = cursor.currentTable()
+            if table is None or table.columns() < 2:
+                return None
+            cell = table.cellAt(cursor)
+            col = cell.column()
+            if col + 1 >= table.columns():
+                return None
+            boundary = self.cursorRect(table.cellAt(0, col + 1).firstCursorPosition()).left()
+            if abs(pos.x() - boundary) > 6:
+                return None
+            return table, col, boundary
+        except Exception:
+            return None
+
+    def _table_widths(self, table):
+        widths = []
+        for c in range(table.columns()):
+            try:
+                left = self.cursorRect(table.cellAt(0, c).firstCursorPosition()).left()
+                if c + 1 < table.columns():
+                    right = self.cursorRect(table.cellAt(0, c + 1).firstCursorPosition()).left()
+                    widths.append(max(20, right - left))
+                else:
+                    widths.append(max(20, 120))
+            except Exception:
+                widths.append(120)
+        return widths
+
+    def mousePressEvent(self, event):  # noqa: N802
+        if event.button() == Qt.LeftButton:
+            hit = self._table_col_boundary(event.position().toPoint())
+            if hit:
+                table, col, boundary = hit
+                self._bee_resize = {
+                    "table": table, "col": col, "start_x": event.position().x(),
+                    "widths": self._table_widths(table),
+                }
+                self.viewport().setCursor(Qt.SizeHorCursor)
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):  # noqa: N802
+        if self._bee_resize:
+            table = self._bee_resize["table"]
+            col = self._bee_resize["col"]
+            widths = list(self._bee_resize["widths"])
+            dx = event.position().x() - self._bee_resize["start_x"]
+            widths[col] = max(20, widths[col] + dx)
+            fmt = table.format()
+            fmt.setColumnWidthConstraints(
+                [QTextLength(QTextLength.FixedLength, w) for w in widths]
+            )
+            table.setFormat(fmt)
+            event.accept()
+            return
+        hit = self._table_col_boundary(event.position().toPoint())
+        self.viewport().setCursor(Qt.SizeHorCursor if hit else Qt.IBeamCursor)
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):  # noqa: N802
+        if self._bee_resize:
+            self._bee_resize = None
+            self.viewport().setCursor(Qt.IBeamCursor)
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
     def apply_theme(self):
         """根据当前主题（含高对比度）刷新编辑器内部样式。"""
