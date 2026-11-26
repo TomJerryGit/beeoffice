@@ -43,6 +43,22 @@
 - 页眉/页脚当前只出现在文档首尾，尚未按页重复；
 - 拼写检查为基础常见错误词典，不是完整词典。
 
+## [5.8.53] - 未发布
+
+> Phase B：Word 原生批注导出。
+
+### BeeWrite
+- 导出 DOCX 时写原生 `comments.xml`；
+- 正文插入 commentRangeStart/End + commentReference；
+- 有文本锚点按 excerpt 定位，无锚点挂到首个非空段落；
+- 新增 `tests/unit/test_word_docx_comments.py`；
+- 全量测试：1714 passed。
+
+### 边界
+- 修订（w:ins/w:del）仍未写入 DOCX；
+- 原生批注导入尚未回读；
+- 复杂跨段/跨 run 锚点仍按近似定位。
+
 ## [5.8.52] - 未发布
 
 > 打包运行：崩溃日志跟随可写缓存目录。

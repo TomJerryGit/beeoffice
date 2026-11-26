@@ -1112,6 +1112,15 @@ class ExportMixin:
         except Exception as e:
             logging.error(f"写入 Word 脚注/尾注失败: {e}")
 
+        # 批注：写入原生 comments.xml
+        try:
+            from beeoffice.plugins.beewrite_docx_comments import add_comments_to_document
+            comments = getattr(self, "_comment_manager", None)
+            if comments is not None:
+                add_comments_to_document(doc, comments.get_all())
+        except Exception as e:  # noqa: BLE001
+            logging.warning(f"写入 Word 批注失败: {e}")
+
         # 保存（若文件被占用，会在此处抛 PermissionError）
         doc.save(path)
 
