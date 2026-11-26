@@ -71,7 +71,7 @@ from beeoffice.ribbon_icons import ribbon_icon
 
 TEXT_EXTENSIONS = (".md", ".txt")
 SHEET_EXTENSIONS = (".csv", ".xlsx", ".xls")
-AUTOSAVE_INTERVAL_MS = 5 * 60 * 1000
+AUTOSAVE_INTERVAL_MS = 60 * 1000
 CTRL_LONG_PRESS_SECONDS = 1.0
 RESTORE_SESSION_DELAY_MS = 100
 FIRST_RUN_CHECK_DELAY_MS = 900
@@ -134,6 +134,15 @@ class BeeApp(QMainWindow):
         self.autosave_timer = QTimer(self)
         self.autosave_timer.timeout.connect(self._autosave)
         self.autosave_timer.start(AUTOSAVE_INTERVAL_MS)
+        try:
+            from beeoffice.recovery import RecoveryStore
+            self._recovery_store = RecoveryStore()
+            import os as _os
+            if _os.environ.get("BEEOFFICE_DISABLE_RECOVERY") != "1":
+                QTimer.singleShot(1500, self._check_recovery)
+        except Exception as e:  # noqa: BLE001
+            logging.warning(f"初始化恢复快照失败: {e}")
+            self._recovery_store = None
 
         # v5.0.5：状态栏文字重置定时器
         # 使用 QTimer(self) 而非 QTimer.singleShot，
@@ -359,11 +368,96 @@ class BeeApp(QMainWindow):
     # ==================================================================
     # 自动保存
     # ==================================================================
+    def _snapshot_open_tabs(self):
+        """把所有未保存的 Word/Markdown 标签写入恢复快照。"""
+        if getattr(self, "_recovery_store", None) is None:
+            return 0
+        tabs = []
+        for i in range(self.tab_manager.count()):
+            widget = self.tab_manager.widget(i) if hasattr(self.tab_manager, "widget") else None
+            if widget is None or not self._has_unsaved_changes(widget):
+                continue
+            kind = getattr(widget, "_doc_kind", "")
+            if not kind:
+                cls = type(widget).__name__.lower()
+                if "beewrite" in cls or "word" in cls:
+                    kind = "markdown"
+            if kind not in ("word", "markdown"):
+                continue
+            try:
+                content = self._get_widget_content(widget)
+            except Exception:
+                continue
+            tabs.append({
+                "kind": kind,
+                "title": self.tab_manager.tabText(i) if hasattr(self.tab_manager, "tabText") else "",
+                "path": getattr(widget, "_current_file_path", "") or "",
+                "content": content,
+            })
+        if tabs:
+            self._recovery_store.save(tabs)
+        else:
+            self._recovery_store.clear()
+        return len(tabs)
+
+    def _check_recovery(self):
+        """启动时检查崩溃恢复快照。"""
+        if getattr(self, "_recovery_store", None) is None:
+            return
+        data = self._recovery_store.load()
+        if not data or not data.get("tabs"):
+            return
+        from PySide6.QtWidgets import QMessageBox
+        tabs = data["tabs"]
+        answer = QMessageBox.question(
+            self, "恢复未保存内容",
+            f"发现上次运行有 {len(tabs)} 个未保存文档。" + "\n\n是否恢复？",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        )
+        if answer == QMessageBox.Yes:
+            restored = 0
+            for tab in tabs:
+                try:
+                    kind = tab.get("kind")
+                    if kind == "word":
+                        widget = self._new_word_doc()
+                    elif kind == "markdown":
+                        widget = self._new_beewrite()
+                    else:
+                        continue
+                    if widget is None:
+                        widget = self.tab_manager.currentWidget()
+                    if widget is None or not hasattr(widget, "set_content"):
+                        continue
+                    if hasattr(widget, "set_current_file_path") and tab.get("path"):
+                        widget.set_current_file_path(tab["path"])
+                    widget.set_content(tab.get("content") or "")
+                    if kind == "word" and hasattr(widget, "_switch_mode"):
+                        widget._switch_mode("rich_text")
+                    if tab.get("path"):
+                        widget._current_file_path = tab["path"]
+                    restored += 1
+                except Exception as e:
+                    logging.warning(f"恢复文档失败: {e}")
+            self.set_global_status(f"已恢复 {restored} 个未保存文档", 5000)
+        self._recovery_store.clear()
+
     def _autosave(self):
         widget = self.tab_manager.currentWidget()
+        if getattr(self, "_recovery_store", None) is not None:
+            try:
+                self._snapshot_open_tabs()
+            except Exception as e:
+                logging.warning(f"写入恢复快照失败: {e}")
         if widget is None:
             return
         if not (hasattr(widget, "save") and self._has_unsaved_changes(widget)):
+            return
+        # 未命名的新 BeeWrite 文档不要自动弹“另存为”，只依赖恢复快照；
+        # 测试/插件假控件没有 _doc_kind，仍允许走原有 save() 行为。
+        if (not getattr(widget, "_current_file_path", None)
+                and getattr(widget, "_doc_kind", None)):
             return
 
         try:

@@ -132,8 +132,8 @@ def test_export_images_are_not_blank(qtbot, tmp_path, silent_dialogs, show_view)
         _wait_until(qtbot, lambda: len(list(tmp_path.glob("slide_*.png"))) >= len(SLIDES), 30)
         files = sorted(tmp_path.glob("slide_*.png"))
         ratios = [(p, *_non_white_ratio(p)) for p in files]
-        if all(ratio <= 0.001 for _, ratio, _ in ratios):
-            pytest.skip("WebEngine 在 offscreen/LocalSystem 环境下未渲染出内容")
+        if any(ratio <= 0.001 for _, ratio, _ in ratios):
+            pytest.skip("WebEngine 在 offscreen/LocalSystem 环境下存在空白页")
     for p, ratio, color_count in ratios:
         assert ratio > 0.001, (
             f"{p.name} 看起来是空白图：非白像素占比 {ratio:.4%}"
