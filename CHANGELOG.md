@@ -43,6 +43,24 @@
 - 页眉/页脚当前只出现在文档首尾，尚未按页重复；
 - 拼写检查为基础常见错误词典，不是完整词典。
 
+## [5.8.52] - 未发布
+
+> 打包运行：崩溃日志跟随可写缓存目录。
+
+### 打包
+- CrashHandler 支持 BEEOFFICE_LOG_DIR / BEEOFFICE_CACHE_DIR；
+- 沙箱/受限环境中不再尝试写用户主目录 `.beeoffice_logs`；
+- 日志写入应用缓存目录。
+
+## [5.8.51] - 未发布
+
+> 修复打包应用无可用临时目录导致启动崩溃。
+
+### 打包
+- 新增 PyInstaller runtime hook：启动时确保可写临时/缓存目录；
+- 优先 LOCALAPPDATA，失败回退应用目录/工作目录；
+- 避免 matplotlib pyi_rth_mplconfig 因无临时目录直接崩溃。
+
 ## [5.8.50] - 未发布
 
 > Word 表格交互修复。

@@ -1,15 +1,26 @@
 import sys
 import traceback
 import platform
+import os
 from pathlib import Path
 from datetime import datetime
 from beeoffice.i18n import tr
 
 
+def _default_log_dir() -> Path:
+    explicit = os.environ.get("BEEOFFICE_LOG_DIR")
+    if explicit:
+        return Path(explicit)
+    cache = os.environ.get("BEEOFFICE_CACHE_DIR")
+    if cache:
+        return Path(cache) / "logs"
+    return Path.home() / ".beeoffice_logs"
+
+
 class CrashHandler:
     """全局崩溃处理器：捕获未处理异常，写入日志并提示用户"""
 
-    LOG_DIR = Path.home() / ".beeoffice_logs"
+    LOG_DIR = _default_log_dir()
     MAX_LOG_FILES = 20  # 最多保留的崩溃日志数量
 
     @classmethod

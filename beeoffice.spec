@@ -189,7 +189,7 @@ a = Analysis(
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=[str(PROJECT_ROOT / "packaging" / "rthook_beeoffice_dirs.py")],
     excludes=excludes,
     noarchive=False,
 )
