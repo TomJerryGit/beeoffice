@@ -1189,6 +1189,25 @@ class BeeApp(QMainWindow):
             tr("auto.app.ca83dd76", "<h2 style='color:#FFB300;'>🐝 蜜蜂办公 BeeOffice</h2><p><b>{0} {1}</b></p><p>{2}</p><br><p>{3}：{4}</p><p>{5}：{6}</p>").format(tr('about.version', '版本'), __version__, __slogan__, tr('about.author', '开发者'), __author__, tr('about.email', '联系邮箱'), __email__),
         )
 
+    def show_free_scope(self):
+        """免费版边界说明：免费、本地、无账号、不支持范围。"""
+        text = (
+            "<h3>🐝 蜜蜂办公 BeeOffice · 免费版</h3>"
+            "<p><b>免费、本地、无账号、无广告、无遥测。</b></p>"
+            "<p><b>适合：</b>本地打开/编辑/导出常见文档，简单表格、演示、PDF 处理。</p>"
+            "<p><b>不承诺：</b></p>"
+            "<ul>"
+            "<li>与 Microsoft Office / WPS 像素级一致；</li>"
+            "<li>完整 Word 修订/复杂排版；</li>"
+            "<li>Excel 透视表/宏/VBA；</li>"
+            "<li>PPT 完整母版/动画编辑；</li>"
+            "<li>OCR、法律级电子签名、云协作、移动端。</li>"
+            "</ul>"
+            "<p>当前为 <b>Unsigned Beta</b>，SmartScreen 可能提示；"
+            "请从 GitHub Releases 下载并核对 SHA256。</p>"
+        )
+        QMessageBox.information(self, "免费版说明 / 边界", text)
+
     # ==================================================================
     # 主题
     # ==================================================================

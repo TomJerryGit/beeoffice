@@ -412,6 +412,10 @@ def setup_menus(main_window):
     help_menu.addAction(update_action)
     help_menu.addSeparator()
 
+    scope_action = QAction("免费版说明", main_window)
+    scope_action.triggered.connect(main_window.show_free_scope)
+    help_menu.addAction(scope_action)
+
     # 关于
     about_action = QAction(tr("menu.help.about", "关于"), main_window)
     about_action.triggered.connect(main_window.show_about)
