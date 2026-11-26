@@ -658,6 +658,13 @@ class BeeApp(QMainWindow):
             # 3.5 恢复旁挂的批注 / 书签（P0：此前只写不读，重开即丢）
             if hasattr(widget, "load_annotations"):
                 widget.load_annotations(path)
+            try:
+                from beeoffice.plugins.beewrite_docx_comments import read_comments_from_docx
+                native_comments = read_comments_from_docx(path)
+                if native_comments and hasattr(widget, "_load_native_comments"):
+                    widget._load_native_comments(native_comments)
+            except Exception as e:
+                logging.warning(f"导入 DOCX 原生批注失败（已忽略）: {e}")
 
             # 4. 收尾
             if hasattr(widget, "_update_save_btn_text"):

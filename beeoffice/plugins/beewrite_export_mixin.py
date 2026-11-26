@@ -1112,6 +1112,16 @@ class ExportMixin:
         except Exception as e:
             logging.error(f"写入 Word 脚注/尾注失败: {e}")
 
+        # 修订：把基线 vs 当前差异写成 w:ins / w:del
+        try:
+            from beeoffice.plugins.beewrite_docx_revisions import add_revisions_to_document
+            rev = getattr(self, "_revision_manager", None)
+            if rev is not None and rev.has_baseline:
+                current = "\n".join(p.text for p in doc.paragraphs)
+                add_revisions_to_document(doc, rev.baseline, current)
+        except Exception as e:  # noqa: BLE001
+            logging.warning(f"写入 Word 修订失败: {e}")
+
         # 批注：写入原生 comments.xml
         try:
             from beeoffice.plugins.beewrite_docx_comments import add_comments_to_document

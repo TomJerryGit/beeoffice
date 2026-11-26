@@ -156,6 +156,32 @@ class CommentMixin:
         """把最新批注列表刷新到面板"""
         self._comment_panel.refresh(self._comment_manager.get_all())
 
+    def _load_native_comments(self, comments):
+        """把 DOCX comments.xml 导入批注面板。"""
+        if not comments:
+            return 0
+        try:
+            self._comment_manager.clear()
+            plain = self.rich_editor.toPlainText()
+            for c in comments:
+                excerpt = (c.get("excerpt") or "").strip()
+                start = plain.find(excerpt) if excerpt else 0
+                if start < 0:
+                    start = 0
+                    end = 0
+                else:
+                    end = start + len(excerpt)
+                self._comment_manager.add(
+                    c.get("text", ""), start, end, excerpt,
+                    author=c.get("author") or "Word",
+                )
+            self._refresh_comment_panel()
+            self._comment_panel.setVisible(True)
+            return len(comments)
+        except Exception as e:
+            logging.warning(f"导入 DOCX 原生批注失败: {e}")
+            return 0
+
     # ==================================================================
     # 批注 / 书签：旁挂文件读写
     # ==================================================================

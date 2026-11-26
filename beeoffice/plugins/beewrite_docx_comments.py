@@ -34,6 +34,43 @@ def _find_run_range(paragraph, excerpt):
     return (first, last) if first is not None else None
 
 
+def read_comments_from_docx(path):
+    """读取 DOCX 原生批注（comments.xml + 正文锚点）。"""
+    import zipfile
+    from lxml import etree
+    W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    try:
+        with zipfile.ZipFile(str(path)) as z:
+            if "word/comments.xml" not in z.namelist():
+                return []
+            croot = etree.fromstring(z.read("word/comments.xml"))
+            body = etree.fromstring(z.read("word/document.xml"))
+    except Exception:
+        return []
+    meta = {}
+    for c in croot.findall(W + "comment"):
+        cid = c.get(W + "id")
+        text = "".join(c.itertext()).strip()
+        meta[cid] = {"id": cid, "text": text, "author": c.get(W + "author", "")}
+    excerpts = {}
+    active = {}
+    for el in body.iter():
+        tag = el.tag
+        if tag == W + "commentRangeStart":
+            cid = el.get(W + "id")
+            active[cid] = []
+        elif tag == W + "t":
+            for bucket in active.values():
+                bucket.append(el.text or "")
+        elif tag == W + "commentRangeEnd":
+            cid = el.get(W + "id")
+            excerpts[cid] = "".join(active.pop(cid, [])).strip()
+    result = []
+    for cid, item in meta.items():
+        result.append({**item, "excerpt": excerpts.get(cid, "")})
+    return result
+
+
 def add_comments_to_document(doc, comments):
     """在文档中插入批注锚点与 comments.xml；返回写入数量。"""
     comments = [c for c in (comments or []) if isinstance(c, dict) and c.get("text")]
