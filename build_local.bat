@@ -32,6 +32,7 @@ if not defined VER (
 )
 echo [INFO] Version: %VER%
 
+if exist "dist\BeeOffice\.beeoffice_cache" rmdir /s /q "dist\BeeOffice\.beeoffice_cache"
 "%PY%" build.py
 if errorlevel 1 (
     echo [ERROR] build failed.
