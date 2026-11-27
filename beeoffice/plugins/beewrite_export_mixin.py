@@ -366,8 +366,20 @@ class ExportMixin:
             import traceback
             traceback.print_exc()
             logging.error(f"保存 DOCX 失败: {e}")
+            # 保存失败时保留恢复快照，避免内容丢失
+            try:
+                from beeoffice.recovery import RecoveryStore
+                RecoveryStore().save([{
+                    "kind": "word", "path": str(path),
+                    "title": Path(path).name,
+                    "content": self.get_rendered_content(),
+                }])
+            except Exception as snap_err:  # noqa: BLE001
+                logging.warning(f"保存失败后写恢复快照失败: {snap_err}")
             QMessageBox.warning(
-                self, tr("auto.beewrite_export_mixin.40525a73", "保存失败"), tr("auto.beewrite_export_mixin.e4d65860", "无法保存 Word 文档：\n{e}").format(e=e)
+                self, tr("auto.beewrite_export_mixin.40525a73", "保存失败"),
+                tr("auto.beewrite_export_mixin.e4d65860", "无法保存 Word 文档：\n{e}\n\n"
+                   "内容已写入恢复快照，重启 BeeOffice 可尝试恢复。").format(e=e)
             )
             return False
 
@@ -1127,7 +1139,10 @@ class ExportMixin:
             from beeoffice.plugins.beewrite_docx_comments import add_comments_to_document
             comments = getattr(self, "_comment_manager", None)
             if comments is not None:
-                add_comments_to_document(doc, comments.get_all())
+                source_text = None
+                if hasattr(self, "rich_editor"):
+                    source_text = self.rich_editor.toPlainText()
+                add_comments_to_document(doc, comments.get_all(), source_text)
         except Exception as e:  # noqa: BLE001
             logging.warning(f"写入 Word 批注失败: {e}")
 

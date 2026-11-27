@@ -687,8 +687,35 @@ class BeeApp(QMainWindow):
             section_breaks = [s.get("paragraph_index") for s in docx_sections if s.get("paragraph_index") is not None]
         except Exception as e:
             logging.error(f"导入 bee_export 失败: {e}")
+            # 损坏/不兼容 DOCX：尝试提取可读文本，避免完全打不开
+            try:
+                from beeoffice.docx_recovery import recover_plain_text
+                recovered = recover_plain_text(path)
+            except Exception:
+                recovered = ""
+            if recovered.strip():
+                widget = self._new_word_doc()
+                if widget is None:
+                    widget = self.tab_manager.currentWidget()
+                if widget is not None and hasattr(widget, "set_content"):
+                    widget.set_content(recovered)
+                    if hasattr(widget, "_switch_mode"):
+                        try:
+                            widget._switch_mode("rich_text")
+                        except Exception:
+                            pass
+                    widget._doc_kind = "word"
+                    widget._current_file_path = path
+                    if hasattr(widget, "set_current_file_path"):
+                        widget.set_current_file_path(path)
+                    self.set_global_status(
+                        "DOCX 结构异常，已恢复可读文本；请另存为新文件", 6000
+                    )
+                    return
             QMessageBox.warning(
-                self, tr("msg.open_failed", "打开失败"), str(e)
+                self, tr("msg.open_failed", "打开失败"),
+                f"{e}\n\n文件：{path}\n\n未能提取可读文本；"
+                "请尝试用 Word/WPS 修复，或从备份恢复。",
             )
             return
 

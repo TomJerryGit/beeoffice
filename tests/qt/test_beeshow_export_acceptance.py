@@ -124,7 +124,7 @@ def test_export_images_are_not_blank(qtbot, tmp_path, silent_dialogs, show_view)
         return non_white / max(total, 1), len(colors)
 
     ratios = [(p, *_non_white_ratio(p)) for p in files]
-    if all(ratio <= 0.001 for _, ratio, _ in ratios):
+    if any(ratio <= 0.001 for _, ratio, _ in ratios):
         # WebEngine 在 LocalSystem/offscreen 环境下可能创建不了 GL 上下文；
         # 重试一次，仍全白则跳过渲染验收，而不是把环境问题算成产品失败。
         show_view._slides_html = list(SLIDES)

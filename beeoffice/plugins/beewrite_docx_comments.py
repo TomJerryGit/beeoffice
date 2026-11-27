@@ -71,7 +71,44 @@ def read_comments_from_docx(path):
     return result
 
 
-def add_comments_to_document(doc, comments):
+def _find_run_range_at(paragraph, start, end):
+    """按段内字符偏移定位 run 范围。"""
+    pos = 0
+    first = last = None
+    for i, run in enumerate(paragraph.runs):
+        rstart, rend = pos, pos + len(run.text)
+        if rend > start and rstart < end:
+            first = i if first is None else first
+            last = i
+        pos = rend
+    return (first, last) if first is not None else None
+
+
+def _comment_span(doc, c, source_text, search_from):
+    """优先按 anchor 偏移定位，失败时按 excerpt 定位。"""
+    excerpt = str(c.get("excerpt") or "")
+    start = c.get("anchor_start")
+    end = c.get("anchor_end")
+    if isinstance(start, int) and isinstance(end, int) and source_text:
+        if 0 <= start < end <= len(source_text):
+            exact = source_text[start:end]
+            if exact and "\n" not in exact:
+                for p in doc.paragraphs:
+                    idx = p.text.find(exact)
+                    if idx >= 0:
+                        return p, idx, idx + len(exact)
+    best = None
+    for p in doc.paragraphs:
+        idx = p.text.find(excerpt, search_from if best is None else 0)
+        if idx >= 0:
+            cand = (p, idx, idx + len(excerpt))
+            if best is None:
+                best = cand
+                break
+    return best
+
+
+def add_comments_to_document(doc, comments, source_text=None):
     """在文档中插入批注锚点与 comments.xml；返回写入数量。"""
     comments = [c for c in (comments or []) if isinstance(c, dict) and c.get("text")]
     if not comments:
@@ -98,15 +135,13 @@ def add_comments_to_document(doc, comments):
         root.append(root_comment)
 
         excerpt = str(c.get("excerpt") or "")
-        para = None
-        span = None
-        for p2 in doc.paragraphs:
-            span = _find_run_range(p2, excerpt)
-            if span:
-                para = p2
-                break
-        if para is None:
+        found = _comment_span(doc, c, source_text, 0)
+        if found:
+            para, text_start, text_end = found
+            span = _find_run_range_at(para, text_start, text_end)
+        else:
             para = fallback_paragraph
+            span = None
         if para is None:
             continue
         runs = list(para.runs)
