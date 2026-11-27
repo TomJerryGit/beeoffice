@@ -1,0 +1,35 @@
+name: Feature request / 功能建议
+description: 建议新功能（会按免费轻量边界评估）
+title: "[Feature] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先确认建议不超出[免费版边界](https://github.com/TomJerryGit/beeoffice/blob/main/docs/轻量免费产品规划-2026-11-26.md)。
+        明确不计划：Excel 透视表/VBA、完整 Word 修订、完整 PPT 动画/母版、云协作、移动端、OCR、电子签名。
+  - type: textarea
+    id: need
+    attributes:
+      label: 使用场景
+      description: 你实际要完成什么任务，而不是“希望像 Office 一样”
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+  - type: input
+    id: frequency
+    attributes:
+      label: 使用频率
+      placeholder: 每天 / 每周 / 偶尔
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: 边界确认
+      options:
+        - label: 我理解 BeeOffice 是轻量免费工具，不追求完整 Office 功能
+          required: true
+        - label: 此建议不要求 Excel 透视表/VBA、完整修订、云协作或移动端
+          required: true

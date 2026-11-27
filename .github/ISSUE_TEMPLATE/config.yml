@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 免费版边界与维护流程
+    url: https://github.com/TomJerryGit/beeoffice/blob/main/docs/反馈与维护流程-2026-11-27.md
+    about: 先确认哪些问题会修、哪些不做
+  - name: 最新 Release
+    url: https://github.com/TomJerryGit/beeoffice/releases
+    about: 下载与校验 SHA256

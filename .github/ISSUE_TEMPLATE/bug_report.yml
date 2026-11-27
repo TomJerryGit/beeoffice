@@ -1,0 +1,58 @@
+name: Bug report / 问题反馈
+description: 报告可复现的 Bug（不含数据丢失）
+title: "[Bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请先阅读[免费版边界与维护流程](https://github.com/TomJerryGit/beeoffice/blob/main/docs/反馈与维护流程-2026-11-27.md)。
+        如果涉及**文档丢失/损坏/无法启动**，请改用 P0 模板。
+  - type: input
+    id: version
+    attributes:
+      label: BeeOffice 版本
+      placeholder: v5.8.57
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Windows 版本
+      placeholder: Windows 10 22H2 / Windows 11 23H2
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 请写出最小步骤
+      placeholder: |
+        1. 新建 Word
+        2. 插入表格
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果 / 实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: file
+    attributes:
+      label: 涉及文件
+      description: 可脱敏；不要上传含隐私的真实文档。可用最小示例文件。
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志/截图
+      description: 崩溃日志位置见“帮助 → 打开日志目录”。
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: 边界确认
+      options:
+        - label: 我理解这是免费 Beta，不承诺与 Office/WPS 完全兼容
+          required: true

@@ -1,0 +1,58 @@
+name: P0 数据安全 / 无法启动
+description: 文档丢失、文件损坏、保存失败、启动崩溃
+title: "[P0] "
+labels: ["p0", "data-safety", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **请先保护现场：**
+        - 不要继续覆盖原文件；
+        - 复制一份原文件和 `BeeOffice_logs`/恢复目录；
+        - 如果是文档损坏，请尽量保留原文件用于复现。
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 问题类型
+      options:
+        - 文档内容丢失
+        - 文件损坏/无法打开
+        - 保存失败
+        - 启动崩溃/无法启动
+        - 安装/升级失败
+        - 其他数据安全问题
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      placeholder: v5.8.57
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 包括打开的文件格式、是否保存过、是否崩溃、是否恢复过
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: 影响
+      description: 丢失了什么、是否可恢复、影响文件数量
+    validations:
+      required: true
+  - type: textarea
+    id: artifacts
+    attributes:
+      label: 可提供的材料
+      description: 脱敏日志、恢复快照、最小复现文件；不要上传隐私内容
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: 确认
+      options:
+        - label: 我已备份原文件和日志，且未继续覆盖
+          required: true
