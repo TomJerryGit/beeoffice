@@ -300,3 +300,31 @@ def test_check_for_updates_available(app, monkeypatch):
     monkeypatch.setattr(QDesktopServices, "openUrl", lambda url: opened.append(url.toString()))
     app.check_for_updates()
     assert opened == ["https://example.test/release"]
+
+
+def test_close_guard_cancel_keeps_app(app, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    from PySide6.QtGui import QCloseEvent
+    doc = FakeDoc(); doc._content = "changed"
+    app.tab_manager.addTab(doc, "fake")
+    app.tab_manager._tab_initial_content[id(doc)] = "old"
+    app._close_guard_enabled = True
+    monkeypatch.setattr(QMessageBox, "warning", staticmethod(lambda *a, **k: QMessageBox.Cancel))
+    assert app._confirm_close_save() is False
+    app._close_guard_enabled = False
+    assert doc.saved == 0
+
+
+def test_close_guard_discard_snapshots(app, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    from PySide6.QtGui import QCloseEvent
+    doc = FakeDoc(); doc._content = "changed"
+    app.tab_manager.addTab(doc, "fake")
+    app.tab_manager._tab_initial_content[id(doc)] = "old"
+    app._close_guard_enabled = True
+    monkeypatch.setattr(QMessageBox, "warning", staticmethod(lambda *a, **k: QMessageBox.Discard))
+    called = []
+    monkeypatch.setattr(app, "_snapshot_open_tabs", lambda: called.append(True))
+    assert app._confirm_close_save() is True
+    app._close_guard_enabled = False
+    assert called

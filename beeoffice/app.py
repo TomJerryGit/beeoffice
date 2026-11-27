@@ -138,6 +138,7 @@ class BeeApp(QMainWindow):
             from beeoffice.recovery import RecoveryStore
             self._recovery_store = RecoveryStore()
             import os as _os
+            self._close_guard_enabled = _os.environ.get("BEEOFFICE_DISABLE_RECOVERY") != "1"
             if _os.environ.get("BEEOFFICE_DISABLE_RECOVERY") != "1":
                 QTimer.singleShot(1500, self._check_recovery)
         except Exception as e:  # noqa: BLE001
@@ -705,9 +706,11 @@ class BeeApp(QMainWindow):
                         except Exception:
                             pass
                     widget._doc_kind = "word"
-                    widget._current_file_path = path
+                    # 不把恢复文档绑定到原损坏文件，避免用户保存时覆盖源文件
+                    widget._current_file_path = ""
+                    widget._recovered_from_corrupt = True
                     if hasattr(widget, "set_current_file_path"):
-                        widget.set_current_file_path(path)
+                        widget.set_current_file_path("")
                     self.set_global_status(
                         "DOCX 结构异常，已恢复可读文本；请另存为新文件", 6000
                     )
@@ -1872,7 +1875,50 @@ class BeeApp(QMainWindow):
     # ==================================================================
     # 关闭
     # ==================================================================
+    def _dirty_tabs(self):
+        dirty = []
+        for i in range(self.tab_manager.count()):
+            w = self.tab_manager.widget(i) if hasattr(self.tab_manager, "widget") else None
+            if w is not None and self._has_unsaved_changes(w):
+                dirty.append(w)
+        return dirty
+
+    def _confirm_close_save(self):
+        """关闭前保护未保存文档；返回 False 表示取消关闭。"""
+        import os as _os
+        if not getattr(self, "_close_guard_enabled", True):
+            return True
+        dirty = self._dirty_tabs()
+        if not dirty:
+            return True
+        answer = QMessageBox.warning(
+            self, "未保存的文档",
+            f"有 {len(dirty)} 个文档尚未保存。\n\n"
+            "是：保存\n否：放弃并退出（仍会保留恢复快照）\n取消：返回编辑",
+            QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
+            QMessageBox.Save,
+        )
+        if answer == QMessageBox.Cancel:
+            return False
+        if answer == QMessageBox.Save:
+            for w in dirty:
+                try:
+                    if hasattr(w, "save") and not w.save():
+                        return False
+                except Exception as e:  # noqa: BLE001
+                    logging.error(f"关闭前保存失败: {e}")
+                    return False
+        else:
+            try:
+                self._snapshot_open_tabs()
+            except Exception as e:  # noqa: BLE001
+                logging.warning(f"关闭前写恢复快照失败: {e}")
+        return True
+
     def closeEvent(self, event):
+        if not self._confirm_close_save():
+            event.ignore()
+            return
         try:
             self.autosave_timer.stop()
         except Exception:
